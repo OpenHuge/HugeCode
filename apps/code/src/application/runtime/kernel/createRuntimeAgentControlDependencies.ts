@@ -47,7 +47,7 @@ import {
   getRuntimeTerminalStatus,
   runRuntimeLiveSkill,
 } from "../ports/runtime";
-import { listRuntimeLiveSkills } from "../ports/runtimeLiveSkills";
+import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import { runtimeToolGuardrailRead, runtimeToolMetricsRead } from "../ports/runtimeDiagnostics";
 import { buildRuntimeDiscoveryControl } from "../facades/runtimeDiscoveryControl";
 import { startRuntimeRunWithRemoteSelection } from "../facades/runtimeRemoteExecutionFacade";

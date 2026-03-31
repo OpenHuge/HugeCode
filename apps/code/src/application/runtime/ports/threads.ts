@@ -16,7 +16,7 @@ export {
 } from "../../../services/desktopHostReview";
 export { getGitLog, listGitBranches } from "../../../services/runtimeGitBridge";
 export { sendUserMessage, steerTurn } from "../../../services/runtimeTurnBridge";
-export { prepareRuntimeRunV2 } from "./runtimeJobs";
+export { prepareRuntimeRunV2, submitRuntimeJobApprovalDecision } from "./runtimeJobs";
 export {
   archiveThread,
   interruptTurn,
@@ -32,4 +32,3 @@ export {
   resolveChatgptAuthTokensRefreshResponse,
 } from "./oauth";
 export { getRuntimeCapabilitiesSummary } from "./runtime";
-export { submitRuntimeJobApprovalDecision } from "./runtimeJobs";

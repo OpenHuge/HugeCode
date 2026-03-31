@@ -84,7 +84,7 @@ function buildRuntimeProjectionInput(
     runtimeAccounts,
     runtimePools,
     runtimeCapabilities: {
-      mode: "desktop-host",
+      mode: "desktop-compat",
       methods: ["code_health"],
       features: [],
       wsEndpointPath: "/ws",

@@ -152,7 +152,7 @@ export function readOAuthSubscriptionPersistenceCapabilityWithDeps(deps: {
 }): OAuthSubscriptionPersistenceCapability {
   const hostMode = deps.detectRuntimeMode();
   const runtimeBacked =
-    hostMode === "desktop-host" ||
+    hostMode === "desktop-compat" ||
     (hostMode === "runtime-gateway-web" &&
       deps.webRuntimePersistenceConfigured &&
       !deps.mockOauthFallbackActive &&

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  __resetDesktopHostOpenerForTests,
-  __setDesktopHostOpenerLoaderForTests,
+  __resetDesktopCompatibilityOpenerForTests,
+  __setDesktopCompatibilityOpenerLoaderForTests,
   openDesktopCompatibilityPath,
   openDesktopCompatibilityUrl,
   revealDesktopCompatibilityItemInDir,
@@ -9,12 +9,12 @@ import {
 
 describe("desktopHostOpener", () => {
   beforeEach(() => {
-    __resetDesktopHostOpenerForTests();
+    __resetDesktopCompatibilityOpenerForTests();
   });
 
-  it("opens urls through the desktop host opener when available", async () => {
+  it("opens urls through the desktop opener when available", async () => {
     const openExternalUrl = vi.fn(async () => undefined);
-    __setDesktopHostOpenerLoaderForTests(async () => ({
+    __setDesktopCompatibilityOpenerLoaderForTests(async () => ({
       openUrl: openExternalUrl,
       revealItemInDir: vi.fn(async () => undefined),
     }));
@@ -24,11 +24,11 @@ describe("desktopHostOpener", () => {
     expect(openExternalUrl).toHaveBeenCalledWith("https://example.com");
   });
 
-  it("reveals items through the desktop host opener when available", async () => {
+  it("reveals items through the desktop opener when available", async () => {
     const openExternalUrl = vi.fn(async () => undefined);
     const openPath = vi.fn(async () => undefined);
     const revealItem = vi.fn(async () => undefined);
-    __setDesktopHostOpenerLoaderForTests(async () => ({
+    __setDesktopCompatibilityOpenerLoaderForTests(async () => ({
       openPath,
       openUrl: openExternalUrl,
       revealItemInDir: revealItem,
@@ -40,16 +40,17 @@ describe("desktopHostOpener", () => {
     expect(openPath).toHaveBeenCalledWith("/tmp/hugecode/logs");
     expect(revealItem).toHaveBeenCalledWith("/tmp/workspace");
   });
-  it("returns false for open urls when the desktop host opener is unavailable", async () => {
-    __setDesktopHostOpenerLoaderForTests(async () => {
+
+  it("returns false for open urls when the desktop opener is unavailable", async () => {
+    __setDesktopCompatibilityOpenerLoaderForTests(async () => {
       throw new Error("unavailable");
     });
 
     await expect(openDesktopCompatibilityUrl("https://example.com")).resolves.toBe(false);
   });
 
-  it("returns false when reveal-in-directory has no available desktop host opener", async () => {
-    __setDesktopHostOpenerLoaderForTests(async () => {
+  it("returns false when reveal-in-directory has no available desktop opener", async () => {
+    __setDesktopCompatibilityOpenerLoaderForTests(async () => {
       throw new Error("unavailable");
     });
 

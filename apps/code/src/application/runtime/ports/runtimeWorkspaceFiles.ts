@@ -4,12 +4,6 @@ import {
   type WorkspaceFileSummary,
 } from "./runtimeClient";
 
-/**
- * Canonical workspace-file runtime port for kernel/workspace-client assembly.
- *
- * Keep file-entry reads on raw runtime ids here so callers do not reconstruct
- * file-lookup semantics in kernel or UI code.
- */
 export async function listRuntimeWorkspaceFileEntries(
   workspaceId: string
 ): Promise<WorkspaceFileSummary[]> {

@@ -43,6 +43,23 @@ approval grouping, or validation scope locally.
 The v2 contract is canonical for new runtime planning and review work.
 The legacy `runtimeRunStart/runtimeRunSubscribe/runtimeRunResume/...` methods
 remain in place as a compatibility path during migration.
+Thread/turn lifecycle surfaces (`code_threads_*`, `code_thread_live_*`,
+`code_turn_*`) remain available only as explicit compatibility boundaries for
+thread-specific conversational flows; they are not the canonical product
+lifecycle for launch, resume, intervene, or review follow-up.
+Raw `subscribeAppServerEvents(...)` usage is now expected to stay inside the
+shared thread event router and thread live compat subscription only. Non-thread
+product flows should consume `runtime/updated` scopes instead of growing the
+legacy app-server event surface.
+Legacy account login/update notifications are no longer a supported product
+event path; OAuth/account refresh should flow through `runtime/updated` with the
+`oauth` scope instead.
+
+Retirement readiness is metered through:
+
+- `runtime_legacy_lifecycle_usage` for remaining thread/turn RPC usage.
+- `runtime_legacy_event_translation` for runtime-host events still translated
+  onto legacy app-server slash methods.
 
 Current v2 execution and review reads may still reuse compat-backed runtime
 projections under the hood while the Rust runtime converges on a smaller native

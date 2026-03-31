@@ -8,7 +8,7 @@ import {
 import { detectRuntimeMode } from "./runtimeClientMode";
 import {
   resolveCapabilitiesSnapshotByMode,
-  resolveDesktopHostRuntimeRpcMethodCandidates,
+  resolveDesktopCompatRuntimeRpcMethodCandidates,
   resolveWebRuntimeRpcMethodCandidates,
 } from "./runtimeClientCapabilitiesProbe";
 import {
@@ -80,18 +80,18 @@ const webRuntimeClient = createExtendedRpcRuntimeClient<AppSettings>(
   createRuntimeRpcInvokerWithCandidates(invokeWebRuntimeRaw, resolveWebRuntimeRpcMethodCandidates)
 );
 
-const desktopHostClient = createExtendedRpcRuntimeClient<AppSettings>(
+const desktopCompatClient = createExtendedRpcRuntimeClient<AppSettings>(
   createRuntimeRpcInvokerWithCandidates(
     invokeDesktopHostRaw,
-    resolveDesktopHostRuntimeRpcMethodCandidates
+    resolveDesktopCompatRuntimeRpcMethodCandidates
   )
 );
 
 export function getRuntimeClient(): RuntimeClient {
   const mode = detectRuntimeMode();
 
-  if (mode === "desktop-host") {
-    return desktopHostClient;
+  if (mode === "desktop-compat") {
+    return desktopCompatClient;
   }
   if (mode === "runtime-gateway-web") {
     return webRuntimeClient;

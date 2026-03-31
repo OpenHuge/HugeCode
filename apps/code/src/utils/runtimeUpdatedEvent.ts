@@ -12,6 +12,14 @@ export type RuntimeUpdatedEvent = {
   isWorkspaceLocalEvent: boolean;
 };
 
+const LEGACY_RUNTIME_UPDATED_REASON_MAP = new Map<string, string>([
+  ["code_runtime_run_start", "code_runtime_run_start_v2"],
+  ["code_runtime_run_cancel", "code_runtime_run_cancel_v2"],
+  ["code_runtime_run_resume", "code_runtime_run_resume_v2"],
+  ["code_runtime_run_intervene", "code_runtime_run_intervene_v2"],
+  ["code_runtime_run_subscribe", "code_runtime_run_subscribe_v2"],
+]);
+
 function normalizeRuntimeUpdatedScope(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -125,6 +133,13 @@ export function parseRuntimeUpdatedEvent(event: AppServerEvent): RuntimeUpdatedE
   const eventWorkspaceId = toOptionalWorkspaceId(event.workspace_id) ?? "";
   const paramsWorkspaceId =
     toOptionalWorkspaceId(params.workspaceId) ?? toOptionalWorkspaceId(params.workspace_id);
+  const rawReason =
+    method === "runtime/updated"
+      ? (toOptionalWorkspaceId(params.reason) ?? "")
+      : (toOptionalWorkspaceId(params.changeKind) ??
+        toOptionalWorkspaceId(params.change_kind) ??
+        toOptionalWorkspaceId(params.reason) ??
+        "native_state_fabric_updated");
   return {
     event,
     params,
@@ -132,13 +147,7 @@ export function parseRuntimeUpdatedEvent(event: AppServerEvent): RuntimeUpdatedE
       method === "runtime/updated"
         ? normalizeRuntimeUpdatedScope(params.scope)
         : normalizeNativeStateFabricScope(params),
-    reason:
-      method === "runtime/updated"
-        ? (toOptionalWorkspaceId(params.reason) ?? "")
-        : (toOptionalWorkspaceId(params.changeKind) ??
-          toOptionalWorkspaceId(params.change_kind) ??
-          toOptionalWorkspaceId(params.reason) ??
-          "native_state_fabric_updated"),
+    reason: LEGACY_RUNTIME_UPDATED_REASON_MAP.get(rawReason) ?? rawReason,
     eventWorkspaceId,
     paramsWorkspaceId,
     isWorkspaceLocalEvent: isRuntimeLocalWorkspaceId(eventWorkspaceId),

@@ -545,7 +545,7 @@ beforeEach(() => {
     reviewPack: null,
   });
   vi.mocked(getRuntimeCapabilitiesSummary).mockResolvedValue({
-    mode: "desktop-host",
+    mode: "desktop-compat",
     methods: ["code_health"],
     features: [],
     wsEndpointPath: "/ws",

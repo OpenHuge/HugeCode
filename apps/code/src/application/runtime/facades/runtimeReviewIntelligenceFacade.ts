@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { LiveSkillSummary } from "@ku0/code-runtime-host-contract";
 import { RuntimeUnavailableError } from "../ports/runtimeClient";
-import { listRuntimeLiveSkills } from "../ports/runtimeLiveSkills";
+import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import {
   REPOSITORY_SKILLS_DIRECTORY,
   REPOSITORY_SKILL_MANIFEST_SUFFIX,

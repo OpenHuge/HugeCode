@@ -47,6 +47,7 @@ export {
   orbitSignOut,
   netbirdDaemonCommandPreview,
   netbirdStatus,
+  runBackendPoolOnboardingPreflight,
   tailscaleDaemonCommandPreview,
   tailscaleDaemonStart,
   tailscaleDaemonStatus,
@@ -62,4 +63,3 @@ export {
   runNativeScheduleNow,
   updateNativeSchedule,
 } from "./runtimeSchedules";
-export { runBackendPoolOnboardingPreflight } from "../../../services/desktopHostRuntimeOps";

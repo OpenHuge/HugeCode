@@ -46,7 +46,7 @@ vi.mock("@desktop-host/notifications", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-host"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -71,9 +71,9 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-host");
+    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-host",
+      mode: "desktop-compat",
       methods: [],
       features: [],
       wsEndpointPath: null,

@@ -1,12 +1,6 @@
 import { getRuntimeClient } from "./runtimeClient";
 import type { ThreadCreateRequest, ThreadSummary } from "../../../contracts/runtime";
 
-/**
- * Canonical thread-summary runtime port for kernel/workspace-client assembly.
- *
- * This keeps `RuntimeKernel` off direct RPC wiring while preserving the exact
- * runtime contract shapes expected by shared workspace bindings.
- */
 export async function listRuntimeThreads(workspaceId: string): Promise<ThreadSummary[]> {
   return getRuntimeClient().threads(workspaceId);
 }

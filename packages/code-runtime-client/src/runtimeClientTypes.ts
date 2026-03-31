@@ -174,7 +174,7 @@ import type {
   RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
 
-export type RuntimeClientMode = "desktop-host" | "runtime-gateway-web" | "unavailable";
+export type RuntimeClientMode = "desktop-compat" | "runtime-gateway-web" | "unavailable";
 
 export type RuntimeCapabilitiesSummary = {
   mode: RuntimeClientMode;
@@ -243,16 +243,42 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
       promptId: string;
       targetScope: PromptLibraryScope;
     }) => Promise<PromptLibraryEntry>;
+    /**
+     * @deprecated Compatibility-only thread lifecycle surface. Product launch,
+     * resume, intervene, and follow-up flows should prefer the runtime run v2
+     * lifecycle methods.
+     */
     threads: (workspaceId: string) => Promise<ThreadSummary[]>;
+    /**
+     * @deprecated Compatibility-only thread lifecycle surface.
+     */
     createThread: (payload: ThreadCreateRequest) => Promise<ThreadSummary>;
+    /**
+     * @deprecated Compatibility-only thread lifecycle surface.
+     */
     resumeThread: (workspaceId: string, threadId: string) => Promise<ThreadSummary | null>;
+    /**
+     * @deprecated Compatibility-only thread lifecycle surface.
+     */
     archiveThread: (workspaceId: string, threadId: string) => Promise<boolean>;
+    /**
+     * @deprecated Compatibility-only thread lifecycle surface.
+     */
     threadLiveSubscribe: (
       workspaceId: string,
       threadId: string
     ) => Promise<Record<string, unknown>>;
+    /**
+     * @deprecated Compatibility-only thread lifecycle surface.
+     */
     threadLiveUnsubscribe: (subscriptionId: string) => Promise<Record<string, unknown>>;
+    /**
+     * @deprecated Compatibility-only thread/turn execution surface.
+     */
     sendTurn: (payload: TurnSendRequest) => Promise<TurnAck>;
+    /**
+     * @deprecated Compatibility-only thread/turn execution surface.
+     */
     interruptTurn: (payload: TurnInterruptRequest) => Promise<boolean>;
     runtimeRunPrepareV2: (
       request: RuntimeRunPrepareV2Request

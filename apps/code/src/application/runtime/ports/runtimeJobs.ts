@@ -1,8 +1,3 @@
-/**
- * Runtime run bridge.
- *
- * Canonical product-facing run control stays on the runtime run v2 surface.
- */
 export type {
   RuntimeRunCancelRequest,
   RuntimeRunCancelV2Response,

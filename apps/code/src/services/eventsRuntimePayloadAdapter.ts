@@ -6,6 +6,7 @@ import type { AppServerEvent } from "../types";
 import { normalizeLifecycleStatus } from "../utils/lifecycleStatus";
 import { normalizeRuntimeExecutionMode } from "../utils/runtimeExecutionMode";
 import { DEFAULT_RUNTIME_WORKSPACE_ID } from "../utils/runtimeWorkspaceIds";
+import { recordLegacyEventTranslationUsage } from "./runtimeLegacyLifecycleTelemetry";
 
 const RUNTIME_TURN_CONTEXT_TTL_MS = 10 * 60 * 1000;
 const RUNTIME_TURN_CONTEXT_MAX_ENTRIES = 512;
@@ -324,6 +325,24 @@ type AdaptedRuntimeMethod = {
   method: string;
   params: UnknownRecord;
 };
+
+// Compatibility-only bridge for thread/composer consumers still listening to
+// legacy slash-method app-server events instead of native runtime host events.
+const THREAD_COMPOSER_COMPAT_EVENT_KINDS = new Set([
+  "turn.started",
+  "turn.completed",
+  "turn.failed",
+  "item.started",
+  "item.updated",
+  "item.completed",
+  "item.mcpToolCall.progress",
+]);
+
+const THREAD_LIVE_COMPAT_EVENT_KINDS = new Set([
+  "thread.live_update",
+  "thread.live_heartbeat",
+  "thread.live_detached",
+]);
 
 function adaptToolCallingRuntimeEvent(
   payload: UnknownRecord,
@@ -933,6 +952,18 @@ function adaptRuntimeHostEventToAppServerEvent(
 
   if (!method || !params) {
     return null;
+  }
+
+  if (
+    THREAD_COMPOSER_COMPAT_EVENT_KINDS.has(event.kind) ||
+    THREAD_LIVE_COMPAT_EVENT_KINDS.has(event.kind)
+  ) {
+    recordLegacyEventTranslationUsage({
+      eventKind: event.kind,
+      translatedMethod: method,
+      workspaceId,
+      threadId,
+    });
   }
 
   if (threadId) {

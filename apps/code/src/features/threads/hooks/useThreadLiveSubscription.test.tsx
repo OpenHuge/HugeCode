@@ -53,9 +53,10 @@ vi.mock("../../../application/runtime/ports/runtimeEventStateMachine", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/threads", () => ({
-  subscribeThreadLive: (workspaceId: string, threadId: string) =>
-    subscribeThreadLiveMock(workspaceId, threadId),
-  unsubscribeThreadLive: (subscriptionId: string) => unsubscribeThreadLiveMock(subscriptionId),
+  subscribeThreadLive: (workspaceId: string, threadId: string, options?: Record<string, unknown>) =>
+    subscribeThreadLiveMock(workspaceId, threadId, options),
+  unsubscribeThreadLive: (subscriptionId: string, options?: Record<string, unknown>) =>
+    unsubscribeThreadLiveMock(subscriptionId, options),
 }));
 
 const WORKSPACE: WorkspaceInfo = {
@@ -145,7 +146,9 @@ describe("useThreadLiveSubscription", () => {
     });
 
     expect(result.current).toBe("live");
-    expect(subscribeThreadLiveMock).toHaveBeenCalledWith("ws-1", "thread-1");
+    expect(subscribeThreadLiveMock).toHaveBeenCalledWith("ws-1", "thread-1", {
+      telemetrySource: "thread_live_subscription",
+    });
     expect(updateRuntimeEventChannelDiagnosticsMock).toHaveBeenCalledWith(
       "thread-live-subscription",
       expect.objectContaining({

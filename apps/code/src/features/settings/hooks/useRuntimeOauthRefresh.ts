@@ -1,7 +1,5 @@
 import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from "react";
-import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import { useScopedRuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
-import { getAppServerParams, getAppServerRawMethod } from "../../../utils/appServerEvents";
 import {
   clearActiveOauthPopupLoginId,
   OAUTH_POPUP_MESSAGE_TYPE,
@@ -65,23 +63,6 @@ export function useRuntimeOauthRefresh({
 
     void refreshOAuthState();
   }, [lastRuntimeUpdatedRevisionRef, refreshOAuthState, runtimeUpdatedEvent, setError]);
-
-  useEffect(() => {
-    const unlistenAccountLogin = subscribeAppServerEvents((event) => {
-      const method = getAppServerRawMethod(event);
-      if (!method) {
-        return;
-      }
-      const params = getAppServerParams(event);
-      if (method === "account/login/completed" && params.success === true) {
-        void refreshOAuthState();
-      }
-    });
-
-    return () => {
-      unlistenAccountLogin();
-    };
-  }, [refreshOAuthState]);
 }
 
 export function useOauthPopupRefresh({

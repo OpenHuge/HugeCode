@@ -108,7 +108,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     appSettings?.lastActiveWorkspaceId ?? null
   );
   const supportsLegacyAppSettingsMirrorRef = useRef(false);
-  supportsLegacyAppSettingsMirrorRef.current = runtimeMode === "desktop-host";
+  supportsLegacyAppSettingsMirrorRef.current = runtimeMode === "desktop-compat";
   const routeSelection = useWorkspaceRouteSelection();
   const showMissionHomeRoute = useDesktopMissionHomeRoute();
   const hasWorkspaceRouteSelection = routeSelection.kind === "workspace";

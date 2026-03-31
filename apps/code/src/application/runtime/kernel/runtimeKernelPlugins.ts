@@ -8,7 +8,7 @@ import type {
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionRecord,
 } from "@ku0/code-runtime-host-contract";
-import { listRuntimeLiveSkills } from "../ports/runtimeLiveSkills";
+import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import { runRuntimeLiveSkill } from "../ports/runtime";
 import {
   evaluateRuntimeExtensionPermissions,

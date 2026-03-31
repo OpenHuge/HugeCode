@@ -8,12 +8,6 @@ import {
   type GitOperationResult,
 } from "./runtimeClient";
 
-/**
- * Canonical git runtime port for kernel/workspace-client assembly.
- *
- * These helpers return raw runtime contract shapes instead of legacy UI
- * envelopes so the kernel can assemble shared bindings without inline RPC.
- */
 export async function listRuntimeGitChanges(workspaceId: string): Promise<GitChangesSnapshot> {
   return getRuntimeClient().gitChanges(workspaceId);
 }

@@ -3,6 +3,7 @@ import type { AppServerEvent } from "../types";
 import { isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import type { UnlistenFn } from "../application/runtime/ports/desktopHostEvent";
 import { listen } from "../application/runtime/ports/desktopHostEvent";
+import { recordSentryMetric } from "../features/shared/sentry";
 import {
   __resetEventSubscriptionsForTests,
   __resetRuntimeTurnContextForTests,
@@ -35,6 +36,10 @@ const ORIGINAL_WEB_SOCKET = globalThis.WebSocket;
 
 vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
+}));
+
+vi.mock("../features/shared/sentry", () => ({
+  recordSentryMetric: vi.fn(),
 }));
 
 vi.mock("../application/runtime/ports/desktopHostCore", () => ({
@@ -144,6 +149,47 @@ describe("events subscriptions", () => {
     ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
       invoke: vi.fn(),
     };
+  });
+
+  it("records telemetry when runtime host events are translated onto legacy app-server methods", async () => {
+    vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
+    let listener: EventCallback<unknown> = () => undefined;
+
+    vi.mocked(listen).mockImplementation((eventName, handler) => {
+      if (eventName === "fastcode://runtime/event") {
+        listener = handler as EventCallback<unknown>;
+      }
+      return Promise.resolve(vi.fn());
+    });
+
+    const cleanup = subscribeAppServerEvents(() => undefined);
+    await Promise.resolve();
+
+    listener({
+      payload: {
+        kind: "turn.started",
+        payload: {
+          workspaceId: "ws-1",
+          threadId: "thread-1",
+          turnId: "turn-1",
+        },
+      },
+    });
+
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_legacy_event_translation",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          event_kind: "turn.started",
+          translated_method: "turn/started",
+          workspace_id: "ws-1",
+          thread_id: "thread-1",
+        }),
+      })
+    );
+
+    cleanup();
   });
 
   it("delivers payloads and unsubscribes on cleanup", async () => {

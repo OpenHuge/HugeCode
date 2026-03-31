@@ -45,7 +45,7 @@ vi.mock("../ports/runtimeKernelCapabilities", () => ({
   listRuntimeKernelCapabilities: listRuntimeKernelCapabilitiesMock,
 }));
 
-vi.mock("../ports/runtimeLiveSkills", () => ({
+vi.mock("../ports/runtimeSkills", () => ({
   listRuntimeLiveSkills: listRuntimeLiveSkillsMock,
 }));
 

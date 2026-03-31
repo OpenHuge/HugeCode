@@ -1,13 +1,13 @@
 import { detectBrowserRuntimeMode } from "@ku0/shared/runtimeGatewayBrowser";
 import type { RuntimeClientMode } from "@ku0/code-runtime-client/runtimeClientTypes";
-import { isDesktopHostRuntime as hasDesktopHostBridge } from "../application/runtime/ports/desktopHostCore";
+import { isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import { getConfiguredWebRuntimeGatewayProfile } from "./runtimeWebGatewayConfig";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function hasDesktopCompatRuntimeMode(mode: RuntimeClientMode): boolean {
+function hasDesktopCompatRuntimeMode(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
@@ -16,10 +16,10 @@ function hasDesktopCompatRuntimeMode(mode: RuntimeClientMode): boolean {
     __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
   };
 
-  return compatWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ === mode;
+  return compatWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ === "desktop-compat";
 }
 
-function hasLegacyDesktopInvokeBridge(): boolean {
+function hasLegacyDesktopCompatBridge(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
@@ -45,12 +45,12 @@ function hasLegacyDesktopInvokeBridge(): boolean {
 }
 
 export function detectRuntimeMode(): RuntimeClientMode {
-  if (hasDesktopCompatRuntimeMode("desktop-host")) {
-    return "desktop-host";
+  if (hasDesktopCompatRuntimeMode()) {
+    return "desktop-compat";
   }
 
-  if (hasLegacyDesktopInvokeBridge() || hasDesktopHostBridge()) {
-    return "desktop-host";
+  if (hasLegacyDesktopCompatBridge() || isDesktopHostRuntime()) {
+    return "desktop-compat";
   }
 
   return detectBrowserRuntimeMode(getConfiguredWebRuntimeGatewayProfile());

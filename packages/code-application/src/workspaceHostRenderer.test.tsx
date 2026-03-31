@@ -25,7 +25,6 @@ describe("workspaceHostRenderer", () => {
     root = null;
     container = null;
     delete document.documentElement.dataset.desktopRuntime;
-    delete document.documentElement.dataset.runtime;
     delete document.documentElement.dataset.electronRuntime;
   });
 
@@ -33,7 +32,6 @@ describe("workspaceHostRenderer", () => {
     applyBrowserRuntimeFlags();
 
     expect(document.documentElement.dataset.desktopRuntime).toBe("browser");
-    expect(document.documentElement.dataset.runtime).toBe("false");
     expect(document.documentElement.dataset.electronRuntime).toBe("false");
   });
 
@@ -79,7 +77,6 @@ describe("workspaceHostRenderer", () => {
 
     expect(container.textContent).toContain("Workspace body");
     expect(document.documentElement.dataset.desktopRuntime).toBe("browser");
-    expect(document.documentElement.dataset.runtime).toBe("false");
     expect(document.documentElement.dataset.electronRuntime).toBe("false");
   });
 });
