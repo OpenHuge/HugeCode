@@ -326,6 +326,30 @@ async fn kernel_projection_delta_emits_resync_required_ops() {
 }
 
 #[tokio::test]
+async fn kernel_projection_bootstrap_rejects_unknown_or_legacy_fields() {
+    let ctx = kernel_projection_test_context();
+
+    let error = handle_kernel_projection_bootstrap_v3(
+        &ctx,
+        &json!({
+            "scopes": ["jobs"],
+            "last_revision": 7,
+        }),
+    )
+    .await
+    .expect_err("legacy bootstrap fields should be rejected");
+
+    assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+    assert!(
+        error.message.contains("legacy alias fields")
+            || error.message.contains("unsupported fields")
+            || error.message.contains("Unknown kernel projection bootstrap"),
+        "unexpected message: {}",
+        error.message
+    );
+}
+
+#[tokio::test]
 async fn kernel_jobs_compat_handler_populates_projection_slice_cache() {
     let ctx = kernel_projection_test_context();
     let jobs = handle_kernel_jobs_list_v2(&ctx, &json!({}))

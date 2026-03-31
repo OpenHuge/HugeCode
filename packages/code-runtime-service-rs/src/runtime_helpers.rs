@@ -64,6 +64,7 @@ pub(super) fn parse_agent_task_interrupt_request(
 pub(super) fn parse_agent_task_intervention_request(
     params: &Value,
 ) -> Result<AgentTaskInterventionRequest, RpcError> {
+    crate::agent_policy::reject_legacy_alias_fields(params, "Runtime run intervention request")?;
     let mut parsed: AgentTaskInterventionRequest =
         serde_json::from_value(params.clone()).map_err(|error| {
             RpcError::invalid_params(format!("Invalid agent task intervention payload: {error}"))
@@ -814,6 +815,24 @@ mod tests {
         assert_eq!(
             parsed.action.as_str(),
             AgentTaskInterventionAction::SwitchProfileAndRetry.as_str()
+        );
+    }
+
+    #[test]
+    fn parse_agent_task_intervention_request_rejects_legacy_alias_fields() {
+        let error = parse_agent_task_intervention_request(&json!({
+            "task_id": "task-123",
+            "action": "switch_profile_and_retry",
+            "instruction_patch": "retry with validation",
+            "preferred_backend_ids": ["backend-a"]
+        }))
+        .expect_err("legacy alias fields should be rejected");
+
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(
+            error.message.contains("legacy alias fields"),
+            "unexpected message: {}",
+            error.message
         );
     }
 

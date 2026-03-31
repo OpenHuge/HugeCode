@@ -820,11 +820,6 @@ fn build_native_schedule_run_prepare_payload(
                 .map(|entry| vec![entry])
             });
     let access_mode = read_schedule_text(schedule, &["accessMode", "access_mode"]);
-    let autonomy_request = schedule
-        .get("autonomyRequest")
-        .or_else(|| schedule.get("autonomy_request"))
-        .cloned();
-
     Ok(json!({
         "workspaceId": workspace_id,
         "requestId": format!("schedule-run:{schedule_id}:{now}", now = now_ms()),
@@ -835,7 +830,6 @@ fn build_native_schedule_run_prepare_payload(
         "validationPresetId": validation_preset_id,
         "accessMode": access_mode,
         "preferredBackendIds": preferred_backend_ids,
-        "autonomyRequest": autonomy_request,
         "steps": [
             {
                 "kind": "read",
@@ -940,27 +934,6 @@ mod tests {
             "validationPresetId": "review-first",
             "preferredBackendIds": ["backend-a", "backend-b"],
             "accessMode": "read-only",
-            "autonomyRequest": {
-                "autonomyProfile": "night_operator",
-                "sourceScope": "workspace_graph",
-                "queueBudget": {
-                    "maxQueuedActions": 2,
-                    "maxAutoContinuations": 2
-                },
-                "wakePolicy": {
-                    "mode": "auto_queue",
-                    "safeFollowUp": true,
-                    "allowAutomaticContinuation": true,
-                    "allowedActions": ["continue", "approve"],
-                    "stopGates": ["validation_failure_requires_review"]
-                },
-                "researchPolicy": {
-                    "mode": "repository_only",
-                    "allowNetworkAnalysis": false,
-                    "requireCitations": true,
-                    "allowPrivateContextStage": false
-                }
-            }
         });
 
         let payload = build_native_schedule_run_prepare_payload(
@@ -992,13 +965,7 @@ mod tests {
                 .and_then(|task_source| task_source.get("kind")),
             Some(&json!("schedule"))
         );
-        assert_eq!(
-            payload
-                .get("autonomyRequest")
-                .and_then(Value::as_object)
-                .and_then(|request| request.get("sourceScope")),
-            Some(&json!("workspace_graph"))
-        );
+        assert!(payload.get("autonomyRequest").is_none());
     }
 
     #[test]
