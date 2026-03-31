@@ -204,6 +204,10 @@ function writeSessionThreadStorageState(state: PersistedThreadStorageState): voi
   );
 }
 
+function clearSessionThreadStorageState(): void {
+  removeSafeSessionStorageItem(SESSION_THREAD_STORAGE_STATE_KEY);
+}
+
 function readSessionThreadStorageRecoveryHint(): ThreadStorageSessionRecoveryHint | null {
   const raw = readSafeSessionStorageItem(SESSION_THREAD_STORAGE_RECOVERY_HINT_KEY);
   if (!raw) {
@@ -567,7 +571,8 @@ async function persistThreadStorageState(state: PersistedThreadStorageState): Pr
   }
   persistedThreadStorageCache = clonePersistedThreadStorageState(state);
   persistedThreadStorageCacheReady = true;
-  writeSessionThreadStorageState(state);
+  clearSessionThreadStorageState();
+  clearSessionThreadStorageRecoveryHint();
   writeSessionActiveWorkspaceId(state.lastActiveWorkspaceId ?? null);
   writeSessionActiveThreadIds(state.lastActiveThreadIdByWorkspace ?? {});
   return true;
