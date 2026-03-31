@@ -12,13 +12,13 @@ export type RuntimeUpdatedEvent = {
   isWorkspaceLocalEvent: boolean;
 };
 
-const LEGACY_RUNTIME_UPDATED_REASON_MAP = Object.freeze({
-  code_runtime_run_start: "code_runtime_run_start_v2",
-  code_runtime_run_cancel: "code_runtime_run_cancel_v2",
-  code_runtime_run_resume: "code_runtime_run_resume_v2",
-  code_runtime_run_intervene: "code_runtime_run_intervene_v2",
-  code_runtime_run_subscribe: "code_runtime_run_subscribe_v2",
-} satisfies Record<string, string>);
+const LEGACY_RUNTIME_UPDATED_REASON_MAP = new Map<string, string>([
+  ["code_runtime_run_start", "code_runtime_run_start_v2"],
+  ["code_runtime_run_cancel", "code_runtime_run_cancel_v2"],
+  ["code_runtime_run_resume", "code_runtime_run_resume_v2"],
+  ["code_runtime_run_intervene", "code_runtime_run_intervene_v2"],
+  ["code_runtime_run_subscribe", "code_runtime_run_subscribe_v2"],
+]);
 
 function normalizeRuntimeUpdatedScope(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -147,7 +147,7 @@ export function parseRuntimeUpdatedEvent(event: AppServerEvent): RuntimeUpdatedE
       method === "runtime/updated"
         ? normalizeRuntimeUpdatedScope(params.scope)
         : normalizeNativeStateFabricScope(params),
-    reason: LEGACY_RUNTIME_UPDATED_REASON_MAP[rawReason] ?? rawReason,
+    reason: LEGACY_RUNTIME_UPDATED_REASON_MAP.get(rawReason) ?? rawReason,
     eventWorkspaceId,
     paramsWorkspaceId,
     isWorkspaceLocalEvent: isRuntimeLocalWorkspaceId(eventWorkspaceId),
