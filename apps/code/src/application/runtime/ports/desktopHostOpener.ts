@@ -70,3 +70,6 @@ export function __resetDesktopHostOpenerForTests() {
   compatibilityOpenerLoader = defaultDesktopCompatibilityOpenerLoader;
   cachedCompatibilityOpenerPromise = null;
 }
+
+export const __setDesktopCompatibilityOpenerLoaderForTests = __setDesktopHostOpenerLoaderForTests;
+export const __resetDesktopCompatibilityOpenerForTests = __resetDesktopHostOpenerForTests;

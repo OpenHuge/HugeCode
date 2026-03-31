@@ -117,14 +117,14 @@ describe("runtimeClient mode detection", () => {
     clearAgentRuntimeMarkers();
   });
 
-  it("routes to the desktop host client when the desktop host bridge is available", async () => {
+  it("routes to the desktop compatibility client when the desktop host bridge is available", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(true);
     invokeMock.mockResolvedValue([]);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
 
-    expect(runtime.detectRuntimeMode()).toBe("desktop-host");
+    expect(runtime.detectRuntimeMode()).toBe("desktop-compat");
     await client.workspaces();
     expect(invokeMock).toHaveBeenCalledWith("code_workspaces_list", {});
     await client.workspacePickDirectory();
@@ -849,7 +849,7 @@ describe("runtimeClient mode detection", () => {
     const runtime = await importRuntimeClientModule();
     const summary = await runtime.readRuntimeCapabilitiesSummary();
 
-    expect(summary.mode).toBe("desktop-host");
+    expect(summary.mode).toBe("desktop-compat");
     expect(summary.features).toContain("multi_backend_pool_v1");
     expect(summary.methods).toContain("code_runtime_backends_list");
     expect(summary.error).toBeNull();
@@ -2355,7 +2355,7 @@ describe("runtimeClient mode detection", () => {
     expect(runtime.detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("detects the desktop host when __HUGE_CODE_DESKTOP_HOST_INTERNALS__.invoke is available", async () => {
+  it("detects desktop compatibility when __HUGE_CODE_DESKTOP_HOST_INTERNALS__.invoke is available", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
     (
       window as Window & {
@@ -2367,7 +2367,7 @@ describe("runtimeClient mode detection", () => {
 
     const runtime = await importRuntimeClientModule();
 
-    expect(runtime.detectRuntimeMode()).toBe("desktop-host");
+    expect(runtime.detectRuntimeMode()).toBe("desktop-compat");
   });
 
   it("ignores legacy demo env when no supported runtime transport is configured", async () => {
