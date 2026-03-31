@@ -309,8 +309,6 @@ type AppServerEventHandlers = {
 export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "account/chatgptAuthTokens/refresh",
   "account/rateLimits/updated",
-  "account/updated",
-  "authStatusChange",
   "error",
   "item/agentMessage/delta",
   "item/commandExecution/outputDelta",
@@ -723,22 +721,6 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
             rate_limits_by_limit_id: rateLimitsByLimitId,
           });
         }
-        return;
-      }
-
-      if (method === "account/updated") {
-        const authModeRaw = params.authMode ?? params.auth_mode ?? null;
-        const authMode =
-          typeof authModeRaw === "string" && authModeRaw.trim().length > 0 ? authModeRaw : null;
-        currentHandlers.onAccountUpdated?.(workspace_id, authMode);
-        return;
-      }
-
-      if (method === "authStatusChange") {
-        const authModeRaw = params.authMethod ?? params.auth_method ?? null;
-        const authMode =
-          typeof authModeRaw === "string" && authModeRaw.trim().length > 0 ? authModeRaw : null;
-        currentHandlers.onAccountUpdated?.(workspace_id, authMode);
         return;
       }
 

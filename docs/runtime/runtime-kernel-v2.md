@@ -51,6 +51,9 @@ Raw `subscribeAppServerEvents(...)` usage is now expected to stay inside the
 shared thread event router and thread live compat subscription only. Non-thread
 product flows should consume `runtime/updated` scopes instead of growing the
 legacy app-server event surface.
+Legacy account login/update notifications are no longer a supported product
+event path; OAuth/account refresh should flow through `runtime/updated` with the
+`oauth` scope instead.
 
 Retirement readiness is metered through:
 

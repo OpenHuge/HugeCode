@@ -43,29 +43,6 @@ async function mount(handlers: Handlers) {
 }
 
 describe("useAppServerEvents legacy notification method compatibility", () => {
-  it("maps authStatusChange to account updated handler", async () => {
-    const handlers: Handlers = {
-      onAccountUpdated: vi.fn(),
-    };
-    const { root } = await mount(handlers);
-
-    act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "authStatusChange",
-          params: { authMethod: "apikey" },
-        },
-      });
-    });
-
-    expect(handlers.onAccountUpdated).toHaveBeenCalledWith("ws-1", "apikey");
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
   it("routes sessionConfigured payloads to handler", async () => {
     const handlers: Handlers = {
       onSessionConfigured: vi.fn(),

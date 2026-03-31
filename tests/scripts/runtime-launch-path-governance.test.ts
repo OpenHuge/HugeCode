@@ -226,6 +226,8 @@ describe("runtime launch path governance", () => {
 
     expect(source).not.toMatch(/account\/login\/completed/);
     expect(source).not.toMatch(/loginChatGptComplete/);
+    expect(source).not.toMatch(/account\/updated/);
+    expect(source).not.toMatch(/authStatusChange/);
   });
 
   it("keeps autodrive thread launch on the compat facade instead of direct turn rpc ports", () => {

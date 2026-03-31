@@ -300,17 +300,6 @@ describe("useAppServerEvents", () => {
     });
 
     act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "account/updated",
-          params: { authMode: "chatgpt" },
-        },
-      });
-    });
-    expect(handlers.onAccountUpdated).toHaveBeenCalledWith("ws-1", "chatgpt");
-
-    act(() => {
       runtimeUpdatedListener?.({
         event: {
           workspace_id: "ws-1",
