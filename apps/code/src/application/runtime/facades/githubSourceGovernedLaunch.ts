@@ -2,6 +2,7 @@ import type {
   AgentTaskSourceSummary,
   RuntimeAutonomyRequestV2,
   RuntimeRunPrepareV2Request,
+  RuntimeRunStartRequest,
 } from "@ku0/code-runtime-host-contract";
 import type {
   GitHubIssue,
@@ -20,6 +21,8 @@ import {
   type GovernedRuntimeRunLaunchAck,
 } from "./runtimeGovernedRunIngestion";
 import { type RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
+import { buildRuntimeRunStartRequestFromPreparation } from "./runtimeRunStartRequest";
+import { applyGitHubLaunchHandshakeToTaskSource } from "./runtimeTaskSourceFacade";
 import type { RuntimeWorkspaceExecutionPolicyStatus } from "./runtimeWorkspaceExecutionPolicyFacade";
 
 type GitHubSourceWorkspaceContext = {
@@ -37,6 +40,7 @@ export type GovernedGitHubRunLaunchAck = {
   preparation: GovernedRuntimeRunLaunchAck["preparation"];
   response: GovernedRuntimeRunLaunchAck["response"];
   request: RuntimeRunPrepareV2Request;
+  startRequest: RuntimeRunStartRequest;
   launch: GitHubSourceLaunchSummary;
 };
 
@@ -225,6 +229,22 @@ export async function launchGovernedGitHubRun(input: {
   const launchAck = await launchGovernedRuntimeRun({
     request: input.request,
     onRefresh: input.onRefresh,
+    buildStartRequest: ({ request, preparation }) => {
+      const startRequest = buildRuntimeRunStartRequestFromPreparation({
+        request,
+        preparation,
+      });
+      return {
+        ...startRequest,
+        taskSource:
+          applyGitHubLaunchHandshakeToTaskSource(startRequest.taskSource, {
+            state: "started",
+            disposition: "launched",
+            preparedPlanVersion: preparation.plan.planVersion,
+            approvedPlanVersion: preparation.plan.planVersion,
+          }) ?? startRequest.taskSource,
+      };
+    },
   });
   return {
     ...launchAck,

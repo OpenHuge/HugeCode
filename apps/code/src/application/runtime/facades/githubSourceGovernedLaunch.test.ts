@@ -564,7 +564,34 @@ describe("githubSourceGovernedLaunch", () => {
       workspaceId: "ws-1",
       accessMode: "read-only" as const,
       executionMode: "single" as const,
-      taskSource: { kind: "github_issue" as const },
+      missionBrief: {
+        objective: "Issue 42",
+        riskLevel: "low" as const,
+      },
+      taskSource: {
+        kind: "github_issue" as const,
+        label: "GitHub issue #42",
+        githubSource: {
+          sourceRecordId: "source-42",
+          repo: {
+            fullName: "openai/hugecode",
+          },
+          event: {
+            eventName: "issue_comment",
+            action: "created",
+          },
+          ref: {
+            label: "Issue #42",
+            issueNumber: 42,
+            triggerMode: "issue_comment_command" as const,
+          },
+          launchHandshake: {
+            state: "prepared" as const,
+            summary:
+              "Governed GitHub issue follow-up prepared from the linked issue comment command.",
+          },
+        },
+      },
       steps: [{ kind: "read" as const, input: "Inspect GitHub issue #42." }],
     };
 
@@ -579,13 +606,37 @@ describe("githubSourceGovernedLaunch", () => {
     });
 
     expect(prepareSpy).toHaveBeenCalledWith(request);
-    expect(startSpy).toHaveBeenCalledWith(request);
+    expect(startSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...request,
+        approvedPlanVersion: "plan-1",
+        missionBrief: expect.objectContaining({
+          planVersion: "plan-1",
+          planSummary: "plan",
+        }),
+        taskSource: expect.objectContaining({
+          githubSource: expect.objectContaining({
+            launchHandshake: expect.objectContaining({
+              state: "started",
+              disposition: "launched",
+              preparedPlanVersion: "plan-1",
+              approvedPlanVersion: "plan-1",
+              summary:
+                "Governed GitHub issue follow-up launched from the linked issue comment command through the canonical runtime prepare/start lane.",
+            }),
+          }),
+        }),
+      })
+    );
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(result).toEqual(
       expect.objectContaining({
         preparation,
         response,
         request,
+        startRequest: expect.objectContaining({
+          approvedPlanVersion: "plan-1",
+        }),
       })
     );
   });

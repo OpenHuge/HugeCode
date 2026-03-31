@@ -6,19 +6,22 @@ import type {
   RuntimeAutonomyRequestV2,
   RuntimeRunPrepareV2Request,
   RuntimeRunPrepareV2Response,
+  RuntimeRunStartRequest,
   RuntimeRunStartV2Response,
 } from "@ku0/code-runtime-host-contract";
-import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/runtimeJobs";
+import { prepareRuntimeRunV2 } from "../ports/runtimeJobs";
 import {
   buildAgentTaskLaunchControls,
   buildAgentTaskMissionBrief,
 } from "./runtimeMissionDraftFacade";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
+import { startPreparedRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import {
   type RepositoryExecutionContract,
   type RepositoryExecutionExplicitLaunchInput,
 } from "./runtimeRepositoryExecutionContract";
 import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
+import { buildRuntimeRunStartRequestFromPreparation } from "./runtimeRunStartRequest";
 
 export type GovernedRuntimeSourceSummary = {
   title: string;
@@ -44,6 +47,7 @@ export type GovernedRuntimeRunLaunchAck = {
   preparation: RuntimeRunPrepareV2Response;
   response: RuntimeRunStartV2Response;
   request: RuntimeRunPrepareV2Request;
+  startRequest: RuntimeRunStartRequest;
 };
 
 function readOptionalText(value: unknown): string | null {
@@ -158,13 +162,29 @@ export function buildGovernedRuntimeRunRequest(
 export async function launchGovernedRuntimeRun(input: {
   request: RuntimeRunPrepareV2Request;
   onRefresh?: (() => void | Promise<void>) | null;
+  buildStartRequest?:
+    | ((input: {
+        request: RuntimeRunPrepareV2Request;
+        preparation: RuntimeRunPrepareV2Response;
+      }) => RuntimeRunStartRequest)
+    | null;
 }): Promise<GovernedRuntimeRunLaunchAck> {
   const preparation = await prepareRuntimeRunV2(input.request);
-  const response = await startRuntimeRunV2(input.request);
+  const startRequest =
+    input.buildStartRequest?.({
+      request: input.request,
+      preparation,
+    }) ??
+    buildRuntimeRunStartRequestFromPreparation({
+      request: input.request,
+      preparation,
+    });
+  const response = await startPreparedRuntimeRunWithRemoteSelection(startRequest);
   await input.onRefresh?.();
   return {
     preparation,
     response,
     request: input.request,
+    startRequest,
   };
 }
