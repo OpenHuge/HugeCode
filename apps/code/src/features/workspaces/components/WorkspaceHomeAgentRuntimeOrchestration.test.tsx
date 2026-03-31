@@ -20,6 +20,7 @@ import {
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
 import { buildRuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
+import { resetRuntimeParallelDispatchManagerForTests } from "../../../application/runtime/facades/runtimeParallelDispatchManager";
 import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import { createRuntimeAgentControlDependencies } from "../../../application/runtime/kernel/createRuntimeAgentControlDependencies";
@@ -604,6 +605,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.clearAllMocks();
   runtimeUpdatedListeners.clear();
+  resetRuntimeParallelDispatchManagerForTests();
 });
 
 function emitRuntimeUpdated(event: RuntimeUpdatedEvent) {
@@ -3117,7 +3119,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await act(async () => {
-      fireEvent.change(screen.getByLabelText("Batch config (preview only)"), {
+      fireEvent.change(screen.getByLabelText("Batch config (parallel dispatch)"), {
         target: {
           value: JSON.stringify(
             {
@@ -3148,7 +3150,9 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(screen.getByText("fetch")).toBeTruthy();
     expect(screen.getByText("analyze")).toBeTruthy();
     expect(screen.getByText("fetch -> analyze")).toBeTruthy();
-    expect(screen.getByText("retries: 2")).toBeTruthy();
+    expect(
+      screen.getByTestId("workspace-runtime-parallel-dispatch").textContent?.includes("retries: 2")
+    ).toBe(true);
   });
 
   it("shows invalid dependency and cycle hints in the batch preview", async () => {
@@ -3171,7 +3175,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
     await act(async () => {
-      fireEvent.change(screen.getByLabelText("Batch config (preview only)"), {
+      fireEvent.change(screen.getByLabelText("Batch config (parallel dispatch)"), {
         target: {
           value: JSON.stringify(
             {
@@ -3235,9 +3239,64 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     expect(
       screen.getByText(
-        "Outcome labels: success = completed task; failed = retries exhausted; skipped = blocked by dependencies or failure policy; retried = task rerun up to maxRetries."
+        "Outcome labels: success = completed task; failed = retries exhausted without a skip policy; skipped = dependency or failure policy prevented completion; retried = task rerun after a launch or runtime failure up to maxRetries."
       )
     ).toBeTruthy();
+  });
+
+  it("does not allow starting an enabled dispatch plan while validation hints remain", async () => {
+    mockRuntimeTasks([]);
+    submitTaskApprovalDecisionMock.mockResolvedValue({
+      recorded: true,
+      approvalId: "approval-1",
+      taskId: "runtime-running-1",
+      status: "running",
+      message: "ok",
+    });
+    vi.mocked(startAgentTask).mockResolvedValue({} as Awaited<ReturnType<typeof startAgentTask>>);
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {
+        target: { value: "Do not start invalid parallel plans." },
+      });
+
+      fireEvent.change(screen.getByLabelText("Batch config (parallel dispatch)"), {
+        target: {
+          value: JSON.stringify(
+            {
+              enabled: true,
+              maxParallel: 2,
+              tasks: [
+                {
+                  taskKey: "plan",
+                  dependsOn: ["missing"],
+                  maxRetries: 1,
+                  onFailure: "halt",
+                },
+              ],
+            },
+            null,
+            2
+          ),
+        },
+      });
+    });
+
+    const approveCurrentPlanButton = screen.queryByRole("button", {
+      name: "Approve current plan",
+    });
+    if (approveCurrentPlanButton) {
+      fireEvent.click(approveCurrentPlanButton);
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Start mission run" })).toHaveProperty(
+        "disabled",
+        true
+      );
+    });
+    expect(startRuntimeJobWithRemoteSelectionMock).not.toHaveBeenCalled();
   });
 
   it("keeps start mission run payload unchanged when batch preview config changes", async () => {
@@ -3257,7 +3316,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         target: { value: "Inspect src/runtime and summarize." },
       });
 
-      fireEvent.change(screen.getByLabelText("Batch config (preview only)"), {
+      fireEvent.change(screen.getByLabelText("Batch config (parallel dispatch)"), {
         target: {
           value: JSON.stringify(
             {
@@ -3285,7 +3344,10 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       );
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Approve current plan" }));
+    const approveButton = screen.queryByRole("button", { name: "Approve current plan" });
+    if (approveButton) {
+      fireEvent.click(approveButton);
+    }
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Start mission run" })).toHaveProperty(
@@ -3371,5 +3433,127 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         ],
       });
     });
+  });
+
+  it("fans out enabled dispatch chunks through preferred backend routing and renders live dispatch progress", async () => {
+    mockRuntimeTasks([]);
+    submitTaskApprovalDecisionMock.mockResolvedValue({
+      recorded: true,
+      approvalId: "approval-1",
+      taskId: "runtime-running-1",
+      status: "running",
+      message: "ok",
+    });
+    startRuntimeJobWithRemoteSelectionMock
+      .mockResolvedValueOnce(
+        buildRuntimeRunRecord({
+          taskId: "run-inspect",
+          status: "queued",
+          title: "Inspect runtime boundary",
+          backendId: "backend-inspect",
+          preferredBackendIds: ["backend-inspect"],
+        })
+      )
+      .mockResolvedValueOnce(
+        buildRuntimeRunRecord({
+          taskId: "run-ux",
+          status: "queued",
+          title: "Render parallel progress",
+          backendId: "backend-ui",
+          preferredBackendIds: ["backend-ui"],
+        })
+      );
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {
+        target: { value: "Split runtime orchestration work across specialized backends." },
+      });
+
+      fireEvent.change(screen.getByLabelText("Batch config (parallel dispatch)"), {
+        target: {
+          value: JSON.stringify(
+            {
+              enabled: true,
+              maxParallel: 2,
+              tasks: [
+                {
+                  taskKey: "inspect",
+                  title: "Inspect runtime boundary",
+                  instruction:
+                    "Inspect runtime composition routing and summarize the dispatcher boundary.",
+                  preferredBackendIds: ["backend-inspect"],
+                  dependsOn: [],
+                  maxRetries: 1,
+                  onFailure: "halt",
+                },
+                {
+                  taskKey: "ux",
+                  title: "Render parallel progress",
+                  instruction:
+                    "Render live multi-agent mission control progress without page-local orchestration.",
+                  preferredBackendIds: ["backend-ui"],
+                  dependsOn: [],
+                  maxRetries: 1,
+                  onFailure: "continue",
+                },
+              ],
+            },
+            null,
+            2
+          ),
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Runtime launch plan unavailable.")).toBeNull();
+    });
+
+    const approveCurrentPlanButton = screen.queryByRole("button", {
+      name: "Approve current plan",
+    });
+    if (approveCurrentPlanButton) {
+      fireEvent.click(approveCurrentPlanButton);
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Start mission run" })).toHaveProperty(
+        "disabled",
+        false
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Start mission run" }));
+
+    await waitFor(() => {
+      expect(startRuntimeJobWithRemoteSelectionMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(
+      startRuntimeJobWithRemoteSelectionMock.mock.calls.map((call) => ({
+        title: call[0].title,
+        executionMode: call[0].executionMode,
+        preferredBackendIds: call[0].preferredBackendIds,
+      }))
+    ).toEqual([
+      {
+        title: "Inspect runtime boundary",
+        executionMode: "distributed",
+        preferredBackendIds: ["backend-inspect"],
+      },
+      {
+        title: "Render parallel progress",
+        executionMode: "distributed",
+        preferredBackendIds: ["backend-ui"],
+      },
+    ]);
+
+    const parallelDispatchSurface = screen.getByTestId("workspace-runtime-parallel-dispatch");
+    expect(screen.getByText("Parallel dispatch")).toBeTruthy();
+    expect(screen.getAllByText("Inspect runtime boundary").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Render parallel progress").length).toBeGreaterThan(0);
+    expect(parallelDispatchSurface.textContent?.includes("backend-inspect")).toBe(true);
+    expect(parallelDispatchSurface.textContent?.includes("backend-ui")).toBe(true);
   });
 });
