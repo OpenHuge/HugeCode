@@ -15,7 +15,10 @@ import {
   buildAgentTaskMissionBrief,
 } from "./runtimeMissionDraftFacade";
 import { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
-import { startPreparedRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
+import {
+  buildRuntimeRunStartRequestWithRemoteSelection,
+  startPreparedRuntimeRunWithRemoteSelection,
+} from "./runtimeRemoteExecutionFacade";
 import {
   type RepositoryExecutionContract,
   type RepositoryExecutionExplicitLaunchInput,
@@ -169,14 +172,15 @@ export async function launchGovernedRuntimeRun(input: {
       }) => RuntimeRunStartRequest)
     | null;
 }): Promise<GovernedRuntimeRunLaunchAck> {
-  const preparation = await prepareRuntimeRunV2(input.request);
+  const preparedRequest = await buildRuntimeRunStartRequestWithRemoteSelection(input.request);
+  const preparation = await prepareRuntimeRunV2(preparedRequest);
   const startRequest =
     input.buildStartRequest?.({
-      request: input.request,
+      request: preparedRequest,
       preparation,
     }) ??
     buildRuntimeRunStartRequestFromPreparation({
-      request: input.request,
+      request: preparedRequest,
       preparation,
     });
   const response = await startPreparedRuntimeRunWithRemoteSelection(startRequest);
@@ -184,7 +188,7 @@ export async function launchGovernedRuntimeRun(input: {
   return {
     preparation,
     response,
-    request: input.request,
+    request: preparedRequest,
     startRequest,
   };
 }
