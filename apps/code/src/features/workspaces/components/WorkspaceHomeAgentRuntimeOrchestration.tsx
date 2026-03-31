@@ -1,7 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
+import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
-import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
+import type {
+  AgentIntentState,
+  RuntimeAgentTaskSummary,
+} from "../../../application/runtime/types/webMcpBridge";
 import { ToolCallChip } from "../../../design-system";
 import {
   MissionControlSessionLogSection,
@@ -15,6 +19,7 @@ import {
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
 import { WorkspaceHomeRuntimePolicyIndicator } from "./WorkspaceHomeRuntimePolicyIndicator";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
+import { DEFAULT_INTENT } from "./workspaceHomeAgentControlState";
 
 const WorkspaceHomeAgentRuntimePluginControlPlane = lazy(async () => {
   const module = await import("./WorkspaceHomeAgentRuntimePluginControlPlane");
@@ -25,10 +30,16 @@ const WorkspaceHomeAgentRuntimePluginControlPlane = lazy(async () => {
 
 type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
+  intent?: AgentIntentState;
+  legacyCachedIntent?: AgentIntentState | null;
+  legacyCacheCorrupted?: boolean;
 };
 
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
+  intent = DEFAULT_INTENT,
+  legacyCachedIntent = null,
+  legacyCacheCorrupted = false,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
@@ -167,6 +178,21 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         : "warning";
   const activeRuntimeCount = missionControlProjection.runList.activeRuntimeCount;
   const visibleRuntimeRuns = missionControlProjection.runList.visibleRuntimeRuns;
+  const persistentFlowRuns = useMemo(
+    () =>
+      visibleRuntimeRuns.map((entry) => {
+        const run = entry.run ?? entry.task.runSummary ?? null;
+        return {
+          id: run?.id ?? entry.task.taskId,
+          title: run?.title ?? entry.task.title ?? null,
+          updatedAt: run?.updatedAt ?? entry.task.updatedAt,
+          changedPaths: run?.changedPaths ?? null,
+          validations: run?.validations ?? null,
+          reviewPackId: run?.reviewPackId ?? entry.task.reviewPackId ?? null,
+        };
+      }),
+    [visibleRuntimeRuns]
+  );
   const checkpointFailureSummary =
     runtimeDurabilityWarning &&
     runtimeDurabilityWarning.checkpointWriteFailedTotal !== null &&
@@ -209,6 +235,14 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
       });
     }
   }, [visibleRuntimeRuns, workspaceId]);
+
+  useWorkspacePersistentFlowState({
+    workspaceId,
+    intent,
+    runs: persistentFlowRuns,
+    legacyCachedIntent,
+    legacyCacheCorrupted,
+  });
 
   return (
     <div className={controlStyles.controlSection}>

@@ -1,4 +1,5 @@
 import type { ThemeMode } from "@ku0/design-system";
+import type { ActiveIntentContext } from "@ku0/code-platform-interfaces";
 import type {
   GitPreparePullRequestThreadInput,
   GitPreparePullRequestThreadResult,
@@ -275,6 +276,7 @@ export type AppSettings = {
   composerCodeBlockCopyUseModifier: boolean;
   workspaceGroups: WorkspaceGroup[];
   workspaceAgentControlByWorkspaceId?: Record<string, WorkspaceAgentControlPersistedState>;
+  activeIntentContextByWorkspaceId?: Record<string, ActiveIntentContext>;
   openAppTargets: OpenAppTarget[];
   selectedOpenAppId: string;
   lastActiveWorkspaceId?: string | null;

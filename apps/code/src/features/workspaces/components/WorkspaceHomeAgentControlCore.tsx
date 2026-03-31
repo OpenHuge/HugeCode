@@ -14,16 +14,19 @@ import {
 } from "../../../application/runtime/ports/webMcpBridge";
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
+import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
 import type { ApprovalRequest, RequestUserInputRequest } from "../../../types";
 import { WorkspaceHomeAgentIntentSection } from "./WorkspaceHomeAgentIntentSection";
 import {
   DEFAULT_INTENT,
   readCachedState,
+  readCachedStateWithStatus,
   writeCachedState,
 } from "./workspaceHomeAgentControlState";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
 import { useWorkspaceAgentControlPreferences } from "./useWorkspaceAgentControlPreferences";
 import { WorkspaceHomeAgentLazySection } from "./WorkspaceHomeAgentLazySection";
+import { WorkspaceHomePersistentFlowIndicator } from "./WorkspaceHomePersistentFlowIndicator";
 
 const LazyWorkspaceHomeAgentRuntimeOrchestration = lazy(async () => {
   const module = await import("./WorkspaceHomeAgentRuntimeOrchestration");
@@ -110,6 +113,16 @@ function buildRuntimePolicyFreshnessSummary(input: {
   return parts.length > 0 ? parts.join(" | ") : null;
 }
 
+function hasMeaningfulIntent(intent: AgentIntentState): boolean {
+  return Boolean(
+    intent.objective.trim() ||
+    intent.constraints.trim() ||
+    intent.successCriteria.trim() ||
+    intent.managerNotes.trim() ||
+    intent.deadline
+  );
+}
+
 export function WorkspaceHomeAgentControl({
   workspace,
   activeModelContext,
@@ -117,6 +130,8 @@ export function WorkspaceHomeAgentControl({
   userInputRequests,
 }: WorkspaceHomeAgentControlProps) {
   const [intent, setIntent] = useState<AgentIntentState>(DEFAULT_INTENT);
+  const [legacyCachedIntent, setLegacyCachedIntent] = useState<AgentIntentState | null>(null);
+  const [legacyCacheCorrupted, setLegacyCacheCorrupted] = useState(false);
   const [webMcpEnabled, setWebMcpEnabled] = useState(true);
   const [webMcpConsoleMode, setWebMcpConsoleMode] = useState<"basic" | "advanced">("basic");
   const [runtimeSectionOpen, setRuntimeSectionOpen] = useState(false);
@@ -133,8 +148,10 @@ export function WorkspaceHomeAgentControl({
     controlPreferences.status === "loading" || controlPreferences.status === "saving";
 
   useEffect(() => {
-    const restored = readCachedState(workspace.id);
-    if (!restored) {
+    const restored = readCachedStateWithStatus(workspace.id);
+    setLegacyCachedIntent(restored.state?.intent ?? null);
+    setLegacyCacheCorrupted(restored.corrupted);
+    if (!restored.state) {
       setIntent(DEFAULT_INTENT);
       setWebMcpEnabled(true);
       setWebMcpConsoleMode("basic");
@@ -143,9 +160,9 @@ export function WorkspaceHomeAgentControl({
       return;
     }
 
-    setIntent(restored.intent);
-    setWebMcpEnabled(restored.webMcpEnabled);
-    setWebMcpConsoleMode(restored.webMcpConsoleMode);
+    setIntent(restored.state.intent);
+    setWebMcpEnabled(restored.state.webMcpEnabled);
+    setWebMcpConsoleMode(restored.state.webMcpConsoleMode);
     setRuntimeSectionOpen(false);
     setWebMcpConsoleOpen(false);
   }, [workspace.id]);
@@ -220,6 +237,13 @@ export function WorkspaceHomeAgentControl({
   );
 
   const runtimeControl = useWorkspaceRuntimeAgentControl(workspace.id);
+  const persistentFlowState = useWorkspacePersistentFlowState({
+    workspaceId: workspace.id,
+    intent,
+    runs: [],
+    legacyCachedIntent,
+    legacyCacheCorrupted,
+  });
   const runtimeWebMcpContextPolicy = useRuntimeWebMcpContextPolicy({
     workspaceId: workspace.id,
     enabled: webMcpEnabled && controlPreferencesReady,
@@ -280,6 +304,18 @@ export function WorkspaceHomeAgentControl({
       runtimeWebMcpContextPolicy.resolutionKind,
     ]
   );
+
+  const hydratedPersistentIntent = persistentFlowState.hydratedIntent;
+
+  useEffect(() => {
+    if (persistentFlowState.loadState !== "ready" || !hydratedPersistentIntent) {
+      return;
+    }
+
+    setIntent((currentIntent) =>
+      hasMeaningfulIntent(currentIntent) ? currentIntent : hydratedPersistentIntent
+    );
+  }, [hydratedPersistentIntent, persistentFlowState.loadState, workspace.id]);
 
   useEffect(() => {
     let disposed = false;
@@ -474,6 +510,10 @@ export function WorkspaceHomeAgentControl({
           last-known snapshot until runtime settings recover.
         </div>
       ) : null}
+      <WorkspaceHomePersistentFlowIndicator
+        indicator={persistentFlowState.indicator}
+        context={persistentFlowState.context}
+      />
       {!webMcpSupported ? (
         <div className={controlStyles.warning}>
           WebMCP browser APIs are not available in this runtime. WebMCP console actions remain
@@ -491,7 +531,12 @@ export function WorkspaceHomeAgentControl({
         testId="workspace-home-runtime-section"
       >
         <Suspense fallback={null}>
-          <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} />
+          <LazyWorkspaceHomeAgentRuntimeOrchestration
+            workspaceId={workspace.id}
+            intent={intent}
+            legacyCachedIntent={legacyCachedIntent}
+            legacyCacheCorrupted={legacyCacheCorrupted}
+          />
         </Suspense>
       </WorkspaceHomeAgentLazySection>
       <WorkspaceHomeAgentLazySection
