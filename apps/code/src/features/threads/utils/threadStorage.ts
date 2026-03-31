@@ -16,6 +16,8 @@ import type { AtlasDetailLevel, AtlasLongTermMemoryDigest } from "../../atlas/ut
 export const STORAGE_KEY_THREAD_ACTIVITY = "codexmonitor.threadLastUserActivity";
 export const STORAGE_KEY_PINNED_THREADS = "codexmonitor.pinnedThreads";
 export const STORAGE_KEY_CUSTOM_NAMES = "codexmonitor.threadCustomNames";
+// Legacy local snapshot storage. Keep only for temporary migration recovery until
+// runtime-backed thread snapshot persistence is fully retired from active flows.
 export const STORAGE_KEY_THREAD_SNAPSHOTS = "codexmonitor.threadSnapshots";
 export const THREAD_STORAGE_PENDING_DRAFTS_KEY = "__pending_workspace_drafts_v1";
 export const THREAD_STORAGE_LAST_ACTIVE_WORKSPACE_KEY = "__last_active_workspace_v1";

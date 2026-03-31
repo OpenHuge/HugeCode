@@ -16,6 +16,7 @@ import {
   readPersistedThreadStorageState,
   writePersistedThreadStorageState,
 } from "../../../application/runtime/ports/tauriThreadSnapshots";
+import { logger } from "../../../application/runtime/ports/logger";
 import { useThreadStorage } from "./useThreadStorage";
 
 vi.mock("../utils/threadStorage", () => ({
@@ -39,6 +40,12 @@ vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
   readPersistedThreadStorageState: vi.fn(),
   writePersistedPendingInterruptThreadIds: vi.fn(),
   writePersistedThreadStorageState: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/logger", () => ({
+  logger: {
+    warn: vi.fn(),
+  },
 }));
 
 describe("useThreadStorage", () => {
@@ -547,7 +554,66 @@ describe("useThreadStorage", () => {
       });
     });
 
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Hydrating legacy local thread snapshots as a temporary non-authoritative fallback.",
+      expect.objectContaining({
+        snapshotCount: 1,
+        persistToNative: true,
+      })
+    );
+
     expect(clearThreadSnapshots).not.toHaveBeenCalled();
+  });
+
+  it("clears ignored legacy local snapshots once native thread storage is authoritative", async () => {
+    vi.mocked(loadThreadActivity).mockReturnValue({});
+    vi.mocked(loadPinnedThreads).mockReturnValue({});
+    vi.mocked(loadCustomNames).mockReturnValue({});
+    vi.mocked(loadThreadSnapshots).mockReturnValue({
+      "ws-1:thread-legacy": {
+        workspaceId: "ws-1",
+        threadId: "thread-legacy",
+        name: "Legacy thread",
+        updatedAt: 91,
+        items: [{ id: "msg-legacy", kind: "message", role: "user", text: "legacy residue" }],
+      },
+    });
+    vi.mocked(readPersistedThreadStorageState).mockResolvedValue({
+      snapshots: {
+        "ws-1:thread-native": {
+          workspaceId: "ws-1",
+          threadId: "thread-native",
+          name: "Native thread",
+          updatedAt: 101,
+          items: [{ id: "msg-native", kind: "message", role: "user", text: "runtime truth" }],
+        },
+      },
+      pendingDraftMessagesByWorkspace: {},
+      lastActiveThreadIdByWorkspace: {},
+    });
+
+    const { result } = renderHook(() => useThreadStorage());
+
+    await waitFor(() => {
+      expect(result.current.listThreadSnapshots("ws-1")).toEqual([
+        {
+          workspaceId: "ws-1",
+          threadId: "thread-native",
+          name: "Native thread",
+          updatedAt: 101,
+          items: [{ id: "msg-native", kind: "message", role: "user", text: "runtime truth" }],
+        },
+      ]);
+    });
+
+    expect(clearThreadSnapshots).toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Ignoring legacy local thread snapshots because runtime-backed thread storage is available.",
+      expect.objectContaining({
+        snapshotCount: 1,
+        migrationOnly: true,
+      })
+    );
   });
 
   it("does not overwrite persisted thread items with an empty summary-only refresh", async () => {

@@ -50,11 +50,18 @@ const WEB_RUNTIME_THREAD_SNAPSHOT_RETRY_DELAYS_MS = [120, 240, 500, 900] as cons
 const SESSION_ACTIVE_WORKSPACE_KEY = "codexmonitor.activeWorkspaceSession";
 const SESSION_ACTIVE_THREAD_IDS_KEY = "codexmonitor.activeThreadIdsSession";
 const SESSION_THREAD_STORAGE_STATE_KEY = "codexmonitor.threadStorageSession";
+const SESSION_THREAD_STORAGE_RECOVERY_HINT_KEY = "codexmonitor.threadStorageRecoverySession";
 const SESSION_PENDING_INTERRUPT_THREAD_IDS_KEY = "codexmonitor.pendingInterruptThreadIdsSession";
+const SESSION_THREAD_STORAGE_RECOVERY_WINDOW_MS = 30_000;
+
+type ThreadStorageSessionRecoveryHint = {
+  updatedAt: number;
+};
 
 let persistedThreadStorageCache: PersistedThreadStorageState | null = null;
 let persistedThreadStorageCacheReady = false;
 let persistedThreadStorageWriteQueue: Promise<void> = Promise.resolve();
+const reportedThreadStorageFallbackKinds = new Set<string>();
 
 function normalizeOptionalAtlasMemoryDigests(
   value: ThreadAtlasMemoryDigestMap | null | undefined
@@ -197,6 +204,59 @@ function writeSessionThreadStorageState(state: PersistedThreadStorageState): voi
   );
 }
 
+function readSessionThreadStorageRecoveryHint(): ThreadStorageSessionRecoveryHint | null {
+  const raw = readSafeSessionStorageItem(SESSION_THREAD_STORAGE_RECOVERY_HINT_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const updatedAt = parsed.updatedAt;
+    if (typeof updatedAt !== "number" || !Number.isFinite(updatedAt) || updatedAt <= 0) {
+      return null;
+    }
+    return { updatedAt };
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionThreadStorageRecoveryHint(timestamp = Date.now()): void {
+  writeSafeSessionStorageItem(
+    SESSION_THREAD_STORAGE_RECOVERY_HINT_KEY,
+    JSON.stringify({ updatedAt: timestamp })
+  );
+}
+
+function clearSessionThreadStorageRecoveryHint(): void {
+  removeSafeSessionStorageItem(SESSION_THREAD_STORAGE_RECOVERY_HINT_KEY);
+}
+
+function readSessionThreadStorageRecoveryWindowState(referenceNow = Date.now()): {
+  recoveryWindowAgeMs: number | null;
+  recoveryWindowState: "active" | "expired" | "missing";
+} {
+  const hint = readSessionThreadStorageRecoveryHint();
+  if (!hint) {
+    return {
+      recoveryWindowState: "missing",
+      recoveryWindowAgeMs: null,
+    };
+  }
+  const recoveryWindowAgeMs = Math.max(0, referenceNow - hint.updatedAt);
+  if (recoveryWindowAgeMs <= SESSION_THREAD_STORAGE_RECOVERY_WINDOW_MS) {
+    return {
+      recoveryWindowState: "active",
+      recoveryWindowAgeMs,
+    };
+  }
+  clearSessionThreadStorageRecoveryHint();
+  return {
+    recoveryWindowState: "expired",
+    recoveryWindowAgeMs,
+  };
+}
+
 function mergePersistedThreadStorageState(params: {
   base: PersistedThreadStorageState;
   overlay: PersistedThreadStorageState | null;
@@ -226,6 +286,62 @@ function mergePersistedThreadStorageState(params: {
       ...(overlay.lastActiveThreadIdByWorkspace ?? {}),
     },
   };
+}
+
+function mergeClientOwnedSessionThreadStorageState(params: {
+  base: PersistedThreadStorageState;
+  overlay: PersistedThreadStorageState | null;
+}): PersistedThreadStorageState {
+  const overlay = params.overlay;
+  if (!overlay) {
+    return params.base;
+  }
+  return {
+    ...params.base,
+    pendingDraftMessagesByWorkspace: {
+      ...params.base.pendingDraftMessagesByWorkspace,
+      ...overlay.pendingDraftMessagesByWorkspace,
+    },
+    lastActiveWorkspaceId:
+      overlay.lastActiveWorkspaceId ?? params.base.lastActiveWorkspaceId ?? null,
+    lastActiveThreadIdByWorkspace: {
+      ...(params.base.lastActiveThreadIdByWorkspace ?? {}),
+      ...(overlay.lastActiveThreadIdByWorkspace ?? {}),
+    },
+  };
+}
+
+function hasPersistedThreadSnapshotsFallbackState(
+  state: PersistedThreadStorageState | null | undefined
+): boolean {
+  return Boolean(
+    state &&
+    (Object.keys(state.snapshots).length > 0 ||
+      Object.keys(state.atlasMemoryDigests ?? {}).length > 0)
+  );
+}
+
+function reportThreadStorageFallback(
+  kind:
+    | "session_snapshot_overlay_used"
+    | "session_snapshot_overlay_ignored"
+    | "session_snapshot_overlay_suppressed"
+    | "session_snapshot_runtime_unavailable",
+  details: Record<string, unknown>
+): void {
+  if (reportedThreadStorageFallbackKinds.has(kind)) {
+    return;
+  }
+  reportedThreadStorageFallbackKinds.add(kind);
+  const message =
+    kind === "session_snapshot_overlay_ignored"
+      ? "Ignoring session thread snapshot fallback because runtime-published thread state is available."
+      : kind === "session_snapshot_overlay_suppressed"
+        ? "Ignoring session thread snapshot fallback because runtime-published thread state is empty outside the temporary recovery window."
+        : kind === "session_snapshot_runtime_unavailable"
+          ? "Using session thread snapshot fallback because runtime-published thread state is unavailable."
+          : "Using session thread snapshot fallback until runtime-published thread state is available.";
+  logRuntimeWarning(message, details);
 }
 
 function waitForRetry(delayMs: number): Promise<void> {
@@ -348,10 +464,67 @@ async function loadPersistedThreadStorageState(): Promise<PersistedThreadStorage
   let state = buildPersistedThreadStorageState(
     (response?.snapshots ?? {}) as Record<string, unknown>
   );
-  state = mergePersistedThreadStorageState({
-    base: state,
-    overlay: readSessionThreadStorageState(),
-  });
+  const sessionState = readSessionThreadStorageState();
+  const runtimePublishedThreadStateAvailable = hasPersistedThreadSnapshotsFallbackState(state);
+  const sessionFallbackStateAvailable = hasPersistedThreadSnapshotsFallbackState(sessionState);
+  const recoveryWindow = readSessionThreadStorageRecoveryWindowState();
+  if (usedFallback) {
+    state = mergePersistedThreadStorageState({
+      base: state,
+      overlay: sessionState,
+    });
+    if (sessionFallbackStateAvailable) {
+      reportThreadStorageFallback("session_snapshot_runtime_unavailable", {
+        snapshotCount: Object.keys(sessionState?.snapshots ?? {}).length,
+        atlasMemoryDigestCount: Object.keys(sessionState?.atlasMemoryDigests ?? {}).length,
+        recoveryWindowState: recoveryWindow.recoveryWindowState,
+        recoveryWindowAgeMs: recoveryWindow.recoveryWindowAgeMs,
+        recoveryWindowMs: SESSION_THREAD_STORAGE_RECOVERY_WINDOW_MS,
+      });
+    }
+  } else if (runtimePublishedThreadStateAvailable) {
+    state = mergeClientOwnedSessionThreadStorageState({
+      base: state,
+      overlay: sessionState,
+    });
+    clearSessionThreadStorageRecoveryHint();
+    if (sessionFallbackStateAvailable) {
+      reportThreadStorageFallback("session_snapshot_overlay_ignored", {
+        runtimeSnapshotCount: Object.keys(state.snapshots).length,
+        sessionSnapshotCount: Object.keys(sessionState?.snapshots ?? {}).length,
+        recoveryWindowState: recoveryWindow.recoveryWindowState,
+      });
+    }
+  } else if (sessionFallbackStateAvailable && recoveryWindow.recoveryWindowState === "active") {
+    state = mergePersistedThreadStorageState({
+      base: state,
+      overlay: sessionState,
+    });
+    reportThreadStorageFallback("session_snapshot_overlay_used", {
+      snapshotCount: Object.keys(sessionState?.snapshots ?? {}).length,
+      atlasMemoryDigestCount: Object.keys(sessionState?.atlasMemoryDigests ?? {}).length,
+      recoveryWindowState: recoveryWindow.recoveryWindowState,
+      recoveryWindowAgeMs: recoveryWindow.recoveryWindowAgeMs,
+      recoveryWindowMs: SESSION_THREAD_STORAGE_RECOVERY_WINDOW_MS,
+    });
+  } else {
+    state = mergeClientOwnedSessionThreadStorageState({
+      base: state,
+      overlay: sessionState,
+    });
+    if (sessionFallbackStateAvailable) {
+      clearSessionThreadStorageRecoveryHint();
+      reportThreadStorageFallback("session_snapshot_overlay_suppressed", {
+        runtimeSnapshotCount: Object.keys(state.snapshots).length,
+        runtimeAtlasMemoryDigestCount: Object.keys(state.atlasMemoryDigests ?? {}).length,
+        sessionSnapshotCount: Object.keys(sessionState?.snapshots ?? {}).length,
+        sessionAtlasMemoryDigestCount: Object.keys(sessionState?.atlasMemoryDigests ?? {}).length,
+        recoveryWindowState: recoveryWindow.recoveryWindowState,
+        recoveryWindowAgeMs: recoveryWindow.recoveryWindowAgeMs,
+        recoveryWindowMs: SESSION_THREAD_STORAGE_RECOVERY_WINDOW_MS,
+      });
+    }
+  }
   const sessionActiveThreadIds = readSessionActiveThreadIds();
   if (Object.keys(sessionActiveThreadIds).length > 0) {
     state.lastActiveThreadIdByWorkspace = sessionActiveThreadIds;
@@ -464,6 +637,7 @@ export async function writePersistedThreadStorageState(
   persistedThreadStorageCache = clonePersistedThreadStorageState(optimisticState);
   persistedThreadStorageCacheReady = true;
   writeSessionThreadStorageState(optimisticState);
+  writeSessionThreadStorageRecoveryHint();
   writeSessionActiveWorkspaceId(optimisticState.lastActiveWorkspaceId ?? null);
   writeSessionActiveThreadIds(optimisticState.lastActiveThreadIdByWorkspace ?? {});
   return enqueuePersistedThreadStorageWrite((currentState) => ({
@@ -532,5 +706,6 @@ export function __resetPersistedThreadStorageCacheForTests(): void {
   persistedThreadStorageCache = null;
   persistedThreadStorageCacheReady = false;
   persistedThreadStorageWriteQueue = Promise.resolve();
+  reportedThreadStorageFallbackKinds.clear();
   removeSafeSessionStorageItem(SESSION_PENDING_INTERRUPT_THREAD_IDS_KEY);
 }
