@@ -4,7 +4,7 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { describe, expect, it, vi } from "vitest";
 import type { GitHubIssue, GitHubPullRequest } from "../../../types";
-import * as runtimeJobsPort from "../ports/tauriRuntimeJobs";
+import * as runtimeJobsPort from "../ports/runtimeJobs";
 import { parseRepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import {
   assertGovernedGitHubLaunchReady,

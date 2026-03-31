@@ -9,8 +9,8 @@ import {
   readTerminalSession,
   resizeTerminalSession,
   writeTerminalSessionRaw,
-} from "../../../application/runtime/ports/tauriTerminal";
-import { getRuntimeTerminalStatus } from "../../../application/runtime/ports/tauriRuntime";
+} from "../../../application/runtime/ports/terminal";
+import { getRuntimeTerminalStatus } from "../../../application/runtime/ports/runtime";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import type { WorkspaceInfo } from "../../../types";
 import { useTerminalSession } from "./useTerminalSession";
@@ -49,7 +49,7 @@ vi.mock("../../../application/runtime/ports/events", () => ({
   subscribeTerminalExit: vi.fn(() => () => undefined),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriTerminal", () => ({
+vi.mock("../../../application/runtime/ports/terminal", () => ({
   openTerminalSession: vi.fn(),
   readTerminalSession: vi.fn(),
   resizeTerminalSession: vi.fn(),
@@ -60,7 +60,7 @@ vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
   detectRuntimeMode: vi.fn(() => "desktop-compat"),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
+vi.mock("../../../application/runtime/ports/runtime", () => ({
   getRuntimeTerminalStatus: vi.fn(),
 }));
 

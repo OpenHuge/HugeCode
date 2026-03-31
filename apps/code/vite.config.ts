@@ -23,21 +23,33 @@ const STARTUP_OPTIMIZE_DEPS = [
   "remark-gfm",
   "vscode-material-icons",
 ] as const;
-const tauriCoreCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiCoreCompat.ts", import.meta.url)
-);
-const tauriDpiCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiDpiCompat.ts", import.meta.url)
-);
-const tauriMenuCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiMenuCompat.ts", import.meta.url)
-);
-const tauriWindowCompatEntry = fileURLToPath(
-  new URL("./src/application/runtime/ports/packageCompat/tauriApiWindowCompat.ts", import.meta.url)
-);
-const tauriDialogCompatEntry = fileURLToPath(
+const legacyDesktopCoreCompatEntry = fileURLToPath(
   new URL(
-    "./src/application/runtime/ports/packageCompat/tauriPluginDialogCompat.ts",
+    "./src/application/runtime/ports/packageCompat/legacyDesktopCoreCompat.ts",
+    import.meta.url
+  )
+);
+const legacyDesktopDpiCompatEntry = fileURLToPath(
+  new URL(
+    "./src/application/runtime/ports/packageCompat/legacyDesktopDpiCompat.ts",
+    import.meta.url
+  )
+);
+const legacyDesktopMenuCompatEntry = fileURLToPath(
+  new URL(
+    "./src/application/runtime/ports/packageCompat/legacyDesktopMenuCompat.ts",
+    import.meta.url
+  )
+);
+const legacyDesktopWindowCompatEntry = fileURLToPath(
+  new URL(
+    "./src/application/runtime/ports/packageCompat/legacyDesktopWindowCompat.ts",
+    import.meta.url
+  )
+);
+const legacyDesktopDialogCompatEntry = fileURLToPath(
+  new URL(
+    "./src/application/runtime/ports/packageCompat/legacyDesktopDialogCompat.ts",
     import.meta.url
   )
 );
@@ -97,7 +109,7 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeTaskInterventionDraftFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceLaunchDefaultsFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",
-  "/src/application/runtime/ports/tauriRuntimeDiagnostics.ts",
+  "/src/application/runtime/ports/runtimeDiagnostics.ts",
 ] as const;
 const RUNTIME_APPLICATION_CHUNK_PATTERNS = ["/src/application/runtime/"] as const;
 const DESKTOP_SERVICES_CHUNK_PATTERNS = ["/src/services/"] as const;
@@ -172,23 +184,23 @@ export default defineConfig({
     alias: [
       {
         find: /^@tauri-apps\/api\/core$/,
-        replacement: tauriCoreCompatEntry,
+        replacement: legacyDesktopCoreCompatEntry,
       },
       {
         find: /^@tauri-apps\/api\/dpi$/,
-        replacement: tauriDpiCompatEntry,
+        replacement: legacyDesktopDpiCompatEntry,
       },
       {
         find: /^@tauri-apps\/api\/menu$/,
-        replacement: tauriMenuCompatEntry,
+        replacement: legacyDesktopMenuCompatEntry,
       },
       {
         find: /^@tauri-apps\/api\/window$/,
-        replacement: tauriWindowCompatEntry,
+        replacement: legacyDesktopWindowCompatEntry,
       },
       {
         find: /^@tauri-apps\/plugin-dialog$/,
-        replacement: tauriDialogCompatEntry,
+        replacement: legacyDesktopDialogCompatEntry,
       },
       ...createCodeWorkspaceAliases(new URL("./", import.meta.url)),
     ],
@@ -269,7 +281,7 @@ export default defineConfig({
             return "tanstack-vendor";
           }
           if (id.includes("/node_modules/@tauri-apps/")) {
-            return "tauri-vendor";
+            return "desktop-compat-vendor";
           }
           if (id.includes("/node_modules/@xterm/")) {
             return "xterm-vendor";

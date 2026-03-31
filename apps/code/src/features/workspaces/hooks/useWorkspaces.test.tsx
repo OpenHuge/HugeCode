@@ -10,7 +10,7 @@ import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeCli
 import {
   readPersistedActiveWorkspaceId,
   writePersistedActiveWorkspaceId,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   useScopedRuntimeUpdatedEvent,
@@ -19,15 +19,15 @@ import {
 import {
   isWorkspacePathDir,
   pickWorkspacePaths,
-} from "../../../application/runtime/ports/tauriWorkspaceDialogs";
-import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
+} from "../../../application/runtime/ports/workspaceDialogs";
+import { listWorkspaces } from "../../../application/runtime/ports/workspaceCatalog";
 import {
   addWorkspace as addWorkspaceService,
   removeWorkspace as removeWorkspaceService,
   renameWorktree,
   renameWorktreeUpstream,
   updateWorkspaceSettings,
-} from "../../../application/runtime/ports/tauriWorkspaceMutations";
+} from "../../../application/runtime/ports/workspaceMutations";
 import { createRuntimeUpdatedEventFixture } from "../../../test/runtimeUpdatedEventFixtures";
 import { createRuntimeUpdatedSubscriptionHarness } from "../../../test/runtimeUpdatedSubscriptionHarness";
 import type { AppSettings, WorkspaceInfo } from "../../../types";
@@ -43,17 +43,17 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   message: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriWorkspaceDialogs", () => ({
+vi.mock("../../../application/runtime/ports/workspaceDialogs", () => ({
   isWorkspacePathDir: vi.fn(),
   pickWorkspacePath: vi.fn(),
   pickWorkspacePaths: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriWorkspaceCatalog", () => ({
+vi.mock("../../../application/runtime/ports/workspaceCatalog", () => ({
   listWorkspaces: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriWorkspaceMutations", () => ({
+vi.mock("../../../application/runtime/ports/workspaceMutations", () => ({
   addClone: vi.fn(),
   addWorkspace: vi.fn(),
   addWorktree: vi.fn(),
@@ -67,7 +67,7 @@ vi.mock("../../../application/runtime/ports/tauriWorkspaceMutations", () => ({
   connectWorkspace: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
+vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
   readPersistedActiveWorkspaceId: vi.fn(),
   writePersistedActiveWorkspaceId: vi.fn(),
 }));

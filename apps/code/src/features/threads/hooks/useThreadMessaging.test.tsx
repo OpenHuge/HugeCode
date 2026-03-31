@@ -2,7 +2,7 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/runtimeJobs";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { WorkspaceInfo } from "../../../types";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
@@ -54,7 +54,7 @@ vi.mock("../../shared/productAnalytics", () => ({
   trackProductAnalyticsEvent: vi.fn(async () => undefined),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
+vi.mock("../../../application/runtime/ports/runtimeJobs", () => ({
   prepareRuntimeRunV2: vi.fn(),
 }));
 vi.mock("../../../application/runtime/ports/toasts", () => ({

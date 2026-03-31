@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getGitDiffs } from "../../../application/runtime/ports/tauriGit";
+import { getGitDiffs } from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 import { useGitDiffs } from "./useGitDiffs";
 
-vi.mock("../../../application/runtime/ports/tauriGit", () => ({
+vi.mock("../../../application/runtime/ports/git", () => ({
   getGitDiffs: vi.fn(),
 }));
 

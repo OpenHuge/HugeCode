@@ -20,7 +20,7 @@ import {
 } from "../../../application/runtime/ports/runtimeToolLifecycle";
 import { buildRuntimeSessionCheckpointBaseline } from "../../../application/runtime/facades/runtimeSessionCheckpointFacade";
 import { buildRuntimeSessionCheckpointPresentationSummary } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
-import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
+import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/threads";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import { createRuntimeAgentControlDependencies } from "../../../application/runtime/kernel/createRuntimeAgentControlDependencies";
 import {
@@ -139,7 +139,7 @@ vi.mock("../../../application/runtime/facades/runtimeRepositoryExecutionContract
   };
 });
 
-vi.mock("../../../application/runtime/ports/tauriMissionControl", () => ({
+vi.mock("../../../application/runtime/ports/missionControl", () => ({
   getMissionControlSnapshot: vi.fn().mockResolvedValue({
     source: "runtime_snapshot_v1",
     generatedAt: 0,
@@ -150,7 +150,7 @@ vi.mock("../../../application/runtime/ports/tauriMissionControl", () => ({
   }),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
+vi.mock("../../../application/runtime/ports/runtimeJobs", () => ({
   cancelRuntimeRun: vi.fn(),
   submitRuntimeJobApprovalDecision: vi.fn(),
   interveneRuntimeRun: vi.fn(),
@@ -161,10 +161,10 @@ vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
   resumeRuntimeRun: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreads", async () => {
-  const actual = await vi.importActual<
-    typeof import("../../../application/runtime/ports/tauriThreads")
-  >("../../../application/runtime/ports/tauriThreads");
+vi.mock("../../../application/runtime/ports/threads", async () => {
+  const actual = await vi.importActual<typeof import("../../../application/runtime/ports/threads")>(
+    "../../../application/runtime/ports/threads"
+  );
   return {
     ...actual,
     distributedTaskGraph: vi.fn(),
@@ -187,17 +187,17 @@ vi.mock("../../../application/runtime/ports/browserCapability", () => ({
   getLastBrowserExtractionResult: getLastBrowserExtractionResultMock,
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
+vi.mock("../../../application/runtime/ports/runtime", () => ({
   getRuntimeCapabilitiesSummary: vi.fn(),
   getRuntimeHealth: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntimeDiagnostics", () => ({
+vi.mock("../../../application/runtime/ports/runtimeDiagnostics", () => ({
   runtimeToolMetricsRead: vi.fn(),
   runtimeToolGuardrailRead: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntimePolicy", () => ({
+vi.mock("../../../application/runtime/ports/runtimePolicy", () => ({
   getRuntimePolicy: vi.fn(),
   setRuntimePolicy: vi.fn(),
 }));
@@ -206,34 +206,34 @@ vi.mock("../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint", () => ({
   useWorkspaceRuntimeSessionCheckpoint: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
+vi.mock("../../../application/runtime/ports/oauth", () => ({
   getProvidersCatalog: vi.fn(),
   listOAuthAccounts: vi.fn(),
   listOAuthPools: vi.fn(),
 }));
 
 import { subscribeScopedRuntimeUpdatedEvents } from "../../../application/runtime/ports/runtimeUpdatedEvents";
-import { getMissionControlSnapshot } from "../../../application/runtime/ports/tauriMissionControl";
+import { getMissionControlSnapshot } from "../../../application/runtime/ports/missionControl";
 import {
   cancelRuntimeRun as interruptAgentTask,
   getRuntimeRunV2,
   submitRuntimeJobApprovalDecision as submitTaskApprovalDecision,
   resumeRuntimeRun as resumeAgentTask,
-} from "../../../application/runtime/ports/tauriRuntimeJobs";
+} from "../../../application/runtime/ports/runtimeJobs";
 import {
   getRuntimeCapabilitiesSummary,
   getRuntimeHealth,
-} from "../../../application/runtime/ports/tauriRuntime";
+} from "../../../application/runtime/ports/runtime";
 import {
   runtimeToolGuardrailRead,
   runtimeToolMetricsRead,
-} from "../../../application/runtime/ports/tauriRuntimeDiagnostics";
-import { getRuntimePolicy } from "../../../application/runtime/ports/tauriRuntimePolicy";
+} from "../../../application/runtime/ports/runtimeDiagnostics";
+import { getRuntimePolicy } from "../../../application/runtime/ports/runtimePolicy";
 import {
   getProvidersCatalog,
   listOAuthAccounts,
   listOAuthPools,
-} from "../../../application/runtime/ports/tauriOauth";
+} from "../../../application/runtime/ports/oauth";
 import type { RuntimeKernel } from "../../../application/runtime/kernel/runtimeKernelTypes";
 import { parseRepositoryExecutionContract } from "../../../application/runtime/facades/runtimeRepositoryExecutionContract";
 

@@ -15,7 +15,7 @@ import {
 import {
   readPersistedThreadStorageState,
   writePersistedThreadStorageState,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import { useThreadStorage } from "./useThreadStorage";
 
 vi.mock("../utils/threadStorage", () => ({
@@ -34,7 +34,7 @@ vi.mock("../utils/threadStorage", () => ({
   saveThreadActivity: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
+vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
   readPersistedPendingInterruptThreadIds: vi.fn(() => []),
   readPersistedThreadStorageState: vi.fn(),
   writePersistedPendingInterruptThreadIds: vi.fn(),

@@ -78,7 +78,7 @@ import {
   getRuntimeRunV2,
   subscribeRuntimeRunV2,
   submitRuntimeJobApprovalDecision,
-} from "./tauriRuntimeJobsBridge";
+} from "./runtimeJobsBridge";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

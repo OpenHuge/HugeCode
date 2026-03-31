@@ -2,10 +2,10 @@
 
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
+import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
 import { useDebugRuntimeCapabilities } from "./useDebugRuntimeCapabilities";
 
-vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
+vi.mock("../../../application/runtime/ports/runtime", () => ({
   getRuntimeCapabilitiesSummary: vi.fn(),
 }));
 

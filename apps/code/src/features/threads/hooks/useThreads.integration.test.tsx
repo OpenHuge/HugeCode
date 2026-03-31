@@ -18,7 +18,7 @@ import {
   startReview,
   startThread,
   steerTurn,
-} from "../../../application/runtime/ports/tauriThreads";
+} from "../../../application/runtime/ports/threads";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   type ScopedRuntimeUpdatedEventSnapshot,
@@ -34,7 +34,7 @@ import {
   readPersistedThreadStorageState,
   writePersistedPendingInterruptThreadIds,
   writePersistedThreadStorageState,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import { useThreads } from "./useThreads";
 
 type AppServerHandlers = Parameters<typeof useAppServerEvents>[0];
@@ -97,7 +97,7 @@ vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   }),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
+vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
   readPersistedThreadStorageState: vi.fn(async () => persistedThreadStorageState),
   writePersistedThreadStorageState: vi.fn(async (state: PersistedThreadStorageState) => {
     persistedThreadStorageState = state;
@@ -163,7 +163,7 @@ vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks",
   }),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
+vi.mock("../../../application/runtime/ports/threads", () => ({
   REVIEW_START_DESKTOP_ONLY_MESSAGE: "Review start is only available in the desktop app.",
   respondToServerRequest: vi.fn(),
   respondToServerRequestResult: vi.fn(),

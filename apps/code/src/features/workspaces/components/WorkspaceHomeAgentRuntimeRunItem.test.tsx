@@ -9,7 +9,7 @@ import { WorkspaceHomeAgentRuntimeRunItem } from "./WorkspaceHomeAgentRuntimeRun
 const getRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 const subscribeRuntimeRunV2Mock = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
+vi.mock("../../../application/runtime/ports/runtimeJobs", () => ({
   getRuntimeRunV2: getRuntimeRunV2Mock,
   subscribeRuntimeRunV2: subscribeRuntimeRunV2Mock,
 }));

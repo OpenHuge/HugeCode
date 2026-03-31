@@ -6,10 +6,10 @@ import {
   removeOAuthAccount,
   upsertOAuthAccount,
   type OAuthAccountSummary,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import { useCodexAccountActions } from "./useCodexAccountActions";
 
-vi.mock("../../../../../application/runtime/ports/tauriOauth", () => ({
+vi.mock("../../../../../application/runtime/ports/oauth", () => ({
   removeOAuthAccount: vi.fn(),
   upsertOAuthAccount: vi.fn(),
 }));

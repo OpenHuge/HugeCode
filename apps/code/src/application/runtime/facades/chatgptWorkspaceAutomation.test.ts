@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { OAuthAccountSummary } from "../ports/tauriOauth";
+import type { OAuthAccountSummary } from "../ports/oauth";
 import {
   doesActiveChatgptAccountMatch,
   leaveDeactivatedChatgptWorkspacesWithDeps,

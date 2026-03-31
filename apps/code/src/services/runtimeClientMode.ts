@@ -16,15 +16,10 @@ function hasDesktopCompatRuntimeMode(): boolean {
     __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
   };
 
-  return (
-    compatWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ === "desktop-compat" ||
-    // Preserve the old boot marker until the remaining desktop compatibility
-    // residue is deleted from older shells and test fixtures.
-    compatWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ === "tauri"
-  );
+  return compatWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ === "desktop-compat";
 }
 
-function hasLegacyCompatTauriBridge(): boolean {
+function hasLegacyDesktopCompatBridge(): boolean {
   if (typeof window === "undefined") {
     return false;
   }
@@ -54,7 +49,7 @@ export function detectRuntimeMode(): RuntimeClientMode {
     return "desktop-compat";
   }
 
-  if (hasLegacyCompatTauriBridge() || isDesktopHostRuntime()) {
+  if (hasLegacyDesktopCompatBridge() || isDesktopHostRuntime()) {
     return "desktop-compat";
   }
 

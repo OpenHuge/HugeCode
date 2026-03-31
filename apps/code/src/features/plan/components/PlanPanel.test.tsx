@@ -2,20 +2,20 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { distributedTaskGraph } from "../../../application/runtime/ports/tauriThreads";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
-import { cancelRuntimeRun } from "../../../application/runtime/ports/tauriRuntimeJobs";
+import { distributedTaskGraph } from "../../../application/runtime/ports/threads";
+import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
+import { cancelRuntimeRun } from "../../../application/runtime/ports/runtimeJobs";
 import { PlanPanel } from "./PlanPanel";
 
-vi.mock("../../../application/runtime/ports/tauriThreads", () => ({
+vi.mock("../../../application/runtime/ports/threads", () => ({
   distributedTaskGraph: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
+vi.mock("../../../application/runtime/ports/runtime", () => ({
   getRuntimeCapabilitiesSummary: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriRuntimeJobs", () => ({
+vi.mock("../../../application/runtime/ports/runtimeJobs", () => ({
   cancelRuntimeRun: vi.fn(),
 }));
 
