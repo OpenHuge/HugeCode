@@ -1,7 +1,14 @@
 import { useSyncExternalStore } from "react";
-import initLoro, { LoroDoc, LoroList, LoroMap } from "loro-crdt/web/loro_wasm";
-import loroWasmUrl from "loro-crdt/web/loro_wasm_bg.wasm?url";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
+import {
+  createFallbackRuntimeParallelDispatchDocumentRuntime,
+  loadRuntimeParallelDispatchDocumentRuntime,
+  resetRuntimeParallelDispatchDocumentRuntimeForTests,
+  type RuntimeParallelDispatchDoc,
+  type RuntimeParallelDispatchDocumentRuntime,
+  type RuntimeParallelDispatchList,
+  type RuntimeParallelDispatchMap,
+} from "./runtimeParallelDispatchDocumentRuntime";
 import {
   createBrowserRuntimeParallelDispatchPersistence,
   type RuntimeParallelDispatchPersistence,
@@ -98,6 +105,7 @@ export type StartRuntimeParallelDispatchResult = {
 
 type RuntimeParallelDispatchManagerDependencies = {
   launchRun: (request: RuntimeRunStartRequest) => Promise<RuntimeRunStartV2Response>;
+  loadDocumentRuntime?: () => Promise<RuntimeParallelDispatchDocumentRuntime>;
   now?: () => number;
   persistence?: RuntimeParallelDispatchPersistence;
 };
@@ -120,7 +128,8 @@ type RuntimeParallelDispatchSessionRuntime = {
 
 type RuntimeParallelDispatchWorkspaceStore = {
   workspaceId: string;
-  doc: LoroDoc | null;
+  doc: RuntimeParallelDispatchDoc | null;
+  runtime: RuntimeParallelDispatchDocumentRuntime | null;
   hydrated: boolean;
   hydrationPromise: Promise<void> | null;
   listeners: Set<SnapshotListener>;
@@ -410,22 +419,6 @@ function buildChildLaunchRequest(input: {
   };
 }
 
-let loroReadyPromise: Promise<void> | null = null;
-
-function ensureLoroReady() {
-  if (!loroReadyPromise) {
-    if (import.meta.env.MODE === "test" && loroWasmUrl.startsWith("/@fs/")) {
-      loroReadyPromise = import("node:fs/promises")
-        .then(({ readFile }) => readFile(loroWasmUrl.slice("/@fs".length)))
-        .then((bytes) => initLoro({ module_or_path: bytes }))
-        .then(() => undefined);
-    } else {
-      loroReadyPromise = initLoro({ module_or_path: loroWasmUrl }).then(() => undefined);
-    }
-  }
-  return loroReadyPromise;
-}
-
 function createWorkspaceStore(
   workspaceId: string,
   listeners: Set<SnapshotListener>
@@ -433,6 +426,7 @@ function createWorkspaceStore(
   return {
     workspaceId,
     doc: null,
+    runtime: null,
     hydrated: false,
     hydrationPromise: null,
     listeners,
@@ -442,23 +436,42 @@ function createWorkspaceStore(
   };
 }
 
-function ensureStoreDoc(store: RuntimeParallelDispatchWorkspaceStore): LoroDoc {
+function requireStoreRuntime(
+  store: RuntimeParallelDispatchWorkspaceStore
+): RuntimeParallelDispatchDocumentRuntime {
+  if (!store.runtime) {
+    throw new Error("Parallel dispatch document runtime is not ready.");
+  }
+  return store.runtime;
+}
+
+function createStoreMap(store: RuntimeParallelDispatchWorkspaceStore): RuntimeParallelDispatchMap {
+  return requireStoreRuntime(store).createMap();
+}
+
+function createStoreList<T>(
+  store: RuntimeParallelDispatchWorkspaceStore
+): RuntimeParallelDispatchList<T> {
+  return requireStoreRuntime(store).createList<T>();
+}
+
+function ensureStoreDoc(store: RuntimeParallelDispatchWorkspaceStore): RuntimeParallelDispatchDoc {
   if (!store.doc) {
-    store.doc = new LoroDoc();
+    store.doc = requireStoreRuntime(store).createDoc();
   }
   return store.doc;
 }
 
 function ensureRootSessionsMap(store: RuntimeParallelDispatchWorkspaceStore) {
   const root = ensureStoreDoc(store).getMap("parallel_dispatch");
-  return root.getOrCreateContainer("sessions", new LoroMap());
+  return root.getOrCreateContainer("sessions", createStoreMap(store));
 }
 
 function ensureSessionContainers(store: RuntimeParallelDispatchWorkspaceStore, sessionId: string) {
   const sessions = ensureRootSessionsMap(store);
-  const session = sessions.getOrCreateContainer(sessionId, new LoroMap());
-  const tasks = session.getOrCreateContainer("tasks", new LoroMap());
-  const taskOrder = session.getOrCreateContainer("taskOrder", new LoroList<string>());
+  const session = sessions.getOrCreateContainer(sessionId, createStoreMap(store));
+  const tasks = session.getOrCreateContainer("tasks", createStoreMap(store));
+  const taskOrder = session.getOrCreateContainer("taskOrder", createStoreList<string>(store));
   return {
     session,
     tasks,
@@ -752,8 +765,20 @@ export function createRuntimeParallelDispatchManager(
 ) {
   const stores = new Map<string, RuntimeParallelDispatchWorkspaceStore>();
   const workspaceListeners = new Map<string, Set<SnapshotListener>>();
+  const loadDocumentRuntime =
+    deps.loadDocumentRuntime ?? loadRuntimeParallelDispatchDocumentRuntime;
   const now = deps.now ?? Date.now;
+  let documentRuntimePromise: Promise<RuntimeParallelDispatchDocumentRuntime> | null = null;
   let sessionSequence = 0;
+
+  const ensureDocumentRuntime = () => {
+    if (!documentRuntimePromise) {
+      documentRuntimePromise = loadDocumentRuntime().catch(() =>
+        createFallbackRuntimeParallelDispatchDocumentRuntime()
+      );
+    }
+    return documentRuntimePromise;
+  };
 
   const getWorkspaceListeners = (workspaceId: string) => {
     const existing = workspaceListeners.get(workspaceId);
@@ -796,7 +821,7 @@ export function createRuntimeParallelDispatchManager(
           continue;
         }
         const { tasks, session } = ensureSessionContainers(store, sessionId);
-        const taskMap = tasks.getOrCreateContainer(taskKey, new LoroMap());
+        const taskMap = tasks.getOrCreateContainer(taskKey, createStoreMap(store));
         const nextStatus = mapRuntimeTaskStatus(runtimeTask.status);
         const nextResolvedBackendId = runtimeTask.backendId ?? null;
         const nextErrorMessage = runtimeTask.errorMessage ?? null;
@@ -888,17 +913,18 @@ export function createRuntimeParallelDispatchManager(
       return store;
     }
 
-    store.hydrationPromise = ensureLoroReady()
-      .then(() => {
+    store.hydrationPromise = ensureDocumentRuntime()
+      .then((runtime) => {
+        store.runtime = runtime;
         if (!store.doc) {
-          store.doc = new LoroDoc();
+          store.doc = runtime.createDoc();
         }
         const persistedSnapshot = deps.persistence?.loadSnapshot(workspaceId) ?? null;
         if (persistedSnapshot) {
           try {
             store.doc.import(persistedSnapshot);
           } catch {
-            store.doc = new LoroDoc();
+            store.doc = runtime.createDoc();
             deps.persistence?.clearSnapshot(workspaceId);
           }
         }
@@ -927,7 +953,7 @@ export function createRuntimeParallelDispatchManager(
       if (!isRecord(rawTask) || rawTask.status !== "pending") {
         continue;
       }
-      const taskMap = tasks.getOrCreateContainer(taskKey, new LoroMap());
+      const taskMap = tasks.getOrCreateContainer(taskKey, createStoreMap(store));
       taskMap.set("status", "blocked");
       taskMap.set("updatedAt", updatedAt);
       taskMap.set("errorMessage", "Dispatch halted after an upstream chunk failure.");
@@ -943,7 +969,7 @@ export function createRuntimeParallelDispatchManager(
     origin: string;
   }) => {
     const { tasks, session } = ensureSessionContainers(input.store, input.sessionId);
-    const taskMap = tasks.getOrCreateContainer(input.taskKey, new LoroMap());
+    const taskMap = tasks.getOrCreateContainer(input.taskKey, createStoreMap(input.store));
     taskMap.set("status", "pending");
     taskMap.set("taskId", null);
     taskMap.set("runId", null);
@@ -966,7 +992,7 @@ export function createRuntimeParallelDispatchManager(
     origin: string;
   }) => {
     const { tasks, session } = ensureSessionContainers(input.store, input.sessionId);
-    const taskMap = tasks.getOrCreateContainer(input.taskKey, new LoroMap());
+    const taskMap = tasks.getOrCreateContainer(input.taskKey, createStoreMap(input.store));
     const terminalStatus: RuntimeParallelDispatchChunkStatus =
       input.task.onFailure === "skip" ? "skipped" : "failed";
     taskMap.set("status", terminalStatus);
@@ -1023,7 +1049,7 @@ export function createRuntimeParallelDispatchManager(
         )
       ) {
         const { tasks, session } = ensureSessionContainers(store, sessionId);
-        const taskMap = tasks.getOrCreateContainer(taskKey, new LoroMap());
+        const taskMap = tasks.getOrCreateContainer(taskKey, createStoreMap(store));
         const updatedAt = now();
         taskMap.set("status", "skipped");
         taskMap.set("updatedAt", updatedAt);
@@ -1044,7 +1070,7 @@ export function createRuntimeParallelDispatchManager(
         chunk: task,
       });
       const { tasks, session } = ensureSessionContainers(store, sessionId);
-      const taskMap = tasks.getOrCreateContainer(taskKey, new LoroMap());
+      const taskMap = tasks.getOrCreateContainer(taskKey, createStoreMap(store));
       const launchedAt = now();
       taskMap.set("status", "launching");
       taskMap.set("attemptCount", task.attemptCount);
@@ -1065,7 +1091,7 @@ export function createRuntimeParallelDispatchManager(
             store,
             sessionId
           );
-          const nextTaskMap = nextTasks.getOrCreateContainer(taskKey, new LoroMap());
+          const nextTaskMap = nextTasks.getOrCreateContainer(taskKey, createStoreMap(store));
           const updatedAt = now();
           nextTaskMap.set("status", mapRuntimeTaskStatus(response.run.status));
           nextTaskMap.set("taskId", response.run.taskId);
@@ -1152,7 +1178,7 @@ export function createRuntimeParallelDispatchManager(
       session.set("updatedAt", createdAt);
       for (const task of input.plan.tasks) {
         taskOrder.push(task.taskKey);
-        const taskMap = tasks.getOrCreateContainer(task.taskKey, new LoroMap());
+        const taskMap = tasks.getOrCreateContainer(task.taskKey, createStoreMap(store));
         taskMap.set("taskKey", task.taskKey);
         taskMap.set("title", task.title);
         taskMap.set("instruction", task.instruction);
@@ -1204,7 +1230,8 @@ export function createRuntimeParallelDispatchManager(
     resetForTests() {
       stores.clear();
       workspaceListeners.clear();
-      loroReadyPromise = null;
+      documentRuntimePromise = null;
+      resetRuntimeParallelDispatchDocumentRuntimeForTests();
       sessionSequence = 0;
     },
   };
