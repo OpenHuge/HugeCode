@@ -84,6 +84,21 @@ function titleCase(input: string): string {
     .join(" ");
 }
 
+function formatGitHubMirrorPolicy(
+  value: ReviewIntelligenceSummary["githubMirrorPolicy"]
+): string | null {
+  switch (value) {
+    case "summary":
+      return "Summary mirror";
+    case "check_output":
+      return "Check output mirror";
+    case "disabled":
+      return "No GitHub mirror";
+    default:
+      return null;
+  }
+}
+
 function formatCompatibility(entry: WorkspaceSkillCatalogEntry): string {
   const parts = [`Runtime >= ${entry.compatibility.minRuntime}`];
   if (entry.compatibility.maxRuntime) {
@@ -400,6 +415,12 @@ export function buildReviewPackReviewIntelligenceTruth(input: {
           ? {
               label: "Review run",
               value: reviewIntelligence.reviewRunId,
+            }
+          : null,
+        formatGitHubMirrorPolicy(reviewIntelligence?.githubMirrorPolicy ?? null)
+          ? {
+              label: "GitHub closure",
+              value: formatGitHubMirrorPolicy(reviewIntelligence?.githubMirrorPolicy ?? null)!,
             }
           : null,
       ].filter((value): value is ReviewTruthFact => value !== null),
