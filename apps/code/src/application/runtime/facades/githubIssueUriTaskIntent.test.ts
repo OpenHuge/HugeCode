@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseRepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import { resolveGitHubIssueUriTaskIntent } from "./githubIssueUriTaskIntent";
-import { getGitHubIssueDetails, getGitRemote } from "../ports/tauriGit";
+import { getGitHubIssueDetails, getGitRemote } from "../ports/git";
 
-vi.mock("../ports/tauriGit", () => ({
+vi.mock("../ports/git", () => ({
   getGitHubIssueDetails: vi.fn(),
   getGitRemote: vi.fn(),
 }));

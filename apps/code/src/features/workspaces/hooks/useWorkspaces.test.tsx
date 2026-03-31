@@ -10,7 +10,7 @@ import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeCli
 import {
   readPersistedActiveWorkspaceId,
   writePersistedActiveWorkspaceId,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   useScopedRuntimeUpdatedEvent,
@@ -67,7 +67,7 @@ vi.mock("../../../application/runtime/ports/workspaceMutations", () => ({
   connectWorkspace: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
+vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
   readPersistedActiveWorkspaceId: vi.fn(),
   writePersistedActiveWorkspaceId: vi.fn(),
 }));

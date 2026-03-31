@@ -1,6 +1,6 @@
 import type { RuntimeRunPrepareV2Request } from "@ku0/code-runtime-host-contract";
 import type { GitHubIssue } from "../../../types";
-import { getGitHubIssueDetails, getGitRemote } from "../ports/tauriGit";
+import { getGitHubIssueDetails, getGitRemote } from "../ports/git";
 import type { RepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import {
   buildGovernedGitHubLaunchRequestFromSummary,

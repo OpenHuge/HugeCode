@@ -3,7 +3,7 @@ import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeCli
 import {
   readPersistedActiveWorkspaceId,
   writePersistedActiveWorkspaceId,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import {
   addClone as addCloneService,
   addWorkspace as addWorkspaceService,
