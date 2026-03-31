@@ -2,4 +2,7 @@
 target-dir = ".cache/cargo-target"
 
 [env]
+# Several Rust integration-style unit tests in `packages/code-runtime-service-rs`
+# build large async state machines; keep a stable thread-stack floor so plain
+# `cargo test` does not depend on caller-provided `RUST_MIN_STACK`.
 RUST_MIN_STACK = "33554432"

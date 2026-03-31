@@ -14,6 +14,30 @@ pub(super) enum RequestedCollaborationMode {
     Plan,
 }
 
+const TURN_SEND_ALLOWED_FIELDS: &[&str] = &[
+    "workspaceId",
+    "threadId",
+    "requestId",
+    "content",
+    "contextPrefix",
+    "provider",
+    "modelId",
+    "reasonEffort",
+    "serviceTier",
+    "missionMode",
+    "executionProfileId",
+    "preferredBackendIds",
+    "accessMode",
+    "executionMode",
+    "codexBin",
+    "codexArgs",
+    "queue",
+    "attachments",
+    "collaborationMode",
+    "autoDrive",
+    "autonomyRequest",
+];
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[allow(dead_code)]
@@ -81,6 +105,45 @@ pub(super) struct TurnSendRequestEnvelope {
     pub(super) payload: TurnSendPayloadRequest,
 }
 
+fn reject_legacy_turn_send_nested_aliases(
+    payload: &serde_json::Map<String, Value>,
+) -> Result<(), RpcError> {
+    let mut legacy_alias_fields = Vec::new();
+    if payload.contains_key("collaboration_mode") {
+        legacy_alias_fields.push("collaboration_mode".to_string());
+    }
+    if let Some(Value::Object(mode)) = payload.get("collaborationMode") {
+        if mode.contains_key("modeId") {
+            legacy_alias_fields.push("collaborationMode.modeId".to_string());
+        }
+        if mode.contains_key("mode_id") {
+            legacy_alias_fields.push("collaborationMode.mode_id".to_string());
+        }
+    }
+    if legacy_alias_fields.is_empty() {
+        return Ok(());
+    }
+    Err(RpcError::invalid_params(format!(
+        "turnSend payload no longer accepts legacy alias fields: {}.",
+        legacy_alias_fields.join(", ")
+    )))
+}
+
+pub(super) fn validate_turn_send_payload_shape(
+    payload: &serde_json::Map<String, Value>,
+) -> Result<(), RpcError> {
+    crate::agent_policy::reject_legacy_alias_fields(
+        &Value::Object(payload.clone()),
+        "turnSend payload",
+    )?;
+    reject_legacy_turn_send_nested_aliases(payload)?;
+    crate::agent_policy::reject_unknown_object_fields(
+        payload,
+        TURN_SEND_ALLOWED_FIELDS,
+        "turnSend payload",
+    )
+}
+
 pub(super) fn parse_requested_collaboration_mode(
     collaboration_mode: Option<&TurnSendCollaborationModeRequest>,
 ) -> RequestedCollaborationMode {
@@ -134,7 +197,7 @@ pub(super) fn parse_turn_execution_mode(
     let normalized = raw_value.trim().to_ascii_lowercase().replace('_', "-");
     match normalized.as_str() {
         "runtime" => Ok(TurnExecutionMode::Runtime),
-        "local-cli" | "localcli" | "local" => Ok(TurnExecutionMode::LocalCli),
+        "local-cli" => Ok(TurnExecutionMode::LocalCli),
         "hybrid" => Ok(TurnExecutionMode::Hybrid),
         _ => Err(RpcError::invalid_params(format!(
             "Unsupported execution mode `{raw_value}`. Expected one of: runtime, local-cli, hybrid."
@@ -143,6 +206,13 @@ pub(super) fn parse_turn_execution_mode(
 }
 
 pub(super) fn parse_turn_send_request(params: &Value) -> Result<TurnSendRequestEnvelope, RpcError> {
+    let params_object = as_object(params)?;
+    let payload = params_object
+        .get("payload")
+        .and_then(Value::as_object)
+        .ok_or_else(|| RpcError::invalid_params("Missing turn payload."))?;
+    validate_turn_send_payload_shape(payload)?;
+
     let mut parsed: TurnSendRequestEnvelope = serde_json::from_value(params.clone())
         .map_err(|error| RpcError::invalid_params(format!("Invalid turn payload: {error}")))?;
     parsed.payload.workspace_id = parsed.payload.workspace_id.trim().to_string();
@@ -199,7 +269,7 @@ pub(super) fn parse_turn_send_request(params: &Value) -> Result<TurnSendRequestE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     fn parse_collaboration_mode(value: Value) -> Option<TurnSendCollaborationModeRequest> {
         serde_json::from_value(value).ok()
@@ -212,8 +282,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_turn_execution_mode_accepts_known_aliases() {
-        let parsed = parse_turn_execution_mode(Some("local_cli")).expect("local cli alias");
+    fn parse_turn_execution_mode_accepts_canonical_values() {
+        let parsed = parse_turn_execution_mode(Some("local-cli")).expect("local cli mode");
         assert_eq!(parsed, TurnExecutionMode::LocalCli);
 
         let parsed = parse_turn_execution_mode(Some("hybrid")).expect("hybrid mode");
@@ -226,6 +296,16 @@ mod tests {
             .expect_err("unsupported execution mode must fail");
         assert_eq!(error.code.as_str(), "INVALID_PARAMS");
         assert!(error.message.contains("Unsupported execution mode"));
+    }
+
+    #[test]
+    fn parse_turn_execution_mode_rejects_legacy_local_aliases() {
+        for legacy_value in ["local", "localcli"] {
+            let error = parse_turn_execution_mode(Some(legacy_value))
+                .expect_err("legacy local alias should fail");
+            assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+            assert!(error.message.contains("Unsupported execution mode"));
+        }
     }
 
     #[test]
@@ -346,7 +426,88 @@ mod tests {
 
         assert_eq!(error.code.as_str(), "INVALID_PARAMS");
         assert!(
-            error.message.contains("Invalid turn payload"),
+            error.message.contains("legacy alias fields"),
+            "unexpected message: {}",
+            error.message
+        );
+    }
+
+    #[test]
+    fn validate_turn_send_payload_shape_rejects_legacy_alias_fields() {
+        let payload = serde_json::Map::from_iter([
+            ("workspaceId".to_string(), json!("ws-1")),
+            ("threadId".to_string(), Value::Null),
+            (
+                "content".to_string(),
+                json!("Inspect runtime contract drift."),
+            ),
+            ("request_id".to_string(), json!("req-legacy-1")),
+        ]);
+
+        let error =
+            validate_turn_send_payload_shape(&payload).expect_err("legacy alias should fail");
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(
+            error.message.contains("legacy alias fields"),
+            "unexpected message: {}",
+            error.message
+        );
+    }
+
+    #[test]
+    fn validate_turn_send_payload_shape_rejects_legacy_collaboration_mode_aliases() {
+        let payload = serde_json::Map::from_iter([
+            ("workspaceId".to_string(), json!("ws-1")),
+            ("threadId".to_string(), Value::Null),
+            (
+                "content".to_string(),
+                json!("Inspect runtime contract drift."),
+            ),
+            ("collaboration_mode".to_string(), json!("plan")),
+        ]);
+        let error = validate_turn_send_payload_shape(&payload)
+            .expect_err("legacy top-level alias should fail");
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(error.message.contains("legacy alias"));
+
+        let payload = serde_json::Map::from_iter([
+            ("workspaceId".to_string(), json!("ws-1")),
+            ("threadId".to_string(), Value::Null),
+            (
+                "content".to_string(),
+                json!("Inspect runtime contract drift."),
+            ),
+            (
+                "collaborationMode".to_string(),
+                json!({
+                    "mode_id": "plan",
+                    "settings": { "id": "plan" }
+                }),
+            ),
+        ]);
+        let error = validate_turn_send_payload_shape(&payload)
+            .expect_err("legacy nested alias should fail");
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(error.message.contains("legacy alias"));
+    }
+
+    #[test]
+    fn validate_turn_send_payload_shape_rejects_unknown_fields() {
+        let payload = serde_json::Map::from_iter([
+            ("workspaceId".to_string(), json!("ws-1")),
+            ("threadId".to_string(), Value::Null),
+            (
+                "content".to_string(),
+                json!("Inspect runtime contract drift."),
+            ),
+            ("unexpectedFlag".to_string(), json!(true)),
+        ]);
+
+        let error =
+            validate_turn_send_payload_shape(&payload).expect_err("unknown field should fail");
+        assert_eq!(error.code.as_str(), "INVALID_PARAMS");
+        assert!(
+            error.message.contains("unsupported fields"),
             "unexpected message: {}",
             error.message
         );

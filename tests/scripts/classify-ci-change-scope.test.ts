@@ -139,6 +139,42 @@ describe("classify-ci-change-scope", () => {
     expect(outputs.get("ui_contract_required")).toBe("false");
   });
 
+  it("marks stories and fixtures as skippable for affected build and affected tests", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(
+      tempRoot,
+      "apps/code/src/features/example/ExampleCard.stories.tsx",
+      "export default {};\n"
+    );
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("build_skip_eligible_only")).toBe("true");
+    expect(outputs.get("test_skip_eligible_only")).toBe("true");
+    expect(outputs.get("quality_core_changed")).toBe("true");
+    expect(outputs.get("repo_governance_only")).toBe("false");
+  });
+
+  it("keeps test files eligible for affected tests even when affected builds can skip", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(
+      tempRoot,
+      "apps/code/src/features/example/ExampleCard.test.tsx",
+      "export {};\n"
+    );
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("build_skip_eligible_only")).toBe("true");
+    expect(outputs.get("test_skip_eligible_only")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("true");
+    expect(outputs.get("repo_governance_only")).toBe("false");
+  });
+
   it("keeps shared workflow-governance action edits out of frontend optimization", async () => {
     const tempRoot = await createFixtureRepo();
     await commitChangedFile(
@@ -158,7 +194,25 @@ describe("classify-ci-change-scope", () => {
     expect(outputs.get("ui_contract_required")).toBe("false");
   });
 
-  it("still classifies real app source changes as frontend and UI work", async () => {
+  it("treats workflow-governance regression tests as repository-governance-only work", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(
+      tempRoot,
+      "tests/scripts/ci-merge-queue-fast-path.test.ts",
+      "export {};\n"
+    );
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("frontend_optimization_changed")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("false");
+    expect(outputs.get("repo_governance_only")).toBe("true");
+    expect(outputs.get("ui_contract_required")).toBe("false");
+  });
+
+  it("keeps generic app source changes out of frontend optimization while preserving other CI checks", async () => {
     const tempRoot = await createFixtureRepo();
     await commitChangedFile(
       tempRoot,
@@ -171,6 +225,38 @@ describe("classify-ci-change-scope", () => {
 
     expect(result.status).toBe(0);
     expect(outputs.get("circular_required")).toBe("true");
+    expect(outputs.get("frontend_optimization_changed")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("true");
+    expect(outputs.get("repo_governance_only")).toBe("false");
+    expect(outputs.get("ui_contract_required")).toBe("true");
+  });
+
+  it("keeps frontend optimization workflow wrapper edits in repository-governance lanes", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(
+      tempRoot,
+      ".github/workflows/_reusable-ci-frontend-optimization.yml",
+      "name: frontend optimization\n"
+    );
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(outputs.get("frontend_optimization_changed")).toBe("false");
+    expect(outputs.get("quality_core_changed")).toBe("false");
+    expect(outputs.get("repo_governance_only")).toBe("true");
+    expect(outputs.get("ui_contract_required")).toBe("false");
+  });
+
+  it("still classifies startup and runtime-readiness files as frontend optimization work", async () => {
+    const tempRoot = await createFixtureRepo();
+    await commitChangedFile(tempRoot, "apps/code/vite.config.ts", "export default {};\n");
+
+    const result = runClassifier(tempRoot);
+    const outputs = parseOutputs(result.stdout);
+
+    expect(result.status).toBe(0);
     expect(outputs.get("frontend_optimization_changed")).toBe("true");
     expect(outputs.get("quality_core_changed")).toBe("true");
     expect(outputs.get("repo_governance_only")).toBe("false");
