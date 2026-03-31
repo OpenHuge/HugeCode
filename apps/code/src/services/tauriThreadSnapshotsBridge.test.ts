@@ -491,6 +491,39 @@ describe("tauriThreadSnapshotsBridge", () => {
     );
   });
 
+  it("does not treat session atlas digests as thread snapshot fallback truth", async () => {
+    sessionStorage.setItem(
+      "codexmonitor.threadStorageSession",
+      JSON.stringify({
+        atlasMemoryDigests: {
+          "workspace-session:thread-session": {
+            summary: "session atlas digest",
+            updatedAt: 7,
+          },
+        },
+        pendingDraftMessagesByWorkspace: {},
+      })
+    );
+    sessionStorage.setItem(
+      "codexmonitor.threadStorageRecoverySession",
+      JSON.stringify({
+        updatedAt: Date.now(),
+      })
+    );
+    const threadSnapshotsGetV1 = vi.fn().mockResolvedValue({
+      snapshots: {},
+    });
+    vi.mocked(getRuntimeClient).mockReturnValue({
+      threadSnapshotsGetV1,
+    } as unknown as ReturnType<typeof getRuntimeClient>);
+
+    await expect(readPersistedThreadAtlasMemoryDigests()).resolves.toEqual({});
+    expect(logRuntimeWarning).not.toHaveBeenCalledWith(
+      "Using session thread snapshot fallback until runtime-published thread state is available.",
+      expect.anything()
+    );
+  });
+
   it("prefers the same-tab session active thread ids during fast reloads", async () => {
     sessionStorage.setItem(
       "codexmonitor.activeThreadIdsSession",

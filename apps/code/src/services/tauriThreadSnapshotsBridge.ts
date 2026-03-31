@@ -314,11 +314,10 @@ function mergeClientOwnedSessionThreadStorageState(params: {
 function hasPersistedThreadSnapshotsFallbackState(
   state: PersistedThreadStorageState | null | undefined
 ): boolean {
-  return Boolean(
-    state &&
-    (Object.keys(state.snapshots).length > 0 ||
-      Object.keys(state.atlasMemoryDigests ?? {}).length > 0)
-  );
+  // Session atlas digests are client-owned memory cache and already have a
+  // separate local persistence path. They should not reactivate thread snapshot
+  // fallback authority when runtime thread snapshots are empty.
+  return Boolean(state && Object.keys(state.snapshots).length > 0);
 }
 
 function reportThreadStorageFallback(
