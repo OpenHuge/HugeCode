@@ -1121,6 +1121,15 @@ pub(super) async fn handle_kernel_projection_bootstrap_v3(
     params: &Value,
 ) -> Result<Value, RpcError> {
     let params = as_object(params)?;
+    crate::agent_policy::reject_legacy_alias_fields(
+        &Value::Object(params.clone()),
+        "Kernel projection bootstrap payload",
+    )?;
+    crate::agent_policy::reject_unknown_object_fields(
+        params,
+        &["scopes"],
+        "Kernel projection bootstrap payload",
+    )?;
     let scopes = parse_kernel_projection_scopes(params)?;
     let revision = ctx.runtime_update_revision.load(Ordering::Relaxed);
     let mut slice_revisions = serde_json::Map::new();
