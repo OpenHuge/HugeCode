@@ -63,8 +63,12 @@ vi.mock("../../../application/runtime/ports/toasts", () => ({
 
 vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
-    sendMessage: ({ threadId, text, options }: Record<string, unknown>) =>
-      runtimeSessionCommandMocks.sendUserMessage(workspaceId, threadId, text, options),
+    sendMessage: ({ threadId, text, options }: Record<string, unknown>) => {
+      const { telemetrySource: _telemetrySource, ...restOptions } = ((options as
+        | Record<string, unknown>
+        | undefined) ?? {}) as Record<string, unknown>;
+      return runtimeSessionCommandMocks.sendUserMessage(workspaceId, threadId, text, restOptions);
+    },
     steerTurn: ({
       threadId,
       turnId,
@@ -72,16 +76,20 @@ vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks",
       images,
       contextPrefix,
       options,
-    }: Record<string, unknown>) =>
-      runtimeSessionCommandMocks.steerTurn(
+    }: Record<string, unknown>) => {
+      const { telemetrySource: _telemetrySource, ...restOptions } = ((options as
+        | Record<string, unknown>
+        | undefined) ?? {}) as Record<string, unknown>;
+      return runtimeSessionCommandMocks.steerTurn(
         workspaceId,
         threadId,
         turnId,
         text,
         images,
         contextPrefix,
-        options
-      ),
+        restOptions
+      );
+    },
     interruptTurn: ({ threadId, turnId }: Record<string, unknown>) =>
       runtimeSessionCommandMocks.interruptTurn(workspaceId, threadId, turnId),
     startReview: ({ threadId, target, delivery }: Record<string, unknown>) =>

@@ -117,7 +117,9 @@ describe("useThreadActions", () => {
     });
 
     expect(threadId).toBe("thread-1");
-    expect(startThread).toHaveBeenCalledWith("ws-1");
+    expect(startThread).toHaveBeenCalledWith("ws-1", {
+      telemetrySource: "thread_actions",
+    });
     expect(dispatch).toHaveBeenCalledWith({
       type: "ensureThread",
       workspaceId: "ws-1",
@@ -227,7 +229,9 @@ describe("useThreadActions", () => {
       await forceResult.current.resumeThreadForWorkspace("ws-1", "thread-1", true);
     });
 
-    expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-1");
+    expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-1", {
+      telemetrySource: "thread_actions",
+    });
   });
 
   it("returns null and keeps the thread unloadable when resume returns no thread payload", async () => {
@@ -276,7 +280,9 @@ describe("useThreadActions", () => {
       await result.current.resumeThreadForWorkspace("ws-1", "thread-2");
     });
 
-    expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-2");
+    expect(resumeThread).toHaveBeenCalledWith("ws-1", "thread-2", {
+      telemetrySource: "thread_actions",
+    });
     expect(applyCollabThreadLinksFromThread).toHaveBeenCalledWith(
       "thread-2",
       expect.objectContaining({ id: "thread-2" })
@@ -1200,7 +1206,9 @@ describe("useThreadActions", () => {
       await result.current.archiveThread("ws-1", "thread-9");
     });
 
-    expect(archiveThread).toHaveBeenCalledWith("ws-1", "thread-9");
+    expect(archiveThread).toHaveBeenCalledWith("ws-1", "thread-9", {
+      telemetrySource: "thread_actions",
+    });
     expect(onDebug).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "error",

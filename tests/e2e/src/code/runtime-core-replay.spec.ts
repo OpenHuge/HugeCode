@@ -529,9 +529,16 @@ async function runAction(
     if (!runtimeOperation || runtimeOperation.type !== "agent-task-start") {
       throw new Error(`Sample ${sample.sample.id} is missing input.runtimeOperation.`);
     }
+    await runtimeRpcRequest(page.request, "code_runtime_run_prepare_v2", {
+      workspaceId: sample.process.harness.workspaceId,
+      ...(runtimeOperation.title ? { title: runtimeOperation.title } : {}),
+      ...(runtimeOperation.taskSource ? { taskSource: runtimeOperation.taskSource } : {}),
+      ...(runtimeOperation.autoDrive ? { autoDrive: runtimeOperation.autoDrive } : {}),
+      steps: runtimeOperation.steps,
+    });
     const startResult = await runtimeRpcRequest<{ taskId?: string }>(
       page.request,
-      "code_runtime_run_start",
+      "code_runtime_run_start_v2",
       {
         workspaceId: sample.process.harness.workspaceId,
         ...(runtimeOperation.title ? { title: runtimeOperation.title } : {}),

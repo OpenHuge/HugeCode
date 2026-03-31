@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   type ScopedRuntimeUpdatedEventSnapshot,
@@ -24,10 +23,6 @@ import { useAccountPools } from "./useAccountPools";
 
 vi.mock("@tauri-apps/plugin-opener", () => ({
   openUrl: vi.fn(),
-}));
-
-vi.mock("../../../application/runtime/ports/events", () => ({
-  subscribeAppServerEvents: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
@@ -62,8 +57,6 @@ function Harness(props: { onChange: (value: HookResult) => void }) {
 }
 
 let latest: HookResult | null = null;
-let appServerListener: ((event: { workspace_id?: string; message?: unknown }) => void) | null =
-  null;
 let runtimeUpdatedListener: ((event: RuntimeUpdatedEvent) => void) | null = null;
 const unlisten = vi.fn();
 const EMPTY_RUNTIME_UPDATED_SNAPSHOT: ScopedRuntimeUpdatedEventSnapshot = {
@@ -74,14 +67,9 @@ let runtimeUpdatedRevisionCounter = 0;
 
 beforeEach(() => {
   latest = null;
-  appServerListener = null;
   runtimeUpdatedListener = null;
   runtimeUpdatedRevisionCounter = 0;
   unlisten.mockReset();
-  vi.mocked(subscribeAppServerEvents).mockImplementation((callback) => {
-    appServerListener = callback as typeof appServerListener;
-    return unlisten;
-  });
   vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, callback) => {
     runtimeUpdatedListener = callback;
     return unlisten;
@@ -208,22 +196,19 @@ describe("useAccountPools", () => {
     });
   });
 
-  it("refreshes on account login completed success", async () => {
+  it("refreshes on runtime/updated oauth login success", async () => {
     const { root } = await mount();
 
     expect(listOAuthAccounts).toHaveBeenCalledTimes(1);
     expect(listOAuthPools).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      appServerListener?.({
-        workspace_id: "workspace-1",
-        message: {
-          method: "account/login/completed",
-          params: {
-            loginId: "login-1",
-            success: true,
-          },
-        },
+      emitRuntimeUpdatedOauth({
+        revision: "13",
+        scope: ["oauth"],
+        reason: "oauth_codex_login_completed",
+        oauthLoginId: "login-1",
+        oauthLoginSuccess: true,
       });
     });
 

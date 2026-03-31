@@ -35,6 +35,23 @@ describe("parseRuntimeUpdatedEvent", () => {
     expect(parsed?.isWorkspaceLocalEvent).toBe(true);
   });
 
+  it("canonicalizes legacy runtime run reasons onto v2 reason names", () => {
+    const parsed = parseRuntimeUpdatedEvent({
+      workspace_id: "workspace-local",
+      message: {
+        method: "runtime/updated",
+        params: {
+          reason: "code_runtime_run_start",
+          scope: ["agents"],
+        },
+      },
+    });
+
+    expect(parsed).not.toBeNull();
+    expect(parsed?.reason).toBe("code_runtime_run_start_v2");
+    expect(parsed?.scope).toEqual(["agents"]);
+  });
+
   it("maps native state fabric events onto runtime-updated scopes", () => {
     const parsed = parseRuntimeUpdatedEvent({
       workspace_id: "workspace-local",
