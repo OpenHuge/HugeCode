@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
 import { useEffect, useState } from "react";
-import { isTauri } from "@tauri-apps/api/core";
-import { ask, message } from "@tauri-apps/plugin-dialog";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isTauri } from "../../../application/runtime/ports/desktopHostCore";
+import { ask, message } from "../../../application/runtime/ports/desktopHostDialogs";
 import { logger } from "../../../application/runtime/ports/logger";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
@@ -34,11 +34,11 @@ import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { useWorkspaces } from "./useWorkspaces";
 import { clearWorkspaceRouteRestoreSelection } from "./workspaceRoute";
 
-vi.mock("@tauri-apps/api/core", () => ({
+vi.mock("../../../application/runtime/ports/desktopHostCore", () => ({
   isTauri: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
+vi.mock("../../../application/runtime/ports/desktopHostDialogs", () => ({
   ask: vi.fn(),
   message: vi.fn(),
 }));
