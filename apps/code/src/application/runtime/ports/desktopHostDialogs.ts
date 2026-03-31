@@ -1,4 +1,4 @@
-import * as tauriDialog from "@tauri-apps/plugin-dialog";
+import * as legacyDesktopDialog from "./packageCompat/legacyDesktopDialogCompat";
 import { getDesktopHostBridge } from "./desktopHostBridge";
 
 type DialogKind = "error" | "info" | "warning";
@@ -27,8 +27,11 @@ function emptySelection(multiple: boolean): OpenResult {
 }
 
 export async function ask(message: string, _options?: AskOptions): Promise<boolean> {
-  if (typeof tauriDialog.ask === "function" && getDesktopHostBridge()?.kind !== "electron") {
-    return tauriDialog.ask(message, _options);
+  if (
+    typeof legacyDesktopDialog.ask === "function" &&
+    getDesktopHostBridge()?.kind !== "electron"
+  ) {
+    return legacyDesktopDialog.ask(message, _options);
   }
   if (typeof window === "undefined" || typeof window.confirm !== "function") {
     return false;
@@ -37,8 +40,11 @@ export async function ask(message: string, _options?: AskOptions): Promise<boole
 }
 
 export async function message(messageText: string, _options?: MessageOptions): Promise<void> {
-  if (typeof tauriDialog.message === "function" && getDesktopHostBridge()?.kind !== "electron") {
-    await tauriDialog.message(messageText, _options);
+  if (
+    typeof legacyDesktopDialog.message === "function" &&
+    getDesktopHostBridge()?.kind !== "electron"
+  ) {
+    await legacyDesktopDialog.message(messageText, _options);
     return;
   }
   if (typeof window === "undefined" || typeof window.alert !== "function") {
@@ -56,9 +62,12 @@ export async function open(options: OpenOptions = {}): Promise<OpenResult> {
     return dialogResult ?? emptySelection(options.multiple === true);
   }
 
-  if (typeof tauriDialog.open === "function" && getDesktopHostBridge()?.kind !== "electron") {
+  if (
+    typeof legacyDesktopDialog.open === "function" &&
+    getDesktopHostBridge()?.kind !== "electron"
+  ) {
     return (
-      (await tauriDialog.open({
+      (await legacyDesktopDialog.open({
         directory: options.directory === true,
         multiple: options.multiple === true,
       })) ?? emptySelection(options.multiple === true)

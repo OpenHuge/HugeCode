@@ -7,7 +7,7 @@ import {
   type OAuthAccountSummary,
   type OAuthProviderId,
   upsertOAuthAccount,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import {
   resolveProviderBrandRouteId,
   type ProviderBrandId,

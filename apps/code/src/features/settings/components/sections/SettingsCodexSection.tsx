@@ -2,7 +2,7 @@ import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, Select, type SelectOption } from "../../../../design-system";
-import { getProvidersCatalog } from "../../../../application/runtime/ports/tauriOauth";
+import { getProvidersCatalog } from "../../../../application/runtime/ports/oauth";
 import { useRuntimeUpdatedRefresh } from "../../../app/hooks/useRuntimeUpdatedRefresh";
 import type { RuntimeProviderCatalogEntry } from "../../../../contracts/runtime";
 import type {

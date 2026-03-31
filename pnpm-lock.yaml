@@ -392,6 +392,9 @@ importers:
 
   packages/code-workspace-client:
     dependencies:
+      '@ku0/code-runtime-client':
+        specifier: workspace:*
+        version: link:../code-runtime-client
       '@ku0/code-runtime-host-contract':
         specifier: workspace:*
         version: link:../code-runtime-host-contract

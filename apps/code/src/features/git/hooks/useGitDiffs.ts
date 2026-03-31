@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { logger } from "../../../application/runtime/ports/logger";
-import { getGitDiffs } from "../../../application/runtime/ports/tauriGit";
+import { getGitDiffs } from "../../../application/runtime/ports/git";
 import type { GitDiffScope, GitFileDiff, GitFileStatus, WorkspaceInfo } from "../../../types";
 import { shouldSuppressGitConsoleError } from "../utils/repositoryErrors";
 

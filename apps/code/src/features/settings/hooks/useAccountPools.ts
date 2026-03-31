@@ -10,7 +10,7 @@ import {
   removeOAuthAccount,
   runCodexLogin,
   upsertOAuthAccount,
-} from "../../../application/runtime/ports/tauriOauth";
+} from "../../../application/runtime/ports/oauth";
 import {
   buildPoolDrafts,
   buildProviderOptionsFromCatalog,

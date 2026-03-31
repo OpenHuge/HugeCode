@@ -15,7 +15,7 @@ import {
   runtimeBackendsList,
   runtimeBackendUpsert,
   type RuntimeBackendUpsertInput,
-} from "../ports/tauriRemoteServers";
+} from "../ports/remoteServers";
 import { pushErrorToast } from "../ports/toasts";
 import { MULTI_BACKEND_POOL_CAPABILITY, normalizeBackendPoolSnapshot } from "../types/backendPool";
 import type { RemoteBackendProvider } from "../../../types";

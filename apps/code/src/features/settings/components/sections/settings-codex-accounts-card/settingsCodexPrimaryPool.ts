@@ -1,4 +1,4 @@
-import type { OAuthPoolSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import type { OAuthPoolSummary } from "../../../../../application/runtime/ports/oauth";
 import {
   getDefaultPrimaryPoolIdForProvider,
   isDefaultPrimaryPoolForProvider,

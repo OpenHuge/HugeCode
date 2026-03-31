@@ -6,7 +6,7 @@ import {
   renameWorkspace as renameWorkspaceService,
   renameWorktree as renameWorktreeService,
   renameWorktreeUpstream as renameWorktreeUpstreamService,
-} from "../../../application/runtime/ports/tauriWorkspaceMutations";
+} from "../../../application/runtime/ports/workspaceMutations";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 import { askWithFallback, messageWithFallback } from "./useWorkspaces.helpers";
 

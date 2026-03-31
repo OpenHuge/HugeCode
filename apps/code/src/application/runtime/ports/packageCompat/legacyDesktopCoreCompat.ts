@@ -43,11 +43,14 @@ function resolveCompatInvoke(): CompatInvokeFunction | null {
   return null;
 }
 
-export function isTauri() {
+export function isLegacyDesktopCompatActive() {
   return resolveCompatInvoke() !== null;
 }
 
-export async function invoke<Result>(command: string, payload?: InvokePayload): Promise<Result> {
+export async function invokeLegacyDesktopCompat<Result>(
+  command: string,
+  payload?: InvokePayload
+): Promise<Result> {
   const invokeCompat = resolveCompatInvoke();
   if (!invokeCompat) {
     throw new TypeError("Cannot read properties of undefined (reading 'invoke')");

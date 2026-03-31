@@ -1,7 +1,7 @@
 import type { MutableRefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AutoDriveControllerHookDraft } from "../../../application/runtime/types/autoDrive";
-import { pickWorkspacePath } from "../../../application/runtime/ports/tauriWorkspaceDialogs";
+import { pickWorkspacePath } from "../../../application/runtime/ports/workspaceDialogs";
 import type {
   ComposerExecutionMode,
   ComposerModelSelectionMode,

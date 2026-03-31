@@ -4,7 +4,7 @@ import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlF
 import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import { discoverLocalRuntimeGatewayTargets } from "../facades/discoverLocalRuntimeGatewayTargets";
 import { configureManualWebRuntimeGatewayTarget } from "../ports/runtimeWebGatewayConfig";
-import { getMissionControlSnapshot } from "../ports/tauriMissionControl";
+import { getMissionControlSnapshot } from "../ports/missionControl";
 import { detectRuntimeMode, readRuntimeCapabilitiesSummary } from "../ports/runtimeClient";
 import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
 import { createRuntimeAgentControlDependencies } from "./createRuntimeAgentControlDependencies";

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logger } from "../../../application/runtime/ports/logger";
-import { getGitCommitDiff } from "../../../application/runtime/ports/tauriGit";
+import { getGitCommitDiff } from "../../../application/runtime/ports/git";
 import type { GitCommitDiff, WorkspaceInfo } from "../../../types";
 
 type CommitDiffState = {

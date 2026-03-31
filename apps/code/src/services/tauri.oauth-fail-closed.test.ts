@@ -17,7 +17,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
   getRuntimeClient: vi.fn(),
 }));
 

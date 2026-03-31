@@ -1,1 +1,1 @@
-export { getCollaborationModes } from "../../../services/desktopHostRpc";
+export * from "./collaboration";

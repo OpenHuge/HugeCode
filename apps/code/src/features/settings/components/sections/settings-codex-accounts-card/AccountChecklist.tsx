@@ -1,4 +1,4 @@
-import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/oauth";
 import { Avatar } from "../../../../../design-system";
 import { Text } from "../../../../../design-system";
 import { providerMonogram } from "../settingsCodexAccountsCardUtils";

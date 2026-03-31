@@ -1,6 +1,6 @@
 import { getDesktopHostBridge } from "../ports/desktopHostBridge";
 import type { LocalChromeDebuggerEndpointDescriptor } from "../ports/desktopHostBridge";
-import type { OAuthAccountSummary } from "../ports/tauriOauth";
+import type { OAuthAccountSummary } from "../ports/oauth";
 
 const CHATGPT_APP_URL = "https://chatgpt.com/";
 const CHATGPT_ACCOUNTS_CHECK_PATH = "/backend-api/accounts/check/v4-2023-04-27";

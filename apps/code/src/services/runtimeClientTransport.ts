@@ -8,7 +8,7 @@ import {
 import { detectRuntimeMode } from "./runtimeClientMode";
 import {
   resolveCapabilitiesSnapshotByMode,
-  resolveTauriRuntimeRpcMethodCandidates,
+  resolveDesktopCompatRuntimeRpcMethodCandidates,
   resolveWebRuntimeRpcMethodCandidates,
 } from "./runtimeClientCapabilitiesProbe";
 import {
@@ -30,7 +30,10 @@ import { invokeWebRuntimeRaw } from "./runtimeClientWebTransport";
 
 type RuntimeClient = SharedRuntimeClient<AppSettings>;
 
-async function invokeTauriRaw<Result>(method: string, params: RuntimeRpcParams): Promise<Result> {
+async function invokeDesktopCompatRaw<Result>(
+  method: string,
+  params: RuntimeRpcParams
+): Promise<Result> {
   return invokeTauriRawShared(
     <Value>(candidate: string, candidateParams: RuntimeRpcParams) =>
       invoke<Value>(candidate, candidateParams),
@@ -77,15 +80,18 @@ const webRuntimeClient = createExtendedRpcRuntimeClient<AppSettings>(
   createRuntimeRpcInvokerWithCandidates(invokeWebRuntimeRaw, resolveWebRuntimeRpcMethodCandidates)
 );
 
-const tauriClient = createExtendedRpcRuntimeClient<AppSettings>(
-  createRuntimeRpcInvokerWithCandidates(invokeTauriRaw, resolveTauriRuntimeRpcMethodCandidates)
+const desktopCompatClient = createExtendedRpcRuntimeClient<AppSettings>(
+  createRuntimeRpcInvokerWithCandidates(
+    invokeDesktopCompatRaw,
+    resolveDesktopCompatRuntimeRpcMethodCandidates
+  )
 );
 
 export function getRuntimeClient(): RuntimeClient {
   const mode = detectRuntimeMode();
 
-  if (mode === "tauri") {
-    return tauriClient;
+  if (mode === "desktop-compat") {
+    return desktopCompatClient;
   }
   if (mode === "runtime-gateway-web") {
     return webRuntimeClient;

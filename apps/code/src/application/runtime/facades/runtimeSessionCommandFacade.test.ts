@@ -101,7 +101,7 @@ describe("createRuntimeSessionCommandFacade", () => {
 
     expect(facade.canStartReviewInCurrentHost()).toBe(false);
 
-    vi.mocked(deps.detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(deps.detectRuntimeMode).mockReturnValue("desktop-compat");
 
     expect(facade.canStartReviewInCurrentHost()).toBe(true);
   });

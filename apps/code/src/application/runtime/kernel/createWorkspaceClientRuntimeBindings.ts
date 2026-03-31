@@ -16,9 +16,9 @@ import {
   listOAuthPools,
   runCodexLogin,
   setOAuthPrimaryAccount,
-} from "../ports/tauriOauth";
-import { getConfigModel, getModelList } from "../ports/tauriModels";
-import { listWorkspaces } from "../ports/tauriWorkspaceCatalog";
+} from "../ports/oauth";
+import { getConfigModel, getModelList } from "../ports/models";
+import { listWorkspaces } from "../ports/workspaceCatalog";
 import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
 import {
   cancelRuntimeRun,
@@ -27,13 +27,13 @@ import {
   submitRuntimeJobApprovalDecision,
   resumeRuntimeRun,
   startRuntimeRunV2,
-} from "../ports/tauriRuntimeJobs";
+} from "../ports/runtimeJobs";
 import {
   archiveRuntimeThread,
   createRuntimeThread,
   listRuntimeThreads,
   resumeRuntimeThread,
-} from "../ports/tauriRuntimeThreads";
+} from "../ports/runtimeThreads";
 import {
   checkoutRuntimeGitBranch,
   commitRuntimeGit,
@@ -46,11 +46,11 @@ import {
   stageAllRuntimeGitChanges,
   stageRuntimeGitChange,
   unstageRuntimeGitChange,
-} from "../ports/tauriRuntimeGit";
+} from "../ports/runtimeGit";
 import {
   listRuntimeWorkspaceFileEntries,
   readRuntimeWorkspaceFile,
-} from "../ports/tauriRuntimeWorkspaceFiles";
+} from "../ports/runtimeWorkspaceFiles";
 import type {
   HugeCodeMissionControlSnapshot,
   KernelProjectionBootstrapRequest,

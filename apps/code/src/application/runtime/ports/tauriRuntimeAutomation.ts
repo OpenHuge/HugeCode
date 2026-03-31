@@ -1,5 +1,1 @@
-export {
-  applyWorkspacePatch,
-  getRuntimeBrowserDebugStatus,
-  runRuntimeBrowserDebug,
-} from "../../../services/desktopHostRpc";
+export * from "./runtimeAutomation";

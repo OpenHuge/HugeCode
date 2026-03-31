@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
@@ -116,6 +116,32 @@ import {
   pickWorkspacePaths as pickWorkspacePathsBridge,
 } from "../../../services/tauriWorkspaceBridge";
 
+function collectSourceFiles(directory: string): string[] {
+  return readdirSync(directory).flatMap((entry) => {
+    const absolutePath = path.join(directory, entry);
+    const stats = statSync(absolutePath);
+
+    if (stats.isDirectory()) {
+      return collectSourceFiles(absolutePath);
+    }
+
+    if (!absolutePath.endsWith(".ts") && !absolutePath.endsWith(".tsx")) {
+      return [];
+    }
+
+    if (
+      absolutePath.endsWith(".test.ts") ||
+      absolutePath.endsWith(".test.tsx") ||
+      absolutePath.endsWith(".test.shared.tsx") ||
+      absolutePath.includes(`${path.sep}test${path.sep}`)
+    ) {
+      return [];
+    }
+
+    return [absolutePath];
+  });
+}
+
 describe("tauri runtime port contract", () => {
   it("re-exports critical runtime functions from narrow runtime ports", () => {
     const runtimePortExports = [
@@ -220,24 +246,45 @@ describe("tauri runtime port contract", () => {
     expect(existsSync(source)).toBe(false);
   });
 
-  it("keeps legacy runtime-run types off the deprecated tauri compat surface", () => {
-    const source = readFileSync(
-      path.resolve(import.meta.dirname, "../../../services/tauri.ts"),
-      "utf8"
-    );
+  it("keeps active renderer source off tauri-named runtime ports", () => {
+    const appSourceRoot = path.resolve(import.meta.dirname, "../../..");
+    const offenders = collectSourceFiles(appSourceRoot)
+      .filter(
+        (filePath) =>
+          !filePath.includes(`${path.sep}application${path.sep}runtime${path.sep}ports${path.sep}`)
+      )
+      .filter((filePath) => {
+        const source = readFileSync(filePath, "utf8");
+        return /application\/runtime\/ports\/tauri[A-Z][A-Za-z]+/.test(source);
+      })
+      .map((filePath) => path.relative(appSourceRoot, filePath))
+      .sort();
 
-    expect(source).not.toMatch(/RuntimeRunCancelAck/);
-    expect(source).not.toMatch(/RuntimeRunCancelRequest/);
-    expect(source).not.toMatch(/RuntimeRunCheckpointApprovalAck/);
-    expect(source).not.toMatch(/RuntimeRunCheckpointApprovalRequest/);
-    expect(source).not.toMatch(/RuntimeRunInterventionAck/);
-    expect(source).not.toMatch(/RuntimeRunInterventionRequest/);
-    expect(source).not.toMatch(/RuntimeRunsListRequest/);
-    expect(source).not.toMatch(/RuntimeRunResumeAck/);
-    expect(source).not.toMatch(/RuntimeRunResumeRequest/);
-    expect(source).not.toMatch(/RuntimeRunStartRequest/);
-    expect(source).not.toMatch(/RuntimeRunSubscribeRequest/);
-    expect(source).not.toMatch(/RuntimeRunSummary/);
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps canonical runtime ports off tauri-named wrappers and bridge modules", () => {
+    const runtimePortsRoot = path.resolve(import.meta.dirname);
+    const offenders = collectSourceFiles(runtimePortsRoot)
+      .filter((filePath) => !filePath.includes(`${path.sep}packageCompat${path.sep}`))
+      .filter((filePath) => !path.basename(filePath).startsWith("tauri"))
+      .filter((filePath) => {
+        const source = readFileSync(filePath, "utf8");
+        return (
+          /from\s+["']\.\/tauri[A-Z][A-Za-z]+["']/.test(source) ||
+          /from\s+["']\.\.\/\.\.\/\.\.\/services\/tauri[A-Z][A-Za-z]+Bridge["']/.test(source)
+        );
+      })
+      .map((filePath) => path.relative(runtimePortsRoot, filePath))
+      .sort();
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("retires the deprecated tauri service barrel entirely", () => {
+    const source = path.resolve(import.meta.dirname, "../../../services/tauri.ts");
+
+    expect(existsSync(source)).toBe(false);
   });
 
   it("keeps raw kernel ports off the legacy tauri service type surface", () => {
@@ -314,7 +361,7 @@ describe("tauri runtime port contract", () => {
       "utf8"
     );
 
-    expect(source).toMatch(/from\s+["']\.\.\/ports\/tauriRuntimeJobs["']/);
+    expect(source).toMatch(/from\s+["']\.\.\/ports\/runtimeJobs["']/);
     expect(source).not.toMatch(/from\s+["']\.\.\/ports\/tauriRuntimeRuns["']/);
   });
 
@@ -324,7 +371,7 @@ describe("tauri runtime port contract", () => {
       "utf8"
     );
 
-    expect(source).toMatch(/from\s+["']\.\.\/ports\/tauriRuntimeJobs["']/);
+    expect(source).toMatch(/from\s+["']\.\.\/ports\/runtimeJobs["']/);
     expect(source).toMatch(/startRuntimeRunWithRemoteSelection/);
   });
 

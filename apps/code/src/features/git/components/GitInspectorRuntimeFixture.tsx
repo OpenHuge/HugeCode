@@ -3,7 +3,7 @@ import type { GitLogResponse, WorkspaceSummary } from "@ku0/code-runtime-host-co
 import type { OpenAppTarget, GitFileDiff, GitFileStatus } from "../../../types";
 import { getRuntimeClient } from "../../../application/runtime/ports/runtimeClient";
 import { readWorkspaceFile } from "../../../application/runtime/ports/desktopFiles";
-import { getGitDiffs, getGitLog, getGitStatus } from "../../../application/runtime/ports/tauriGit";
+import { getGitDiffs, getGitLog, getGitStatus } from "../../../application/runtime/ports/git";
 import {
   AgentStepSummaryBlock,
   DiffSummaryBlock,

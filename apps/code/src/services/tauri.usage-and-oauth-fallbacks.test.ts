@@ -41,7 +41,7 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -78,9 +78,9 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-compat",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -1153,10 +1153,10 @@ describe("tauri invoke wrappers (usage + oauth fallbacks)", () => {
 
   it("reports runtime-backed oauth subscription persistence in tauri mode", () => {
     vi.mocked(isTauri).mockReturnValue(true);
-    vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
 
     expect(readOAuthSubscriptionPersistenceCapability()).toEqual({
-      hostMode: "tauri",
+      hostMode: "desktop-compat",
       persistenceKind: "runtime-backed",
       runtimeBacked: true,
       durableStorage: true,

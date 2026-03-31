@@ -120,7 +120,7 @@ vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
 }));
 
 vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({

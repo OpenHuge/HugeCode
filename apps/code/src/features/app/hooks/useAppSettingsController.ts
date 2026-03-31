@@ -1,4 +1,4 @@
-import { runCodexUpdate } from "../../../application/runtime/ports/tauriCodexOperations";
+import { runCodexUpdate } from "../../../application/runtime/ports/codexOperations";
 import { useThemePreference } from "../../layout/hooks/useThemePreference";
 import { useTransparencyPreference } from "../../layout/hooks/useTransparencyPreference";
 import { useUiScaleShortcuts } from "../../layout/hooks/useUiScaleShortcuts";

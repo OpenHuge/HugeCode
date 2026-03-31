@@ -7,7 +7,7 @@ import {
   pushGit,
   stageGitAll,
   syncGit,
-} from "../../../application/runtime/ports/tauriGit";
+} from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 import { shouldApplyCommitMessage } from "../../../utils/commitMessage";
 import type { useGitStatus } from "../../git/hooks/useGitStatus";

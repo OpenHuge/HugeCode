@@ -1,1 +1,1 @@
-export { listRuntimeModels } from "../../../services/tauriRuntimeCatalogBridge";
+export * from "./runtimeCatalog";

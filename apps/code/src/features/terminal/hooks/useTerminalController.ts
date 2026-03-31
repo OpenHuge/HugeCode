@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { closeTerminalSession } from "../../../application/runtime/ports/tauriTerminal";
+import { closeTerminalSession } from "../../../application/runtime/ports/terminal";
 import type { DebugEntry, WorkspaceInfo } from "../../../types";
 import { buildErrorDebugEntry } from "../../../utils/debugEntries";
 import { shouldIgnoreTerminalCloseError } from "./terminalErrorClassifier";

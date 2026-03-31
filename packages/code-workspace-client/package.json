@@ -73,6 +73,7 @@
     "lint:fix": "oxlint --fix --fix-suggestions . && oxfmt --write ."
   },
   "dependencies": {
+    "@ku0/code-runtime-client": "workspace:*",
     "@ku0/code-runtime-host-contract": "workspace:*",
     "@ku0/design-system": "workspace:*",
     "@ku0/shared": "workspace:*",

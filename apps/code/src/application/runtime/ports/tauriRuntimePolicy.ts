@@ -1,1 +1,1 @@
-export { getRuntimePolicy, setRuntimePolicy } from "../../../services/tauriRuntimePolicyBridge";
+export * from "./runtimePolicy";

@@ -111,7 +111,7 @@ describe("tauriRuntimeSchedulesBridge", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isTauriMock.mockReturnValue(true);
-    detectRuntimeModeMock.mockReturnValue("tauri");
+    detectRuntimeModeMock.mockReturnValue("desktop-compat");
     isRuntimeMethodUnsupportedErrorMock.mockReturnValue(false);
     isWebRuntimeConnectionErrorMock.mockReturnValue(false);
     invokeMock.mockReset();

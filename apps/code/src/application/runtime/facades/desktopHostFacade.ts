@@ -36,7 +36,7 @@ import {
   openDesktopCompatibilityPath,
   openDesktopCompatibilityUrl,
   revealDesktopCompatibilityItemInDir,
-} from "../ports/tauriOpener";
+} from "../ports/desktopHostOpener";
 
 function openBrowserUrl(url: string) {
   if (typeof window === "undefined" || typeof window.open !== "function") {

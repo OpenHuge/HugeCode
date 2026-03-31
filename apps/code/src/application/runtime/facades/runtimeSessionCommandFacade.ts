@@ -15,7 +15,7 @@ import {
   sendUserMessage,
   startReview,
   steerTurn,
-} from "../ports/tauriThreads";
+} from "../ports/threads";
 import type {
   AccessMode,
   ComposerExecutionMode,
@@ -201,7 +201,7 @@ export function createRuntimeSessionCommandFacade(
       deps.respondToUserInputRequest(workspaceId, requestId, answers),
     respondToToolCall: ({ requestId, response }) =>
       deps.respondToToolCallRequest(workspaceId, requestId, response),
-    canStartReviewInCurrentHost: () => deps.detectRuntimeMode() === "tauri",
+    canStartReviewInCurrentHost: () => deps.detectRuntimeMode() === "desktop-compat",
     reviewStartDesktopOnlyMessage: deps.reviewStartDesktopOnlyMessage,
   };
 }

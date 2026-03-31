@@ -1,4 +1,4 @@
-import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/tauriOauth";
+import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/oauth";
 import { clearActiveOauthPopupLoginId, setActiveOauthPopupLoginId } from "./oauthHelpers";
 
 export type CodexOAuthAction =

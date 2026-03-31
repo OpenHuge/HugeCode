@@ -1,1 +1,1 @@
-export { listRuntimeLiveSkills } from "../../../services/tauriRuntimeLiveSkillsBridge";
+export * from "./runtimeSkills";

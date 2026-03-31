@@ -12,4 +12,4 @@ export {
   searchRuntimeExtensionRegistry,
   setRuntimeExtensionState,
   updateRuntimeExtension,
-} from "../../../services/tauriRuntimeExtensionBridge";
+} from "./runtimeExtensions";

@@ -20,8 +20,8 @@ import {
   replaceOAuthPoolMembers,
   setOAuthPrimaryAccount,
   upsertOAuthPool,
-} from "../../../application/runtime/ports/tauriOauth";
-import { runCodexDoctor } from "../../../application/runtime/ports/tauriCodexOperations";
+} from "../../../application/runtime/ports/oauth";
+import { runCodexDoctor } from "../../../application/runtime/ports/codexOperations";
 import type {
   AccessMode,
   AppSettings,

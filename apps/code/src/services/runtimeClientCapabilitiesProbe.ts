@@ -35,7 +35,7 @@ import {
   readManualWebRuntimeGatewayProfile,
 } from "./runtimeWebGatewayConfig";
 
-const tauriRuntimeCapabilitiesProbeCache = createRuntimeRpcCapabilitiesProbeCache();
+const desktopCompatRuntimeCapabilitiesProbeCache = createRuntimeRpcCapabilitiesProbeCache();
 const webRuntimeCapabilitiesProbeCache = createRuntimeRpcCapabilitiesProbeCache();
 
 let webRuntimeCapabilitiesProbeCacheKey: string | null = null;
@@ -90,7 +90,7 @@ function shouldInvalidateRuntimeCapabilitiesCache(reason: unknown): boolean {
 }
 
 export function invalidateRuntimeCapabilitiesProbeCaches(): void {
-  resetRuntimeRpcCapabilitiesProbeCache(tauriRuntimeCapabilitiesProbeCache);
+  resetRuntimeRpcCapabilitiesProbeCache(desktopCompatRuntimeCapabilitiesProbeCache);
   resetRuntimeRpcCapabilitiesProbeCache(webRuntimeCapabilitiesProbeCache);
   webRuntimeCapabilitiesProbeCacheKey = null;
 }
@@ -112,9 +112,9 @@ function ensureRuntimeCapabilitiesProbeCacheInvalidationSubscription(): void {
   );
 }
 
-export async function resolveTauriRpcCapabilitiesSnapshot(): Promise<RuntimeRpcCapabilitiesSnapshot | null> {
+export async function resolveDesktopCompatRpcCapabilitiesSnapshot(): Promise<RuntimeRpcCapabilitiesSnapshot | null> {
   ensureRuntimeCapabilitiesProbeCacheInvalidationSubscription();
-  return resolveRuntimeRpcCapabilitiesWithCache(tauriRuntimeCapabilitiesProbeCache, () =>
+  return resolveRuntimeRpcCapabilitiesWithCache(desktopCompatRuntimeCapabilitiesProbeCache, () =>
     resolveRuntimeRpcCapabilitiesSnapshotShared(
       <Result>(candidate: string, capabilityParams: RuntimeRpcParams) =>
         invoke<Result>(candidate, capabilityParams)
@@ -162,11 +162,11 @@ export function readCachedWebRuntimeCapabilitiesSnapshot(): RuntimeRpcCapabiliti
   return readCachedRuntimeCapabilitiesSnapshot(webRuntimeCapabilitiesProbeCache);
 }
 
-export async function resolveTauriRuntimeRpcMethodCandidates(
+export async function resolveDesktopCompatRuntimeRpcMethodCandidates(
   method: CodeRuntimeRpcMethod
 ): Promise<readonly string[]> {
   if (method !== CODE_RUNTIME_RPC_METHODS.RPC_CAPABILITIES) {
-    const snapshot = await resolveTauriRpcCapabilitiesSnapshot();
+    const snapshot = await resolveDesktopCompatRpcCapabilitiesSnapshot();
     assertRuntimeRpcMethodSupportedByCapabilities(method, snapshot);
   }
   return [method];
@@ -219,8 +219,8 @@ export async function resolveWebRuntimeWsRpcEndpoint(
 export async function resolveCapabilitiesSnapshotByMode(
   mode: RuntimeClientMode
 ): Promise<RuntimeRpcCapabilitiesSnapshot | null> {
-  if (mode === "tauri") {
-    return resolveTauriRpcCapabilitiesSnapshot();
+  if (mode === "desktop-compat") {
+    return resolveDesktopCompatRpcCapabilitiesSnapshot();
   }
   if (mode === "runtime-gateway-web") {
     return resolveWebRuntimeCapabilitiesSnapshot();

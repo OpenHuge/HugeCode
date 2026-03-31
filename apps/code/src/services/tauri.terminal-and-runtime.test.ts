@@ -100,7 +100,7 @@ vi.mock("@tauri-apps/plugin-notification", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -125,9 +125,9 @@ describe("tauri invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-compat",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -1489,7 +1489,7 @@ describe("tauri invoke wrappers", () => {
   });
 
   it("rethrows distributed wrapper connection errors outside web runtime mode", async () => {
-    vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
     const connectionError = new Error("Failed to fetch (127.0.0.1:8788)");
     vi.mocked(getRuntimeClient).mockReturnValue({
       runtimeBackendsList: vi.fn().mockRejectedValue(connectionError),
@@ -1931,7 +1931,7 @@ describe("tauri invoke wrappers", () => {
 
   it("reads runtime capability summary through runtime client helper", async () => {
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "tauri",
+      mode: "desktop-compat",
       methods: ["code_runtime_backends_list"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1939,7 +1939,7 @@ describe("tauri invoke wrappers", () => {
     });
 
     await expect(getRuntimeCapabilitiesSummary()).resolves.toEqual({
-      mode: "tauri",
+      mode: "desktop-compat",
       methods: ["code_runtime_backends_list"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,

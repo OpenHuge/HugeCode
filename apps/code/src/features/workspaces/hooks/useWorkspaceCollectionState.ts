@@ -3,7 +3,7 @@ import { logger } from "../../../application/runtime/ports/logger";
 import { RuntimeUnavailableError } from "../../../application/runtime/ports/runtimeClient";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import { useScopedRuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
-import { listWorkspaces } from "../../../application/runtime/ports/tauriWorkspaceCatalog";
+import { listWorkspaces } from "../../../application/runtime/ports/workspaceCatalog";
 import type { WorkspaceInfo, WorkspaceSettings } from "../../../types";
 import { normalizeWorkspaceLoadError } from "./useWorkspaces.helpers";
 import { applyWebRuntimeWorkspaceSidebarCollapseState } from "./useWorkspaces.helpers";

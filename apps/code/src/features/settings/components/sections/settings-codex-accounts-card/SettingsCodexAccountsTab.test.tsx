@@ -94,7 +94,7 @@ function renderTab(
       onReauthenticateAccount={noop}
       onRemoveAccount={noop}
       subscriptionPersistenceCapability={{
-        hostMode: "tauri",
+        hostMode: "desktop-compat",
         persistenceKind: "runtime-backed",
         runtimeBacked: true,
         durableStorage: true,

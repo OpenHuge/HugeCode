@@ -11,7 +11,7 @@ import {
   type OAuthProviderId,
   removeOAuthAccount,
   upsertOAuthAccount,
-} from "../../../../../application/runtime/ports/tauriOauth";
+} from "../../../../../application/runtime/ports/oauth";
 import { formatError } from "../settingsCodexAccountsCardUtils";
 import { confirmDestructiveAction, isLocalCliManagedAccount } from "./oauthHelpers";
 import type { FormBusyAction } from "./types";

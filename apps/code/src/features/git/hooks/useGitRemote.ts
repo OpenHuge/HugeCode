@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getGitRemote } from "../../../application/runtime/ports/tauriGit";
+import { getGitRemote } from "../../../application/runtime/ports/git";
 import type { WorkspaceInfo } from "../../../types";
 
 type GitRemoteState = {

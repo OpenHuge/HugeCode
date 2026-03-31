@@ -7,14 +7,22 @@
     "declarationMap": false,
     "noEmit": true,
     "paths": {
-      "@tauri-apps/api/core": ["src/application/runtime/ports/packageCompat/tauriApiCoreCompat.ts"],
-      "@tauri-apps/api/dpi": ["src/application/runtime/ports/packageCompat/tauriApiDpiCompat.ts"],
-      "@tauri-apps/api/menu": ["src/application/runtime/ports/packageCompat/tauriApiMenuCompat.ts"],
+      "@ku0/code-runtime-client": ["../../packages/code-runtime-client/src/index.ts"],
+      "@ku0/code-runtime-client/*": ["../../packages/code-runtime-client/src/*"],
+      "@tauri-apps/api/core": [
+        "src/application/runtime/ports/packageCompat/legacyDesktopCoreCompat.ts"
+      ],
+      "@tauri-apps/api/dpi": [
+        "src/application/runtime/ports/packageCompat/legacyDesktopDpiCompat.ts"
+      ],
+      "@tauri-apps/api/menu": [
+        "src/application/runtime/ports/packageCompat/legacyDesktopMenuCompat.ts"
+      ],
       "@tauri-apps/api/window": [
-        "src/application/runtime/ports/packageCompat/tauriApiWindowCompat.ts"
+        "src/application/runtime/ports/packageCompat/legacyDesktopWindowCompat.ts"
       ],
       "@tauri-apps/plugin-dialog": [
-        "src/application/runtime/ports/packageCompat/tauriPluginDialogCompat.ts"
+        "src/application/runtime/ports/packageCompat/legacyDesktopDialogCompat.ts"
       ]
     }
   },

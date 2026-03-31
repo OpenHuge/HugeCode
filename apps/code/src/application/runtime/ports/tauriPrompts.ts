@@ -1,8 +1,1 @@
-export { getGlobalPromptsDir, getWorkspacePromptsDir } from "../../../services/desktopHostRpc";
-export {
-  createPrompt,
-  deletePrompt,
-  getPromptsList,
-  movePrompt,
-  updatePrompt,
-} from "../../../services/tauriPromptsBridge";
+export * from "./prompts";

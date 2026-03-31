@@ -1,4 +1,4 @@
-import { interveneRuntimeRun } from "../ports/tauriRuntimeJobs";
+import { interveneRuntimeRun } from "../ports/runtimeJobs";
 
 export async function retryDistributedTaskGraphNode(nodeId: string) {
   const runId = nodeId.trim();

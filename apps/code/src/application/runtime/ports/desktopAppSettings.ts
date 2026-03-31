@@ -6,7 +6,7 @@ import type { AppSettings, RemoteBackendProfile } from "../../../types";
 import {
   getRuntimeAppSettings,
   updateRuntimeAppSettings,
-} from "../../../services/tauriRuntimeAppSettingsBridge";
+} from "../../../services/runtimeAppSettingsBridge";
 
 /**
  * Dedicated adapter for persisted desktop app settings.

@@ -11,7 +11,7 @@ import {
   Suspense,
 } from "react";
 import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
-import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/tauriThreads";
+import { REVIEW_START_DESKTOP_ONLY_MESSAGE } from "../../../application/runtime/ports/threads";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { Button } from "../../../design-system";
 import { Icon } from "../../../design-system";

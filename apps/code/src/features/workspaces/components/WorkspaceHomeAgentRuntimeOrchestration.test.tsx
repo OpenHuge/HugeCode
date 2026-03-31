@@ -502,7 +502,7 @@ beforeEach(() => {
     reviewPack: null,
   });
   vi.mocked(getRuntimeCapabilitiesSummary).mockResolvedValue({
-    mode: "tauri",
+    mode: "desktop-compat",
     methods: ["code_health"],
     features: [],
     wsEndpointPath: "/ws",

@@ -332,7 +332,7 @@ beforeEach(() => {
   getAppSettingsMock.mockResolvedValue(baseSettings);
   getModelListMock.mockResolvedValue({ result: { data: [] } });
   getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-    mode: "tauri",
+    mode: "desktop-compat",
     methods: [],
     features: [],
     wsEndpointPath: null,

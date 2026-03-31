@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/tauriRuntime";
+import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
 import { BACKEND_PLACEMENT_OBSERVABILITY_CAPABILITY } from "../../settings/types/backendPool";
 
 const RUNTIME_DIAGNOSTICS_EXPORT_METHOD = "code_runtime_diagnostics_export_v1";

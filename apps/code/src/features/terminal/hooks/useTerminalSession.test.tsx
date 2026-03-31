@@ -57,7 +57,7 @@ vi.mock("../../../application/runtime/ports/tauriTerminal", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
 }));
 
 vi.mock("../../../application/runtime/ports/tauriRuntime", () => ({
@@ -81,7 +81,7 @@ describe("useTerminalSession", () => {
     vi.clearAllMocks();
     terminalMock.cols = 120;
     terminalMock.rows = 40;
-    vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
     vi.mocked(getRuntimeTerminalStatus).mockResolvedValue({
       state: "ready",
       message: "Terminal runtime ready.",

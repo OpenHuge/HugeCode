@@ -6,7 +6,7 @@ import {
   bindOAuthPoolAccount,
   cancelCodexLogin,
   runCodexLogin,
-} from "../../../application/runtime/ports/tauriOauth";
+} from "../../../application/runtime/ports/oauth";
 import type { AccountSnapshot } from "../../../types";
 import { getAppServerParams, getAppServerRawMethod } from "../../../utils/appServerEvents";
 import {

@@ -87,7 +87,7 @@ vi.mock("../../../application/runtime/ports/logger", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "tauri"),
+  detectRuntimeMode: vi.fn(() => "desktop-compat"),
 }));
 
 const runtimeUpdatedHarness = createRuntimeUpdatedSubscriptionHarness();
@@ -101,7 +101,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/");
   clearWorkspaceRouteRestoreSelection();
-  vi.mocked(detectRuntimeMode).mockReturnValue("tauri");
+  vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
   vi.mocked(isTauri).mockReturnValue(true);
   vi.mocked(readPersistedActiveWorkspaceId).mockResolvedValue(null);
   vi.mocked(writePersistedActiveWorkspaceId).mockResolvedValue(true);

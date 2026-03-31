@@ -7,7 +7,7 @@ import {
   readPersistedThreadStorageState,
   writePersistedPendingInterruptThreadIds,
   writePersistedThreadStorageState,
-} from "../../../application/runtime/ports/tauriThreadSnapshots";
+} from "../../../application/runtime/ports/threadSnapshots";
 import {
   clearThreadSnapshots,
   type CustomNamesMap,

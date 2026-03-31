@@ -1,1 +1,1 @@
-export { getInstructionSkill, getSkillsList } from "../../../services/tauriRuntimeCatalogBridge";
+export * from "./skills";

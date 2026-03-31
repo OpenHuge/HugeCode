@@ -1,4 +1,4 @@
-import * as tauriWindow from "@tauri-apps/api/window";
+import * as legacyDesktopWindow from "./packageCompat/legacyDesktopWindowCompat";
 import { getDesktopHostBridge } from "./desktopHostBridge";
 
 type WindowEffectInput = {
@@ -11,8 +11,8 @@ type WindowListener = (payload: unknown) => void;
 
 function readTauriWindowExport(key: "Effect" | "EffectState" | "getCurrentWindow") {
   try {
-    return Object.prototype.hasOwnProperty.call(tauriWindow, key)
-      ? Reflect.get(tauriWindow, key)
+    return Object.prototype.hasOwnProperty.call(legacyDesktopWindow, key)
+      ? Reflect.get(legacyDesktopWindow, key)
       : undefined;
   } catch {
     return undefined;

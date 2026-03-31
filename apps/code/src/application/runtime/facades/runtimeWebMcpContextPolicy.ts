@@ -7,7 +7,7 @@ import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { recordSentryMetric } from "../../../features/shared/sentry";
 import type { AgentIntentState, WebMcpActiveModelContext } from "../types/webMcpBridge";
 import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
-import { prepareRuntimeRunV2 } from "../ports/tauriRuntimeJobs";
+import { prepareRuntimeRunV2 } from "../ports/runtimeJobs";
 import { buildAgentTaskMissionBrief } from "./runtimeMissionDraftFacade";
 
 type RuntimeWebMcpContextPolicyInput = {
