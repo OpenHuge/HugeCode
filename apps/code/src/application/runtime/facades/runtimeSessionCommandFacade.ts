@@ -28,6 +28,7 @@ import type {
   RuntimeTurnId,
   RuntimeWorkspaceId,
 } from "../types/runtimeIds";
+import { recordLegacyLifecycleUsage } from "../../../services/runtimeLegacyLifecycleTelemetry";
 
 export type RuntimeSessionTurnOptions = {
   requestId?: string | null;
@@ -46,6 +47,7 @@ export type RuntimeSessionTurnOptions = {
   collaborationMode?: Record<string, unknown> | null;
   autoDrive?: AgentTaskAutoDriveState | null;
   autonomyRequest?: RuntimeAutonomyRequestV2 | null;
+  telemetrySource?: string | null;
 };
 
 export type SendMessageInput = {
@@ -66,6 +68,7 @@ export type SteerTurnInput = {
 export type InterruptTurnInput = {
   threadId: RuntimeThreadId;
   turnId: RuntimeTurnId;
+  telemetrySource?: string | null;
 };
 
 export type StartReviewInput = {
@@ -112,6 +115,11 @@ export type RespondToToolCallInput = {
 };
 
 export type RuntimeSessionCommandFacade = {
+  /**
+   * Compatibility-only thread/turn execution surface for composer flows.
+   * Product lifecycle work should prefer kernel v2 run launch and run-control
+   * facades.
+   */
   sendMessage: (input: SendMessageInput) => ReturnType<typeof sendUserMessage>;
   steerTurn: (input: SteerTurnInput) => ReturnType<typeof steerTurn>;
   interruptTurn: (input: InterruptTurnInput) => ReturnType<typeof interruptTurn>;
@@ -171,10 +179,28 @@ export function createRuntimeSessionCommandFacade(
   deps: RuntimeSessionCommandDependencies = defaultRuntimeSessionCommandDependencies
 ): RuntimeSessionCommandFacade {
   return {
-    sendMessage: ({ threadId, text, options }) =>
-      deps.sendUserMessage(workspaceId, threadId, text, options),
-    steerTurn: ({ threadId, turnId, text, images, contextPrefix, options }) =>
-      deps.steerTurn(workspaceId, threadId, turnId, text, images, contextPrefix, {
+    sendMessage: ({ threadId, text, options }) => {
+      const { telemetrySource, ...runtimeOptions } = options ?? {};
+      recordLegacyLifecycleUsage({
+        method: "code_turn_send",
+        workspaceId,
+        threadId,
+        source: telemetrySource ?? "runtime_session_commands",
+        executionMode: runtimeOptions.executionMode ?? null,
+        missionMode: runtimeOptions.missionMode ?? null,
+      });
+      return deps.sendUserMessage(workspaceId, threadId, text, runtimeOptions);
+    },
+    steerTurn: ({ threadId, turnId, text, images, contextPrefix, options }) => {
+      recordLegacyLifecycleUsage({
+        method: "code_turn_send",
+        workspaceId,
+        threadId,
+        source: options?.telemetrySource ?? "runtime_session_commands",
+        executionMode: options?.executionMode ?? null,
+        missionMode: options?.missionMode ?? null,
+      });
+      return deps.steerTurn(workspaceId, threadId, turnId, text, images, contextPrefix, {
         model: options?.model,
         effort: options?.effort,
         serviceTier: options?.serviceTier,
@@ -188,8 +214,17 @@ export function createRuntimeSessionCommandFacade(
         collaborationMode: options?.collaborationMode,
         autoDrive: options?.autoDrive,
         autonomyRequest: options?.autonomyRequest,
-      }),
-    interruptTurn: ({ threadId, turnId }) => deps.interruptTurn(workspaceId, threadId, turnId),
+      });
+    },
+    interruptTurn: ({ threadId, turnId, telemetrySource }) => {
+      recordLegacyLifecycleUsage({
+        method: "code_turn_interrupt",
+        workspaceId,
+        threadId,
+        source: telemetrySource ?? "runtime_session_commands",
+      });
+      return deps.interruptTurn(workspaceId, threadId, turnId);
+    },
     startReview: ({ threadId, target, delivery }) =>
       deps.startReview(workspaceId, threadId, target, delivery),
     compactThread: ({ threadId }) => deps.compactThread(workspaceId, threadId),

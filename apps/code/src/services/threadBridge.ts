@@ -9,9 +9,22 @@ import {
   type RuntimeThreadSummary,
   toRuntimeThreadRecord,
 } from "./runtimeTurnHelpers";
+import { recordLegacyLifecycleUsage } from "./runtimeLegacyLifecycleTelemetry";
 import { resolveRuntimeWorkspacePath } from "./workspaceBridge";
 
-export async function startThread(workspaceId: string): Promise<LooseResultEnvelope> {
+type LegacyThreadTelemetryOptions = {
+  telemetrySource?: string | null;
+};
+
+export async function startThread(
+  workspaceId: string,
+  options?: LegacyThreadTelemetryOptions
+): Promise<LooseResultEnvelope> {
+  recordLegacyLifecycleUsage({
+    method: "code_thread_create",
+    workspaceId,
+    source: options?.telemetrySource ?? "thread_actions",
+  });
   const runtimeThread = (await getRuntimeClient().createThread({
     workspaceId,
     title: null,
@@ -87,8 +100,15 @@ export async function listThreads(
 
 export async function resumeThread(
   workspaceId: string,
-  threadId: string
+  threadId: string,
+  options?: LegacyThreadTelemetryOptions
 ): Promise<LooseResultEnvelope> {
+  recordLegacyLifecycleUsage({
+    method: "code_thread_resume",
+    workspaceId,
+    threadId,
+    source: options?.telemetrySource ?? "thread_actions",
+  });
   const runtimeThread = (await getRuntimeClient().resumeThread(
     workspaceId,
     threadId
@@ -103,8 +123,15 @@ export async function resumeThread(
 
 export async function archiveThread(
   workspaceId: string,
-  threadId: string
+  threadId: string,
+  options?: LegacyThreadTelemetryOptions
 ): Promise<LooseResultEnvelope> {
+  recordLegacyLifecycleUsage({
+    method: "code_thread_archive",
+    workspaceId,
+    threadId,
+    source: options?.telemetrySource ?? "thread_actions",
+  });
   const archived = await getRuntimeClient().archiveThread(workspaceId, threadId);
   return {
     result: {

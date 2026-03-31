@@ -37,8 +37,8 @@ describe("appServerEvents", () => {
     expect(isSupportedAppServerMethod("turn/started")).toBe(true);
     expect(isSupportedAppServerMethod("native_state_fabric_updated")).toBe(true);
     expect(isSupportedAppServerMethod("account/chatgptAuthTokens/refresh")).toBe(true);
-    expect(isSupportedAppServerMethod("authStatusChange")).toBe(true);
-    expect(isSupportedAppServerMethod("loginChatGptComplete")).toBe(true);
+    expect(isSupportedAppServerMethod("authStatusChange")).toBe(false);
+    expect(isSupportedAppServerMethod("loginChatGptComplete")).toBe(false);
     expect(isSupportedAppServerMethod("sessionConfigured")).toBe(true);
     expect(isSupportedAppServerMethod("unknown/method")).toBe(false);
     expect(isApprovalRequestMethod("workspace/requestApproval")).toBe(true);

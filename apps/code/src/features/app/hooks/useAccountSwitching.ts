@@ -1,6 +1,5 @@
 import { getDefaultPrimaryPoolIdForProvider } from "../../../application/runtime/facades/runtimeOauthPrimaryPool";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import { subscribeScopedRuntimeUpdatedEvents } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import {
   bindOAuthPoolAccount,
@@ -8,7 +7,6 @@ import {
   runCodexLogin,
 } from "../../../application/runtime/ports/oauth";
 import type { AccountSnapshot } from "../../../types";
-import { getAppServerParams, getAppServerRawMethod } from "../../../utils/appServerEvents";
 import {
   openOAuthPopupWindow,
   openOAuthUrl,
@@ -128,63 +126,6 @@ export function useAccountSwitching({
   }, [activeWorkspaceId]);
 
   useEffect(() => {
-    const unlistenAppServer = subscribeAppServerEvents((payload) => {
-      const matchWorkspaceId = loginWorkspaceIdRef.current ?? activeWorkspaceIdRef.current;
-      const resolvedWorkspaceId = matchWorkspaceId ?? fallbackWorkspaceIdRef.current;
-      const method = getAppServerRawMethod(payload);
-      if (!method) {
-        return;
-      }
-      const eventWorkspaceId = String(payload.workspace_id ?? "").trim();
-      const workspaceMatches =
-        Boolean(resolvedWorkspaceId) && eventWorkspaceId === resolvedWorkspaceId;
-      if (!workspaceMatches) {
-        return;
-      }
-      if (!resolvedWorkspaceId) {
-        return;
-      }
-
-      const params = getAppServerParams(payload);
-
-      if (method === "account/login/completed") {
-        const loginId = String(params.loginId ?? params.login_id ?? "");
-        if (loginIdRef.current && loginId && loginIdRef.current !== loginId) {
-          return;
-        }
-
-        loginIdRef.current = null;
-        loginWorkspaceIdRef.current = null;
-        const success = Boolean(params.success);
-        const errorMessage = String(params.error ?? "").trim();
-
-        if (success && !accountSwitchCanceledRef.current) {
-          setAccountSwitchError(null);
-          void refreshAccountInfoRef.current(resolvedWorkspaceId);
-          void refreshAccountRateLimitsRef.current(resolvedWorkspaceId);
-        } else if (!accountSwitchCanceledRef.current && errorMessage) {
-          setAccountSwitchError(errorMessage);
-          alertErrorRef.current(errorMessage);
-        }
-
-        setAccountSwitching(false);
-        accountSwitchCanceledRef.current = false;
-        return;
-      }
-
-      if (method === "account/updated") {
-        if (!accountSwitchingRef.current || accountSwitchCanceledRef.current) {
-          return;
-        }
-        setAccountSwitchError(null);
-        void refreshAccountInfoRef.current(resolvedWorkspaceId);
-        void refreshAccountRateLimitsRef.current(resolvedWorkspaceId);
-        setAccountSwitching(false);
-        accountSwitchCanceledRef.current = false;
-        return;
-      }
-    });
-
     const unlistenRuntimeUpdated = subscribeScopedRuntimeUpdatedEvents(
       {
         workspaceId: () =>
@@ -201,7 +142,11 @@ export function useAccountSwitching({
         if (!resolvedWorkspaceId) {
           return;
         }
-        if (!accountSwitchingRef.current || accountSwitchCanceledRef.current) {
+        const hasTrackedLogin = Boolean(loginWorkspaceIdRef.current);
+        if (
+          (!accountSwitchingRef.current && !hasTrackedLogin) ||
+          accountSwitchCanceledRef.current
+        ) {
           return;
         }
         const reason = String(params.reason ?? "").trim();
@@ -240,7 +185,6 @@ export function useAccountSwitching({
     );
 
     return () => {
-      unlistenAppServer();
       unlistenRuntimeUpdated();
     };
   }, []);

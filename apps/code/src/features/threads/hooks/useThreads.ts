@@ -462,13 +462,6 @@ export function useThreads({
     syncPendingInterruptPersistence,
   });
 
-  const handleAccountLoginCompleted = useCallback(
-    (workspaceId: string) => {
-      handleAccountUpdated(workspaceId);
-    },
-    [handleAccountUpdated]
-  );
-
   const handleChatgptAuthTokensRefreshRequest = useCallback(
     (request: ChatgptAuthTokensRefreshRequest) => {
       void Promise.resolve()
@@ -517,15 +510,9 @@ export function useThreads({
     () => ({
       ...threadHandlers,
       onAccountUpdated: handleAccountUpdated,
-      onAccountLoginCompleted: handleAccountLoginCompleted,
       onChatgptAuthTokensRefreshRequest: handleChatgptAuthTokensRefreshRequest,
     }),
-    [
-      threadHandlers,
-      handleAccountUpdated,
-      handleAccountLoginCompleted,
-      handleChatgptAuthTokensRefreshRequest,
-    ]
+    [threadHandlers, handleAccountUpdated, handleChatgptAuthTokensRefreshRequest]
   );
 
   useAppServerEvents(handlers);

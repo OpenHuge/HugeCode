@@ -221,7 +221,9 @@ export function useThreadLiveSubscription({
     });
     setConnectionState("syncing");
 
-    void subscribeThreadLive(workspace.id, threadId)
+    void subscribeThreadLive(workspace.id, threadId, {
+      telemetrySource: "thread_live_subscription",
+    })
       .then((result) => {
         if (disposed) {
           return;
@@ -306,7 +308,11 @@ export function useThreadLiveSubscription({
       unlistenEvents();
       unlistenState();
       if (subscriptionId) {
-        void Promise.resolve(unsubscribeThreadLive(subscriptionId)).catch(() => undefined);
+        void Promise.resolve(
+          unsubscribeThreadLive(subscriptionId, {
+            telemetrySource: "thread_live_subscription",
+          })
+        ).catch(() => undefined);
       }
       updateRuntimeEventChannelDiagnostics(THREAD_LIVE_CHANNEL_ID, {
         label: THREAD_LIVE_CHANNEL_LABEL,

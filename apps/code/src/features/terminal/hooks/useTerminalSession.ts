@@ -1,7 +1,10 @@
 import type { RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as runtimeEvents from "../../../application/runtime/ports/events";
-import type { TerminalExitEvent } from "../../../application/runtime/ports/events";
+import {
+  subscribeTerminalExit,
+  type TerminalExitEvent,
+} from "../../../application/runtime/ports/events";
+import { subscribeScopedRuntimeUpdatedEvents } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import {
   openTerminalSession,
   readTerminalSession,
@@ -12,10 +15,6 @@ import { getRuntimeTerminalStatus } from "../../../application/runtime/ports/run
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import type { DebugEntry, TerminalStatus, WorkspaceInfo } from "../../../types";
 import { buildErrorDebugEntry } from "../../../utils/debugEntries";
-import {
-  getAppServerParams,
-  isNativeStateFabricUpdatedEvent,
-} from "../../../utils/appServerEvents";
 import { shouldIgnoreTerminalTransportError } from "./terminalErrorClassifier";
 
 const MAX_BUFFER_CHARS = 200_000;
@@ -310,48 +309,40 @@ export function useTerminalSession({
   );
 
   useEffect(() => {
-    const unlistenAppServerEvents =
-      typeof runtimeEvents.subscribeAppServerEvents === "function"
-        ? runtimeEvents.subscribeAppServerEvents(
-            (event) => {
-              if (!isNativeStateFabricUpdatedEvent(event)) {
-                return;
-              }
-              const params = getAppServerParams(event);
-              const scopeKind = String(params.scopeKind ?? params.scope_kind ?? "").trim();
-              if (scopeKind !== "terminal") {
-                return;
-              }
-              const workspaceId = String(
-                params.workspaceId ?? params.workspace_id ?? event.workspace_id ?? ""
-              ).trim();
-              const terminalId = String(params.sessionId ?? params.session_id ?? "").trim();
-              const data = typeof params.chunk === "string" ? params.chunk : "";
-              if (!workspaceId || !terminalId || !data) {
-                return;
-              }
-              const key = `${workspaceId}:${terminalId}`;
-              const next = appendBuffer(outputBuffersRef.current.get(key), data);
-              outputBuffersRef.current.set(key, next);
-              if (activeKeyRef.current === key) {
-                writeToTerminal(data);
-              }
-            },
-            {
-              onError: (error) => {
-                onDebug?.(buildErrorDebugEntry("terminal listen error", error));
-              },
-            }
-          )
-        : () => undefined;
+    const unlistenAppServerEvents = subscribeScopedRuntimeUpdatedEvents(
+      {
+        workspaceId: () => activeWorkspaceRef.current?.id ?? null,
+        scopes: ["terminal"],
+      },
+      ({ eventWorkspaceId, params }) => {
+        const changeKind = String(params.changeKind ?? params.change_kind ?? "").trim();
+        if (changeKind && changeKind !== "terminalOutputAppended") {
+          return;
+        }
+        const workspaceId = String(
+          params.workspaceId ?? params.workspace_id ?? eventWorkspaceId ?? ""
+        ).trim();
+        const terminalId = String(params.sessionId ?? params.session_id ?? "").trim();
+        const data = typeof params.chunk === "string" ? params.chunk : "";
+        if (!workspaceId || !terminalId || !data) {
+          return;
+        }
+        const key = `${workspaceId}:${terminalId}`;
+        const next = appendBuffer(outputBuffersRef.current.get(key), data);
+        outputBuffersRef.current.set(key, next);
+        if (activeKeyRef.current === key) {
+          writeToTerminal(data);
+        }
+      }
+    );
 
     return () => {
       unlistenAppServerEvents();
     };
-  }, [onDebug, writeToTerminal]);
+  }, [writeToTerminal]);
 
   useEffect(() => {
-    const unlisten = runtimeEvents.subscribeTerminalExit(
+    const unlisten = subscribeTerminalExit(
       (payload: TerminalExitEvent) => {
         cleanupTerminalSession(payload.workspaceId, payload.terminalId);
         onSessionExitRef.current?.(payload.workspaceId, payload.terminalId);

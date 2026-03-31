@@ -2,11 +2,8 @@ import type { AppServerEvent } from "../types";
 
 export const SUPPORTED_APP_SERVER_METHODS = [
   "app/list/updated",
-  "account/login/completed",
   "account/rateLimits/updated",
   "account/chatgptAuthTokens/refresh",
-  "account/updated",
-  "authStatusChange",
   "error",
   "item/agentMessage/delta",
   "item/commandExecution/outputDelta",
@@ -37,7 +34,6 @@ export const SUPPORTED_APP_SERVER_METHODS = [
   "turn/plan/updated",
   "turn/started",
   "mcpServer/oauthLogin/completed",
-  "loginChatGptComplete",
   "model/rerouted",
   "sessionConfigured",
   "deprecationNotice",
