@@ -1,6 +1,8 @@
 import type { IpcMainInvokeEvent } from "electron";
 import type {
   DesktopAppInfo,
+  DesktopBrowserAssessmentRequest,
+  DesktopBrowserAssessmentResult,
   DesktopBrowserExtractionRequest,
   DesktopBrowserExtractionResult,
   DesktopDiagnosticsInfo,
@@ -39,6 +41,9 @@ type DesktopTrayState = {
 };
 
 type DesktopHostIpcHandlers = {
+  assessBrowserSurface(
+    input: DesktopBrowserAssessmentRequest
+  ): Promise<DesktopBrowserAssessmentResult | null> | DesktopBrowserAssessmentResult | null;
   closeWindow(windowId: number): Promise<boolean> | boolean;
   checkForUpdates(): Promise<DesktopUpdateState> | DesktopUpdateState;
   copySupportSnapshot(): Promise<boolean> | boolean;
@@ -50,6 +55,10 @@ type DesktopHostIpcHandlers = {
   getAppInfo(): Promise<DesktopAppInfo | null> | DesktopAppInfo | null;
   getDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> | DesktopDiagnosticsInfo | null;
   getAppVersion(): Promise<string | null> | string | null;
+  getLastBrowserAssessmentResult():
+    | Promise<DesktopBrowserAssessmentResult | null>
+    | DesktopBrowserAssessmentResult
+    | null;
   getLastBrowserExtractionResult():
     | Promise<DesktopBrowserExtractionResult | null>
     | DesktopBrowserExtractionResult
@@ -113,6 +122,14 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.listLocalChromeDebuggerEndpoints, async () => {
     return handlers.listLocalChromeDebuggerEndpoints();
+  });
+
+  handleTrusted(channels.assessBrowserSurface, async (_event, assessmentInput) => {
+    return handlers.assessBrowserSurface(assessmentInput as DesktopBrowserAssessmentRequest);
+  });
+
+  handleTrusted(channels.getLastBrowserAssessmentResult, async () => {
+    return handlers.getLastBrowserAssessmentResult();
   });
 
   handleTrusted(channels.extractBrowserContent, async (_event, extractionInput) => {

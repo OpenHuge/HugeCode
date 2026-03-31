@@ -119,6 +119,49 @@ export type RuntimeAgentTaskStepInput = {
 
 export type JsonRecord = Record<string, unknown>;
 
+type RuntimeBrowserAssessmentResult = {
+  status: "passed" | "failed" | "error";
+  target:
+    | {
+        kind: "fixture";
+        fixtureName: string;
+      }
+    | {
+        kind: "route";
+        routePath: string;
+      };
+  domSnapshot: {
+    childElementCount: number;
+    html: string | null;
+    selector: string | null;
+    selectorMatched: boolean;
+    text: string | null;
+  } | null;
+  consoleEntries: Array<{
+    level: "log" | "info" | "warn" | "error";
+    line?: number | null;
+    message: string;
+    sourceId?: string | null;
+  }>;
+  accessibilityFailures: Array<{
+    code: string;
+    message: string;
+    selector?: string | null;
+  }>;
+  sourceUrl?: string | null;
+  title?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  traceId?: string | null;
+  trace: Array<{
+    at: string;
+    stage: "proxy" | "render" | "collect" | "audit" | "transport" | "error";
+    message: string;
+    code?: string | null;
+    detail?: string | null;
+  }>;
+};
+
 export type WebMcpToolAnnotations = {
   readOnlyHint?: boolean;
   destructiveHint?: boolean;
@@ -751,6 +794,20 @@ export type RuntimeAgentControl = {
   getRuntimeBrowserDebugStatus?: (
     input: RuntimeBrowserDebugStatusRequest
   ) => Promise<RuntimeBrowserDebugStatusResponse>;
+  assessRuntimeBrowserSurface?: (input: {
+    workspaceId: string;
+    target:
+      | {
+          kind: "fixture";
+          fixtureName: string;
+        }
+      | {
+          kind: "route";
+          routePath: string;
+        };
+    selector?: string | null;
+    waitForMs?: number | null;
+  }) => Promise<RuntimeBrowserAssessmentResult | null>;
   runRuntimeBrowserDebug?: (
     input: RuntimeBrowserDebugRunRequest
   ) => Promise<RuntimeBrowserDebugRunResponse>;

@@ -1,4 +1,6 @@
 import type {
+  DesktopBrowserAssessmentRequest,
+  DesktopBrowserAssessmentResult,
   DesktopBrowserExtractionRequest,
   DesktopBrowserExtractionResult,
 } from "@ku0/code-platform-interfaces";
@@ -11,7 +13,22 @@ export type {
 } from "../facades/runtimeBrowserReadiness";
 export { readBrowserReadiness } from "../facades/runtimeBrowserReadiness";
 
-export type { DesktopBrowserExtractionRequest, DesktopBrowserExtractionResult };
+export type {
+  DesktopBrowserAssessmentRequest,
+  DesktopBrowserAssessmentResult,
+  DesktopBrowserExtractionRequest,
+  DesktopBrowserExtractionResult,
+};
+
+export async function assessBrowserSurface(
+  input: DesktopBrowserAssessmentRequest
+): Promise<DesktopBrowserAssessmentResult | null> {
+  return (await getDesktopHostBridge()?.browserAssessment?.assess?.(input)) ?? null;
+}
+
+export async function getLastBrowserAssessmentResult(): Promise<DesktopBrowserAssessmentResult | null> {
+  return (await getDesktopHostBridge()?.browserAssessment?.getLastResult?.()) ?? null;
+}
 
 export async function extractBrowserContent(
   input?: DesktopBrowserExtractionRequest

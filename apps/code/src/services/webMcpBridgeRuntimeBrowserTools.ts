@@ -11,6 +11,20 @@ import {
 import type { RuntimeAgentControl } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 type RuntimeBrowserControl = RuntimeAgentControl & {
+  assessRuntimeBrowserSurface?: (input: {
+    workspaceId: string;
+    target:
+      | {
+          kind: "fixture";
+          fixtureName: string;
+        }
+      | {
+          kind: "route";
+          routePath: string;
+        };
+    selector?: string | null;
+    waitForMs?: number | null;
+  }) => Promise<unknown>;
   getRuntimeBrowserDebugStatus?: (input: { workspaceId: string }) => Promise<unknown>;
   runRuntimeBrowserDebug?: (input: {
     workspaceId: string;
@@ -39,7 +53,10 @@ type RuntimeBrowserControl = RuntimeAgentControl & {
 type JsonRecord = Record<string, unknown>;
 
 function requireBrowserControlMethod<
-  MethodName extends "getRuntimeBrowserDebugStatus" | "runRuntimeBrowserDebug",
+  MethodName extends
+    | "assessRuntimeBrowserSurface"
+    | "getRuntimeBrowserDebugStatus"
+    | "runRuntimeBrowserDebug",
 >(
   control: RuntimeBrowserControl,
   methodName: MethodName,
@@ -145,6 +162,72 @@ export function buildRuntimeBrowserTools(
   const control = runtimeControl as RuntimeBrowserControl;
 
   return [
+    {
+      name: "assess-runtime-browser-surface",
+      description:
+        "Render a localized fixture or route through the canonical browser assessment proxy and return DOM, console, and accessibility findings.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          workspaceId: { type: "string" },
+          targetKind: {
+            type: "string",
+            enum: ["fixture", "route"],
+          },
+          targetValue: { type: "string" },
+          selector: { type: "string" },
+          waitForMs: { type: "number" },
+        },
+        required: ["targetKind", "targetValue"],
+      },
+      annotations: {
+        readOnlyHint: true,
+        title: "Assess Runtime Browser Surface",
+        taskSupport: "partial",
+      },
+      execute: async (input) => {
+        const assessRuntimeBrowserSurface = requireBrowserControlMethod(
+          control,
+          "assessRuntimeBrowserSurface",
+          "assess-runtime-browser-surface"
+        );
+        const workspaceId = resolveWorkspaceId(input, snapshot, helpers);
+        const targetKind =
+          input.targetKind === "route"
+            ? "route"
+            : input.targetKind === "fixture"
+              ? "fixture"
+              : null;
+        const targetValue = helpers.toNonEmptyString(input.targetValue);
+        if (!targetKind) {
+          throw invalidInputError("targetKind must be fixture or route.");
+        }
+        if (!targetValue) {
+          throw requiredInputError("targetValue is required.");
+        }
+        const selector = helpers.toNonEmptyString(input.selector);
+        const waitForMs = helpers.toPositiveInteger(input.waitForMs);
+        const result = await assessRuntimeBrowserSurface({
+          workspaceId,
+          target:
+            targetKind === "fixture"
+              ? {
+                  kind: "fixture",
+                  fixtureName: targetValue,
+                }
+              : {
+                  kind: "route",
+                  routePath: targetValue,
+                },
+          selector,
+          waitForMs,
+        });
+        return helpers.buildResponse("Runtime browser assessment completed.", {
+          workspaceId,
+          result,
+        });
+      },
+    },
     {
       name: "get-runtime-browser-debug-status",
       description:

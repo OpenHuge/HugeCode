@@ -93,6 +93,11 @@ const RightPanelV2VisualFixture = lazy(() =>
     default: module.RightPanelV2VisualFixture,
   }))
 );
+const BrowserAssessmentProxyFixture = lazy(() =>
+  import("./BrowserAssessmentProxyFixture").then((module) => ({
+    default: module.BrowserAssessmentProxyFixture,
+  }))
+);
 
 function readFixtureName(): string | null {
   if (typeof window === "undefined") {
@@ -257,6 +262,13 @@ export function FixtureApp() {
     return (
       <Suspense fallback={<AppBootFallback {...workspaceBootState} />}>
         <SettingsFormChromeFixture />
+      </Suspense>
+    );
+  }
+  if (fixtureName === "browser-assessment-proxy") {
+    return (
+      <Suspense fallback={<AppBootFallback {...workspaceBootState} />}>
+        <BrowserAssessmentProxyFixture />
       </Suspense>
     );
   }
