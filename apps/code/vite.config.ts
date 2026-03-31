@@ -99,6 +99,7 @@ const RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts",
 ] as const;
 const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/runtimeBrowserExtractionOperator.ts",
   "/src/application/runtime/facades/runtimeContinuityReadiness.ts",
   "/src/application/runtime/facades/runtimeExecutionReliability.ts",
   "/src/application/runtime/facades/runtimeKernelPluginReadiness.ts",
@@ -106,6 +107,7 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeMissionControl",
   "/src/application/runtime/facades/runtimeMissionLaunchPreparation.ts",
   "/src/application/runtime/facades/runtimeRepositoryExecutionContract.ts",
+  "/src/application/runtime/facades/runtimeParallelDispatchManager.ts",
   "/src/application/runtime/facades/runtimeTaskInterventionDraftFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceLaunchDefaultsFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",

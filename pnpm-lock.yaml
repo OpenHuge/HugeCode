@@ -190,6 +190,9 @@ importers:
       '@xterm/xterm':
         specifier: ^6.0.0
         version: 6.0.0
+      loro-crdt:
+        specifier: ^1.10.8
+        version: 1.10.8
       lucide-react:
         specifier: ^0.576.0
         version: 0.576.0(react@19.2.4)
@@ -4863,6 +4866,9 @@ packages:
 
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
+
+  loro-crdt@1.10.8:
+    resolution: {integrity: sha512-GvH8fSJST1VDHRGzlQml80pBYoFbIP4ULeV1S8fD4ffmA8m+icoPORyVUW2AkJBY3dxKIcMMn0WqaJmpCmnbkQ==}
 
   loupe@3.2.1:
     resolution: {integrity: sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==}
@@ -11546,6 +11552,8 @@ snapshots:
       wrap-ansi: 9.0.2
 
   longest-streak@3.1.0: {}
+
+  loro-crdt@1.10.8: {}
 
   loupe@3.2.1: {}
 
