@@ -9,11 +9,7 @@ import type {
   HugeCodeTaskMode,
   HugeCodeValidationOutcome,
 } from "@ku0/code-runtime-host-contract";
-import {
-  resolveRuntimeContinuation,
-  resolveRuntimeNextOperatorAction,
-  resolveRuntimeSessionBoundary,
-} from "@ku0/code-runtime-host-contract";
+import { resolveCanonicalRuntimeTruth } from "@ku0/code-runtime-host-contract";
 import { buildGovernanceSummary } from "./runtimeMissionControlRunState";
 import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
 import {
@@ -188,9 +184,29 @@ export function projectCompletedRunToReviewPackSummary(
       : "incomplete");
   const validationOutcome = deriveValidationOutcome(validations);
   const reviewStatus = buildReviewStatus(run, validationOutcome, evidenceState);
+  const canonicalTruth = resolveCanonicalRuntimeTruth({
+    workspaceId: run.workspaceId,
+    taskId: run.taskId,
+    runId: run.id,
+    reviewPackId: run.reviewPackId ?? `review-pack:${run.id}`,
+    state: run.state,
+    reviewStatus,
+    approval: run.approval ?? null,
+    reviewDecision: run.reviewDecision ?? null,
+    nextAction: run.nextAction ?? null,
+    checkpoint: run.checkpoint ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    actionability: run.actionability ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    sessionBoundary: run.sessionBoundary ?? null,
+    continuation: run.continuation ?? null,
+    nextOperatorAction: run.nextOperatorAction ?? null,
+  });
   const continuationDescriptor = buildRuntimeContinuationDescriptor({
     runState: run.state,
     checkpoint: run.checkpoint ?? null,
+    continuation: canonicalTruth.continuation,
     missionLinkage: run.missionLinkage ?? null,
     actionability: run.actionability ?? null,
     publishHandoff: run.publishHandoff ?? null,
@@ -198,13 +214,7 @@ export function projectCompletedRunToReviewPackSummary(
     nextAction: run.nextAction ?? null,
     reviewPackId: run.reviewPackId ?? `review-pack:${run.id}`,
   });
-  const hasCanonicalContinuationTruth = Boolean(
-    run.checkpoint ??
-    run.missionLinkage ??
-    run.actionability ??
-    run.publishHandoff ??
-    run.takeoverBundle
-  );
+  const hasCanonicalContinuationTruth = canonicalTruth.continuation !== null;
   const reviewDecision =
     run.reviewDecision ??
     (run.reviewPackId
@@ -216,52 +226,9 @@ export function projectCompletedRunToReviewPackSummary(
           decidedAt: null,
         }
       : null);
-  const sessionBoundary =
-    run.sessionBoundary ??
-    resolveRuntimeSessionBoundary({
-      workspaceId: run.workspaceId,
-      taskId: run.taskId,
-      runId: run.id,
-      reviewPackId: run.reviewPackId ?? null,
-      checkpoint: run.checkpoint ?? null,
-      missionLinkage: run.missionLinkage ?? null,
-      sessionBoundary: null,
-    });
-  const continuation =
-    run.continuation ??
-    resolveRuntimeContinuation({
-      workspaceId: run.workspaceId,
-      taskId: run.taskId,
-      runId: run.id,
-      reviewPackId: run.reviewPackId ?? null,
-      state: run.state,
-      checkpoint: run.checkpoint ?? null,
-      missionLinkage: run.missionLinkage ?? null,
-      actionability: run.actionability ?? null,
-      publishHandoff: run.publishHandoff ?? null,
-      takeoverBundle: run.takeoverBundle ?? null,
-      sessionBoundary,
-    });
-  const nextOperatorAction =
-    run.nextOperatorAction ??
-    resolveRuntimeNextOperatorAction({
-      workspaceId: run.workspaceId,
-      taskId: run.taskId,
-      runId: run.id,
-      reviewPackId: run.reviewPackId ?? null,
-      state: run.state,
-      reviewStatus,
-      approval: run.approval ?? null,
-      reviewDecision,
-      nextAction: run.nextAction ?? null,
-      checkpoint: run.checkpoint ?? null,
-      missionLinkage: run.missionLinkage ?? null,
-      actionability: run.actionability ?? null,
-      publishHandoff: run.publishHandoff ?? null,
-      takeoverBundle: run.takeoverBundle ?? null,
-      sessionBoundary,
-      continuation,
-    });
+  const sessionBoundary = canonicalTruth.sessionBoundary;
+  const continuation = canonicalTruth.continuation;
+  const nextOperatorAction = canonicalTruth.nextOperatorAction;
   const checksPerformed = validations.map((validation) => validation.label);
   const fileChanges = buildReviewPackFileChanges(changedPaths);
   const assumptions = buildReviewPackAssumptions(run, reviewStatus);

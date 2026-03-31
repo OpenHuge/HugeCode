@@ -12,7 +12,7 @@ import {
   buildRuntimeContinuationReadinessSummary,
   formatRuntimeContinuationStateLabel,
 } from "./runtimeContinuationFacade.js";
-import { resolveRuntimeNextOperatorAction } from "./runtimeTruthCompat.js";
+import { resolveCanonicalRuntimeTruth } from "./runtimeTruthCompat.js";
 
 export type RuntimeCapabilitiesSummaryLike = {
   mode: string;
@@ -360,24 +360,7 @@ export function buildRuntimeLaunchReadinessSummary(input: {
 }
 
 function resolveRunContinuationDescriptor(run: HugeCodeRunSummary) {
-  return buildRuntimeContinuationDescriptor({
-    runState: run.state,
-    checkpoint: run.checkpoint ?? null,
-    continuation: run.continuation ?? null,
-    missionLinkage: run.missionLinkage ?? null,
-    actionability: run.actionability ?? null,
-    publishHandoff: run.publishHandoff ?? null,
-    takeoverBundle: run.takeoverBundle ?? null,
-    nextAction: run.nextAction ?? null,
-    reviewPackId: run.reviewPackId ?? null,
-  });
-}
-
-function resolveRunNextOperatorAction(run: HugeCodeRunSummary): HugeCodeNextOperatorAction | null {
-  if (run.nextOperatorAction) {
-    return run.nextOperatorAction;
-  }
-  return resolveRuntimeNextOperatorAction({
+  const canonicalTruth = resolveCanonicalRuntimeTruth({
     workspaceId: run.workspaceId,
     taskId: run.taskId,
     runId: run.id,
@@ -393,8 +376,40 @@ function resolveRunNextOperatorAction(run: HugeCodeRunSummary): HugeCodeNextOper
     takeoverBundle: run.takeoverBundle ?? null,
     sessionBoundary: run.sessionBoundary ?? null,
     continuation: run.continuation ?? null,
-    nextOperatorAction: null,
+    nextOperatorAction: run.nextOperatorAction ?? null,
   });
+  return buildRuntimeContinuationDescriptor({
+    runState: run.state,
+    checkpoint: run.checkpoint ?? null,
+    continuation: canonicalTruth.continuation,
+    missionLinkage: run.missionLinkage ?? null,
+    actionability: run.actionability ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    nextAction: run.nextAction ?? null,
+    reviewPackId: run.reviewPackId ?? null,
+  });
+}
+
+function resolveRunNextOperatorAction(run: HugeCodeRunSummary): HugeCodeNextOperatorAction | null {
+  return resolveCanonicalRuntimeTruth({
+    workspaceId: run.workspaceId,
+    taskId: run.taskId,
+    runId: run.id,
+    reviewPackId: run.reviewPackId ?? null,
+    state: run.state,
+    approval: run.approval ?? null,
+    reviewDecision: run.reviewDecision ?? null,
+    nextAction: run.nextAction ?? null,
+    checkpoint: run.checkpoint ?? null,
+    missionLinkage: run.missionLinkage ?? null,
+    actionability: run.actionability ?? null,
+    publishHandoff: run.publishHandoff ?? null,
+    takeoverBundle: run.takeoverBundle ?? null,
+    sessionBoundary: run.sessionBoundary ?? null,
+    continuation: run.continuation ?? null,
+    nextOperatorAction: run.nextOperatorAction ?? null,
+  }).nextOperatorAction;
 }
 
 function buildSharedLaunchReadiness(

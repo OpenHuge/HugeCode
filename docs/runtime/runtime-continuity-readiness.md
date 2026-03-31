@@ -25,13 +25,18 @@ The canonical continuation truth path is:
 1. runtime-published `takeoverBundle`
 2. canonical runtime continuation facade in
    `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`
-3. thin app/shared adapters that only format or scope the canonical output:
+3. canonical frozen-truth bundle helper in
+   `packages/code-runtime-host-contract/src/runtimeTruthCompat.ts`
+   via `resolveCanonicalRuntimeTruth(...)` for `sessionBoundary`,
+   `continuation`, and `nextOperatorAction` when a client is normalizing
+   runtime payloads into shared projections
+4. thin app/shared adapters that only format or scope the canonical output:
    - `apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts`
    - `apps/code/src/application/runtime/facades/runtimeReviewContinuationFacade.ts`
    - `apps/code/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts`
    - `apps/code/src/application/runtime/facades/runtimeMissionControlSurfaceModel.ts`
    - `packages/code-workspace-client/src/workspace-shell/sharedMissionControlSummary.ts`
-4. first-party consumers in Review Pack, Mission Control, and workspace shell
+5. first-party consumers in Review Pack, Mission Control, and workspace shell
 
 The canonical facade exports two runtime-facing summaries:
 
@@ -139,6 +144,7 @@ inventory for first-party surfaces in scope.
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | --------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Per-run continuation descriptor         | `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`                                                                                   | App runtime facades, workspace shell summary, tests               | Yes                   | Retain as the only canonical composer                  | Shared runtime contract. Remove wrappers only after all first-party callers import this facade directly or through one thin adapter. |
 | Aggregate continuity readiness          | `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`                                                                                   | `runtimeContinuityReadiness.ts`, `sharedMissionControlSummary.ts` | Yes                   | Retain                                                 | Shared runtime contract. Future runtime-native aggregate may replace this, but must replace rather than coexist.                     |
+| Frozen run/review truth bundle          | `packages/code-runtime-host-contract/src/runtimeTruthCompat.ts::resolveCanonicalRuntimeTruth`                                                            | Mission/run projection normalization, review-pack projection      | Yes                   | Retain                                                 | Shared runtime contract. Clients must consume this bundle instead of calling separate compat resolvers or rebuilding precedence.     |
 | App continuity readiness wrapper        | `apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts`                                                                                | `apps/code` Mission Control and workspace orchestration surfaces  | No, wrapper only      | Retain temporarily as a thin adapter; do not add logic | `apps/code` runtime facade owner. Delete when app callers can consume host-contract aggregate directly.                              |
 | Review continuation adapter             | `apps/code/src/application/runtime/facades/runtimeReviewContinuationFacade.ts`                                                                           | Review Pack continuation UI                                       | No, adapter only      | Retain temporarily; no semantic recompute              | `apps/code` review runtime owner. Delete or flatten once Review Pack consumes descriptor fields directly.                            |
 | Review Pack surface adapter             | `apps/code/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts`                                                                            | Review Pack detail model                                          | No, adapter only      | Retain; presentation-only                              | `apps/code` review surface owner. Keep only detail shaping and copy assembly.                                                        |
@@ -159,6 +165,9 @@ inventory for first-party surfaces in scope.
 - Compat projections must not become product-semantic authorities.
 - Adding a new continuation or review field now means wiring it in one facade,
   not duplicating logic across page summaries or selectors.
+- Legacy `nextAction` now fills gaps only after richer review/continuation truth
+  has been considered by the shared compat helper; it is no longer allowed to
+  overwrite canonical review-path detail in first-party projections.
 
 ## Compat Boundary And Exit Strategy
 

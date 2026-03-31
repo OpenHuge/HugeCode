@@ -63,11 +63,18 @@ The frozen canonical fields for a single run are:
 Short-term compatibility stays centralized in:
 
 - `packages/code-runtime-host-contract/src/runtimeTruthCompat.ts`
+- `resolveCanonicalRuntimeTruth(...)` is the canonical shared helper for the
+  frozen `sessionBoundary`, `continuation`, and `nextOperatorAction` trio when
+  runtime producers have not yet published all three fields directly.
 
 Rules:
 
 - read-new first: `sessionBoundary`, `continuation`, `nextOperatorAction`
 - fall back to legacy runtime fields only inside the shared compat resolver
+- treat legacy `nextAction` as gap-filling fallback only; it must not override
+  richer review or continuation truth when `continuation`, `takeoverBundle`,
+  `reviewActionability`, or review-pack readiness already identify the next
+  operator move
 - do not add page-local fallback rebuilds in `apps/code` selectors or components
 
 Retirement criteria for the compat resolver:
@@ -79,6 +86,10 @@ Retirement criteria for the compat resolver:
 ## Migration Notes
 
 - `missionLinkage`, `reviewActionability`, `takeoverBundle`, `checkpoint`, and `nextAction` remain available as supporting runtime facts.
+- App and workspace projections should consume the frozen trio through
+  `resolveCanonicalRuntimeTruth(...)` or directly from runtime-published
+  `sessionBoundary`, `continuation`, and `nextOperatorAction`; they should not
+  recompute those fields independently.
 - UI-facing operator actions should now read `nextOperatorAction` first.
 - Review follow-up summaries should now read `continuation` first.
 - `reviewPack.recommendedNextAction` remains for compatibility, but it now mirrors canonical runtime operator/continuation truth.

@@ -88,6 +88,11 @@ Updated: 2026-03-22
 - First-party UI surfaces must derive readiness / continuation / review
   follow-up semantics from the canonical continuation facade in
   `packages/code-runtime-host-contract/src/runtimeContinuationFacade.ts`.
+- First-party run and review projections must derive the frozen
+  `sessionBoundary`, `continuation`, and `nextOperatorAction` trio from
+  `packages/code-runtime-host-contract/src/runtimeTruthCompat.ts` via
+  `resolveCanonicalRuntimeTruth(...)` instead of calling separate compat
+  resolvers or rebuilding the precedence locally.
 - `code_mission_control_summary_v1` has been removed from the frozen canonical
   RPC surface. First-party UI must continue consuming mission-control snapshot
   truth plus the canonical continuation facade.
@@ -96,6 +101,9 @@ Updated: 2026-03-22
   summary semantics from the compatibility RPC.
 - Compat projections may preserve transport shape, but they must not keep
   growing new product-semantic precedence rules.
+- Legacy `nextAction` is now limited to gap-filling fallback inside the shared
+  compat helper. It must not override richer review-pack readiness or canonical
+  continuation detail when those truths are available.
 - Do not reintroduce a summary RPC as a first-party semantic shortcut.
 
 ## Runtime Kernel v2 Compatibility Rule

@@ -37,6 +37,12 @@ export type RuntimeTruthCompatInput = {
   nextOperatorAction?: HugeCodeNextOperatorAction | null;
 };
 
+export type CanonicalRuntimeTruth = {
+  sessionBoundary: HugeCodeRuntimeSessionBoundary | null;
+  continuation: HugeCodeContinuationSummary | null;
+  nextOperatorAction: HugeCodeNextOperatorAction | null;
+};
+
 function readOptionalText(value: string | null | undefined) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
@@ -303,13 +309,9 @@ export function resolveRuntimeNextOperatorAction(
   ) {
     return {
       action: "open_review_pack",
-      label: input.nextAction?.label ?? resolveReviewPackActionLabel(input.reviewStatus),
+      label: resolveReviewPackActionLabel(input.reviewStatus),
       detail:
-        input.nextAction?.detail ??
-        continuation?.detail ??
-        continuation?.summary ??
-        input.reviewDecision?.summary ??
-        null,
+        continuation?.detail ?? continuation?.summary ?? input.reviewDecision?.summary ?? null,
       source: "review_pack",
       target: reviewTarget ?? missionTarget,
       sessionBoundary: boundary,
@@ -331,13 +333,12 @@ export function resolveRuntimeNextOperatorAction(
     return {
       action: "open_review_pack",
       label:
-        input.nextAction?.label ??
-        (continuation.state === "blocked"
+        continuation.state === "blocked"
           ? "Resolve review"
           : continuation.state === "attention"
             ? "Inspect review"
-            : "Open review"),
-      detail: input.nextAction?.detail ?? continuation.detail ?? continuation.summary,
+            : "Open review",
+      detail: continuation.detail ?? continuation.summary,
       source: "continuation",
       target: continuation.target ?? reviewTarget ?? missionTarget,
       sessionBoundary: boundary,
@@ -413,5 +414,26 @@ export function resolveRuntimeNextOperatorAction(
     source: "runtime_fallback",
     target: missionTarget,
     sessionBoundary: boundary,
+  };
+}
+
+export function resolveCanonicalRuntimeTruth(
+  input: RuntimeTruthCompatInput
+): CanonicalRuntimeTruth {
+  const sessionBoundary = resolveRuntimeSessionBoundary(input);
+  const continuation = resolveRuntimeContinuation({
+    ...input,
+    sessionBoundary,
+  });
+  const nextOperatorAction = resolveRuntimeNextOperatorAction({
+    ...input,
+    sessionBoundary,
+    continuation,
+  });
+
+  return {
+    sessionBoundary,
+    continuation,
+    nextOperatorAction,
   };
 }
