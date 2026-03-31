@@ -229,4 +229,151 @@ describe("ReviewPackSurface browser verification", () => {
     expect(screen.getByText("Review page")).toBeTruthy();
     expect(screen.getByText("https://example.com/review")).toBeTruthy();
   });
+
+  it("does not surface pending browser evidence from a different review pack in the same workspace", () => {
+    recordRuntimeBrowserVerificationResult({
+      workspaceId: "workspace-1",
+      readiness: buildReadiness(),
+      source: "extract",
+      intendedScope: {
+        workspaceId: "workspace-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack-1",
+      },
+      result: {
+        status: "succeeded",
+        normalizedText: "Browser verification captured the published UI state.",
+        snippet: "Browser verification captured the published UI state.",
+        sourceUrl: "https://example.com/review",
+        title: "Review page",
+        errorCode: null,
+        errorMessage: null,
+        traceId: "browser-trace-1",
+        trace: [],
+      },
+    });
+
+    render(
+      <ReviewPackSurface
+        workspaceName="Workspace One"
+        items={[]}
+        selection={{
+          request: {
+            workspaceId: "workspace-1",
+            reviewPackId: "review-pack-2",
+            source: "review_surface",
+          },
+          status: "selected",
+          source: "runtime_snapshot_v1",
+          selectedWorkspaceId: "workspace-1",
+          selectedTaskId: "task-2",
+          selectedRunId: "run-2",
+          selectedReviewPackId: "review-pack-2",
+          fallbackReason: null,
+        }}
+        detail={{
+          kind: "review_pack",
+          id: "review-pack-2",
+          workspaceId: "workspace-1",
+          workspaceName: "Workspace One",
+          taskId: "task-2",
+          taskTitle: "Other review pack",
+          runId: "run-2",
+          runTitle: "Other review pack",
+          summary: "Different review pack in the same workspace.",
+          createdAt: Date.now() - 30_000,
+          reviewStatus: "ready",
+          reviewStatusLabel: "Ready",
+          evidenceState: "confirmed",
+          evidenceLabel: "Confirmed evidence",
+          validationOutcome: "passed",
+          validationLabel: "Passed",
+          warningCount: 0,
+          nextActionLabel: "Open review",
+          nextActionDetail: "Review the available evidence before accepting.",
+          warnings: [],
+          validations: [],
+          artifacts: [],
+          checksPerformed: [],
+          recommendedNextAction: "Review the available evidence before accepting.",
+          navigationTarget: {
+            kind: "review",
+            workspaceId: "workspace-1",
+            taskId: "task-2",
+            runId: "run-2",
+            reviewPackId: "review-pack-2",
+            limitation: null,
+          },
+          secondaryLabel: null,
+          source: "runtime_snapshot_v1",
+          sourceLabel: "Runtime snapshot",
+          failureClass: null,
+          failureClassLabel: null,
+          failureClassSummary: null,
+          publishHandoff: null,
+          continuity: null,
+          assumptions: [],
+          reproductionGuidance: [],
+          rollbackGuidance: [],
+          reviewDecision: {
+            status: "pending",
+            reviewPackId: "review-pack-2",
+            label: "Decision pending",
+            summary: "Accept or reject this result from the review surface.",
+            decidedAt: null,
+          },
+          reviewIntelligence: null,
+          reviewProfileId: null,
+          reviewGate: null,
+          reviewFindings: [],
+          reviewRunId: null,
+          skillUsage: [],
+          autofixCandidate: null,
+          provenanceSummary: null,
+          backendAudit: {
+            summary: "Runtime backend audit unavailable.",
+            details: [],
+            missingReason: "No route evidence was published.",
+          },
+          decisionActionability: {
+            summary: "Runtime review decision actions use fixture defaults in this test.",
+            details: ["Decision source: test fixture defaults."],
+            sourceLabel: "Test fixture defaults",
+            usesFallback: true,
+          },
+          decisionActions: [],
+          governance: undefined,
+          operatorSnapshot: undefined,
+          placement: undefined,
+          workspaceEvidence: undefined,
+          sourceProvenance: undefined,
+          lineage: undefined,
+          ledger: undefined,
+          checkpoint: undefined,
+          executionContext: undefined,
+          missionBrief: undefined,
+          relaunchContext: undefined,
+          compactEvidenceInput: null,
+          limitations: [],
+          relaunchOptions: [],
+          subAgentSummary: [],
+          emptySectionLabels: {
+            assumptions: "No assumptions recorded.",
+            warnings: "No warnings recorded.",
+            validations: "No validations recorded.",
+            artifacts: "No artifacts recorded.",
+            reproduction: "No reproduction guidance recorded.",
+            rollback: "No rollback guidance recorded.",
+          },
+        }}
+        onSelectReviewPack={() => undefined}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Attach browser evidence" })).toBeNull();
+    expect(
+      screen.getByText("No browser verification evidence is attached to this review pack yet.")
+    ).toBeTruthy();
+  });
 });

@@ -51,6 +51,9 @@ export type RuntimeBrowserExtractionOperatorState = {
 
 export type RuntimeBrowserVerificationTelemetryContext = {
   workspaceId: string;
+  taskId?: string | null;
+  runId?: string | null;
+  reviewPackId?: string | null;
   eventSource?: "mission_control" | "review_surface" | null;
 };
 
@@ -303,6 +306,15 @@ export function useRuntimeBrowserExtractionOperator(
         workspaceId: telemetryContext.workspaceId,
         readiness,
         input: buildRequest({ sourceUrl, selector }),
+        intendedScope:
+          telemetryContext.taskId && telemetryContext.runId
+            ? {
+                workspaceId: telemetryContext.workspaceId,
+                taskId: telemetryContext.taskId,
+                runId: telemetryContext.runId,
+                reviewPackId: telemetryContext.reviewPackId ?? null,
+              }
+            : null,
         eventSource: telemetryContext.eventSource ?? null,
       });
     }
@@ -323,6 +335,15 @@ export function useRuntimeBrowserExtractionOperator(
           source: "extract",
           input: buildRequest({ sourceUrl, selector }),
           result: nextResult,
+          intendedScope:
+            telemetryContext.taskId && telemetryContext.runId
+              ? {
+                  workspaceId: telemetryContext.workspaceId,
+                  taskId: telemetryContext.taskId,
+                  runId: telemetryContext.runId,
+                  reviewPackId: telemetryContext.reviewPackId ?? null,
+                }
+              : null,
           eventSource: telemetryContext.eventSource ?? null,
         });
       }
@@ -364,6 +385,15 @@ export function useRuntimeBrowserExtractionOperator(
           readiness,
           source: "history",
           result: nextResult,
+          intendedScope:
+            telemetryContext.taskId && telemetryContext.runId
+              ? {
+                  workspaceId: telemetryContext.workspaceId,
+                  taskId: telemetryContext.taskId,
+                  runId: telemetryContext.runId,
+                  reviewPackId: telemetryContext.reviewPackId ?? null,
+                }
+              : null,
           eventSource: telemetryContext.eventSource ?? null,
         });
       }

@@ -120,6 +120,37 @@ function resolveScope(detail: ReviewPackBrowserVerificationDetail) {
   };
 }
 
+function scopeKeysMatch(
+  left:
+    | {
+        workspaceId: string;
+        taskId: string;
+        runId: string;
+        reviewPackId?: string | null;
+      }
+    | null
+    | undefined,
+  right:
+    | {
+        workspaceId: string;
+        taskId: string;
+        runId: string;
+        reviewPackId?: string | null;
+      }
+    | null
+    | undefined
+) {
+  if (!left || !right) {
+    return left === right;
+  }
+  return (
+    left.workspaceId === right.workspaceId &&
+    left.taskId === right.taskId &&
+    left.runId === right.runId &&
+    (left.reviewPackId ?? null) === (right.reviewPackId ?? null)
+  );
+}
+
 function renderCandidateBlock(
   candidate: RuntimeBrowserVerificationCandidate,
   actions: {
@@ -206,6 +237,9 @@ export function useReviewPackBrowserVerificationLane(
     detail
       ? {
           workspaceId: detail.workspaceId,
+          taskId: detail.taskId,
+          runId: detail.runId,
+          reviewPackId: detail.kind === "mission_run" ? null : detail.id,
           eventSource: "review_surface",
         }
       : undefined
@@ -219,7 +253,9 @@ export function useReviewPackBrowserVerificationLane(
   });
 
   const pendingCandidate =
-    candidate?.status === "pending" && candidate.workspaceId === scope?.workspaceId
+    candidate?.status === "pending" &&
+    candidate.workspaceId === scope?.workspaceId &&
+    (candidate.intendedScope === null || scopeKeysMatch(candidate.intendedScope, scope))
       ? candidate
       : null;
 

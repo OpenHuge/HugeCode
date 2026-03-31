@@ -22,6 +22,7 @@ export type RuntimeBrowserVerificationCandidate = {
   source: "extract" | "history";
   status: "pending" | "attached" | "ignored";
   capturedAt: number;
+  intendedScope: RuntimeBrowserVerificationScope | null;
   input: {
     sourceUrl: string | null;
     selector: string | null;
@@ -104,6 +105,33 @@ function buildScopeKey(input: RuntimeBrowserVerificationScope) {
   );
 }
 
+function normalizeScope(
+  value: Partial<RuntimeBrowserVerificationScope> | null | undefined
+): RuntimeBrowserVerificationScope | null {
+  const workspaceId = readTrimmedText(value?.workspaceId);
+  const taskId = readTrimmedText(value?.taskId);
+  const runId = readTrimmedText(value?.runId);
+  if (!workspaceId || !taskId || !runId) {
+    return null;
+  }
+  return {
+    workspaceId,
+    taskId,
+    runId,
+    reviewPackId: readTrimmedText(value?.reviewPackId),
+  };
+}
+
+function scopesMatch(
+  left: RuntimeBrowserVerificationScope | null,
+  right: RuntimeBrowserVerificationScope | null
+) {
+  if (!left || !right) {
+    return left === right;
+  }
+  return buildScopeKey(left) === buildScopeKey(right);
+}
+
 function buildArtifactUri(input: RuntimeBrowserVerificationScope, evidenceId: string) {
   return `browser-verification://${input.workspaceId}/${input.taskId}/${input.runId}/${input.reviewPackId?.trim() ?? "mission-run"}/${evidenceId}`;
 }
@@ -184,6 +212,7 @@ function buildCandidate(input: {
   source: RuntimeBrowserVerificationCandidate["source"];
   request?: DesktopBrowserExtractionRequest;
   result: DesktopBrowserExtractionResult;
+  intendedScope?: RuntimeBrowserVerificationScope | null;
 }): RuntimeBrowserVerificationCandidate {
   return {
     id: buildCandidateId(input.result),
@@ -191,6 +220,7 @@ function buildCandidate(input: {
     source: input.source,
     status: "pending",
     capturedAt: Date.now(),
+    intendedScope: input.intendedScope ?? null,
     input: {
       sourceUrl: readTrimmedText(input.request?.sourceUrl),
       selector: readTrimmedText(input.request?.selector),
@@ -208,6 +238,7 @@ export function recordRuntimeBrowserVerificationTriggered(input: {
   workspaceId: string;
   readiness: RuntimeBrowserReadinessSummary;
   input?: DesktopBrowserExtractionRequest;
+  intendedScope?: Partial<RuntimeBrowserVerificationScope> | null;
   eventSource?: RuntimeBrowserVerificationTelemetrySource;
 }) {
   const event: RuntimeBrowserVerificationEvent = {
@@ -230,6 +261,7 @@ export function recordRuntimeBrowserVerificationResult(input: {
   source: RuntimeBrowserVerificationCandidate["source"];
   input?: DesktopBrowserExtractionRequest;
   result: DesktopBrowserExtractionResult;
+  intendedScope?: Partial<RuntimeBrowserVerificationScope> | null;
   eventSource?: RuntimeBrowserVerificationTelemetrySource;
 }) {
   const candidate = buildCandidate({
@@ -238,6 +270,7 @@ export function recordRuntimeBrowserVerificationResult(input: {
     source: input.source,
     request: input.input,
     result: input.result,
+    intendedScope: normalizeScope(input.intendedScope),
   });
   latestCandidatesByWorkspace.set(input.workspaceId, candidate);
   notifyStoreListeners();
@@ -274,9 +307,16 @@ export function attachRuntimeBrowserVerificationEvidence(
   if (!candidate || candidate.status !== "pending") {
     return null;
   }
+  const attachmentScope = normalizeScope(input);
+  if (!attachmentScope) {
+    return null;
+  }
+  if (candidate.intendedScope && !scopesMatch(candidate.intendedScope, attachmentScope)) {
+    return null;
+  }
 
   const attachment: RuntimeBrowserVerificationAttachment = {
-    ...input,
+    ...attachmentScope,
     id: candidate.id,
     attachedAt: Date.now(),
     source: candidate.source,
@@ -284,7 +324,7 @@ export function attachRuntimeBrowserVerificationEvidence(
       id: candidate.id,
       label: "Browser verification",
       kind: "evidence",
-      uri: buildArtifactUri(input, candidate.id),
+      uri: buildArtifactUri(attachmentScope, candidate.id),
     },
     result: candidate.result,
     input: candidate.input,
@@ -298,17 +338,17 @@ export function attachRuntimeBrowserVerificationEvidence(
     summary: buildVerificationSummary(candidate.result),
   };
 
-  const scopeKey = buildScopeKey(input);
+  const scopeKey = buildScopeKey(attachmentScope);
   const existing = attachmentsByScopeKey.get(scopeKey) ?? [];
   attachmentsByScopeKey.set(scopeKey, [...existing, attachment]);
   latestCandidatesByWorkspace.set(input.workspaceId, {
     ...candidate,
     status: "attached",
     attachmentScope: {
-      workspaceId: input.workspaceId,
-      taskId: input.taskId,
-      runId: input.runId,
-      reviewPackId: input.reviewPackId ?? null,
+      workspaceId: attachmentScope.workspaceId,
+      taskId: attachmentScope.taskId,
+      runId: attachmentScope.runId,
+      reviewPackId: attachmentScope.reviewPackId ?? null,
     },
   });
   notifyStoreListeners();

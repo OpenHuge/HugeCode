@@ -178,4 +178,51 @@ describe("runtimeBrowserVerificationEvidence", () => {
       })
     ).toHaveLength(0);
   });
+
+  it("does not let a review-scoped candidate attach to a different review pack in the same workspace", () => {
+    recordRuntimeBrowserVerificationResult({
+      workspaceId: "workspace-1",
+      readiness: buildReadiness(),
+      source: "extract",
+      intendedScope: {
+        workspaceId: "workspace-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack-1",
+      },
+      result: buildExtractionResult(),
+    });
+
+    const wrongAttachment = attachRuntimeBrowserVerificationEvidence({
+      workspaceId: "workspace-1",
+      taskId: "task-2",
+      runId: "run-2",
+      reviewPackId: "review-pack-2",
+    });
+    const correctAttachment = attachRuntimeBrowserVerificationEvidence({
+      workspaceId: "workspace-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack-1",
+    });
+
+    expect(wrongAttachment).toBeNull();
+    expect(correctAttachment).not.toBeNull();
+    expect(
+      listRuntimeBrowserVerificationAttachments({
+        workspaceId: "workspace-1",
+        taskId: "task-2",
+        runId: "run-2",
+        reviewPackId: "review-pack-2",
+      })
+    ).toEqual([]);
+    expect(
+      listRuntimeBrowserVerificationAttachments({
+        workspaceId: "workspace-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack-1",
+      })
+    ).toEqual([correctAttachment]);
+  });
 });
