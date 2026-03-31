@@ -66,6 +66,24 @@ describe("githubIssueUriTaskIntent", () => {
     ).rejects.toThrow(/does not match the active workspace repository/i);
   });
 
+  it("rejects issue details that resolve to a different canonical issue URL", async () => {
+    vi.mocked(getGitRemote).mockResolvedValue(null);
+    vi.mocked(getGitHubIssueDetails).mockResolvedValue({
+      number: 42,
+      title: "Wrong issue",
+      url: "https://github.com/acme/other/issues/42",
+      updatedAt: "2026-03-30T00:00:00.000Z",
+    });
+
+    await expect(
+      resolveGitHubIssueUriTaskIntent({
+        workspaceId: "ws-1",
+        issueUri: "https://github.com/acme/hugecode/issues/42",
+        repositoryExecutionContract,
+      })
+    ).rejects.toThrow(/resolved to https:\/\/github.com\/acme\/other\/issues\/42/i);
+  });
+
   it("rejects invalid GitHub issue URIs", async () => {
     await expect(
       resolveGitHubIssueUriTaskIntent({

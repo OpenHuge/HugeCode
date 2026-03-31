@@ -1,7 +1,12 @@
 import { useCallback, useDeferredValue, useState, useTransition } from "react";
 import type { GitHubIssue } from "../../../types";
+import {
+  assertGovernedGitHubLaunchReady,
+  evaluateGovernedGitHubLaunchPreflight,
+} from "../../../application/runtime/facades/githubSourceGovernedLaunch";
 import type { GovernedGitHubFollowUpPreview } from "../../../application/runtime/facades/githubSourceLaunchPreview";
 import type { RepositoryExecutionContract } from "../../../application/runtime/facades/runtimeRepositoryExecutionContract";
+import type { RuntimeWorkspaceExecutionPolicyStatus } from "../../../application/runtime/facades/runtimeWorkspaceExecutionPolicyFacade";
 import { MissionControlSectionCard } from "./WorkspaceHomeMissionControlSections";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
 
@@ -15,6 +20,8 @@ type WorkspaceHomeAutonomousIssueDriveProps = {
   launchAllowed: boolean;
   runtimeLoading: boolean;
   repositoryExecutionContract?: RepositoryExecutionContract | null;
+  repositoryExecutionContractError?: string | null;
+  repositoryExecutionContractStatus?: RuntimeWorkspaceExecutionPolicyStatus;
   preferredBackendIds?: string[] | null;
   refreshRuntimeTasks?: (() => Promise<void>) | null;
   driveIssue?: ((issueUri: string) => Promise<AutonomousIssueDriveResult>) | null;
@@ -29,6 +36,8 @@ export function WorkspaceHomeAutonomousIssueDrive({
   launchAllowed,
   runtimeLoading,
   repositoryExecutionContract = null,
+  repositoryExecutionContractError = null,
+  repositoryExecutionContractStatus = "idle",
   preferredBackendIds = null,
   refreshRuntimeTasks = null,
   driveIssue,
@@ -40,9 +49,17 @@ export function WorkspaceHomeAutonomousIssueDrive({
   const deferredResult = useDeferredValue(result);
   const deferredIssueUri = useDeferredValue(issueUri);
   const trimmedIssueUri = issueUri.trim();
+  const governedLaunchPreflight = evaluateGovernedGitHubLaunchPreflight({
+    policyStatus: repositoryExecutionContractStatus,
+    policyError: repositoryExecutionContractError,
+  });
 
   const runAutonomousIssueDrive = useCallback(
     async (nextIssueUri: string) => {
+      assertGovernedGitHubLaunchReady({
+        policyStatus: repositoryExecutionContractStatus,
+        policyError: repositoryExecutionContractError,
+      });
       if (driveIssue) {
         return driveIssue(nextIssueUri);
       }
@@ -69,7 +86,15 @@ export function WorkspaceHomeAutonomousIssueDrive({
         preview: intent.preview,
       };
     },
-    [driveIssue, preferredBackendIds, refreshRuntimeTasks, repositoryExecutionContract, workspaceId]
+    [
+      driveIssue,
+      preferredBackendIds,
+      refreshRuntimeTasks,
+      repositoryExecutionContract,
+      repositoryExecutionContractError,
+      repositoryExecutionContractStatus,
+      workspaceId,
+    ]
   );
 
   async function handleDriveIssue() {
@@ -115,11 +140,22 @@ export function WorkspaceHomeAutonomousIssueDrive({
           className={controlStyles.actionButton}
           type="button"
           onClick={() => void handleDriveIssue()}
-          disabled={runtimeLoading || isPending || !launchAllowed || trimmedIssueUri.length === 0}
+          disabled={
+            runtimeLoading ||
+            isPending ||
+            !launchAllowed ||
+            governedLaunchPreflight.state === "blocked" ||
+            trimmedIssueUri.length === 0
+          }
         >
           {isPending ? "Driving issue..." : "Drive issue"}
         </button>
       </div>
+      {governedLaunchPreflight.state === "blocked" ? (
+        <div className={controlStyles.warning}>
+          {governedLaunchPreflight.reason ?? "Governed GitHub launch preflight is blocked."}
+        </div>
+      ) : null}
       {!launchAllowed ? (
         <div className={controlStyles.warning}>
           Launch readiness is currently blocking new governed runtime runs.

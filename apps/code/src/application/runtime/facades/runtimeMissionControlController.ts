@@ -77,6 +77,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   const {
     repositoryExecutionContract,
     repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
     repositoryLaunchDefaults,
   } = useRuntimeWorkspaceLaunchDefaults({
     workspaceId,
@@ -544,6 +545,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     refreshRuntimeTasks: snapshot.refreshRuntimeTasks,
     repositoryExecutionContract,
     repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
     repositoryLaunchDefaults,
     runtimeLaunchPreparation: runtimeLaunchPreview.preparation,
     runtimeLaunchPreparationContextTruth: runtimeLaunchPreview.contextTruth,

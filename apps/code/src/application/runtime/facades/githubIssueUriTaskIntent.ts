@@ -38,6 +38,23 @@ type ParsedGitHubIssueUri = {
   issueNumber: number;
 };
 
+function assertResolvedIssueMatchesRequestedUri(input: {
+  canonicalIssueUri: string;
+  issue: GitHubIssue;
+}) {
+  const resolvedIssueUrl = readOptionalText(input.issue.url);
+  if (!resolvedIssueUrl) {
+    throw new Error(
+      `GitHub issue ${input.canonicalIssueUri} did not include a canonical issue URL in the active workspace bridge response.`
+    );
+  }
+  if (resolvedIssueUrl !== input.canonicalIssueUri) {
+    throw new Error(
+      `GitHub issue URI ${input.canonicalIssueUri} resolved to ${resolvedIssueUrl} through the active workspace bridge.`
+    );
+  }
+}
+
 function parseGitHubIssueUri(issueUri: string): ParsedGitHubIssueUri {
   const normalizedIssueUri = readOptionalText(issueUri);
   if (!normalizedIssueUri) {
@@ -224,6 +241,10 @@ export async function resolveGitHubIssueUriTaskIntent(
       `GitHub issue #${parsedIssueUri.issueNumber} is not available through the active workspace bridge.`
     );
   }
+  assertResolvedIssueMatchesRequestedUri({
+    canonicalIssueUri: parsedIssueUri.canonicalUrl,
+    issue,
+  });
 
   const launch = buildGitHubIssueDriveLaunch({
     issue,

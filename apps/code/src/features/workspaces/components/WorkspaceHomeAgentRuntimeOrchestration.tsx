@@ -50,6 +50,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     refreshRuntimeTasks,
     repositoryExecutionContract,
     repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
     repositoryLaunchDefaults,
     resumeRecoverableTasks,
     runtimeLaunchPreparation,
@@ -320,6 +321,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           launchAllowed={launchReadiness.launchAllowed}
           runtimeLoading={runtimeLoading}
           repositoryExecutionContract={repositoryExecutionContract}
+          repositoryExecutionContractError={repositoryExecutionContractError}
+          repositoryExecutionContractStatus={repositoryExecutionContractStatus}
           preferredBackendIds={selectedProviderRoute?.preferredBackendIds ?? null}
           refreshRuntimeTasks={refreshRuntimeTasks}
         />
