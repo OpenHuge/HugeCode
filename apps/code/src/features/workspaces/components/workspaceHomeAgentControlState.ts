@@ -30,6 +30,11 @@ export type CachedAgentControlState = {
   lastKnownPersistedControls: WorkspaceAgentControlPersistedControls;
 };
 
+export type ReadCachedAgentControlStateResult = {
+  state: CachedAgentControlState | null;
+  corrupted: boolean;
+};
+
 const STORAGE_PREFIX = "workspace-home-agent-control";
 
 export const INTENT_PRIORITY_OPTIONS: Array<{ value: AgentIntentPriority; label: string }> = [
@@ -157,26 +162,38 @@ export function formatRuntimeTimestamp(value: number | null): string {
   return new Date(value).toLocaleString();
 }
 
-export function readCachedState(workspaceId: string): CachedAgentControlState | null {
+export function readCachedStateWithStatus(workspaceId: string): ReadCachedAgentControlStateResult {
   if (typeof window === "undefined") {
-    return null;
+    return {
+      state: null,
+      corrupted: false,
+    };
   }
 
   const key = `${STORAGE_PREFIX}:${workspaceId}`;
   const raw = window.localStorage.getItem(key);
   if (!raw) {
-    return null;
+    return {
+      state: null,
+      corrupted: false,
+    };
   }
 
   try {
     const parsed = toRecord(JSON.parse(raw)) as LegacyStoredAgentControlState | null;
     if (!parsed) {
-      return null;
+      return {
+        state: null,
+        corrupted: true,
+      };
     }
 
     const intent = parseIntent(parsed.intent);
     if (!intent) {
-      return null;
+      return {
+        state: null,
+        corrupted: true,
+      };
     }
 
     const lastKnownPersistedControls = normalizePersistedControls(
@@ -187,15 +204,25 @@ export function readCachedState(workspaceId: string): CachedAgentControlState | 
       webMcpAutoExecuteCalls: parsed.webMcpAutoExecuteCalls !== false,
     };
 
-    return buildCachedState(
-      intent,
-      parsed.webMcpEnabled !== false,
-      normalizeWebMcpConsoleMode(parsed.webMcpConsoleMode),
-      lastKnownPersistedControls
-    );
+    return {
+      state: buildCachedState(
+        intent,
+        parsed.webMcpEnabled !== false,
+        normalizeWebMcpConsoleMode(parsed.webMcpConsoleMode),
+        lastKnownPersistedControls
+      ),
+      corrupted: false,
+    };
   } catch {
-    return null;
+    return {
+      state: null,
+      corrupted: true,
+    };
   }
+}
+
+export function readCachedState(workspaceId: string): CachedAgentControlState | null {
+  return readCachedStateWithStatus(workspaceId).state;
 }
 
 export function writeCachedState(workspaceId: string, payload: CachedAgentControlState) {

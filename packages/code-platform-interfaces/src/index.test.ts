@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
   buildDesktopBrowserAssessmentProxyPath,
   buildDesktopBrowserAssessmentTargetUrl,
   DESKTOP_HOST_IPC_CHANNELS,
   DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE,
   DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM,
+  normalizeActiveIntentContext,
+  normalizeActiveIntentContextByWorkspaceId,
   readDesktopBrowserAssessmentProxyRequest,
   type DesktopAppInfo,
   type DesktopBrowserAssessmentResult,
@@ -277,6 +280,179 @@ describe("code-platform-interfaces", () => {
       openPathIn: "hugecode:desktop-host:open-path-in",
       openPath: "hugecode:desktop-host:open-path",
       revealItemInDir: "hugecode:desktop-host:reveal-item-in-dir",
+    });
+  });
+
+  it("normalizes the active intent context contract for persisted flow state", () => {
+    expect(
+      normalizeActiveIntentContext({
+        schemaVersion: ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+        intent: {
+          objective: "Keep continuity readiness stable",
+          constraints: "Stay inside application/runtime boundaries",
+          successCriteria: "Recover flow state after restart",
+          deadline: "2026-03-30",
+          priority: "high",
+          managerNotes: "Prefer runtime truth over page-local heuristics",
+        },
+        focusedFiles: [
+          {
+            path: "apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts",
+            reason: "recent_change",
+          },
+          {
+            path: "packages/code-platform-interfaces/src/index.ts",
+            reason: "diagnostic",
+          },
+        ],
+        unresolvedErrors: [
+          {
+            source: "tsc",
+            severity: "error",
+            message:
+              "Property 'activeIntentContextByWorkspaceId' does not exist on type 'AppSettings'.",
+            path: "apps/code/src/types.ts",
+            code: "TS2339",
+            startLine: 278,
+            startColumn: 3,
+            endLine: 278,
+            endColumn: 35,
+          },
+        ],
+        history: {
+          latestRunId: "run-1",
+          latestRunTitle: "Persist flow state",
+          latestReviewPackId: "review-pack-1",
+          lastUpdatedAt: 42,
+          recentChangedPaths: [
+            "apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts",
+            "packages/code-platform-interfaces/src/index.ts",
+          ],
+          validationSummaries: ["TypeScript failed after adding persistent flow state fields."],
+        },
+      })
+    ).toEqual({
+      schemaVersion: ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+      intent: {
+        objective: "Keep continuity readiness stable",
+        constraints: "Stay inside application/runtime boundaries",
+        successCriteria: "Recover flow state after restart",
+        deadline: "2026-03-30",
+        priority: "high",
+        managerNotes: "Prefer runtime truth over page-local heuristics",
+      },
+      focusedFiles: [
+        {
+          path: "apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts",
+          reason: "recent_change",
+        },
+        {
+          path: "packages/code-platform-interfaces/src/index.ts",
+          reason: "diagnostic",
+        },
+      ],
+      unresolvedErrors: [
+        {
+          source: "tsc",
+          severity: "error",
+          message:
+            "Property 'activeIntentContextByWorkspaceId' does not exist on type 'AppSettings'.",
+          path: "apps/code/src/types.ts",
+          code: "TS2339",
+          startLine: 278,
+          startColumn: 3,
+          endLine: 278,
+          endColumn: 35,
+        },
+      ],
+      history: {
+        latestRunId: "run-1",
+        latestRunTitle: "Persist flow state",
+        latestReviewPackId: "review-pack-1",
+        lastUpdatedAt: 42,
+        recentChangedPaths: [
+          "apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts",
+          "packages/code-platform-interfaces/src/index.ts",
+        ],
+        validationSummaries: ["TypeScript failed after adding persistent flow state fields."],
+      },
+    });
+  });
+
+  it("drops malformed active intent context entries while keeping valid workspaces", () => {
+    expect(
+      normalizeActiveIntentContextByWorkspaceId({
+        "workspace-1": {
+          schemaVersion: ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+          intent: {
+            objective: "Carry intent across restarts",
+            constraints: "",
+            successCriteria: "",
+            deadline: null,
+            priority: "medium",
+            managerNotes: "",
+          },
+          focusedFiles: [{ path: "apps/code/src/types.ts", reason: "recent_change" }],
+          unresolvedErrors: [
+            {
+              source: "oxlint",
+              severity: "warning",
+              message: "Unused import",
+              path: "apps/code/src/types.ts",
+              code: null,
+              startLine: 1,
+              startColumn: 1,
+              endLine: 1,
+              endColumn: 10,
+            },
+          ],
+          history: {
+            latestRunId: null,
+            latestRunTitle: null,
+            latestReviewPackId: null,
+            lastUpdatedAt: null,
+            recentChangedPaths: [],
+            validationSummaries: [],
+          },
+        },
+        "workspace-2": {
+          schemaVersion: "active-intent-context/v0",
+        },
+      })
+    ).toEqual({
+      "workspace-1": {
+        schemaVersion: ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+        intent: {
+          objective: "Carry intent across restarts",
+          constraints: "",
+          successCriteria: "",
+          deadline: null,
+          priority: "medium",
+          managerNotes: "",
+        },
+        focusedFiles: [{ path: "apps/code/src/types.ts", reason: "recent_change" }],
+        unresolvedErrors: [
+          {
+            source: "oxlint",
+            severity: "warning",
+            message: "Unused import",
+            path: "apps/code/src/types.ts",
+            code: null,
+            startLine: 1,
+            startColumn: 1,
+            endLine: 1,
+            endColumn: 10,
+          },
+        ],
+        history: {
+          latestRunId: null,
+          latestRunTitle: null,
+          latestReviewPackId: null,
+          lastUpdatedAt: null,
+          recentChangedPaths: [],
+          validationSummaries: [],
+        },
+      },
     });
   });
 });

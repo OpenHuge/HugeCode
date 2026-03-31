@@ -649,6 +649,230 @@ export type DesktopHostBridgeApi = {
   };
 };
 
+export const ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION = "active-intent-context/v1";
+
+export type ActiveIntentPriority = "low" | "medium" | "high" | "critical";
+
+export type ActiveIntentContextIntent = {
+  objective: string;
+  constraints: string;
+  successCriteria: string;
+  deadline: string | null;
+  priority: ActiveIntentPriority;
+  managerNotes: string;
+};
+
+export type ActiveIntentContextFocusedFileReason =
+  | "recent_change"
+  | "diagnostic"
+  | "operator_selected";
+
+export type ActiveIntentContextFocusedFile = {
+  path: string;
+  reason: ActiveIntentContextFocusedFileReason;
+};
+
+export type ActiveIntentContextErrorSeverity = "error" | "warning" | "info" | "hint";
+
+export type ActiveIntentContextError = {
+  source: string;
+  severity: ActiveIntentContextErrorSeverity;
+  message: string;
+  path: string | null;
+  code: string | null;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+};
+
+export type ActiveIntentContextHistory = {
+  latestRunId: string | null;
+  latestRunTitle: string | null;
+  latestReviewPackId: string | null;
+  lastUpdatedAt: number | null;
+  recentChangedPaths: string[];
+  validationSummaries: string[];
+};
+
+export type ActiveIntentContext = {
+  schemaVersion: typeof ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION;
+  intent: ActiveIntentContextIntent;
+  focusedFiles: ActiveIntentContextFocusedFile[];
+  unresolvedErrors: ActiveIntentContextError[];
+  history: ActiveIntentContextHistory;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readTrimmedText(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function readStringOrEmpty(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function readOptionalPositiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function normalizeIntent(value: unknown): ActiveIntentContextIntent | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const priority =
+    value.priority === "low" ||
+    value.priority === "medium" ||
+    value.priority === "high" ||
+    value.priority === "critical"
+      ? value.priority
+      : "medium";
+  return {
+    objective: readStringOrEmpty(value.objective),
+    constraints: readStringOrEmpty(value.constraints),
+    successCriteria: readStringOrEmpty(value.successCriteria),
+    deadline: readTrimmedText(value.deadline),
+    priority,
+    managerNotes: readStringOrEmpty(value.managerNotes),
+  };
+}
+
+function normalizeFocusedFiles(value: unknown): ActiveIntentContextFocusedFile[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const normalized: ActiveIntentContextFocusedFile[] = [];
+  const seenPaths = new Set<string>();
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const path = readTrimmedText(entry.path);
+    if (!path || seenPaths.has(path)) {
+      continue;
+    }
+    const reason =
+      entry.reason === "diagnostic" ||
+      entry.reason === "operator_selected" ||
+      entry.reason === "recent_change"
+        ? entry.reason
+        : "recent_change";
+    seenPaths.add(path);
+    normalized.push({ path, reason });
+  }
+  return normalized;
+}
+
+function normalizeUnresolvedErrors(value: unknown): ActiveIntentContextError[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const normalized: ActiveIntentContextError[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const source = readTrimmedText(entry.source);
+    const message = readTrimmedText(entry.message);
+    const severity =
+      entry.severity === "warning" ||
+      entry.severity === "info" ||
+      entry.severity === "hint" ||
+      entry.severity === "error"
+        ? entry.severity
+        : null;
+    const startLine = readOptionalPositiveInteger(entry.startLine);
+    const startColumn = readOptionalPositiveInteger(entry.startColumn);
+    const endLine = readOptionalPositiveInteger(entry.endLine);
+    const endColumn = readOptionalPositiveInteger(entry.endColumn);
+    if (!source || !message || !severity || !startLine || !startColumn || !endLine || !endColumn) {
+      continue;
+    }
+    normalized.push({
+      source,
+      severity,
+      message,
+      path: readTrimmedText(entry.path),
+      code: readTrimmedText(entry.code),
+      startLine,
+      startColumn,
+      endLine,
+      endColumn,
+    });
+  }
+  return normalized;
+}
+
+function normalizeHistory(value: unknown): ActiveIntentContextHistory {
+  const record = isRecord(value) ? value : {};
+  const recentChangedPaths = Array.isArray(record.recentChangedPaths)
+    ? [...new Set(record.recentChangedPaths.map(readTrimmedText).filter((entry) => entry !== null))]
+    : [];
+  const validationSummaries = Array.isArray(record.validationSummaries)
+    ? [
+        ...new Set(
+          record.validationSummaries.map(readTrimmedText).filter((entry) => entry !== null)
+        ),
+      ]
+    : [];
+  return {
+    latestRunId: readTrimmedText(record.latestRunId),
+    latestRunTitle: readTrimmedText(record.latestRunTitle),
+    latestReviewPackId: readTrimmedText(record.latestReviewPackId),
+    lastUpdatedAt:
+      typeof record.lastUpdatedAt === "number" && Number.isFinite(record.lastUpdatedAt)
+        ? record.lastUpdatedAt
+        : null,
+    recentChangedPaths,
+    validationSummaries,
+  };
+}
+
+export function normalizeActiveIntentContext(value: unknown): ActiveIntentContext | null {
+  if (!isRecord(value) || value.schemaVersion !== ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION) {
+    return null;
+  }
+  const intent = normalizeIntent(value.intent);
+  if (!intent) {
+    return null;
+  }
+  return {
+    schemaVersion: ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
+    intent,
+    focusedFiles: normalizeFocusedFiles(value.focusedFiles),
+    unresolvedErrors: normalizeUnresolvedErrors(value.unresolvedErrors),
+    history: normalizeHistory(value.history),
+  };
+}
+
+export function normalizeActiveIntentContextByWorkspaceId(
+  value: unknown
+): Record<string, ActiveIntentContext> {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const normalized: Record<string, ActiveIntentContext> = {};
+  for (const [workspaceId, entry] of Object.entries(value)) {
+    const trimmedWorkspaceId = workspaceId.trim();
+    if (!trimmedWorkspaceId) {
+      continue;
+    }
+    const normalizedEntry = normalizeActiveIntentContext(entry);
+    if (!normalizedEntry) {
+      continue;
+    }
+    normalized[trimmedWorkspaceId] = normalizedEntry;
+  }
+  return normalized;
+}
+
 export const DESKTOP_HOST_IPC_CHANNELS = {
   getAppInfo: "hugecode:desktop-host:get-app-info",
   getAppVersion: "hugecode:desktop-host:get-app-version",

@@ -35,6 +35,7 @@ import {
 import type { RuntimeKernelCompositionFacade } from "../../../application/runtime/kernel/runtimeKernelComposition";
 import type { RuntimeUpdatedEvent } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { createRuntimeAgentControlFacade } from "../../../application/runtime/facades/runtimeAgentControlFacade";
+import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
 import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
 import type { RuntimeKernelPluginCatalogFacade } from "../../../application/runtime/kernel/runtimeKernelPlugins";
 import type { RuntimeKernelPluginRegistryFacade } from "../../../application/runtime/kernel/runtimeKernelPluginRegistry";
@@ -210,6 +211,23 @@ vi.mock("../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint", () => ({
   useWorkspaceRuntimeSessionCheckpoint: vi.fn(),
 }));
 
+vi.mock("../../../application/runtime/facades/runtimePersistentFlowState", () => ({
+  useWorkspacePersistentFlowState: vi.fn(() => ({
+    context: null,
+    hydratedIntent: null,
+    source: "none",
+    loadState: "ready",
+    saveError: null,
+    indicator: {
+      tone: "neutral",
+      label: "Persistent flow state",
+      detail:
+        "Persistent flow state will appear once the workspace has intent or runtime evidence.",
+      recovered: false,
+    },
+  })),
+}));
+
 vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
   getProvidersCatalog: vi.fn(),
   listOAuthAccounts: vi.fn(),
@@ -248,6 +266,7 @@ const submitTaskApprovalDecisionMock = vi.mocked(submitTaskApprovalDecision) as 
 const interruptAgentTaskMock = vi.mocked(interruptAgentTask) as unknown as Mock;
 const resumeAgentTaskMock = vi.mocked(resumeAgentTask) as unknown as Mock;
 const useWorkspaceRuntimeSessionCheckpointMock = vi.mocked(useWorkspaceRuntimeSessionCheckpoint);
+const useWorkspacePersistentFlowStateMock = vi.mocked(useWorkspacePersistentFlowState);
 const getRuntimePolicyMock = vi.mocked(getRuntimePolicy);
 
 function createEmptyMissionControlSnapshot() {
@@ -463,6 +482,20 @@ beforeEach(() => {
     sessionCheckpointBaseline,
     sessionCheckpointSummary:
       buildRuntimeSessionCheckpointPresentationSummary(sessionCheckpointBaseline),
+  });
+  useWorkspacePersistentFlowStateMock.mockReturnValue({
+    context: null,
+    hydratedIntent: null,
+    source: "none",
+    loadState: "ready",
+    saveError: null,
+    indicator: {
+      tone: "neutral",
+      label: "Persistent flow state",
+      detail:
+        "Persistent flow state will appear once the workspace has intent or runtime evidence.",
+      recovered: false,
+    },
   });
   vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, listener) => {
     runtimeUpdatedListeners.add(listener);
@@ -1057,6 +1090,70 @@ function render(ui: Parameters<typeof rtlRender>[0]) {
 }
 
 describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
+  it("republishes live runtime run evidence into persistent flow state when mission control opens", async () => {
+    const runtimeTask = {
+      ...buildTask("task-running", "running", "Ship UI"),
+      reviewPackId: "review-pack:task-running",
+      runSummary: {
+        ...projectAgentTaskSummaryToRunSummary(buildTask("task-running", "running", "Ship UI")),
+        changedPaths: [
+          "apps/code/src/features/workspaces/components/WorkspaceHomeAgentControlCore.tsx",
+        ],
+        validations: [
+          {
+            id: "validation-1",
+            label: "TypeScript",
+            outcome: "failed",
+            summary: "TypeScript still has one unresolved issue.",
+          },
+        ],
+      },
+    } as MockAgentTaskSummary;
+    mockRuntimeTasks([runtimeTask]);
+
+    render(
+      <WorkspaceHomeAgentRuntimeOrchestration
+        workspaceId="ws-approval"
+        intent={{
+          objective: "Keep continuity context warm",
+          constraints: "",
+          successCriteria: "",
+          deadline: null,
+          priority: "high",
+          managerNotes: "",
+        }}
+        legacyCachedIntent={null}
+        legacyCacheCorrupted={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(useWorkspacePersistentFlowStateMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          workspaceId: "ws-approval",
+          intent: expect.objectContaining({
+            objective: "Keep continuity context warm",
+          }),
+          runs: [
+            expect.objectContaining({
+              id: "task-running",
+              title: "Ship UI",
+              changedPaths: [
+                "apps/code/src/features/workspaces/components/WorkspaceHomeAgentControlCore.tsx",
+              ],
+              reviewPackId: null,
+              validations: [
+                expect.objectContaining({
+                  summary: "TypeScript still has one unresolved issue.",
+                }),
+              ],
+            }),
+          ],
+        })
+      );
+    });
+  });
+
   it("renders fixed mission control sections for launch, continuity, approval pressure, and run list", async () => {
     mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
 

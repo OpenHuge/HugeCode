@@ -1,4 +1,5 @@
 import { themeModes } from "@ku0/design-system";
+import { normalizeActiveIntentContextByWorkspaceId } from "@ku0/code-platform-interfaces";
 import { useSharedAppSettingsState } from "@ku0/code-workspace-client/settings-state";
 import { useCallback } from "react";
 import { createDefaultRemoteServerProfile } from "../../../application/runtime/facades/runtimeRemoteServerProfilesFacade";
@@ -371,6 +372,7 @@ function buildDefaultSettings(): AppSettings {
     composerCodeBlockCopyUseModifier: false,
     workspaceGroups: [],
     workspaceAgentControlByWorkspaceId: {},
+    activeIntentContextByWorkspaceId: {},
     openAppTargets: DEFAULT_OPEN_APP_TARGETS,
     selectedOpenAppId: DEFAULT_OPEN_APP_ID,
     lastActiveWorkspaceId: null,
@@ -454,6 +456,9 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
         : null,
     workspaceAgentControlByWorkspaceId: normalizeWorkspaceAgentControlByWorkspaceId(
       settings.workspaceAgentControlByWorkspaceId
+    ),
+    activeIntentContextByWorkspaceId: normalizeActiveIntentContextByWorkspaceId(
+      settings.activeIntentContextByWorkspaceId
     ),
     openAppTargets: normalizedTargets,
     selectedOpenAppId,
