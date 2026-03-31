@@ -245,4 +245,108 @@ describe("runtimeMissionControlOperatorAction", () => {
       limitation: null,
     });
   });
+
+  it("does not let legacy nextAction detail override canonical review continuation detail", () => {
+    const missionTarget = {
+      kind: "mission",
+      workspaceId: "workspace-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack-1",
+      threadId: "thread-1",
+      limitation: null,
+    } as const;
+    const reviewTarget = {
+      kind: "review",
+      workspaceId: "workspace-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack-1",
+      limitation: null,
+    } as const;
+
+    const action = resolveMissionOperatorAction({
+      task: {
+        workspaceId: "workspace-1",
+        id: "task-1",
+        origin: {
+          threadId: "thread-1",
+        },
+      } as never,
+      reviewPack: {
+        id: "review-pack-1",
+        workspaceId: "workspace-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewStatus: "action_required",
+        reviewDecision: null,
+        recommendedNextAction: "Legacy review follow-up",
+        governance: null,
+        checkpoint: null,
+        missionLinkage: null,
+        actionability: null,
+        publishHandoff: null,
+        takeoverBundle: null,
+        continuation: {
+          state: "ready",
+          pathKind: "review",
+          source: "review_actionability",
+          summary: "Canonical review follow-up is ready.",
+          detail: "Open the canonical review path before continuing.",
+          recommendedAction: "Use the canonical review continuation.",
+          target: {
+            kind: "review_pack",
+            workspaceId: "workspace-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack-1",
+            checkpointId: null,
+            traceId: null,
+          },
+          reviewPackId: "review-pack-1",
+          reviewActionability: null,
+          sessionBoundary: {
+            workspaceId: "workspace-1",
+            taskId: "task-1",
+            runId: "run-1",
+            missionTaskId: "task-1",
+            sessionKind: "run",
+            threadId: null,
+            requestId: null,
+            reviewPackId: "review-pack-1",
+            checkpointId: null,
+            traceId: null,
+            navigationTarget: {
+              kind: "run",
+              workspaceId: "workspace-1",
+              taskId: "task-1",
+              runId: "run-1",
+              reviewPackId: "review-pack-1",
+              checkpointId: null,
+              traceId: null,
+            },
+          },
+        },
+      } as never,
+      run: {
+        id: "run-1",
+        taskId: "task-1",
+        workspaceId: "workspace-1",
+        reviewPackId: "review-pack-1",
+        state: "review_ready",
+        nextAction: {
+          label: "Legacy next action",
+          action: "review",
+          detail: "Legacy next action detail",
+        },
+      } as never,
+      missionTarget,
+      reviewTarget,
+      defaultActiveLabel: "Monitor mission",
+    });
+
+    expect(action.label).toBe("Open review");
+    expect(action.detail).toBe("Open the canonical review path before continuing.");
+    expect(action.target).toEqual(reviewTarget);
+  });
 });
