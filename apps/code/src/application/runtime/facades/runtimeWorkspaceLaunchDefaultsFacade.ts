@@ -6,11 +6,15 @@ import {
 } from "./runtimeRepositoryExecutionContract";
 import { resolveRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionDefaults";
 import { buildManualTaskSource } from "./runtimeTaskSourceFacade";
-import { useRuntimeWorkspaceExecutionPolicy } from "./runtimeWorkspaceExecutionPolicyFacade";
+import {
+  useRuntimeWorkspaceExecutionPolicy,
+  type RuntimeWorkspaceExecutionPolicyStatus,
+} from "./runtimeWorkspaceExecutionPolicyFacade";
 
 export type RuntimeWorkspaceLaunchDefaultsState = {
   repositoryExecutionContract: RepositoryExecutionContract | null;
   repositoryExecutionContractError: string | null;
+  repositoryExecutionContractStatus: RuntimeWorkspaceExecutionPolicyStatus;
   repositoryLaunchDefaults: ResolvedRepositoryExecutionDefaults;
 };
 
@@ -34,8 +38,11 @@ export function useRuntimeWorkspaceLaunchDefaults(input: {
   draftTitle: string;
   draftInstruction: string;
 }): RuntimeWorkspaceLaunchDefaultsState {
-  const { repositoryExecutionContract, repositoryExecutionContractError } =
-    useRuntimeWorkspaceExecutionPolicy(input.workspaceId);
+  const {
+    repositoryExecutionContract,
+    repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
+  } = useRuntimeWorkspaceExecutionPolicy(input.workspaceId);
 
   const repositoryLaunchDefaults = useMemo(
     () =>
@@ -51,6 +58,7 @@ export function useRuntimeWorkspaceLaunchDefaults(input: {
   return {
     repositoryExecutionContract,
     repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
     repositoryLaunchDefaults,
   };
 }

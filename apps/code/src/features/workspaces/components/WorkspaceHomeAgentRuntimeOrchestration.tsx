@@ -17,7 +17,9 @@ import {
   DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG,
   formatRuntimeTimestamp,
   parseRuntimeBatchPreviewState,
+  readRuntimeParallelDispatchPlanLaunchError,
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
+import { WorkspaceHomeAgentRuntimeParallelDispatchSection } from "./WorkspaceHomeAgentRuntimeParallelDispatchSection";
 import { WorkspaceHomeRuntimePolicyIndicator } from "./WorkspaceHomeRuntimePolicyIndicator";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
 import { DEFAULT_INTENT } from "./workspaceHomeAgentControlState";
@@ -26,6 +28,13 @@ const WorkspaceHomeAgentRuntimePluginControlPlane = lazy(async () => {
   const module = await import("./WorkspaceHomeAgentRuntimePluginControlPlane");
   return {
     default: module.WorkspaceHomeAgentRuntimePluginControlPlane,
+  };
+});
+
+const WorkspaceHomeAutonomousIssueDrive = lazy(async () => {
+  const module = await import("./WorkspaceHomeAutonomousIssueDrive");
+  return {
+    default: module.WorkspaceHomeAutonomousIssueDrive,
   };
 });
 
@@ -50,12 +59,14 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     browserExtraction,
     executionProfiles,
     missionControlProjection,
+    parallelDispatch,
     pollSeconds,
     prepareRunLauncher,
     providerRouteOptions,
     refreshRuntimeTasks,
     repositoryExecutionContract,
     repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
     repositoryLaunchDefaults,
     resumeRecoverableTasks,
     runtimeLaunchPreparation,
@@ -219,6 +230,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         .map((dependency) => `${dependency} -> ${task.taskKey}`)
     );
   }, [runtimeBatchPreview.tasks]);
+  const runtimeBatchPreviewLaunchError = runtimeBatchPreview.enabled
+    ? readRuntimeParallelDispatchPlanLaunchError(runtimeBatchPreview)
+    : null;
   const runtimePlan = runtimeLaunchPreparation?.plan ?? null;
   const runtimePlanNeedsApproval =
     runtimeLaunchPlanApprovalRequired && runtimeLaunchPlanVersion !== null;
@@ -336,6 +350,30 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         browserReadinessStatusLabel={browserReadinessStatusLabel}
         browserReadinessStatusTone={browserReadinessStatusTone}
       />
+      <Suspense
+        fallback={
+          <MissionControlSectionCard
+            title="Autonomous Issue Drive"
+            statusLabel="Loading"
+            statusTone="neutral"
+          >
+            <div className={controlStyles.sectionMeta}>
+              Preparing the GitHub issue ingestion controls.
+            </div>
+          </MissionControlSectionCard>
+        }
+      >
+        <WorkspaceHomeAutonomousIssueDrive
+          workspaceId={workspaceId}
+          launchAllowed={launchReadiness.launchAllowed}
+          runtimeLoading={runtimeLoading}
+          repositoryExecutionContract={repositoryExecutionContract}
+          repositoryExecutionContractError={repositoryExecutionContractError}
+          repositoryExecutionContractStatus={repositoryExecutionContractStatus}
+          preferredBackendIds={selectedProviderRoute?.preferredBackendIds ?? null}
+          refreshRuntimeTasks={refreshRuntimeTasks}
+        />
+      </Suspense>
       <MissionControlSessionLogSection workspaceId={workspaceId} />
       <Suspense
         fallback={<div className={controlStyles.sectionMeta}>Loading plugin control plane...</div>}
@@ -876,7 +914,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           </div>
         ) : null}
         <label>
-          <span>Batch config (preview only)</span>
+          <span>Batch config (parallel dispatch)</span>
           <textarea
             value={runtimeDraftBatchConfig}
             onChange={(event) => setRuntimeDraftBatchConfig(event.target.value)}
@@ -884,60 +922,11 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
             spellCheck={false}
           />
         </label>
-        <div className="workspace-home-code-runtime-item">
-          <div className="workspace-home-code-runtime-item-main">
-            <strong>Batch DAG preview</strong>
-            <span>Read-only preview for taskKey/dependsOn/maxRetries/onFailure/maxParallel.</span>
-            <span>Max parallel: {runtimeBatchPreview.maxParallel}</span>
-            <span>Missions: {runtimeBatchPreview.tasks.length}</span>
-          </div>
-          {runtimeBatchPreview.parseError ? (
-            <div className={controlStyles.warning}>{runtimeBatchPreview.parseError}</div>
-          ) : (
-            <>
-              {runtimeBatchPreview.duplicateTaskKeyHints.map((hint) => (
-                <div key={hint} className={controlStyles.warning}>
-                  {hint}
-                </div>
-              ))}
-              {runtimeBatchPreview.dependencyHints.map((hint) => (
-                <div key={hint} className={controlStyles.warning}>
-                  {hint}
-                </div>
-              ))}
-              {runtimeBatchPreview.cycleHint ? (
-                <div className={controlStyles.warning}>
-                  Cycle hint: {runtimeBatchPreview.cycleHint}.
-                </div>
-              ) : null}
-              <div className="workspace-home-code-runtime-list">
-                {runtimeBatchPreview.tasks.map((task) => (
-                  <div key={task.taskKey} className="workspace-home-code-runtime-item">
-                    <div className="workspace-home-code-runtime-item-main">
-                      <strong>{task.taskKey}</strong>
-                      <span>
-                        dependsOn: {task.dependsOn.length > 0 ? task.dependsOn.join(", ") : "root"}
-                      </span>
-                      <span>retries: {task.maxRetries}</span>
-                      <span>onFailure: {task.onFailure}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="workspace-home-code-runtime-item-actions">
-                {runtimeBatchPreviewEdges.length > 0 ? (
-                  runtimeBatchPreviewEdges.map((edge) => <span key={edge}>{edge}</span>)
-                ) : (
-                  <span>No dependency edges.</span>
-                )}
-              </div>
-              <div className={controlStyles.sectionMeta}>
-                Outcome labels: success = completed task; failed = retries exhausted; skipped =
-                blocked by dependencies or failure policy; retried = task rerun up to maxRetries.
-              </div>
-            </>
-          )}
-        </div>
+        <WorkspaceHomeAgentRuntimeParallelDispatchSection
+          runtimeBatchPreview={runtimeBatchPreview}
+          runtimeBatchPreviewEdges={runtimeBatchPreviewEdges}
+          parallelDispatch={parallelDispatch}
+        />
         {runtimeSourceDraft ? (
           <div className="workspace-home-code-runtime-item">
             <div className="workspace-home-code-runtime-item-main">
@@ -1020,12 +1009,13 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           </label>
           <button
             type="button"
-            onClick={() => void startRuntimeManagedTask()}
+            onClick={() => void startRuntimeManagedTask(runtimeBatchPreview)}
             disabled={
               runtimeLoading ||
               runtimeDraftInstruction.trim().length === 0 ||
               selectedProviderRoute?.launchAllowed === false ||
               !launchReadiness.launchAllowed ||
+              runtimeBatchPreviewLaunchError !== null ||
               (runtimePlanNeedsApproval && !runtimeLaunchPlanApproved)
             }
           >

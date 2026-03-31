@@ -13,6 +13,13 @@ import {
 } from "./runtimeMissionLaunchPreparation";
 import { buildWorkspaceRuntimeMissionControlProjection } from "./runtimeWorkspaceMissionControlProjection";
 import { useRuntimeWorkspaceLaunchDefaults } from "./runtimeWorkspaceLaunchDefaultsFacade";
+import type { RuntimeParallelDispatchPlan } from "./runtimeParallelDispatchManager";
+import {
+  readRuntimeParallelDispatchPlanLaunchError,
+  reconcileRuntimeParallelDispatchTasks,
+  startRuntimeParallelDispatch,
+  useRuntimeParallelDispatchWorkspace,
+} from "./runtimeParallelDispatchManager";
 import {
   collectInterruptibleRuntimeTasks,
   summarizeResumeBatchResults,
@@ -55,6 +62,7 @@ function buildMissionInterventionInfoMessage(
 
 export function useWorkspaceRuntimeMissionControlController(workspaceId: string) {
   const runtimeControl = useWorkspaceRuntimeAgentControl(workspaceId);
+  const parallelDispatch = useRuntimeParallelDispatchWorkspace(workspaceId);
   const executionProfiles = useMemo(() => [...listRunExecutionProfiles()], []);
   const [pollSeconds, setPollSeconds] = useState(15);
   const [runtimeStatusFilter, setRuntimeStatusFilter] = useState<
@@ -79,6 +87,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   const {
     repositoryExecutionContract,
     repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
     repositoryLaunchDefaults,
   } = useRuntimeWorkspaceLaunchDefaults({
     workspaceId,
@@ -91,6 +100,9 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeControl,
     pollSeconds,
   });
+  useEffect(() => {
+    reconcileRuntimeParallelDispatchTasks(workspaceId, snapshot.runtimeTasks);
+  }, [snapshot.runtimeTasks, workspaceId]);
   const browserReadiness = readBrowserReadiness();
   const browserAssessment = useRuntimeBrowserAssessmentOperator(workspaceId, browserReadiness);
   const browserExtraction = useRuntimeBrowserExtractionOperator(browserReadiness);
@@ -246,67 +258,90 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     setApprovedRuntimePlanVersion(null);
   }, []);
 
-  const startRuntimeManagedTask = useCallback(async () => {
-    if (draft.runtimeDraftInstruction.trim().length === 0) {
-      return;
-    }
-    if (!runtimeLaunchPreview.preparation || !runtimeLaunchPreview.request) {
-      setRuntimeError("Review the runtime mission plan before starting the run.");
-      return;
-    }
-    if (runtimeLaunchPlanApprovalRequired && !runtimeLaunchPlanApproved) {
-      setRuntimeError("Approve the current mission plan before starting the run.");
-      return;
-    }
-    const launchRequest =
-      buildRuntimeRunStartRequestFromPreparation({
-        request: runtimeLaunchPreview.request,
-        preparation: runtimeLaunchPreview.preparation,
-      }) ??
-      buildRuntimeMissionLaunchPrepareRequest({
-        workspaceId,
-        draftTitle: draft.runtimeDraftTitle,
-        draftInstruction: draft.runtimeDraftInstruction,
-        selectedExecutionProfile,
-        repositoryLaunchDefaults,
-        runtimeSourceDraft: draft.runtimeSourceDraft,
-        routedProvider,
-        preferredBackendIds: selectedProviderRoute?.preferredBackendIds ?? null,
-        defaultBackendId: selectedProviderRoute?.resolvedBackendId ?? null,
-      });
-    if (!launchRequest) {
-      return;
-    }
-    setRuntimeActionLoading(true);
-    try {
-      await startRuntimeRunWithRemoteSelection(launchRequest);
-      draft.resetRuntimeDraftState();
-      setApprovedRuntimePlanVersion(null);
-      setRuntimeError(null);
-      setRuntimeInfo(
-        `Mission run started with ${selectedExecutionProfile.name}${routedProvider ? ` via ${selectedProviderRoute?.label ?? routedProvider}` : ""}.`
-      );
-      await snapshot.refreshRuntimeTasks();
-    } catch (error) {
-      setRuntimeError(formatRuntimeError(error));
-    } finally {
-      setRuntimeActionLoading(false);
-    }
-  }, [
-    draft,
-    runtimeControl,
-    selectedExecutionProfile,
-    repositoryLaunchDefaults,
-    selectedProviderRoute,
-    snapshot,
-    workspaceId,
-    setRuntimeError,
-    routedProvider,
-    runtimeLaunchPlanApprovalRequired,
-    runtimeLaunchPlanApproved,
-    runtimeLaunchPreview.preparation,
-    runtimeLaunchPreview.request,
-  ]);
+  const startRuntimeManagedTask = useCallback(
+    async (dispatchPlan?: RuntimeParallelDispatchPlan | null) => {
+      if (draft.runtimeDraftInstruction.trim().length === 0) {
+        return;
+      }
+      if (!runtimeLaunchPreview.preparation || !runtimeLaunchPreview.request) {
+        setRuntimeError("Review the runtime mission plan before starting the run.");
+        return;
+      }
+      if (runtimeLaunchPlanApprovalRequired && !runtimeLaunchPlanApproved) {
+        setRuntimeError("Approve the current mission plan before starting the run.");
+        return;
+      }
+      const launchRequest =
+        buildRuntimeRunStartRequestFromPreparation({
+          request: runtimeLaunchPreview.request,
+          preparation: runtimeLaunchPreview.preparation,
+        }) ??
+        buildRuntimeMissionLaunchPrepareRequest({
+          workspaceId,
+          draftTitle: draft.runtimeDraftTitle,
+          draftInstruction: draft.runtimeDraftInstruction,
+          selectedExecutionProfile,
+          repositoryLaunchDefaults,
+          runtimeSourceDraft: draft.runtimeSourceDraft,
+          routedProvider,
+          preferredBackendIds: selectedProviderRoute?.preferredBackendIds ?? null,
+          defaultBackendId: selectedProviderRoute?.resolvedBackendId ?? null,
+        });
+      if (!launchRequest) {
+        return;
+      }
+      setRuntimeActionLoading(true);
+      try {
+        if (dispatchPlan?.enabled && dispatchPlan.tasks.length > 0) {
+          const dispatchPlanError = readRuntimeParallelDispatchPlanLaunchError(dispatchPlan);
+          if (dispatchPlanError) {
+            setRuntimeError(dispatchPlanError);
+            return;
+          }
+          const dispatch = await startRuntimeParallelDispatch({
+            workspaceId,
+            objective: draft.runtimeDraftInstruction,
+            launchRequest,
+            plan: dispatchPlan,
+          });
+          await snapshot.refreshRuntimeTasks();
+          draft.resetRuntimeDraftState();
+          setApprovedRuntimePlanVersion(null);
+          setRuntimeError(null);
+          setRuntimeInfo(
+            `Parallel dispatch ${dispatch.sessionId} started with ${dispatchPlan.tasks.length} chunk(s).`
+          );
+          return;
+        }
+        await startRuntimeRunWithRemoteSelection(launchRequest);
+        draft.resetRuntimeDraftState();
+        setApprovedRuntimePlanVersion(null);
+        setRuntimeError(null);
+        setRuntimeInfo(
+          `Mission run started with ${selectedExecutionProfile.name}${routedProvider ? ` via ${selectedProviderRoute?.label ?? routedProvider}` : ""}.`
+        );
+        await snapshot.refreshRuntimeTasks();
+      } catch (error) {
+        setRuntimeError(formatRuntimeError(error));
+      } finally {
+        setRuntimeActionLoading(false);
+      }
+    },
+    [
+      draft,
+      selectedExecutionProfile,
+      repositoryLaunchDefaults,
+      selectedProviderRoute,
+      snapshot,
+      workspaceId,
+      setRuntimeError,
+      routedProvider,
+      runtimeLaunchPlanApprovalRequired,
+      runtimeLaunchPlanApproved,
+      runtimeLaunchPreview.preparation,
+      runtimeLaunchPreview.request,
+    ]
+  );
 
   const interruptRuntimeTaskById = useCallback(
     async (taskId: string, reason: string | null) => {
@@ -554,6 +589,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     executionProfiles,
     missionControlProjection,
     browserAssessment,
+    parallelDispatch,
     browserExtraction,
     pollSeconds,
     prepareRunLauncher,
@@ -561,6 +597,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     refreshRuntimeTasks: snapshot.refreshRuntimeTasks,
     repositoryExecutionContract,
     repositoryExecutionContractError,
+    repositoryExecutionContractStatus,
     repositoryLaunchDefaults,
     runtimeLaunchPreparation: runtimeLaunchPreview.preparation,
     runtimeLaunchPreparationContextTruth: runtimeLaunchPreview.contextTruth,

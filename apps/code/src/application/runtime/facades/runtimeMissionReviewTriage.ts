@@ -65,10 +65,10 @@ function resolveTriagePriority(input: {
   if (hasBlockedFollowUp && hasEvidenceFollowUp) {
     return 3.5;
   }
-  if (hasBlockedFollowUp) {
+  if (input.continuationState === "blocked" || input.hasBlockedSubAgents) {
     return 3;
   }
-  if (input.autofixAvailable) {
+  if (input.continuationState === "attention" || input.autofixAvailable) {
     return 2;
   }
   if (
