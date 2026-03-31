@@ -119,6 +119,9 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
 - [runtime-kernel-v2.md](./runtime-kernel-v2.md)
   Truth-first lifecycle direction for run preparation, execution, review, and
   the current v1-to-v2 compatibility bridge.
+- [github-pr-review-comment-execution-slice-2026-03-31.md](./github-pr-review-comment-execution-slice-2026-03-31.md)
+  Thin supervised golden path from GitHub PR review-comment intake through
+  canonical runtime launch, Review Pack actionability, and operator closure guidance.
 - [runtime-compat-cleanup-2026-03-25.md](./runtime-compat-cleanup-2026-03-25.md)
   Cleanup note for retiring `apps/connectors` compatibility paths, keeping the
   extension v2 contract canonical, and documenting retained compat exit windows.

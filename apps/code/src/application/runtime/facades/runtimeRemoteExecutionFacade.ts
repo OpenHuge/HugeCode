@@ -82,6 +82,14 @@ export async function resolvePreferredBackendIdsForRuntimeRunLaunch(
 export async function startRuntimeRunWithRemoteSelection(
   request: RuntimeRunStartRequestWithRemoteSelection
 ): Promise<RuntimeRunStartV2Response> {
+  const launchRequest = await buildRuntimeRunStartRequestWithRemoteSelection(request);
+  await prepareRuntimeRunV2(launchRequest);
+  return startRuntimeRunV2(launchRequest);
+}
+
+export async function buildRuntimeRunStartRequestWithRemoteSelection(
+  request: RuntimeRunStartRequestWithRemoteSelection
+): Promise<RuntimeRunStartRequestWithRemoteSelection> {
   const preferredBackendIds =
     request.executionMode === "distributed"
       ? await resolvePreferredBackendIdsForRuntimeRunLaunch(
@@ -89,10 +97,15 @@ export async function startRuntimeRunWithRemoteSelection(
           request.defaultBackendId ?? undefined
         )
       : undefined;
-  const launchRequest = {
+  return {
     ...request,
     ...(preferredBackendIds ? { preferredBackendIds } : {}),
   };
-  await prepareRuntimeRunV2(launchRequest);
+}
+
+export async function startPreparedRuntimeRunWithRemoteSelection(
+  request: RuntimeRunStartRequestWithRemoteSelection
+): Promise<RuntimeRunStartV2Response> {
+  const launchRequest = await buildRuntimeRunStartRequestWithRemoteSelection(request);
   return startRuntimeRunV2(launchRequest);
 }

@@ -4,6 +4,7 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { describe, expect, it, vi } from "vitest";
 import type { GitHubIssue, GitHubPullRequest } from "../../../types";
+import { getAppSettings } from "../ports/desktopAppSettings";
 import * as runtimeJobsPort from "../ports/runtimeJobs";
 import { parseRepositoryExecutionContract } from "./runtimeRepositoryExecutionContract";
 import {
@@ -17,6 +18,12 @@ import {
   buildGovernedGitHubIssueCommentCommandLaunchRequest,
   buildGovernedGitHubPullRequestReviewCommentLaunchRequest,
 } from "./githubCommentSourceGovernedLaunch";
+
+vi.mock("../ports/desktopAppSettings", () => ({
+  getAppSettings: vi.fn(),
+}));
+
+const getAppSettingsMock = vi.mocked(getAppSettings);
 
 function createContract() {
   return parseRepositoryExecutionContract(
@@ -564,7 +571,34 @@ describe("githubSourceGovernedLaunch", () => {
       workspaceId: "ws-1",
       accessMode: "read-only" as const,
       executionMode: "single" as const,
-      taskSource: { kind: "github_issue" as const },
+      missionBrief: {
+        objective: "Issue 42",
+        riskLevel: "low" as const,
+      },
+      taskSource: {
+        kind: "github_issue" as const,
+        label: "GitHub issue #42",
+        githubSource: {
+          sourceRecordId: "source-42",
+          repo: {
+            fullName: "openai/hugecode",
+          },
+          event: {
+            eventName: "issue_comment",
+            action: "created",
+          },
+          ref: {
+            label: "Issue #42",
+            issueNumber: 42,
+            triggerMode: "issue_comment_command" as const,
+          },
+          launchHandshake: {
+            state: "prepared" as const,
+            summary:
+              "Governed GitHub issue follow-up prepared from the linked issue comment command.",
+          },
+        },
+      },
       steps: [{ kind: "read" as const, input: "Inspect GitHub issue #42." }],
     };
 
@@ -579,13 +613,168 @@ describe("githubSourceGovernedLaunch", () => {
     });
 
     expect(prepareSpy).toHaveBeenCalledWith(request);
-    expect(startSpy).toHaveBeenCalledWith(request);
+    expect(startSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...request,
+        approvedPlanVersion: "plan-1",
+        missionBrief: expect.objectContaining({
+          planVersion: "plan-1",
+          planSummary: "plan",
+        }),
+        taskSource: expect.objectContaining({
+          githubSource: expect.objectContaining({
+            launchHandshake: expect.objectContaining({
+              state: "started",
+              disposition: "launched",
+              preparedPlanVersion: "plan-1",
+              approvedPlanVersion: "plan-1",
+              summary:
+                "Governed GitHub issue follow-up launched from the linked issue comment command through the canonical runtime prepare/start lane.",
+            }),
+          }),
+        }),
+      })
+    );
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(result).toEqual(
       expect.objectContaining({
         preparation,
         response,
         request,
+        startRequest: expect.objectContaining({
+          approvedPlanVersion: "plan-1",
+        }),
+      })
+    );
+  });
+
+  it("resolves distributed backend defaults before governed prepare/start", async () => {
+    getAppSettingsMock.mockResolvedValue({
+      defaultRemoteExecutionBackendId: "backend-global",
+    } as Awaited<ReturnType<typeof getAppSettings>>);
+
+    const preparation: RuntimeRunPrepareV2Response = {
+      plan: {
+        planVersion: "plan-distributed",
+        summary: "distributed plan",
+        currentMilestoneId: null,
+        estimatedDurationMinutes: null,
+        estimatedWorkerRuns: null,
+        parallelismHint: null,
+        clarifyingQuestions: [],
+        milestones: [],
+        validationLanes: [],
+        skillPlan: [],
+      },
+      contextTruth: null,
+      guidanceStack: null,
+      triageSummary: null,
+      delegationContract: null,
+      launchReadiness: null,
+      continuityReadiness: null,
+      contextWorkingSet: {
+        layers: [],
+      },
+    };
+    const response: RuntimeRunStartV2Response = {
+      run: {
+        taskId: "run-distributed",
+        workspaceId: "ws-1",
+        threadId: null,
+        requestId: null,
+        title: "Issue 9",
+        taskSource: { kind: "github_issue" },
+        status: "queued",
+        accessMode: "read-only",
+        executionProfileId: "balanced-delegate",
+        executionMode: "distributed",
+        provider: null,
+        modelId: null,
+        routedProvider: null,
+        routedModelId: null,
+        routedPool: null,
+        routedSource: null,
+        currentStep: null,
+        createdAt: 1,
+        updatedAt: 1,
+        startedAt: null,
+        completedAt: null,
+        errorCode: null,
+        errorMessage: null,
+        pendingApprovalId: null,
+        preferredBackendIds: ["backend-global"],
+        steps: [],
+      },
+      missionRun: {
+        id: "run-distributed",
+        taskId: "runtime-task:distributed",
+        workspaceId: "ws-1",
+        state: "queued",
+        title: "Issue 9",
+        summary: null,
+        updatedAt: 1,
+        startedAt: null,
+        finishedAt: null,
+        currentStepIndex: null,
+      },
+      reviewPack: null,
+    };
+    const prepareSpy = vi
+      .spyOn(runtimeJobsPort, "prepareRuntimeRunV2")
+      .mockResolvedValue(preparation);
+    const startSpy = vi.spyOn(runtimeJobsPort, "startRuntimeRunV2").mockResolvedValue(response);
+
+    const request = {
+      workspaceId: "ws-1",
+      accessMode: "read-only" as const,
+      executionMode: "distributed" as const,
+      taskSource: {
+        kind: "github_issue" as const,
+        label: "GitHub issue #9",
+        githubSource: {
+          sourceRecordId: "source-9",
+          repo: {
+            fullName: "openai/hugecode",
+          },
+          event: {
+            eventName: "issue_comment",
+            action: "created",
+          },
+          ref: {
+            label: "Issue #9",
+            issueNumber: 9,
+            triggerMode: "issue_comment_command" as const,
+          },
+        },
+      },
+      steps: [{ kind: "read" as const, input: "Inspect GitHub issue #9." }],
+    };
+
+    const result = await launchGovernedGitHubRun({
+      request,
+      launch: {
+        title: "Issue 9",
+        instruction: "Inspect GitHub issue #9.",
+        taskSource: { kind: "github_issue" },
+      },
+    });
+
+    expect(prepareSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        executionMode: "distributed",
+        preferredBackendIds: ["backend-global"],
+      })
+    );
+    expect(startSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        executionMode: "distributed",
+        preferredBackendIds: ["backend-global"],
+        approvedPlanVersion: "plan-distributed",
+      })
+    );
+    expect(result.request).toEqual(
+      expect.objectContaining({
+        preferredBackendIds: ["backend-global"],
       })
     );
   });
