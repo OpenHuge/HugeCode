@@ -5,6 +5,7 @@ import type { LiveSkillSummary } from "./desktopHost";
 import type {
   AgentCommandCenterSnapshot,
   RuntimeAgentControl,
+  RuntimeInvocationDescriptor,
   WebMcpAgent,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
@@ -45,6 +46,44 @@ type RuntimeListedLiveSkill = LiveSkillSummary & {
   alternateSkillIds: string[];
   discoveredSkillIds: string[];
 };
+
+function toInvocationLiveSkillSummary(skill: RuntimeInvocationDescriptor): LiveSkillSummary {
+  const tags = Array.isArray(skill.metadata?.tags)
+    ? skill.metadata.tags.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  return {
+    id: skill.id,
+    name: skill.title,
+    description:
+      typeof skill.readiness.detail === "string" && skill.readiness.detail.length > 0
+        ? skill.readiness.detail
+        : skill.readiness.summary,
+    kind:
+      typeof skill.metadata?.kind === "string" && skill.metadata.kind.length > 0
+        ? skill.metadata.kind
+        : "runtime_skill",
+    source:
+      typeof skill.metadata?.source === "string" && skill.metadata.source.length > 0
+        ? skill.metadata.source
+        : skill.source.sourceScope,
+    version: skill.version,
+    enabled: skill.live,
+    supportsNetwork: false,
+    tags,
+    aliases: Array.isArray(skill.metadata?.aliases)
+      ? skill.metadata.aliases.filter((entry): entry is string => typeof entry === "string")
+      : [],
+  };
+}
+
+function isRuntimeExecutableSkillInvocation(skill: RuntimeInvocationDescriptor): boolean {
+  return (
+    skill.kind === "skill" &&
+    ((typeof skill.metadata?.runtimeSkillId === "string" &&
+      skill.metadata.runtimeSkillId.trim().length > 0) ||
+      (typeof skill.source.pluginId === "string" && skill.source.pluginId.trim().length > 0))
+  );
+}
 
 function buildListedRuntimeLiveSkill(skill: LiveSkillSummary): RuntimeListedLiveSkill {
   const canonicalSkillId = canonicalizeLiveSkillId(skill.id) ?? skill.id;
@@ -115,6 +154,7 @@ export function buildListRuntimeLiveSkillsTool(
     inputSchema: {
       type: "object",
       properties: {
+        sessionId: { type: "string" },
         kind: { type: "string" },
         source: { type: "string" },
         tag: { type: "string" },
@@ -123,20 +163,34 @@ export function buildListRuntimeLiveSkillsTool(
       },
     },
     execute: async (input) => {
-      const listLiveSkills = runtimeControl.listLiveSkills;
-      if (typeof listLiveSkills !== "function") {
-        throw createRuntimeError({
-          code: RUNTIME_MESSAGE_CODES.runtime.validation.methodUnavailable,
-          message:
-            "Tool list-runtime-live-skills is unavailable because runtime control method listLiveSkills is not implemented.",
-        });
-      }
+      const sessionId = helpers.toNonEmptyString(input.sessionId);
       const requestedKind = helpers.toNonEmptyString(input.kind);
       const requestedSource = helpers.toNonEmptyString(input.source);
       const requestedTag = helpers.toNonEmptyString(input.tag)?.toLowerCase() ?? null;
       const enabledFilter = typeof input.enabled === "boolean" ? input.enabled : null;
       const canonicalOnly = input.canonicalOnly === true;
-      const listedSkills = (await listLiveSkills())
+      const listedSkillsSource =
+        typeof runtimeControl.listRuntimeInvocations === "function"
+          ? (
+              await runtimeControl.listRuntimeInvocations({
+                sessionId,
+                activeOnly: enabledFilter === true ? true : null,
+                kind: "skill",
+              })
+            )
+              .filter(isRuntimeExecutableSkillInvocation)
+              .map((entry) => toInvocationLiveSkillSummary(entry))
+          : typeof runtimeControl.listLiveSkills === "function"
+            ? await runtimeControl.listLiveSkills()
+            : null;
+      if (!listedSkillsSource) {
+        throw createRuntimeError({
+          code: RUNTIME_MESSAGE_CODES.runtime.validation.methodUnavailable,
+          message:
+            "Tool list-runtime-live-skills is unavailable because no runtime skill or invocation catalog reader is implemented.",
+        });
+      }
+      const listedSkills = listedSkillsSource
         .filter((skill) => {
           if (requestedKind && skill.kind !== requestedKind) {
             return false;

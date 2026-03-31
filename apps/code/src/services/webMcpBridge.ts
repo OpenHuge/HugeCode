@@ -47,9 +47,10 @@ function teardownRuntimeLiveSkillCatalogInvalidation(): void {
 
 function syncRuntimeLiveSkillCatalogInvalidation(options: WebMcpSyncOptions): void {
   teardownRuntimeLiveSkillCatalogInvalidation();
-  const listLiveSkills = options.runtimeControl?.listLiveSkills;
-  invalidateCachedRuntimeLiveSkills(listLiveSkills);
-  if (!options.enabled || typeof listLiveSkills !== "function") {
+  const liveSkillCatalogSource =
+    options.runtimeControl?.listRuntimeInvocations ?? options.runtimeControl?.listLiveSkills;
+  invalidateCachedRuntimeLiveSkills(liveSkillCatalogSource);
+  if (!options.enabled || typeof liveSkillCatalogSource !== "function") {
     return;
   }
   activeRuntimeLiveSkillCatalogUnsubscribe = subscribeScopedRuntimeUpdatedEvents(
@@ -58,7 +59,7 @@ function syncRuntimeLiveSkillCatalogInvalidation(options: WebMcpSyncOptions): vo
       scopes: ["bootstrap", "skills"],
     },
     () => {
-      invalidateCachedRuntimeLiveSkills(listLiveSkills);
+      invalidateCachedRuntimeLiveSkills(liveSkillCatalogSource);
     }
   );
 }

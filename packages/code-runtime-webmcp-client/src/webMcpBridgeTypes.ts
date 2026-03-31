@@ -119,6 +119,98 @@ export type RuntimeAgentTaskStepInput = {
 
 export type JsonRecord = Record<string, unknown>;
 
+export type RuntimeInvocationActivationState =
+  | "discovered"
+  | "verified"
+  | "installed"
+  | "bound"
+  | "active"
+  | "degraded"
+  | "refresh_pending"
+  | "deactivated"
+  | "failed"
+  | "uninstalled";
+
+export type RuntimeInvocationReadinessState = "ready" | "attention" | "blocked";
+
+export type RuntimeInvocationKind = "invocation" | "skill" | "route" | "host_binding";
+
+export type RuntimeInvocationBindingStage =
+  | "compile_time_descriptor"
+  | "runtime_binding"
+  | "session_overlay";
+
+export type RuntimeInvocationSourceType =
+  | "runtime_plugin"
+  | "behavior_asset"
+  | "registry_package"
+  | "session_overlay";
+
+export type RuntimeInvocationSourceScope =
+  | "runtime"
+  | "workspace"
+  | "package"
+  | "session_overlay"
+  | "host";
+
+export type RuntimeInvocationDiagnostic = {
+  phase: string;
+  severity: "info" | "warning" | "error";
+  code: string;
+  message: string;
+  at: number;
+};
+
+export type RuntimeInvocationTransition = {
+  state: RuntimeInvocationActivationState;
+  at: number;
+  reason: string;
+};
+
+export type RuntimeInvocationDescriptor = {
+  id: string;
+  title: string;
+  version: string;
+  kind: RuntimeInvocationKind;
+  bindingStage: RuntimeInvocationBindingStage;
+  live: boolean;
+  activationState: RuntimeInvocationActivationState;
+  readiness: {
+    state: RuntimeInvocationReadinessState;
+    summary: string;
+    detail: string;
+  };
+  diagnostics: RuntimeInvocationDiagnostic[];
+  transitionHistory: RuntimeInvocationTransition[];
+  source: {
+    activationId: string;
+    sourceType: RuntimeInvocationSourceType;
+    sourceScope: RuntimeInvocationSourceScope;
+    sourceRef: string;
+    pluginId: string | null;
+    packageRef: string | null;
+    overlayId: string | null;
+    sessionId: string | null;
+  };
+  metadata: JsonRecord | null;
+};
+
+export type RuntimeInvocationCatalogSnapshot = {
+  workspaceId: string;
+  sessionId: string | null;
+  refreshedAt: number;
+  entries: RuntimeInvocationDescriptor[];
+  activeEntries: RuntimeInvocationDescriptor[];
+  summary: {
+    total: number;
+    active: number;
+    degraded: number;
+    failed: number;
+    deactivated: number;
+    refreshPending: number;
+  };
+};
+
 type RuntimeBrowserAssessmentResult = {
   status: "passed" | "failed" | "error";
   target:
@@ -844,6 +936,15 @@ export type RuntimeAgentControl = {
     workspaceId?: string | null;
     extensionId: string;
   }) => Promise<boolean | null>;
+  listRuntimeInvocations?: (input?: {
+    sessionId?: string | null;
+    activeOnly?: boolean | null;
+    kind?: RuntimeInvocationKind | null;
+  }) => Promise<RuntimeInvocationDescriptor[]>;
+  getRuntimeInvocation?: (input: {
+    invocationId: string;
+    sessionId?: string | null;
+  }) => Promise<RuntimeInvocationDescriptor | null>;
   listLiveSkills?: () => Promise<LiveSkillSummary[]>;
   runLiveSkill?: (input: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
   spawnSubAgentSession?: (input: {

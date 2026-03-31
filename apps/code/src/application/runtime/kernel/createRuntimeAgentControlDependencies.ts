@@ -51,6 +51,7 @@ import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import { runtimeToolGuardrailRead, runtimeToolMetricsRead } from "../ports/runtimeDiagnostics";
 import { buildRuntimeDiscoveryControl } from "../facades/runtimeDiscoveryControl";
 import { startRuntimeRunWithRemoteSelection } from "../facades/runtimeRemoteExecutionFacade";
+import type { RuntimeInvocationCatalogFacade } from "../facades/runtimeInvocationCatalogFacade";
 import type { RuntimeAgentControlDependencies } from "../facades/runtimeAgentControlFacade";
 import type {
   RuntimeAgentTaskInterventionAction,
@@ -340,6 +341,7 @@ type CreateRuntimeAgentControlDependenciesOptions = {
     WorkspaceClientRuntimeBindings,
     "missionControl" | "kernelProjection"
   > | null;
+  invocationCatalog?: RuntimeInvocationCatalogFacade | null;
 };
 
 export function createRuntimeAgentControlDependencies(
@@ -470,6 +472,17 @@ export function createRuntimeAgentControlDependencies(
       respondToUserInputRequest(targetWorkspaceId, requestId, answers),
     respondToServerRequestResult: async (targetWorkspaceId, requestId, result) =>
       respondToServerRequestResult(targetWorkspaceId, requestId, result),
+    listRuntimeInvocations: async (inputOptions) =>
+      options?.invocationCatalog?.listInvocations({
+        sessionId: inputOptions?.sessionId ?? null,
+        activeOnly: inputOptions?.activeOnly ?? null,
+        kind: inputOptions?.kind ?? null,
+      }) ?? [],
+    getRuntimeInvocation: async (inputOptions) =>
+      options?.invocationCatalog?.resolveInvocation({
+        invocationId: inputOptions.invocationId,
+        sessionId: inputOptions.sessionId ?? null,
+      }) ?? null,
     listLiveSkills: async () => listRuntimeLiveSkills(),
     runLiveSkill: async (request) => runRuntimeLiveSkill(request),
     getGitStatus: async (targetWorkspaceId) => getGitStatus(targetWorkspaceId),

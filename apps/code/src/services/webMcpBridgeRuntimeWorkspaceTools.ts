@@ -28,6 +28,7 @@ import {
 } from "./webMcpBridgeRuntimeToolsShared";
 import type {
   RuntimeAgentControl,
+  RuntimeInvocationDescriptor,
   WebMcpAgent,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
@@ -42,9 +43,21 @@ type RuntimeLiveSkillSummary = {
   canonicalSkillId: string;
   enabled: boolean;
 };
+
+function isRuntimeExecutableSkillInvocation(entry: RuntimeInvocationDescriptor): boolean {
+  return (
+    entry.kind === "skill" &&
+    ((typeof entry.metadata?.runtimeSkillId === "string" &&
+      entry.metadata.runtimeSkillId.trim().length > 0) ||
+      (typeof entry.source.pluginId === "string" && entry.source.pluginId.trim().length > 0))
+  );
+}
 const emptyLiveSkillList: RuntimeLiveSkillSummary[] = [];
 let cachedLiveSkills: {
-  source: RuntimeAgentControl["listLiveSkills"] | null;
+  source:
+    | RuntimeAgentControl["listRuntimeInvocations"]
+    | RuntimeAgentControl["listLiveSkills"]
+    | null;
   expiresAtMs: number;
   value: RuntimeLiveSkillSummary[];
   inFlight: Promise<RuntimeLiveSkillSummary[]> | null;
@@ -56,17 +69,16 @@ let cachedLiveSkills: {
 };
 
 export function invalidateCachedRuntimeLiveSkills(
-  listLiveSkills?: RuntimeAgentControl["listLiveSkills"] | null
+  source?:
+    | RuntimeAgentControl["listRuntimeInvocations"]
+    | RuntimeAgentControl["listLiveSkills"]
+    | null
 ): void {
-  if (
-    listLiveSkills &&
-    cachedLiveSkills.source !== null &&
-    cachedLiveSkills.source !== listLiveSkills
-  ) {
+  if (source && cachedLiveSkills.source !== null && cachedLiveSkills.source !== source) {
     return;
   }
   cachedLiveSkills = {
-    source: listLiveSkills ?? null,
+    source: source ?? null,
     expiresAtMs: 0,
     value: emptyLiveSkillList,
     inFlight: null,
@@ -74,12 +86,14 @@ export function invalidateCachedRuntimeLiveSkills(
 }
 
 async function getCachedLiveSkills(
-  listLiveSkills: RuntimeAgentControl["listLiveSkills"] | undefined,
+  runtimeControl: RuntimeAgentControl,
   options?: {
     forceRefresh?: boolean;
+    sessionId?: string | null;
   }
 ): Promise<RuntimeLiveSkillSummary[] | null> {
-  if (typeof listLiveSkills !== "function") {
+  const source = runtimeControl.listRuntimeInvocations ?? runtimeControl.listLiveSkills;
+  if (typeof source !== "function") {
     return null;
   }
 
@@ -87,25 +101,47 @@ async function getCachedLiveSkills(
   const forceRefresh = options?.forceRefresh === true;
   if (
     !forceRefresh &&
-    cachedLiveSkills.source === listLiveSkills &&
+    cachedLiveSkills.source === source &&
     cachedLiveSkills.inFlight === null &&
     now < cachedLiveSkills.expiresAtMs
   ) {
     return cachedLiveSkills.value;
   }
-  if (!forceRefresh && cachedLiveSkills.source === listLiveSkills && cachedLiveSkills.inFlight) {
+  if (!forceRefresh && cachedLiveSkills.source === source && cachedLiveSkills.inFlight) {
     return cachedLiveSkills.inFlight;
   }
 
-  const inFlight = listLiveSkills()
+  const inFlight = (
+    typeof runtimeControl.listRuntimeInvocations === "function"
+      ? runtimeControl.listRuntimeInvocations({
+          sessionId: options?.sessionId ?? null,
+          activeOnly: null,
+          kind: "skill",
+        })
+      : typeof runtimeControl.listLiveSkills === "function"
+        ? runtimeControl.listLiveSkills()
+        : Promise.resolve(null)
+  )
     .then((skills) => {
-      const normalizedSkills = skills.map((skill) => ({
-        id: skill.id,
-        canonicalSkillId: canonicalizeLiveSkillId(skill.id) ?? skill.id,
-        enabled: skill.enabled,
-      }));
+      const normalizedSkills = (skills ?? [])
+        .filter((skill) => !("live" in skill) || isRuntimeExecutableSkillInvocation(skill))
+        .map((skill) => {
+          if ("live" in skill) {
+            const invocation = skill as RuntimeInvocationDescriptor;
+            return {
+              id: invocation.id,
+              canonicalSkillId: canonicalizeLiveSkillId(invocation.id) ?? invocation.id,
+              enabled: invocation.live,
+            };
+          }
+          return {
+            id: skill.id,
+            canonicalSkillId: canonicalizeLiveSkillId(skill.id) ?? skill.id,
+            enabled: skill.enabled,
+          };
+        });
       cachedLiveSkills = {
-        source: listLiveSkills,
+        source,
         expiresAtMs: Date.now() + LIVE_SKILL_LIST_CACHE_TTL_MS,
         value: normalizedSkills,
         inFlight: null,
@@ -114,7 +150,7 @@ async function getCachedLiveSkills(
     })
     .catch((error) => {
       cachedLiveSkills = {
-        source: listLiveSkills,
+        source,
         expiresAtMs: 0,
         value: emptyLiveSkillList,
         inFlight: null,
@@ -123,7 +159,7 @@ async function getCachedLiveSkills(
     });
 
   cachedLiveSkills = {
-    source: listLiveSkills,
+    source,
     expiresAtMs: 0,
     value: emptyLiveSkillList,
     inFlight,
@@ -139,17 +175,24 @@ function findRuntimeLiveSkillByCanonicalId(
 }
 
 async function assertRuntimeLiveSkillAvailable(input: {
-  listLiveSkills: RuntimeAgentControl["listLiveSkills"] | undefined;
+  runtimeControl: RuntimeAgentControl;
   canonicalSkillId: string;
   toolName: string;
   unavailableMessage?: string;
+  sessionId?: string | null;
 }): Promise<void> {
-  if (typeof input.listLiveSkills !== "function") {
+  if (
+    typeof input.runtimeControl.listRuntimeInvocations !== "function" &&
+    typeof input.runtimeControl.listLiveSkills !== "function"
+  ) {
     return;
   }
   const findSkill = async (forceRefresh: boolean) => {
     const liveSkills =
-      (await getCachedLiveSkills(input.listLiveSkills, { forceRefresh })) ?? emptyLiveSkillList;
+      (await getCachedLiveSkills(input.runtimeControl, {
+        forceRefresh,
+        sessionId: input.sessionId ?? null,
+      })) ?? emptyLiveSkillList;
     return findRuntimeLiveSkillByCanonicalId(liveSkills, input.canonicalSkillId);
   };
   let skill = await findSkill(false);
@@ -256,7 +299,7 @@ export function buildRuntimeWorkspaceTools(
           "search-workspace-files"
         );
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId: "core-grep",
           toolName: "search-workspace-files",
           unavailableMessage: "core-grep live skill is unavailable in this runtime.",
@@ -335,7 +378,7 @@ export function buildRuntimeWorkspaceTools(
           "list-workspace-tree"
         );
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId: "core-tree",
           toolName: "list-workspace-tree",
         });
@@ -384,7 +427,7 @@ export function buildRuntimeWorkspaceTools(
           "read-workspace-file"
         );
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId: "core-read",
           toolName: "read-workspace-file",
         });
@@ -471,7 +514,7 @@ export function buildRuntimeWorkspaceTools(
           "write-workspace-file"
         );
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId: "core-write",
           toolName: "write-workspace-file",
         });
@@ -563,7 +606,7 @@ export function buildRuntimeWorkspaceTools(
           "edit-workspace-file"
         );
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId: "core-edit",
           toolName: "edit-workspace-file",
         });
@@ -645,7 +688,7 @@ export function buildRuntimeWorkspaceTools(
           "execute-workspace-command"
         );
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId: "core-bash",
           toolName: "execute-workspace-command",
         });
@@ -693,7 +736,7 @@ export function buildRuntimeWorkspaceTools(
           "query-network-analysis"
         );
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId: "network-analysis",
           toolName: "query-network-analysis",
         });
@@ -737,6 +780,7 @@ export function buildRuntimeWorkspaceTools(
           input: { type: "string" },
           provider: { type: "string" },
           modelId: { type: "string" },
+          sessionId: { type: "string" },
           workspaceId: { type: "string" },
           options: { type: "object", additionalProperties: true },
           requireApproval: { type: "boolean" },
@@ -753,13 +797,17 @@ export function buildRuntimeWorkspaceTools(
         if (!skillId) {
           throw requiredInputError("skillId is required.");
         }
-        const liveSkillCatalogIndex = await getRuntimeLiveSkillCatalogIndex(runtimeControl);
+        const sessionId = helpers.toNonEmptyString(input.sessionId);
+        const liveSkillCatalogIndex = await getRuntimeLiveSkillCatalogIndex(runtimeControl, {
+          sessionId,
+        });
         const skillResolution = buildRuntimeSkillIdResolution(skillId, liveSkillCatalogIndex);
         const canonicalSkillId = skillResolution.resolvedSkillId;
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId,
           toolName: "run-runtime-live-skill",
+          sessionId,
         });
         const options = toOptionalRecord(input.options);
         const normalizedOptions: Record<string, unknown> = {
@@ -922,7 +970,7 @@ export function buildRuntimeWorkspaceTools(
           "run-runtime-computer-observe"
         );
         await assertRuntimeLiveSkillAvailable({
-          listLiveSkills: runtimeControl.listLiveSkills,
+          runtimeControl,
           canonicalSkillId: "core-computer-observe",
           toolName: "run-runtime-computer-observe",
         });

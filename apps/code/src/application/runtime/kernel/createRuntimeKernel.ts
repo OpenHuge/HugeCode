@@ -23,6 +23,10 @@ import {
 } from "./runtimeKernelCapabilities";
 import { createRuntimeKernelPluginRegistryFacade } from "./runtimeKernelPluginRegistry";
 import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
+import { createRuntimeExtensionActivationService } from "./runtimeExtensionActivation";
+import { createRuntimeInvocationCatalogFacade } from "../facades/runtimeInvocationCatalogFacade";
+import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
+import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
 
 function mapWorkspaceClientRuntimeMode(
   mode: ReturnType<typeof detectRuntimeMode>
@@ -63,9 +67,6 @@ export function createRuntimeKernel(): RuntimeKernel {
         return cachedScope;
       }
 
-      const runtimeAgentControlDependencies = createRuntimeAgentControlDependencies(workspaceId, {
-        workspaceClientRuntime,
-      });
       const pluginCatalog = createRuntimeKernelPluginCatalogFacade({ workspaceId });
       const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
         workspaceId,
@@ -76,11 +77,27 @@ export function createRuntimeKernel(): RuntimeKernel {
         pluginCatalog,
         pluginRegistry,
       });
+      const extensionActivation = createRuntimeExtensionActivationService({
+        workspaceId,
+        pluginCatalog,
+        pluginRegistry,
+        readWorkspaceSkillManifests: readRuntimeWorkspaceSkillManifests,
+        listRuntimeLiveSkills,
+      });
+      const invocationCatalog = createRuntimeInvocationCatalogFacade({
+        activation: extensionActivation,
+      });
       const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
           createCapability: () =>
-            createRuntimeAgentControlFacade(workspaceId, runtimeAgentControlDependencies),
+            createRuntimeAgentControlFacade(
+              workspaceId,
+              createRuntimeAgentControlDependencies(workspaceId, {
+                workspaceClientRuntime,
+                invocationCatalog,
+              })
+            ),
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
@@ -97,6 +114,14 @@ export function createRuntimeKernel(): RuntimeKernel {
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime,
           createCapability: () => compositionRuntime,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.extensionActivation,
+          createCapability: () => extensionActivation,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog,
+          createCapability: () => invocationCatalog,
         },
       ];
       const scope = createWorkspaceRuntimeScope({

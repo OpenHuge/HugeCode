@@ -17,6 +17,7 @@ import type {
   RuntimeAgentAccessMode,
   RuntimeAgentControl,
   RuntimeAgentReasonEffort,
+  RuntimeInvocationDescriptor,
   RuntimeSkillIdResolution,
   RuntimeAgentTaskExecutionMode,
   RuntimeSubAgentSessionHandle,
@@ -86,6 +87,15 @@ export type RuntimeLiveSkillCatalogIndex = {
   canonicalSkillIdByAcceptedId: Map<string, string>;
   acceptedSkillIdsByCanonicalId: Map<string, string[]>;
 };
+
+function isRuntimeExecutableSkillInvocation(entry: RuntimeInvocationDescriptor): boolean {
+  return (
+    entry.kind === "skill" &&
+    ((typeof entry.metadata?.runtimeSkillId === "string" &&
+      entry.metadata.runtimeSkillId.trim().length > 0) ||
+      (typeof entry.source.pluginId === "string" && entry.source.pluginId.trim().length > 0))
+  );
+}
 
 export type SubAgentSpawnInputHelpers = Pick<
   RuntimeToolHelpers,
@@ -376,7 +386,10 @@ export function buildRuntimeAllowedSkillResolution(
 }
 
 function buildRuntimeLiveSkillCatalogIndex(
-  liveSkills: Awaited<ReturnType<NonNullable<RuntimeAgentControl["listLiveSkills"]>>>
+  liveSkills: Array<{
+    id: string;
+    aliases?: string[] | null;
+  }>
 ): RuntimeLiveSkillCatalogIndex {
   const knownSkillIds = new Set<string>();
   const canonicalSkillIdByAcceptedId = new Map<string, string>();
@@ -409,8 +422,30 @@ function buildRuntimeLiveSkillCatalogIndex(
 }
 
 export async function getRuntimeLiveSkillCatalogIndex(
-  runtimeControl: RuntimeAgentControl
+  runtimeControl: RuntimeAgentControl,
+  input?: {
+    sessionId?: string | null;
+  }
 ): Promise<RuntimeLiveSkillCatalogIndex | null> {
+  if (typeof runtimeControl.listRuntimeInvocations === "function") {
+    const liveSkillInvocations = (
+      await runtimeControl.listRuntimeInvocations({
+        sessionId: input?.sessionId ?? null,
+        activeOnly: true,
+        kind: "skill",
+      })
+    ).filter(isRuntimeExecutableSkillInvocation) as RuntimeInvocationDescriptor[];
+    return buildRuntimeLiveSkillCatalogIndex(
+      liveSkillInvocations.map((entry) => ({
+        id: entry.id,
+        aliases: Array.isArray(entry.metadata?.aliases)
+          ? entry.metadata.aliases.filter(
+              (value): value is string => typeof value === "string" && value.trim().length > 0
+            )
+          : [],
+      }))
+    );
+  }
   if (typeof runtimeControl.listLiveSkills !== "function") {
     return null;
   }

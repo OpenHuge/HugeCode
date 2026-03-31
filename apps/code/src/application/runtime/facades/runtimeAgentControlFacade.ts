@@ -40,6 +40,8 @@ export function createRuntimeAgentControlFacade(
     respondToServerRequest: deps.respondToServerRequest,
     respondToUserInputRequest: deps.respondToUserInputRequest,
     respondToServerRequestResult: deps.respondToServerRequestResult,
+    listRuntimeInvocations: deps.listRuntimeInvocations,
+    getRuntimeInvocation: deps.getRuntimeInvocation,
     listLiveSkills: deps.listLiveSkills,
     runLiveSkill: deps.runLiveSkill,
     getGitStatus: deps.getGitStatus,
