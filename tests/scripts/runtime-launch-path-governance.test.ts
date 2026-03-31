@@ -184,7 +184,7 @@ describe("runtime launch path governance", () => {
 
   it("does not re-export legacy job control through the app runtime port", () => {
     const source = readFileSync(
-      path.resolve(repoRoot, "apps/code/src/application/runtime/ports/tauriRuntimeJobs.ts"),
+      path.resolve(repoRoot, "apps/code/src/application/runtime/ports/runtimeJobs.ts"),
       "utf8"
     );
 

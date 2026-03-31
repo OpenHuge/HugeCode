@@ -98,6 +98,24 @@ describe("reviewPackReviewIntelligenceTruth", () => {
     expect(truth.skillCatalog.actionableGuidance).toContain("review-agent");
   });
 
+  it("surfaces the GitHub closure policy in the operator facts", () => {
+    const truth = buildReviewPackReviewIntelligenceTruth({
+      reviewIntelligence: createReviewIntelligence({
+        githubMirrorPolicy: "check_output",
+      }),
+      workspaceSkillCatalog: createCatalogState(),
+    });
+
+    expect(truth.overview.facts).toEqual(
+      expect.arrayContaining([
+        {
+          label: "GitHub closure",
+          value: "Check output mirror",
+        },
+      ])
+    );
+  });
+
   it("maps bounded autofix states into explicit approval guidance", () => {
     const available = buildReviewPackReviewIntelligenceTruth({
       reviewIntelligence: createReviewIntelligence({

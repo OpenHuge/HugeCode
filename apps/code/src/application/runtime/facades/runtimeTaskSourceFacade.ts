@@ -47,6 +47,14 @@ export type GitHubTaskSourceProvenanceInput = {
   } | null;
 };
 
+export type GitHubTaskSourceLaunchHandshakePatch = {
+  state: RuntimeGitHubSourceLaunchHandshakeState;
+  summary?: string | null;
+  disposition?: RuntimeTaskSourceLaunchDisposition | null;
+  preparedPlanVersion?: string | null;
+  approvedPlanVersion?: string | null;
+};
+
 function readOptionalText(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -97,6 +105,25 @@ function buildFallbackGitHubLaunchHandshakeSummary(input: {
     return "Governed GitHub PR follow-up prepared from the linked pull request comment command.";
   }
   return "Governed GitHub source launch prepared.";
+}
+
+function buildStartedGitHubLaunchHandshakeSummary(input: {
+  kind: HugeCodeTaskSourceSummary["kind"];
+  triggerMode?: RuntimeTaskSourceTriggerMode | null;
+}): string {
+  if (input.kind === "github_issue" && input.triggerMode === "issue_comment_command") {
+    return "Governed GitHub issue follow-up launched from the linked issue comment command through the canonical runtime prepare/start lane.";
+  }
+  if (
+    input.kind === "github_pr_followup" &&
+    input.triggerMode === "pull_request_review_comment_command"
+  ) {
+    return "Governed GitHub PR follow-up launched from the linked review comment command through the canonical runtime prepare/start lane.";
+  }
+  if (input.kind === "github_pr_followup" && input.triggerMode === "pull_request_comment_command") {
+    return "Governed GitHub PR follow-up launched from the linked pull request comment command through the canonical runtime prepare/start lane.";
+  }
+  return "Governed GitHub source launch entered the canonical runtime prepare/start lane.";
 }
 
 function stripDotGitSegment(value: string): string {
@@ -330,6 +357,47 @@ export function buildGitHubSourceProvenance(input: {
             ),
           }
         : {}),
+    },
+  };
+}
+
+export function applyGitHubLaunchHandshakeToTaskSource(
+  taskSource: HugeCodeTaskSourceSummary | null | undefined,
+  patch: GitHubTaskSourceLaunchHandshakePatch
+): HugeCodeTaskSourceSummary | null {
+  if (!taskSource?.githubSource) {
+    return taskSource ?? null;
+  }
+  const existingHandshake = taskSource.githubSource.launchHandshake;
+  const triggerMode = taskSource.githubSource.ref.triggerMode ?? null;
+  const summary =
+    readOptionalText(patch.summary) ??
+    (patch.state === "started"
+      ? buildStartedGitHubLaunchHandshakeSummary({
+          kind: taskSource.kind,
+          triggerMode,
+        })
+      : buildFallbackGitHubLaunchHandshakeSummary({
+          kind: taskSource.kind,
+          triggerMode,
+        }));
+
+  return {
+    ...taskSource,
+    githubSource: {
+      ...taskSource.githubSource,
+      launchHandshake: {
+        ...(existingHandshake ?? {}),
+        state: patch.state,
+        summary,
+        ...(patch.disposition ? { disposition: patch.disposition } : {}),
+        ...(readOptionalText(patch.preparedPlanVersion)
+          ? { preparedPlanVersion: readOptionalText(patch.preparedPlanVersion) }
+          : {}),
+        ...(readOptionalText(patch.approvedPlanVersion)
+          ? { approvedPlanVersion: readOptionalText(patch.approvedPlanVersion) }
+          : {}),
+      },
     },
   };
 }

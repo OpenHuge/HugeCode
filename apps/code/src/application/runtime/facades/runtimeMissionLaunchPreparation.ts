@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
-  AgentTaskMissionBrief,
   HugeCodeExecutionProfile,
-  RuntimeMissionPlanV2,
-  RuntimeRunStartRequest,
   RuntimeRunPrepareV2Request,
   RuntimeRunPrepareV2Response,
 } from "@ku0/code-runtime-host-contract";
@@ -45,42 +42,7 @@ export type RuntimeMissionLaunchPreviewState = {
   error: string | null;
 };
 
-function mergePlanIntoMissionBrief(
-  missionBrief: AgentTaskMissionBrief | null | undefined,
-  plan: RuntimeMissionPlanV2
-): AgentTaskMissionBrief | null {
-  if (!missionBrief) {
-    return null;
-  }
-  return {
-    ...missionBrief,
-    planVersion: plan.planVersion,
-    planSummary: plan.summary,
-    currentMilestoneId: plan.currentMilestoneId,
-    estimatedDurationMinutes: plan.estimatedDurationMinutes,
-    estimatedWorkerRuns: plan.estimatedWorkerRuns,
-    parallelismHint: plan.parallelismHint,
-    clarificationQuestions: plan.clarifyingQuestions,
-    milestones: plan.milestones,
-    validationLanes: plan.validationLanes,
-    skillPlan: plan.skillPlan,
-  };
-}
-
-export function buildRuntimeRunStartRequestFromPreparation(input: {
-  request: RuntimeRunPrepareV2Request;
-  preparation: RuntimeRunPrepareV2Response;
-}): RuntimeRunStartRequest {
-  const missionBrief = mergePlanIntoMissionBrief(
-    input.request.missionBrief,
-    input.preparation.plan
-  );
-  return {
-    ...input.request,
-    ...(missionBrief ? { missionBrief } : {}),
-    approvedPlanVersion: input.preparation.plan.planVersion,
-  };
-}
+export { buildRuntimeRunStartRequestFromPreparation } from "./runtimeRunStartRequest";
 
 function readOptionalText(value: string | null | undefined): string | null {
   if (typeof value !== "string") {

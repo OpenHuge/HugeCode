@@ -5,6 +5,7 @@ import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/runtimeJobs";
 import {
   resolveRuntimePreferredBackendIdsInput,
   resolvePreferredBackendIdsForRuntimeRunLaunch,
+  startPreparedRuntimeRunWithRemoteSelection,
   startRuntimeRunWithRemoteSelection,
 } from "./runtimeRemoteExecutionFacade";
 
@@ -235,6 +236,34 @@ describe("runtimeRemoteExecutionFacade", () => {
           objective: "Explicit objective",
           riskLevel: "high",
         },
+      })
+    );
+  });
+
+  it("starts a prepared distributed run without triggering a second prepare call", async () => {
+    const summary = createRuntimeRunRecord({
+      preferredBackendIds: ["backend-remote-a"],
+    });
+
+    getAppSettingsMock.mockResolvedValue({
+      defaultRemoteExecutionBackendId: "backend-remote-a",
+    } as Awaited<ReturnType<typeof getAppSettings>>);
+    startRuntimeRunV2Mock.mockResolvedValue(summary);
+
+    await expect(
+      startPreparedRuntimeRunWithRemoteSelection({
+        ...createStartRequest(),
+        executionMode: "distributed",
+        approvedPlanVersion: "plan-1",
+      })
+    ).resolves.toEqual(summary);
+
+    expect(prepareRuntimeRunV2Mock).not.toHaveBeenCalled();
+    expect(startRuntimeRunV2Mock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        executionMode: "distributed",
+        preferredBackendIds: ["backend-remote-a"],
+        approvedPlanVersion: "plan-1",
       })
     );
   });
