@@ -26,6 +26,20 @@ async function flushMicrotasks() {
   await Promise.resolve();
 }
 
+async function waitForAssertion(assertion: () => void) {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      assertion();
+      return;
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+  throw lastError;
+}
+
 function createRuntimeRunRecord(
   taskId: string,
   overrides: Partial<RuntimeRunStartV2Response["run"]> = {}
@@ -149,6 +163,22 @@ function createLaunchRequest(): RuntimeRunStartRequest {
         input: "Parent objective",
       },
     ],
+  };
+}
+
+function createInMemoryPersistence() {
+  const snapshots = new Map<string, Uint8Array>();
+  return {
+    loadSnapshot(workspaceId: string) {
+      const snapshot = snapshots.get(workspaceId);
+      return snapshot ? snapshot.slice() : null;
+    },
+    saveSnapshot(workspaceId: string, snapshot: Uint8Array) {
+      snapshots.set(workspaceId, snapshot.slice());
+    },
+    clearSnapshot(workspaceId: string) {
+      snapshots.delete(workspaceId);
+    },
   };
 }
 
@@ -596,5 +626,136 @@ describe("runtimeParallelDispatchManager", () => {
         ),
       })
     ).rejects.toThrow("Cycle hint: a -> b -> a.");
+  });
+
+  it("restores persisted sessions and resumes dependency launches after hydration", async () => {
+    const persistence = createInMemoryPersistence();
+    const initialLaunchRun = vi.fn(async (request: RuntimeRunStartRequest) => {
+      if (request.title !== "Inspect runtime boundary") {
+        throw new Error(`Unexpected launch title: ${request.title ?? "unknown"}`);
+      }
+      return createRuntimeRunRecord("run-inspect", {
+        title: "Inspect runtime boundary",
+        backendId: "backend-inspect",
+        preferredBackendIds: ["backend-inspect"],
+        status: "queued",
+      });
+    });
+    const firstManager = createRuntimeParallelDispatchManager({
+      launchRun: initialLaunchRun,
+      persistence,
+      now: (() => {
+        let tick = 500;
+        return () => tick++;
+      })(),
+    });
+
+    await firstManager.startDispatch({
+      workspaceId: "ws-1",
+      objective: "Persisted objective",
+      launchRequest: createLaunchRequest(),
+      plan: parseRuntimeParallelDispatchPlan(
+        JSON.stringify({
+          enabled: true,
+          maxParallel: 1,
+          tasks: [
+            {
+              taskKey: "inspect",
+              title: "Inspect runtime boundary",
+              instruction: "Inspect runtime composition routing.",
+              preferredBackendIds: ["backend-inspect"],
+              dependsOn: [],
+              maxRetries: 0,
+              onFailure: "halt",
+            },
+            {
+              taskKey: "summary",
+              title: "Dependent summary",
+              instruction: "Summarize the restored runtime state.",
+              preferredBackendIds: ["backend-summary"],
+              dependsOn: ["inspect"],
+              maxRetries: 0,
+              onFailure: "continue",
+            },
+          ],
+        })
+      ),
+    });
+    await flushMicrotasks();
+
+    expect(
+      firstManager.getWorkspaceSnapshot("ws-1").sessions[0]?.tasks.map((task) => task.status)
+    ).toEqual(["running", "pending"]);
+
+    const resumedLaunch = createDeferred<RuntimeRunStartV2Response>();
+    const resumedLaunchRun = vi.fn((request: RuntimeRunStartRequest) => {
+      if (request.title !== "Dependent summary") {
+        throw new Error(`Unexpected restored launch title: ${request.title ?? "unknown"}`);
+      }
+      return resumedLaunch.promise;
+    });
+    const restoredManager = createRuntimeParallelDispatchManager({
+      launchRun: resumedLaunchRun,
+      persistence,
+      now: (() => {
+        let tick = 600;
+        return () => tick++;
+      })(),
+    });
+
+    restoredManager.reconcileRuntimeTasks("ws-1", [
+      createRuntimeTaskSummary("run-inspect", "completed", {
+        title: "Inspect runtime boundary",
+        backendId: "backend-inspect",
+        preferredBackendIds: ["backend-inspect"],
+      }),
+    ]);
+
+    await waitForAssertion(() => {
+      expect(
+        restoredManager.getWorkspaceSnapshot("ws-1").sessions[0]?.tasks.map((task) => task.status)
+      ).toEqual(["completed", "launching"]);
+    });
+    expect(resumedLaunchRun).toHaveBeenCalledTimes(1);
+    expect(resumedLaunchRun.mock.calls[0]?.[0]).toMatchObject({
+      title: "Dependent summary",
+      preferredBackendIds: ["backend-summary"],
+      missionBrief: expect.objectContaining({
+        objective: "Dependent summary",
+        preferredBackendIds: ["backend-summary"],
+      }),
+    });
+
+    resumedLaunch.resolve(
+      createRuntimeRunRecord("run-summary", {
+        title: "Dependent summary",
+        backendId: "backend-summary",
+        preferredBackendIds: ["backend-summary"],
+        status: "queued",
+      })
+    );
+    await flushMicrotasks();
+
+    restoredManager.reconcileRuntimeTasks("ws-1", [
+      createRuntimeTaskSummary("run-inspect", "completed", {
+        title: "Inspect runtime boundary",
+        backendId: "backend-inspect",
+        preferredBackendIds: ["backend-inspect"],
+      }),
+      createRuntimeTaskSummary("run-summary", "completed", {
+        title: "Dependent summary",
+        backendId: "backend-summary",
+        preferredBackendIds: ["backend-summary"],
+      }),
+    ]);
+    await flushMicrotasks();
+
+    expect(restoredManager.getWorkspaceSnapshot("ws-1").sessions[0]).toMatchObject({
+      state: "completed",
+      counts: {
+        total: 2,
+        completed: 2,
+      },
+    });
   });
 });

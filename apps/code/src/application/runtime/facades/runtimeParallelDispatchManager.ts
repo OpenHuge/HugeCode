@@ -3,6 +3,10 @@ import { LoroDoc, LoroList, LoroMap } from "loro-crdt/web";
 import initLoro from "loro-crdt/web/loro_wasm";
 import loroWasmUrl from "loro-crdt/web/loro_wasm_bg.wasm?url";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
+import {
+  createBrowserRuntimeParallelDispatchPersistence,
+  type RuntimeParallelDispatchPersistence,
+} from "./runtimeParallelDispatchPersistence";
 import type { RuntimeRunStartRequest, RuntimeRunStartV2Response } from "../ports/runtimeClient";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 
@@ -96,6 +100,7 @@ export type StartRuntimeParallelDispatchResult = {
 type RuntimeParallelDispatchManagerDependencies = {
   launchRun: (request: RuntimeRunStartRequest) => Promise<RuntimeRunStartV2Response>;
   now?: () => number;
+  persistence?: RuntimeParallelDispatchPersistence;
 };
 
 type RuntimeParallelDispatchChunkRuntime = RuntimeParallelDispatchTaskPlan & {
@@ -115,9 +120,13 @@ type RuntimeParallelDispatchSessionRuntime = {
 };
 
 type RuntimeParallelDispatchWorkspaceStore = {
-  doc: LoroDoc;
+  workspaceId: string;
+  doc: LoroDoc | null;
+  hydrated: boolean;
+  hydrationPromise: Promise<void> | null;
   listeners: Set<SnapshotListener>;
   sessions: Map<string, RuntimeParallelDispatchSessionRuntime>;
+  pendingRuntimeTasks: RuntimeAgentTaskSummary[] | null;
   snapshot: RuntimeParallelDispatchWorkspaceSnapshot;
 };
 
@@ -167,6 +176,10 @@ function normalizeStringArray(value: unknown): string[] {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function readOptionalBoolean(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
 }
 
 function normalizeTaskPlan(value: unknown, index: number): RuntimeParallelDispatchTaskPlan {
@@ -415,18 +428,30 @@ function ensureLoroReady() {
 }
 
 function createWorkspaceStore(
+  workspaceId: string,
   listeners: Set<SnapshotListener>
 ): RuntimeParallelDispatchWorkspaceStore {
   return {
-    doc: new LoroDoc(),
+    workspaceId,
+    doc: null,
+    hydrated: false,
+    hydrationPromise: null,
     listeners,
     sessions: new Map(),
+    pendingRuntimeTasks: null,
     snapshot: EMPTY_WORKSPACE_SNAPSHOT,
   };
 }
 
+function ensureStoreDoc(store: RuntimeParallelDispatchWorkspaceStore): LoroDoc {
+  if (!store.doc) {
+    store.doc = new LoroDoc();
+  }
+  return store.doc;
+}
+
 function ensureRootSessionsMap(store: RuntimeParallelDispatchWorkspaceStore) {
-  const root = store.doc.getMap("parallel_dispatch");
+  const root = ensureStoreDoc(store).getMap("parallel_dispatch");
   return root.getOrCreateContainer("sessions", new LoroMap());
 }
 
@@ -442,17 +467,43 @@ function ensureSessionContainers(store: RuntimeParallelDispatchWorkspaceStore, s
   };
 }
 
-function commitStore(store: RuntimeParallelDispatchWorkspaceStore, origin: string) {
-  store.doc.commit({ origin });
-  store.snapshot = readWorkspaceSnapshot(store);
+function notifyWorkspaceListeners(store: RuntimeParallelDispatchWorkspaceStore) {
   for (const listener of store.listeners) {
     listener();
   }
 }
 
+function persistWorkspaceStore(
+  store: RuntimeParallelDispatchWorkspaceStore,
+  persistence: RuntimeParallelDispatchPersistence | undefined
+) {
+  if (!persistence || !store.doc) {
+    return;
+  }
+  if (store.snapshot.sessions.length === 0) {
+    persistence.clearSnapshot(store.workspaceId);
+    return;
+  }
+  persistence.saveSnapshot(store.workspaceId, store.doc.export({ mode: "snapshot" }));
+}
+
+function commitStore(
+  store: RuntimeParallelDispatchWorkspaceStore,
+  origin: string,
+  persistence: RuntimeParallelDispatchPersistence | undefined
+) {
+  ensureStoreDoc(store).commit({ origin });
+  store.snapshot = readWorkspaceSnapshot(store);
+  persistWorkspaceStore(store, persistence);
+  notifyWorkspaceListeners(store);
+}
+
 function readWorkspaceSnapshot(
   store: RuntimeParallelDispatchWorkspaceStore
 ): RuntimeParallelDispatchWorkspaceSnapshot {
+  if (!store.doc) {
+    return EMPTY_WORKSPACE_SNAPSHOT;
+  }
   const root = (
     store.doc.toJSON() as { parallel_dispatch?: { sessions?: Record<string, unknown> } }
   ).parallel_dispatch;
@@ -568,6 +619,135 @@ function createSessionId(now: () => number) {
   return `dispatch-${now()}`;
 }
 
+function buildFallbackLaunchRequest(
+  workspaceId: string,
+  objective: string,
+  preferredBackendIds: string[] | null = null
+): RuntimeRunStartRequest {
+  return {
+    workspaceId,
+    title: objective,
+    executionMode: "distributed",
+    accessMode: "on-request",
+    ...(preferredBackendIds ? { preferredBackendIds } : {}),
+    ...(preferredBackendIds?.[0] ? { defaultBackendId: preferredBackendIds[0] } : {}),
+    missionBrief: {
+      objective,
+      preferredBackendIds,
+      parallelismHint: "parallel_dispatch",
+      maxSubtasks: 1,
+    },
+    steps: [
+      {
+        kind: "read",
+        input: objective,
+      },
+    ],
+  };
+}
+
+function restoreLaunchRequest(
+  serialized: string | null,
+  workspaceId: string,
+  objective: string,
+  preferredBackendIds: string[] | null = null
+): RuntimeRunStartRequest {
+  if (!serialized) {
+    return buildFallbackLaunchRequest(workspaceId, objective, preferredBackendIds);
+  }
+  try {
+    const parsed = JSON.parse(serialized);
+    if (!isRecord(parsed) || !Array.isArray(parsed.steps)) {
+      return buildFallbackLaunchRequest(workspaceId, objective, preferredBackendIds);
+    }
+    return {
+      ...parsed,
+      workspaceId,
+      steps: parsed.steps as RuntimeRunStartRequest["steps"],
+    } as RuntimeRunStartRequest;
+  } catch {
+    return buildFallbackLaunchRequest(workspaceId, objective, preferredBackendIds);
+  }
+}
+
+function rebuildRuntimeSessionsFromStore(
+  store: RuntimeParallelDispatchWorkspaceStore
+): Map<string, RuntimeParallelDispatchSessionRuntime> {
+  if (!store.doc) {
+    return new Map();
+  }
+  const root = (
+    store.doc.toJSON() as { parallel_dispatch?: { sessions?: Record<string, unknown> } }
+  ).parallel_dispatch;
+  const sessionsRecord = root?.sessions;
+  if (!sessionsRecord || typeof sessionsRecord !== "object") {
+    return new Map();
+  }
+
+  const sessions = new Map<string, RuntimeParallelDispatchSessionRuntime>();
+
+  for (const [sessionId, rawSession] of Object.entries(sessionsRecord)) {
+    const session = isRecord(rawSession) ? rawSession : {};
+    const workspaceId = readOptionalText(session.workspaceId) ?? store.workspaceId;
+    const objective = readOptionalText(session.objective) ?? "Parallel dispatch";
+    const taskOrder = Array.isArray(session.taskOrder)
+      ? session.taskOrder.filter((taskKey): taskKey is string => typeof taskKey === "string")
+      : [];
+    const taskRecord = isRecord(session.tasks) ? session.tasks : {};
+    const taskEntries = taskOrder
+      .map((taskKey, index) => {
+        const rawTask = isRecord(taskRecord[taskKey]) ? taskRecord[taskKey] : null;
+        if (!rawTask) {
+          return null;
+        }
+        const preferredBackendIds = normalizeStringArray(rawTask.preferredBackendIds);
+        const taskPlan = normalizeTaskPlan(
+          {
+            taskKey,
+            title: readOptionalText(rawTask.title) ?? taskKey,
+            instruction: readOptionalText(rawTask.instruction),
+            preferredBackendIds,
+            dependsOn: normalizeStringArray(rawTask.dependsOn),
+            maxRetries: toNonNegativeInteger(rawTask.maxRetries, 0),
+            onFailure: rawTask.onFailure,
+          },
+          index
+        );
+        return [
+          taskKey,
+          {
+            ...taskPlan,
+            attemptCount: toNonNegativeInteger(rawTask.attemptCount, 0),
+            taskId: readOptionalText(rawTask.taskId),
+            runId: readOptionalText(rawTask.runId),
+          },
+        ] as const;
+      })
+      .filter(
+        (entry): entry is readonly [string, RuntimeParallelDispatchChunkRuntime] => entry !== null
+      );
+
+    const firstPreferredBackendIds = taskEntries[0]?.[1].preferredBackendIds ?? null;
+
+    sessions.set(sessionId, {
+      workspaceId,
+      objective,
+      maxParallel: toPositiveInteger(session.maxParallel, 1),
+      baseLaunchRequest: restoreLaunchRequest(
+        readOptionalText(session.baseLaunchRequestJson),
+        workspaceId,
+        objective,
+        firstPreferredBackendIds
+      ),
+      taskOrder,
+      tasks: new Map(taskEntries),
+      halted: readOptionalBoolean(session.halted) === true,
+    });
+  }
+
+  return sessions;
+}
+
 export function createRuntimeParallelDispatchManager(
   deps: RuntimeParallelDispatchManagerDependencies
 ) {
@@ -591,9 +771,148 @@ export function createRuntimeParallelDispatchManager(
     if (existing) {
       return existing;
     }
-    const created = createWorkspaceStore(getWorkspaceListeners(workspaceId));
+    const created = createWorkspaceStore(workspaceId, getWorkspaceListeners(workspaceId));
     stores.set(workspaceId, created);
     return created;
+  };
+
+  const applyRuntimeReconcile = (
+    store: RuntimeParallelDispatchWorkspaceStore,
+    workspaceId: string,
+    runtimeTasks: RuntimeAgentTaskSummary[]
+  ) => {
+    const runtimeTaskById = new Map(runtimeTasks.map((task) => [task.taskId, task]));
+    for (const [sessionId, runtime] of store.sessions.entries()) {
+      const sessionSnapshot = store.snapshot.sessions.find(
+        (session) => session.sessionId === sessionId
+      );
+      let needsCommit = false;
+      for (const taskKey of runtime.taskOrder) {
+        const chunk = runtime.tasks.get(taskKey);
+        if (!chunk?.taskId) {
+          continue;
+        }
+        const runtimeTask = runtimeTaskById.get(chunk.taskId);
+        if (!runtimeTask) {
+          continue;
+        }
+        const { tasks, session } = ensureSessionContainers(store, sessionId);
+        const taskMap = tasks.getOrCreateContainer(taskKey, new LoroMap());
+        const nextStatus = mapRuntimeTaskStatus(runtimeTask.status);
+        const nextResolvedBackendId = runtimeTask.backendId ?? null;
+        const nextErrorMessage = runtimeTask.errorMessage ?? null;
+        const currentTaskSnapshot = sessionSnapshot?.tasks.find((task) => task.taskKey === taskKey);
+        if (nextStatus === "failed") {
+          const terminalStatus: RuntimeParallelDispatchChunkStatus =
+            chunk.onFailure === "skip" ? "skipped" : "failed";
+          if (
+            currentTaskSnapshot?.status === terminalStatus &&
+            currentTaskSnapshot.resolvedBackendId === nextResolvedBackendId &&
+            currentTaskSnapshot.errorMessage === nextErrorMessage &&
+            (runtimeTask.status !== "failed" || chunk.attemptCount > chunk.maxRetries)
+          ) {
+            continue;
+          }
+          const updatedAt = now();
+          if (chunk.attemptCount <= chunk.maxRetries) {
+            chunk.taskId = null;
+            chunk.runId = null;
+            retryChunkAfterFailure({
+              store,
+              sessionId,
+              taskKey,
+              updatedAt,
+              errorMessage: nextErrorMessage ?? "Runtime chunk failed.",
+              origin: "parallel_dispatch_runtime_retry_pending",
+            });
+          } else {
+            finalizeChunkFailure({
+              store,
+              runtime,
+              sessionId,
+              taskKey,
+              updatedAt,
+              errorMessage:
+                nextErrorMessage ??
+                (runtimeTask.status === "failed"
+                  ? "Runtime chunk failed."
+                  : `Runtime chunk ${runtimeTask.status}.`),
+              task: chunk,
+              origin: "parallel_dispatch_runtime_reconcile_failed",
+            });
+          }
+          continue;
+        }
+        if (
+          currentTaskSnapshot?.status === nextStatus &&
+          currentTaskSnapshot.resolvedBackendId === nextResolvedBackendId &&
+          currentTaskSnapshot.errorMessage === nextErrorMessage
+        ) {
+          continue;
+        }
+        const updatedAt = now();
+        taskMap.set("status", nextStatus);
+        taskMap.set("resolvedBackendId", nextResolvedBackendId);
+        taskMap.set("updatedAt", updatedAt);
+        taskMap.set("errorMessage", nextErrorMessage);
+        session.set("updatedAt", updatedAt);
+        needsCommit = true;
+      }
+      if (needsCommit) {
+        commitStore(store, "parallel_dispatch_runtime_reconcile", deps.persistence);
+      }
+      void maybeFlushSession(workspaceId, sessionId);
+    }
+  };
+
+  const applyQueuedRuntimeReconcile = (
+    workspaceId: string,
+    store: RuntimeParallelDispatchWorkspaceStore
+  ) => {
+    const pendingRuntimeTasks = store.pendingRuntimeTasks;
+    if (!pendingRuntimeTasks) {
+      return;
+    }
+    store.pendingRuntimeTasks = null;
+    applyRuntimeReconcile(store, workspaceId, pendingRuntimeTasks);
+  };
+
+  const hydrateWorkspaceStore = async (workspaceId: string) => {
+    const store = getStore(workspaceId);
+    if (store.hydrated) {
+      return store;
+    }
+    if (store.hydrationPromise) {
+      await store.hydrationPromise;
+      return store;
+    }
+
+    store.hydrationPromise = ensureLoroReady()
+      .then(() => {
+        if (!store.doc) {
+          store.doc = new LoroDoc();
+        }
+        const persistedSnapshot = deps.persistence?.loadSnapshot(workspaceId) ?? null;
+        if (persistedSnapshot) {
+          try {
+            store.doc.import(persistedSnapshot);
+          } catch {
+            store.doc = new LoroDoc();
+            deps.persistence?.clearSnapshot(workspaceId);
+          }
+        }
+        store.sessions = rebuildRuntimeSessionsFromStore(store);
+        store.snapshot = readWorkspaceSnapshot(store);
+        store.hydrated = true;
+      })
+      .finally(() => {
+        store.hydrationPromise = null;
+      });
+
+    await store.hydrationPromise;
+    notifyWorkspaceListeners(store);
+    applyQueuedRuntimeReconcile(workspaceId, store);
+    return store;
   };
 
   const blockPendingTasksForSession = (
@@ -632,7 +951,7 @@ export function createRuntimeParallelDispatchManager(
     taskMap.set("updatedAt", input.updatedAt);
     taskMap.set("errorMessage", input.errorMessage);
     session.set("updatedAt", input.updatedAt);
-    commitStore(input.store, input.origin);
+    commitStore(input.store, input.origin, deps.persistence);
   };
 
   const finalizeChunkFailure = (input: {
@@ -655,13 +974,14 @@ export function createRuntimeParallelDispatchManager(
     session.set("updatedAt", input.updatedAt);
     if (input.task.onFailure === "halt") {
       input.runtime.halted = true;
+      session.set("halted", true);
       blockPendingTasksForSession(input.store, input.sessionId, input.updatedAt);
     }
-    commitStore(input.store, input.origin);
+    commitStore(input.store, input.origin, deps.persistence);
   };
 
   const maybeFlushSession = async (workspaceId: string, sessionId: string): Promise<void> => {
-    const store = getStore(workspaceId);
+    const store = await hydrateWorkspaceStore(workspaceId);
     const runtime = store.sessions.get(sessionId);
     if (!runtime) {
       return;
@@ -708,7 +1028,7 @@ export function createRuntimeParallelDispatchManager(
         taskMap.set("updatedAt", updatedAt);
         taskMap.set("errorMessage", "A dependency did not complete successfully.");
         session.set("updatedAt", updatedAt);
-        commitStore(store, "parallel_dispatch_dependency_blocked");
+        commitStore(store, "parallel_dispatch_dependency_blocked", deps.persistence);
         continue;
       }
       if (dependencySnapshots.some((dependency) => dependency?.status !== "completed")) {
@@ -731,7 +1051,7 @@ export function createRuntimeParallelDispatchManager(
       taskMap.set("updatedAt", launchedAt);
       taskMap.set("errorMessage", null);
       session.set("updatedAt", launchedAt);
-      commitStore(store, "parallel_dispatch_launching");
+      commitStore(store, "parallel_dispatch_launching", deps.persistence);
 
       void deps
         .launchRun(request)
@@ -752,7 +1072,7 @@ export function createRuntimeParallelDispatchManager(
           nextTaskMap.set("resolvedBackendId", resolvedBackendId);
           nextTaskMap.set("updatedAt", updatedAt);
           nextSession.set("updatedAt", updatedAt);
-          commitStore(store, "parallel_dispatch_launched");
+          commitStore(store, "parallel_dispatch_launched", deps.persistence);
           void maybeFlushSession(workspaceId, sessionId);
         })
         .catch((error) => {
@@ -797,8 +1117,7 @@ export function createRuntimeParallelDispatchManager(
       if (planError) {
         throw new Error(planError);
       }
-      await ensureLoroReady();
-      const store = getStore(input.workspaceId);
+      const store = await hydrateWorkspaceStore(input.workspaceId);
       const sessionId = `${createSessionId(now)}-${++sessionSequence}`;
       const createdAt = now();
       const runtime: RuntimeParallelDispatchSessionRuntime = {
@@ -826,6 +1145,8 @@ export function createRuntimeParallelDispatchManager(
       session.set("workspaceId", input.workspaceId);
       session.set("objective", input.objective);
       session.set("maxParallel", input.plan.maxParallel);
+      session.set("halted", false);
+      session.set("baseLaunchRequestJson", JSON.stringify(input.launchRequest));
       session.set("createdAt", createdAt);
       session.set("updatedAt", createdAt);
       for (const task of input.plan.tasks) {
@@ -847,106 +1168,25 @@ export function createRuntimeParallelDispatchManager(
         taskMap.set("launchedAt", null);
         taskMap.set("updatedAt", createdAt);
       }
-      commitStore(store, "parallel_dispatch_start");
+      commitStore(store, "parallel_dispatch_start", deps.persistence);
       await maybeFlushSession(input.workspaceId, sessionId);
       return { sessionId };
     },
 
     reconcileRuntimeTasks(workspaceId: string, runtimeTasks: RuntimeAgentTaskSummary[]) {
-      const store = stores.get(workspaceId);
-      if (!store) {
+      const store = getStore(workspaceId);
+      if (!store.hydrated) {
+        store.pendingRuntimeTasks = runtimeTasks;
+        void hydrateWorkspaceStore(workspaceId);
         return;
       }
-      const runtimeTaskById = new Map(runtimeTasks.map((task) => [task.taskId, task]));
-      for (const [sessionId, runtime] of store.sessions.entries()) {
-        const sessionSnapshot = store.snapshot.sessions.find(
-          (session) => session.sessionId === sessionId
-        );
-        let needsCommit = false;
-        for (const taskKey of runtime.taskOrder) {
-          const chunk = runtime.tasks.get(taskKey);
-          if (!chunk?.taskId) {
-            continue;
-          }
-          const runtimeTask = runtimeTaskById.get(chunk.taskId);
-          if (!runtimeTask) {
-            continue;
-          }
-          const { tasks, session } = ensureSessionContainers(store, sessionId);
-          const taskMap = tasks.getOrCreateContainer(taskKey, new LoroMap());
-          const nextStatus = mapRuntimeTaskStatus(runtimeTask.status);
-          const nextResolvedBackendId = runtimeTask.backendId ?? null;
-          const nextErrorMessage = runtimeTask.errorMessage ?? null;
-          const currentTaskSnapshot = sessionSnapshot?.tasks.find(
-            (task) => task.taskKey === taskKey
-          );
-          if (nextStatus === "failed") {
-            const terminalStatus: RuntimeParallelDispatchChunkStatus =
-              chunk.onFailure === "skip" ? "skipped" : "failed";
-            if (
-              currentTaskSnapshot?.status === terminalStatus &&
-              currentTaskSnapshot.resolvedBackendId === nextResolvedBackendId &&
-              currentTaskSnapshot.errorMessage === nextErrorMessage &&
-              (runtimeTask.status !== "failed" || chunk.attemptCount > chunk.maxRetries)
-            ) {
-              continue;
-            }
-            const updatedAt = now();
-            if (chunk.attemptCount <= chunk.maxRetries) {
-              chunk.taskId = null;
-              chunk.runId = null;
-              retryChunkAfterFailure({
-                store,
-                sessionId,
-                taskKey,
-                updatedAt,
-                errorMessage: nextErrorMessage ?? "Runtime chunk failed.",
-                origin: "parallel_dispatch_runtime_retry_pending",
-              });
-            } else {
-              finalizeChunkFailure({
-                store,
-                runtime,
-                sessionId,
-                taskKey,
-                updatedAt,
-                errorMessage:
-                  nextErrorMessage ??
-                  (runtimeTask.status === "failed"
-                    ? "Runtime chunk failed."
-                    : `Runtime chunk ${runtimeTask.status}.`),
-                task: chunk,
-                origin: "parallel_dispatch_runtime_reconcile_failed",
-              });
-            }
-            continue;
-          }
-          if (
-            currentTaskSnapshot?.status === nextStatus &&
-            currentTaskSnapshot.resolvedBackendId === nextResolvedBackendId &&
-            currentTaskSnapshot.errorMessage === nextErrorMessage
-          ) {
-            continue;
-          }
-          const updatedAt = now();
-          taskMap.set("status", nextStatus);
-          taskMap.set("resolvedBackendId", nextResolvedBackendId);
-          taskMap.set("updatedAt", updatedAt);
-          taskMap.set("errorMessage", nextErrorMessage);
-          session.set("updatedAt", updatedAt);
-          needsCommit = true;
-        }
-        if (needsCommit) {
-          commitStore(store, "parallel_dispatch_runtime_reconcile");
-        }
-        void maybeFlushSession(workspaceId, sessionId);
-      }
+      applyRuntimeReconcile(store, workspaceId, runtimeTasks);
     },
 
     getWorkspaceSnapshot(workspaceId: string): RuntimeParallelDispatchWorkspaceSnapshot {
-      const store = stores.get(workspaceId);
-      if (!store) {
-        return EMPTY_WORKSPACE_SNAPSHOT;
+      const store = getStore(workspaceId);
+      if (!store.hydrated && !store.hydrationPromise) {
+        void hydrateWorkspaceStore(workspaceId);
       }
       return store.snapshot;
     },
@@ -954,6 +1194,7 @@ export function createRuntimeParallelDispatchManager(
     subscribeWorkspace(workspaceId: string, listener: SnapshotListener) {
       const listeners = getWorkspaceListeners(workspaceId);
       listeners.add(listener);
+      void hydrateWorkspaceStore(workspaceId);
       return () => {
         listeners.delete(listener);
       };
@@ -970,6 +1211,7 @@ export function createRuntimeParallelDispatchManager(
 
 const runtimeParallelDispatchManager = createRuntimeParallelDispatchManager({
   launchRun: (request) => startRuntimeRunWithRemoteSelection(request),
+  persistence: createBrowserRuntimeParallelDispatchPersistence(),
 });
 
 export function startRuntimeParallelDispatch(input: StartRuntimeParallelDispatchInput) {
