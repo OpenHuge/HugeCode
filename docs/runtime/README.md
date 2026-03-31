@@ -104,6 +104,8 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
   Launch-scoped operator preflight guidance over existing runtime truth surfaces.
 - [runtime-tool-lifecycle.md](./runtime-tool-lifecycle.md)
   Shared app-facing lifecycle event vocabulary, ordering guarantees, and hook-checkpoint boundary for Mission Control and debug consumers.
+- [runtime-browser-assessment-loop.md](./runtime-browser-assessment-loop.md)
+  Canonical local browser self-healing loop, proxy safeguards, and infinite-feedback-loop prevention rules.
 - [runtime-continuity-readiness.md](./runtime-continuity-readiness.md)
   Canonical continuation / review actionability contract, next-action
   precedence, and compat exit rules for first-party UI surfaces.

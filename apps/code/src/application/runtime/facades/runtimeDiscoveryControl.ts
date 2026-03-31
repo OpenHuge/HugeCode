@@ -10,6 +10,8 @@ import type {
   RuntimeExtensionSetStateRequest,
   RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
+import type { DesktopBrowserAssessmentRequest } from "@ku0/code-platform-interfaces";
+import { assessBrowserSurface } from "../ports/browserCapability";
 import {
   applyWorkspacePatch,
   getRuntimeBrowserDebugStatus,
@@ -314,6 +316,17 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
       }),
     getRuntimeBrowserDebugStatus: async (input: { workspaceId: string }) =>
       getRuntimeBrowserDebugStatus(input.workspaceId),
+    assessRuntimeBrowserSurface: async (input: {
+      workspaceId: string;
+      target: DesktopBrowserAssessmentRequest["target"];
+      selector?: string | null;
+      waitForMs?: number | null;
+    }) =>
+      assessBrowserSurface({
+        target: input.target,
+        selector: input.selector ?? null,
+        waitForMs: input.waitForMs ?? undefined,
+      }),
     runRuntimeBrowserDebug: async (input: {
       workspaceId: string;
       operation: "inspect" | "automation" | "chatgpt_decision_lab";

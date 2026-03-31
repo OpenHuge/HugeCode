@@ -288,8 +288,284 @@ export type DesktopBrowserExtractionCapability = {
     | undefined;
 };
 
+export type DesktopBrowserAssessmentTarget =
+  | {
+      kind: "fixture";
+      fixtureName: string;
+    }
+  | {
+      kind: "route";
+      routePath: string;
+    };
+
+export type DesktopBrowserAssessmentStatus = "passed" | "failed" | "error";
+
+export type DesktopBrowserAssessmentTraceStage =
+  | "proxy"
+  | "render"
+  | "collect"
+  | "audit"
+  | "transport";
+
+export type DesktopBrowserAssessmentTraceEntry = {
+  stage: DesktopBrowserAssessmentTraceStage;
+  message: string;
+  at: string;
+  code?: string | null;
+  detail?: string | null;
+};
+
+export type DesktopBrowserAssessmentConsoleEntry = {
+  level: "log" | "info" | "warn" | "error";
+  message: string;
+  line?: number | null;
+  sourceId?: string | null;
+};
+
+export type DesktopBrowserAssessmentAccessibilityFailure = {
+  code: string;
+  message: string;
+  selector?: string | null;
+};
+
+export type DesktopBrowserAssessmentDomSnapshot = {
+  childElementCount: number;
+  html: string | null;
+  selector: string | null;
+  selectorMatched: boolean;
+  text: string | null;
+};
+
+export type DesktopBrowserAssessmentRequest = {
+  selector?: string | null;
+  target: DesktopBrowserAssessmentTarget;
+  waitForMs?: number;
+};
+
+export type DesktopBrowserAssessmentResult = {
+  status: DesktopBrowserAssessmentStatus;
+  target: DesktopBrowserAssessmentTarget;
+  domSnapshot: DesktopBrowserAssessmentDomSnapshot | null;
+  consoleEntries: DesktopBrowserAssessmentConsoleEntry[];
+  accessibilityFailures: DesktopBrowserAssessmentAccessibilityFailure[];
+  sourceUrl?: string | null;
+  title?: string | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  traceId?: string | null;
+  trace: DesktopBrowserAssessmentTraceEntry[];
+};
+
+export type DesktopBrowserAssessmentCapability = {
+  assess?: (
+    input: DesktopBrowserAssessmentRequest
+  ) =>
+    | Promise<DesktopBrowserAssessmentResult | null | undefined>
+    | DesktopBrowserAssessmentResult
+    | null
+    | undefined;
+  getLastResult?: () =>
+    | Promise<DesktopBrowserAssessmentResult | null | undefined>
+    | DesktopBrowserAssessmentResult
+    | null
+    | undefined;
+};
+
+export const DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE = "browser-assessment-proxy";
+export const DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM = "__hugecode_browser_assessment";
+
+const DESKTOP_BROWSER_ASSESSMENT_TARGET_KIND_QUERY_PARAM = "browserAssessmentTargetKind";
+const DESKTOP_BROWSER_ASSESSMENT_TARGET_FIXTURE_QUERY_PARAM = "browserAssessmentTargetFixture";
+const DESKTOP_BROWSER_ASSESSMENT_TARGET_ROUTE_QUERY_PARAM = "browserAssessmentTargetRoute";
+const DESKTOP_BROWSER_ASSESSMENT_SELECTOR_QUERY_PARAM = "browserAssessmentSelector";
+const DESKTOP_BROWSER_ASSESSMENT_WAIT_MS_QUERY_PARAM = "browserAssessmentWaitMs";
+const DESKTOP_BROWSER_ASSESSMENT_PROXY_PATH = "/fixtures.html";
+const DESKTOP_BROWSER_ASSESSMENT_BASE_URL = "https://desktop.hugecode.invalid";
+
+export type DesktopBrowserAssessmentProxyRequestRead =
+  | {
+      ok: true;
+      request: DesktopBrowserAssessmentRequest;
+    }
+  | {
+      ok: false;
+      code: string;
+      message: string;
+    };
+
+function readNonEmptyString(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeBrowserAssessmentWaitMs(value: number | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return undefined;
+  }
+  const normalized = Math.trunc(value);
+  return normalized > 0 ? normalized : undefined;
+}
+
+function readBrowserAssessmentWaitMs(value: string | null): number | undefined {
+  const trimmed = readNonEmptyString(value);
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number.parseInt(trimmed, 10);
+  return normalizeBrowserAssessmentWaitMs(parsed);
+}
+
+export function buildDesktopBrowserAssessmentTargetUrl(
+  target: DesktopBrowserAssessmentTarget
+): string {
+  if (target.kind === "fixture") {
+    const fixtureName = readNonEmptyString(target.fixtureName);
+    if (!fixtureName) {
+      throw new Error("Browser assessment fixture targets require a non-empty fixture name.");
+    }
+    if (fixtureName === DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE) {
+      throw new Error(
+        "Browser assessment proxy cannot target itself as a fixture. This prevents infinite feedback loops."
+      );
+    }
+    const searchParams = new URLSearchParams({
+      fixture: fixtureName,
+      [DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM]: "1",
+    });
+    return `${DESKTOP_BROWSER_ASSESSMENT_PROXY_PATH}?${searchParams.toString()}`;
+  }
+
+  const routePath = readNonEmptyString(target.routePath);
+  if (!routePath || !routePath.startsWith("/")) {
+    throw new Error("Browser assessment route targets must use an absolute in-app route path.");
+  }
+  const routeUrl = new URL(routePath, DESKTOP_BROWSER_ASSESSMENT_BASE_URL);
+  if (
+    routeUrl.pathname === DESKTOP_BROWSER_ASSESSMENT_PROXY_PATH &&
+    routeUrl.searchParams.get("fixture") === DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE
+  ) {
+    throw new Error(
+      "Browser assessment proxy cannot target itself as a route. This prevents infinite feedback loops."
+    );
+  }
+  if (routeUrl.searchParams.has(DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM)) {
+    throw new Error(
+      "Browser assessment targets cannot predeclare the assessment sentinel. The proxy appends it exactly once."
+    );
+  }
+  routeUrl.searchParams.set(DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM, "1");
+  return `${routeUrl.pathname}${routeUrl.search}${routeUrl.hash}`;
+}
+
+export function buildDesktopBrowserAssessmentProxyPath(
+  input: DesktopBrowserAssessmentRequest
+): string {
+  const searchParams = new URLSearchParams({
+    fixture: DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE,
+    [DESKTOP_BROWSER_ASSESSMENT_TARGET_KIND_QUERY_PARAM]: input.target.kind,
+  });
+  if (input.target.kind === "fixture") {
+    const fixtureName = readNonEmptyString(input.target.fixtureName);
+    if (!fixtureName) {
+      throw new Error("Browser assessment fixture targets require a non-empty fixture name.");
+    }
+    searchParams.set(DESKTOP_BROWSER_ASSESSMENT_TARGET_FIXTURE_QUERY_PARAM, fixtureName);
+  } else {
+    const routePath = readNonEmptyString(input.target.routePath);
+    if (!routePath) {
+      throw new Error("Browser assessment route targets require a non-empty route path.");
+    }
+    searchParams.set(DESKTOP_BROWSER_ASSESSMENT_TARGET_ROUTE_QUERY_PARAM, routePath);
+  }
+  const selector = readNonEmptyString(input.selector);
+  if (selector) {
+    searchParams.set(DESKTOP_BROWSER_ASSESSMENT_SELECTOR_QUERY_PARAM, selector);
+  }
+  const waitForMs = normalizeBrowserAssessmentWaitMs(input.waitForMs);
+  if (waitForMs !== undefined) {
+    searchParams.set(DESKTOP_BROWSER_ASSESSMENT_WAIT_MS_QUERY_PARAM, String(waitForMs));
+  }
+  return `${DESKTOP_BROWSER_ASSESSMENT_PROXY_PATH}?${searchParams.toString()}`;
+}
+
+export function readDesktopBrowserAssessmentProxyRequest(
+  input: string | URLSearchParams
+): DesktopBrowserAssessmentProxyRequestRead {
+  const searchParams =
+    typeof input === "string"
+      ? new URLSearchParams(input.startsWith("?") ? input.slice(1) : input)
+      : new URLSearchParams(input);
+  const targetKind = readNonEmptyString(
+    searchParams.get(DESKTOP_BROWSER_ASSESSMENT_TARGET_KIND_QUERY_PARAM)
+  );
+  const selector =
+    readNonEmptyString(searchParams.get(DESKTOP_BROWSER_ASSESSMENT_SELECTOR_QUERY_PARAM)) ?? null;
+  const waitForMs = readBrowserAssessmentWaitMs(
+    searchParams.get(DESKTOP_BROWSER_ASSESSMENT_WAIT_MS_QUERY_PARAM)
+  );
+
+  if (targetKind === "fixture") {
+    const fixtureName = readNonEmptyString(
+      searchParams.get(DESKTOP_BROWSER_ASSESSMENT_TARGET_FIXTURE_QUERY_PARAM)
+    );
+    if (!fixtureName) {
+      return {
+        ok: false,
+        code: "BROWSER_ASSESSMENT_PROXY_FIXTURE_REQUIRED",
+        message: "Browser assessment proxy requires a fixture target when target kind is fixture.",
+      };
+    }
+    return {
+      ok: true,
+      request: {
+        target: {
+          kind: "fixture",
+          fixtureName,
+        },
+        selector,
+        ...(waitForMs !== undefined ? { waitForMs } : {}),
+      },
+    };
+  }
+
+  if (targetKind === "route") {
+    const routePath = readNonEmptyString(
+      searchParams.get(DESKTOP_BROWSER_ASSESSMENT_TARGET_ROUTE_QUERY_PARAM)
+    );
+    if (!routePath) {
+      return {
+        ok: false,
+        code: "BROWSER_ASSESSMENT_PROXY_ROUTE_REQUIRED",
+        message: "Browser assessment proxy requires a route target when target kind is route.",
+      };
+    }
+    return {
+      ok: true,
+      request: {
+        target: {
+          kind: "route",
+          routePath,
+        },
+        selector,
+        ...(waitForMs !== undefined ? { waitForMs } : {}),
+      },
+    };
+  }
+
+  return {
+    ok: false,
+    code: "BROWSER_ASSESSMENT_PROXY_TARGET_REQUIRED",
+    message:
+      "Browser assessment proxy requires browserAssessmentTargetKind=fixture|route before it can render a target.",
+  };
+}
+
 export type DesktopHostCapabilities = {
   app?: DesktopAppCapability;
+  browserAssessment?: DesktopBrowserAssessmentCapability;
   browserDebug?: DesktopBrowserDebugCapability;
   browserExtraction?: DesktopBrowserExtractionCapability;
   launch?: DesktopLaunchCapability;
@@ -316,6 +592,10 @@ export type DesktopHostBridgeApi = {
   };
   browserDebug: {
     listLocalChromeDebuggerEndpoints(): Promise<LocalChromeDebuggerEndpointDescriptor[]>;
+  };
+  browserAssessment?: {
+    assess(input: DesktopBrowserAssessmentRequest): Promise<DesktopBrowserAssessmentResult | null>;
+    getLastResult(): Promise<DesktopBrowserAssessmentResult | null>;
   };
   browserExtraction?: {
     extract(
@@ -597,6 +877,8 @@ export const DESKTOP_HOST_IPC_CHANNELS = {
   getAppInfo: "hugecode:desktop-host:get-app-info",
   getAppVersion: "hugecode:desktop-host:get-app-version",
   listLocalChromeDebuggerEndpoints: "hugecode:desktop-host:list-local-chrome-debugger-endpoints",
+  assessBrowserSurface: "hugecode:desktop-host:assess-browser-surface",
+  getLastBrowserAssessmentResult: "hugecode:desktop-host:get-last-browser-assessment-result",
   extractBrowserContent: "hugecode:desktop-host:extract-browser-content",
   getLastBrowserExtractionResult: "hugecode:desktop-host:get-last-browser-extraction-result",
   consumePendingLaunchIntent: "hugecode:desktop-host:consume-pending-launch-intent",

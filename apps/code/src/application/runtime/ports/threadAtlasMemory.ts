@@ -1,4 +1,4 @@
 export {
   readPersistedThreadAtlasMemoryDigests,
   writePersistedThreadAtlasMemoryDigests,
-} from "./threadSnapshots";
+} from "./tauriThreadSnapshots";

@@ -7,6 +7,40 @@ describe("createDesktopHostHandlers", () => {
   it("delegates session, tray, and window handlers to the injected controllers", async () => {
     const input = {
       appVersion: "1.2.3",
+      browserAssessment: {
+        assess: vi.fn(async () => ({
+          status: "passed" as const,
+          target: {
+            kind: "fixture" as const,
+            fixtureName: "mission-control",
+          },
+          domSnapshot: {
+            childElementCount: 1,
+            html: "<main>Mission Control</main>",
+            selector: "main",
+            selectorMatched: true,
+            text: "Mission Control",
+          },
+          consoleEntries: [],
+          accessibilityFailures: [],
+          traceId: "browser-assessment-1",
+          trace: [],
+        })),
+        getLastResult: vi.fn(async () => ({
+          status: "failed" as const,
+          target: {
+            kind: "route" as const,
+            routePath: "/workspace/alpha",
+          },
+          domSnapshot: null,
+          consoleEntries: [{ level: "error" as const, message: "render failed" }],
+          accessibilityFailures: [],
+          errorCode: "BROWSER_ASSESSMENT_RENDER_FAILED",
+          errorMessage: "The localized renderer did not settle.",
+          traceId: "browser-assessment-2",
+          trace: [],
+        })),
+      },
       copySupportSnapshot: vi.fn(() => true),
       consumePendingLaunchIntent: vi.fn(() => ({
         kind: "protocol" as const,
@@ -142,6 +176,46 @@ describe("createDesktopHostHandlers", () => {
         webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/browser-1",
       },
     ]);
+    await expect(
+      handlers.assessBrowserSurface({
+        target: {
+          kind: "fixture",
+          fixtureName: "mission-control",
+        },
+        selector: "main",
+      })
+    ).resolves.toEqual({
+      status: "passed",
+      target: {
+        kind: "fixture",
+        fixtureName: "mission-control",
+      },
+      domSnapshot: {
+        childElementCount: 1,
+        html: "<main>Mission Control</main>",
+        selector: "main",
+        selectorMatched: true,
+        text: "Mission Control",
+      },
+      consoleEntries: [],
+      accessibilityFailures: [],
+      traceId: "browser-assessment-1",
+      trace: [],
+    });
+    await expect(handlers.getLastBrowserAssessmentResult()).resolves.toEqual({
+      status: "failed",
+      target: {
+        kind: "route",
+        routePath: "/workspace/alpha",
+      },
+      domSnapshot: null,
+      consoleEntries: [{ level: "error", message: "render failed" }],
+      accessibilityFailures: [],
+      errorCode: "BROWSER_ASSESSMENT_RENDER_FAILED",
+      errorMessage: "The localized renderer did not settle.",
+      traceId: "browser-assessment-2",
+      trace: [],
+    });
     await expect(handlers.extractBrowserContent()).resolves.toEqual({
       status: "succeeded",
       normalizedText: "Mission Control browser extraction",
@@ -213,6 +287,10 @@ describe("createDesktopHostHandlers", () => {
     };
     const handlers = createDesktopHostHandlers({
       appVersion: null,
+      browserAssessment: {
+        assess: vi.fn(async () => null),
+        getLastResult: vi.fn(async () => null),
+      },
       copySupportSnapshot: vi.fn(() => false),
       consumePendingLaunchIntent: vi.fn(() => null),
       browserExtraction: {

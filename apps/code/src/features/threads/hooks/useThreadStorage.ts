@@ -7,13 +7,13 @@ import {
   readPersistedThreadStorageState,
   writePersistedPendingInterruptThreadIds,
   writePersistedThreadStorageState,
-} from "../../../application/runtime/ports/threadSnapshots";
+} from "../../../application/runtime/ports/tauriThreadSnapshots";
 import {
-  clearThreadSnapshots,
+  clearLegacyThreadSnapshots,
   type CustomNamesMap,
   loadCustomNames,
+  loadLegacyThreadSnapshots,
   loadPinnedThreads,
-  loadThreadSnapshots,
   loadThreadActivity,
   MAX_PINS_SOFT_LIMIT,
   makeCustomNameKey,
@@ -68,6 +68,24 @@ type PendingThreadSnapshotSync = {
   itemsByThread: Record<string, ConversationItem[]>;
   threadStatusById: Record<string, ThreadActivityStatus>;
 };
+
+const reportedThreadStorageFallbackKinds = new Set<string>();
+
+function reportThreadStorageFallback(
+  kind: "legacy_local_snapshot_hydrated" | "legacy_local_snapshot_ignored",
+  details: Record<string, unknown>
+): void {
+  if (reportedThreadStorageFallbackKinds.has(kind)) {
+    return;
+  }
+  reportedThreadStorageFallbackKinds.add(kind);
+  logger.warn(
+    kind === "legacy_local_snapshot_ignored"
+      ? "Ignoring legacy local thread snapshots because runtime-backed thread storage is available."
+      : "Hydrating legacy local thread snapshots as a temporary non-authoritative fallback.",
+    details
+  );
+}
 
 function filterRestorableThreadSnapshots(nextSnapshots: ThreadSnapshotsMap): ThreadSnapshotsMap {
   return Object.fromEntries(
@@ -217,7 +235,9 @@ export function useThreadStorage(): UseThreadStorageResult {
     customNamesRef.current = loadCustomNames();
     let cancelled = false;
     const hydrateLegacySnapshots = (options?: { persistToNative?: boolean }) => {
-      const legacySnapshots = loadThreadSnapshots();
+      // Legacy local snapshot restore is migration-only. It should only run after a
+      // successful runtime-backed read proves the canonical store is currently empty.
+      const legacySnapshots = loadLegacyThreadSnapshots();
       mergePersistedSnapshots(legacySnapshots);
       threadSnapshotsReadyRef.current = true;
       setThreadSnapshotsReady(true);
@@ -229,11 +249,17 @@ export function useThreadStorage(): UseThreadStorageResult {
         flushPendingThreadSnapshotSync();
         return;
       }
+      reportThreadStorageFallback("legacy_local_snapshot_hydrated", {
+        snapshotCount: Object.keys(legacySnapshots).length,
+        persistToNative: true,
+        migrationOnly: true,
+        source: "legacy_local_storage",
+      });
       void Promise.resolve(
         writePersistedThreadState(legacySnapshots, pendingDraftMessagesRef.current)
       ).then((didPersist) => {
         if (didPersist) {
-          clearThreadSnapshots();
+          clearLegacyThreadSnapshots();
         }
       });
       flushPendingThreadSnapshotSync();
@@ -256,6 +282,13 @@ export function useThreadStorage(): UseThreadStorageResult {
           mergePersistedSnapshots(filteredPersistedSnapshots);
           threadSnapshotsReadyRef.current = true;
           setThreadSnapshotsReady(true);
+          const legacySnapshots = loadLegacyThreadSnapshots();
+          if (Object.keys(legacySnapshots).length > 0) {
+            reportThreadStorageFallback("legacy_local_snapshot_ignored", {
+              snapshotCount: Object.keys(legacySnapshots).length,
+              migrationOnly: true,
+            });
+          }
           if (
             Object.keys(filteredPersistedSnapshots).length !==
             Object.keys(persistedSnapshots).length
@@ -265,7 +298,7 @@ export function useThreadStorage(): UseThreadStorageResult {
               pendingDraftMessagesRef.current
             );
           }
-          clearThreadSnapshots();
+          clearLegacyThreadSnapshots();
           flushPendingThreadSnapshotSync();
           return;
         }

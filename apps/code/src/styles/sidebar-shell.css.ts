@@ -442,10 +442,10 @@ applyGlobalStyle(".sidebar-action", {
       padding: "0",
       "border-radius": "999px",
       background: "color-mix(in srgb, var(--ds-surface-item) 72%, transparent)",
-      border: "1px solid transparent",
+      border: "1px solid var(--ds-shell-control-border)",
       color: "var(--ds-text-muted)",
       opacity: "1",
-      "box-shadow": "none",
+      "box-shadow": "var(--ds-shell-control-shadow)",
       transition:
         "color var(--duration-normal) var(--ds-motion-ease-standard, var(--ease-smooth)),\n    background var(--duration-normal) var(--ds-motion-ease-standard, var(--ease-smooth)),\n    border-color var(--duration-normal) var(--ds-motion-ease-standard, var(--ease-smooth)),\n    box-shadow var(--duration-normal) var(--ds-motion-ease-standard, var(--ease-smooth)),\n    transform var(--duration-fast) var(--ds-motion-ease-standard, var(--ease-smooth))",
     },
@@ -469,8 +469,8 @@ applyGlobalStyle(".sidebar-action:hover:not(:disabled)", {
     [layers.features]: {
       color: "var(--ds-text-stronger)",
       background: "color-mix(in srgb, var(--ds-surface-hover) 72%, var(--ds-surface-item))",
-      "border-color": "color-mix(in srgb, var(--ds-border-subtle) 26%, transparent)",
-      "box-shadow": "none",
+      "border-color": "var(--ds-shell-control-border-hover)",
+      "box-shadow": "var(--ds-shell-control-shadow-hover)",
     },
   },
 });

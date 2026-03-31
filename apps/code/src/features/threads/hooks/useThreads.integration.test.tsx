@@ -34,7 +34,7 @@ import {
   readPersistedThreadStorageState,
   writePersistedPendingInterruptThreadIds,
   writePersistedThreadStorageState,
-} from "../../../application/runtime/ports/threadSnapshots";
+} from "../../../application/runtime/ports/tauriThreadSnapshots";
 import { useThreads } from "./useThreads";
 
 type AppServerHandlers = Parameters<typeof useAppServerEvents>[0];
@@ -97,7 +97,7 @@ vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   }),
 }));
 
-vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
+vi.mock("../../../application/runtime/ports/tauriThreadSnapshots", () => ({
   readPersistedThreadStorageState: vi.fn(async () => persistedThreadStorageState),
   writePersistedThreadStorageState: vi.fn(async (state: PersistedThreadStorageState) => {
     persistedThreadStorageState = state;

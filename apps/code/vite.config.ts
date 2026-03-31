@@ -113,6 +113,17 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",
   "/src/application/runtime/ports/runtimeDiagnostics.ts",
 ] as const;
+const RUNTIME_BROWSER_ASSESSMENT_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/runtimeBrowserAssessment",
+  "/src/application/runtime/facades/runtimeBrowserExtractionOperator.ts",
+  "/src/application/runtime/facades/runtimeBrowserReadiness.ts",
+  "/src/application/runtime/facades/runtimeDiscoveryControl.ts",
+  "/src/application/runtime/facades/runtimeAgentControlFacade.ts",
+  "/src/application/runtime/hooks/useWorkspaceRuntimeAgentControl.ts",
+  "/src/application/runtime/kernel/createRuntimeAgentControlDependencies.ts",
+  "/src/application/runtime/ports/browserCapability.ts",
+  "/src/application/runtime/ports/runtimeDiscoveryControl.ts",
+] as const;
 const RUNTIME_APPLICATION_CHUNK_PATTERNS = ["/src/application/runtime/"] as const;
 const DESKTOP_SERVICES_CHUNK_PATTERNS = ["/src/services/"] as const;
 const DESKTOP_INTEGRATION_CHUNK_PATTERNS = [
@@ -257,6 +268,9 @@ export default defineConfig({
           }
           if (matchesChunkPattern(id, RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS)) {
             return "runtime-mission-control";
+          }
+          if (matchesChunkPattern(id, RUNTIME_BROWSER_ASSESSMENT_CHUNK_PATTERNS)) {
+            return "runtime-browser-assessment";
           }
           if (matchesChunkPattern(id, RUNTIME_APPLICATION_CHUNK_PATTERNS)) {
             return "runtime-application";
