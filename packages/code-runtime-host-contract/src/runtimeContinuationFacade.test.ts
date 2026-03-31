@@ -362,6 +362,85 @@ describe("runtimeContinuationFacade", () => {
     });
   });
 
+  it("prefers canonical continuation over stale takeover fragments when both are present", () => {
+    const descriptor = buildRuntimeContinuationDescriptor({
+      runState: "review_ready",
+      continuation: {
+        state: "ready",
+        pathKind: "review",
+        source: "review_actionability",
+        summary: "Canonical continuation is ready.",
+        detail: "Open the canonical review path.",
+        recommendedAction: "Use the canonical review continuation.",
+        target: {
+          kind: "review_pack",
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:1",
+          checkpointId: null,
+          traceId: null,
+        },
+        reviewPackId: "review-pack:1",
+        reviewActionability: {
+          state: "ready",
+          summary: "Canonical review actionability is ready.",
+          degradedReasons: [],
+          actions: [],
+        },
+        sessionBoundary: {
+          workspaceId: "workspace-1",
+          taskId: "task-1",
+          runId: "run-1",
+          missionTaskId: "task-1",
+          sessionKind: "run",
+          threadId: null,
+          requestId: null,
+          reviewPackId: "review-pack:1",
+          checkpointId: null,
+          traceId: null,
+          navigationTarget: {
+            kind: "review_pack",
+            workspaceId: "workspace-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:1",
+            checkpointId: null,
+            traceId: null,
+          },
+        },
+      },
+      takeoverBundle: {
+        state: "blocked",
+        pathKind: "review",
+        primaryAction: "open_review_pack",
+        summary: "Blocked takeover fallback should not win.",
+        recommendedAction: "Blocked takeover fallback should not win.",
+        reviewPackId: "review-pack:1",
+      },
+      actionability: {
+        state: "blocked",
+        summary: "Blocked legacy actionability should not win.",
+        degradedReasons: [],
+        actions: [],
+      },
+      reviewPackId: "review-pack:1",
+    });
+
+    expect(descriptor).toMatchObject({
+      state: "ready",
+      pathKind: "review",
+      summary: "Canonical continuation is ready.",
+      recommendedAction: "Use the canonical review continuation.",
+      truthSource: "review_actionability",
+      canonicalNextAction: {
+        kind: "review",
+        label: "Open review",
+        detail: "Use the canonical review continuation.",
+      },
+    });
+  });
+
   it("formats continuity state labels for shared surfaces", () => {
     expect(formatRuntimeContinuationStateLabel("ready")).toBe("Continuity ready");
     expect(formatRuntimeContinuationStateLabel("attention")).toBe("Continuity attention");

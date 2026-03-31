@@ -221,4 +221,32 @@ describe("runtimeTruthCompat", () => {
       },
     });
   });
+
+  it("keeps explicit runtime next-action detail ahead of fallback continuation copy", () => {
+    const action = resolveRuntimeNextOperatorAction({
+      workspaceId: "ws-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack:run-1",
+      state: "review_ready",
+      nextAction: {
+        action: "review",
+        label: "Open review pack",
+        detail: "Inspect the review pack and accept or retry.",
+      },
+      takeoverBundle: {
+        state: "ready",
+        pathKind: "review",
+        primaryAction: "open_review_pack",
+        summary: "Review pack is ready.",
+        recommendedAction: "Open the published review pack.",
+        reviewPackId: "review-pack:run-1",
+      },
+    });
+
+    expect(action).toMatchObject({
+      action: "open_review_pack",
+      detail: "Inspect the review pack and accept or retry.",
+    });
+  });
 });

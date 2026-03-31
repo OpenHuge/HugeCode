@@ -33,7 +33,14 @@ export async function readMissionControlSnapshotFromSourceAdapter(
       if (missionControl) {
         return missionControl;
       }
-    } catch {
+      adapter.reportMissionControlFallback?.({
+        reason: "projection_slice_missing",
+      });
+    } catch (error) {
+      adapter.reportMissionControlFallback?.({
+        reason: "projection_bootstrap_failed",
+        error,
+      });
       // Fall through to snapshot-backed truth when projection bootstrap is unavailable.
     }
   }

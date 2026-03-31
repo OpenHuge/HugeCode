@@ -1,5 +1,6 @@
 import type { WorkspaceClientRuntimeBindings } from "@ku0/code-workspace-client";
 import { createWorkspaceClientRuntimeMissionControlSurfaceBindings } from "@ku0/code-workspace-client";
+import { logger } from "../logger";
 import {
   getAppSettings,
   syncRuntimeGatewayProfileFromAppSettings,
@@ -76,6 +77,12 @@ export function createWorkspaceClientRuntimeBindings(
   const missionControlSurface = createWorkspaceClientRuntimeMissionControlSurfaceBindings({
     bootstrapKernelProjection: input.bootstrapKernelProjection,
     readMissionControlSnapshot: input.readMissionControlSnapshot,
+    reportMissionControlFallback: ({ reason, error }) => {
+      logger.warn("Mission control bindings fell back to snapshot-backed truth.", {
+        reason,
+        error,
+      });
+    },
   });
 
   return {

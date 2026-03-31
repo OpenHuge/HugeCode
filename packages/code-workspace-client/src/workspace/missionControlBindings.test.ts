@@ -138,6 +138,45 @@ describe("readMissionControlSnapshotFromSourceAdapter", () => {
     expect(snapshot).toEqual(projectionSnapshot);
     expect(readMissionControlSnapshot).not.toHaveBeenCalled();
   });
+
+  it("reports when projection bootstrap falls back to snapshot truth", async () => {
+    const fallbackSnapshot = createSnapshot({ generatedAt: 3 });
+    const reportMissionControlFallback = vi.fn();
+
+    const snapshot = await readMissionControlSnapshotFromSourceAdapter({
+      bootstrapKernelProjection: async () => {
+        throw new Error("projection unavailable");
+      },
+      readMissionControlSnapshot: async () => fallbackSnapshot,
+      reportMissionControlFallback,
+    });
+
+    expect(snapshot).toEqual(fallbackSnapshot);
+    expect(reportMissionControlFallback).toHaveBeenCalledWith({
+      reason: "projection_bootstrap_failed",
+      error: expect.any(Error),
+    });
+  });
+
+  it("reports when bootstrap succeeds but mission-control projection truth is missing", async () => {
+    const fallbackSnapshot = createSnapshot({ generatedAt: 4 });
+    const reportMissionControlFallback = vi.fn();
+
+    const snapshot = await readMissionControlSnapshotFromSourceAdapter({
+      bootstrapKernelProjection: async () => ({
+        revision: 2,
+        sliceRevisions: {},
+        slices: {},
+      }),
+      readMissionControlSnapshot: async () => fallbackSnapshot,
+      reportMissionControlFallback,
+    });
+
+    expect(snapshot).toEqual(fallbackSnapshot);
+    expect(reportMissionControlFallback).toHaveBeenCalledWith({
+      reason: "projection_slice_missing",
+    });
+  });
 });
 
 describe("createWorkspaceClientRuntimeMissionControlSurfaceBindings", () => {

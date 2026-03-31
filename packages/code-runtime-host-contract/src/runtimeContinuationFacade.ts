@@ -275,11 +275,11 @@ function resolveNavigationTarget(input: {
   continuation?: HugeCodeContinuationSummary | null;
   missionLinkage?: HugeCodeMissionLinkageSummary | null;
 }): RuntimeCanonicalNavigationTarget {
-  if (input.takeoverBundle?.target) {
-    return input.takeoverBundle.target;
-  }
   if (input.continuation?.target) {
     return input.continuation.target;
+  }
+  if (input.takeoverBundle?.target) {
+    return input.takeoverBundle.target;
   }
   return input.missionLinkage?.navigationTarget ?? null;
 }
@@ -341,6 +341,9 @@ export function resolveContinuationTruthSource({
   checkpoint,
   nextAction,
 }: RuntimeContinuationDescriptorInput): RuntimeContinuationTruthSource {
+  if (continuation) {
+    return continuation.source;
+  }
   if (takeoverBundle) {
     return "takeover_bundle";
   }
@@ -355,9 +358,6 @@ export function resolveContinuationTruthSource({
   }
   if (checkpoint) {
     return "checkpoint";
-  }
-  if (continuation) {
-    return continuation.source;
   }
   if (nextAction) {
     return "next_action";
@@ -374,19 +374,6 @@ export function resolveContinuationPathLabel({
   RuntimeContinuationDescriptorInput,
   "takeoverBundle" | "continuation" | "missionLinkage" | "reviewPackId"
 >): RuntimeContinuationPathLabel {
-  const takeoverTargetKind = takeoverBundle?.target?.kind;
-  if (takeoverTargetKind === "review_pack" || takeoverBundle?.pathKind === "review") {
-    return "Review Pack";
-  }
-  if (takeoverTargetKind === "thread") {
-    return "Mission thread";
-  }
-  if (takeoverTargetKind === "run") {
-    return "Mission run";
-  }
-  if (takeoverTargetKind === "sub_agent_session") {
-    return "Sub-agent session";
-  }
   if (continuation?.target?.kind === "review_pack" || continuation?.pathKind === "review") {
     return "Review Pack";
   }
@@ -401,6 +388,19 @@ export function resolveContinuationPathLabel({
   }
   if (continuation?.pathKind === "resume") {
     return "Mission run";
+  }
+  const takeoverTargetKind = takeoverBundle?.target?.kind;
+  if (takeoverTargetKind === "review_pack" || takeoverBundle?.pathKind === "review") {
+    return "Review Pack";
+  }
+  if (takeoverTargetKind === "thread") {
+    return "Mission thread";
+  }
+  if (takeoverTargetKind === "run") {
+    return "Mission run";
+  }
+  if (takeoverTargetKind === "sub_agent_session") {
+    return "Sub-agent session";
   }
   if (reviewPackId) {
     return "Review Pack";
@@ -641,61 +641,6 @@ export function buildRuntimeContinuationDescriptor(
     missionLinkage: input.missionLinkage ?? null,
   });
 
-  if (input.takeoverBundle) {
-    const takeoverBundle = input.takeoverBundle;
-    const takeoverActionability = takeoverBundle.reviewActionability ?? null;
-    const state =
-      takeoverBundle.pathKind === "review"
-        ? takeoverActionability
-          ? mapActionabilityState(takeoverActionability.state)
-          : mapTakeoverState(takeoverBundle.state)
-        : mapTakeoverState(takeoverBundle.state);
-    const summary =
-      takeoverBundle.pathKind === "review"
-        ? (takeoverActionability?.summary ?? takeoverBundle.summary)
-        : (takeoverBundle.blockingReason ?? takeoverBundle.summary);
-    const blockingReason =
-      state === "blocked"
-        ? (takeoverBundle.blockingReason ?? takeoverActionability?.summary ?? summary)
-        : null;
-    const recommendedAction =
-      takeoverBundle.recommendedAction ||
-      buildDefaultRecommendedAction({
-        state,
-        pathKind: takeoverBundle.pathKind,
-        continuePathLabel,
-      });
-    return {
-      state,
-      pathKind: takeoverBundle.pathKind,
-      continuePathLabel,
-      summary,
-      details: buildDetails({
-        summary,
-        takeoverBundle,
-        continuation,
-        missionLinkage: input.missionLinkage ?? null,
-        publishHandoff,
-        actionability: takeoverActionability,
-        continuePathLabel,
-        truthSourceLabel,
-      }),
-      blockingReason,
-      recommendedAction,
-      truthSource,
-      truthSourceLabel,
-      navigationTarget,
-      canonicalNextAction: buildCanonicalNextActionFromTakeover({
-        state,
-        takeoverBundle,
-        summary,
-        blockingReason,
-        navigationTarget,
-        continuePathLabel,
-      }),
-    };
-  }
-
   if (continuation) {
     const state = continuation.state;
     const summary = continuation.summary;
@@ -737,6 +682,60 @@ export function buildRuntimeContinuationDescriptor(
         summary,
         blockingReason,
         navigationTarget: canonicalNavigationTarget,
+        continuePathLabel,
+      }),
+    };
+  }
+
+  if (input.takeoverBundle) {
+    const takeoverBundle = input.takeoverBundle;
+    const takeoverActionability = takeoverBundle.reviewActionability ?? null;
+    const state =
+      takeoverBundle.pathKind === "review"
+        ? takeoverActionability
+          ? mapActionabilityState(takeoverActionability.state)
+          : mapTakeoverState(takeoverBundle.state)
+        : mapTakeoverState(takeoverBundle.state);
+    const summary =
+      takeoverBundle.pathKind === "review"
+        ? (takeoverActionability?.summary ?? takeoverBundle.summary)
+        : (takeoverBundle.blockingReason ?? takeoverBundle.summary);
+    const blockingReason =
+      state === "blocked"
+        ? (takeoverBundle.blockingReason ?? takeoverActionability?.summary ?? summary)
+        : null;
+    const recommendedAction =
+      takeoverBundle.recommendedAction ||
+      buildDefaultRecommendedAction({
+        state,
+        pathKind: takeoverBundle.pathKind,
+        continuePathLabel,
+      });
+    return {
+      state,
+      pathKind: takeoverBundle.pathKind,
+      continuePathLabel,
+      summary,
+      details: buildDetails({
+        summary,
+        takeoverBundle,
+        missionLinkage: input.missionLinkage ?? null,
+        publishHandoff,
+        actionability: takeoverActionability,
+        continuePathLabel,
+        truthSourceLabel,
+      }),
+      blockingReason,
+      recommendedAction,
+      truthSource,
+      truthSourceLabel,
+      navigationTarget,
+      canonicalNextAction: buildCanonicalNextActionFromTakeover({
+        state,
+        takeoverBundle,
+        summary,
+        blockingReason,
+        navigationTarget,
         continuePathLabel,
       }),
     };
