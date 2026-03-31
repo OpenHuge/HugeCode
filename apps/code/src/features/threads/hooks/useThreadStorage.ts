@@ -9,11 +9,11 @@ import {
   writePersistedThreadStorageState,
 } from "../../../application/runtime/ports/tauriThreadSnapshots";
 import {
-  clearThreadSnapshots,
+  clearLegacyThreadSnapshots,
   type CustomNamesMap,
   loadCustomNames,
+  loadLegacyThreadSnapshots,
   loadPinnedThreads,
-  loadThreadSnapshots,
   loadThreadActivity,
   MAX_PINS_SOFT_LIMIT,
   makeCustomNameKey,
@@ -237,7 +237,7 @@ export function useThreadStorage(): UseThreadStorageResult {
     const hydrateLegacySnapshots = (options?: { persistToNative?: boolean }) => {
       // Legacy local snapshot restore is migration-only. It should only run after a
       // successful runtime-backed read proves the canonical store is currently empty.
-      const legacySnapshots = loadThreadSnapshots();
+      const legacySnapshots = loadLegacyThreadSnapshots();
       mergePersistedSnapshots(legacySnapshots);
       threadSnapshotsReadyRef.current = true;
       setThreadSnapshotsReady(true);
@@ -259,7 +259,7 @@ export function useThreadStorage(): UseThreadStorageResult {
         writePersistedThreadState(legacySnapshots, pendingDraftMessagesRef.current)
       ).then((didPersist) => {
         if (didPersist) {
-          clearThreadSnapshots();
+          clearLegacyThreadSnapshots();
         }
       });
       flushPendingThreadSnapshotSync();
@@ -282,7 +282,7 @@ export function useThreadStorage(): UseThreadStorageResult {
           mergePersistedSnapshots(filteredPersistedSnapshots);
           threadSnapshotsReadyRef.current = true;
           setThreadSnapshotsReady(true);
-          const legacySnapshots = loadThreadSnapshots();
+          const legacySnapshots = loadLegacyThreadSnapshots();
           if (Object.keys(legacySnapshots).length > 0) {
             reportThreadStorageFallback("legacy_local_snapshot_ignored", {
               snapshotCount: Object.keys(legacySnapshots).length,
@@ -298,7 +298,7 @@ export function useThreadStorage(): UseThreadStorageResult {
               pendingDraftMessagesRef.current
             );
           }
-          clearThreadSnapshots();
+          clearLegacyThreadSnapshots();
           flushPendingThreadSnapshotSync();
           return;
         }

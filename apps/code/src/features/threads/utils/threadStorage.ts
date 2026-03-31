@@ -18,7 +18,7 @@ export const STORAGE_KEY_PINNED_THREADS = "codexmonitor.pinnedThreads";
 export const STORAGE_KEY_CUSTOM_NAMES = "codexmonitor.threadCustomNames";
 // Legacy local snapshot storage. Keep only for temporary migration recovery until
 // runtime-backed thread snapshot persistence is fully retired from active flows.
-export const STORAGE_KEY_THREAD_SNAPSHOTS = "codexmonitor.threadSnapshots";
+const LEGACY_STORAGE_KEY_THREAD_SNAPSHOTS = "codexmonitor.threadSnapshots";
 export const THREAD_STORAGE_PENDING_DRAFTS_KEY = "__pending_workspace_drafts_v1";
 export const THREAD_STORAGE_LAST_ACTIVE_WORKSPACE_KEY = "__last_active_workspace_v1";
 export const THREAD_STORAGE_ACTIVE_THREAD_IDS_KEY = "__active_thread_ids_v1";
@@ -277,9 +277,9 @@ export function normalizeThreadAtlasMemoryDigestMap(value: unknown): ThreadAtlas
   return next;
 }
 
-export function loadThreadSnapshots(): ThreadSnapshotsMap {
+export function loadLegacyThreadSnapshots(): ThreadSnapshotsMap {
   try {
-    const raw = readSafeLocalStorageItem(STORAGE_KEY_THREAD_SNAPSHOTS);
+    const raw = readSafeLocalStorageItem(LEGACY_STORAGE_KEY_THREAD_SNAPSHOTS);
     if (!raw) {
       return {};
     }
@@ -289,13 +289,9 @@ export function loadThreadSnapshots(): ThreadSnapshotsMap {
   }
 }
 
-export function saveThreadSnapshots(next: ThreadSnapshotsMap): void {
-  writeSafeLocalStorageItem(STORAGE_KEY_THREAD_SNAPSHOTS, JSON.stringify(next));
-}
-
-export function clearThreadSnapshots(): void {
+export function clearLegacyThreadSnapshots(): void {
   try {
-    window.localStorage.removeItem(STORAGE_KEY_THREAD_SNAPSHOTS);
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY_THREAD_SNAPSHOTS);
   } catch {
     // Ignore storage cleanup failures.
   }

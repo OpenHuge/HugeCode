@@ -2,10 +2,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  clearThreadSnapshots,
+  clearLegacyThreadSnapshots,
   loadCustomNames,
+  loadLegacyThreadSnapshots,
   loadPinnedThreads,
-  loadThreadSnapshots,
   loadThreadActivity,
   STORAGE_KEY_CUSTOM_NAMES,
   STORAGE_KEY_PINNED_THREADS,
@@ -23,8 +23,8 @@ vi.mock("../utils/threadStorage", () => ({
   MAX_PINS_SOFT_LIMIT: 2,
   STORAGE_KEY_CUSTOM_NAMES: "custom-names",
   STORAGE_KEY_PINNED_THREADS: "pinned-threads",
-  loadThreadSnapshots: vi.fn(() => ({})),
-  clearThreadSnapshots: vi.fn(),
+  loadLegacyThreadSnapshots: vi.fn(() => ({})),
+  clearLegacyThreadSnapshots: vi.fn(),
   loadCustomNames: vi.fn(),
   loadPinnedThreads: vi.fn(),
   loadThreadActivity: vi.fn(),
@@ -51,7 +51,7 @@ vi.mock("../../../application/runtime/ports/logger", () => ({
 describe("useThreadStorage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(loadThreadSnapshots).mockReturnValue({});
+    vi.mocked(loadLegacyThreadSnapshots).mockReturnValue({});
   });
 
   it("loads initial data and updates custom names on storage events", async () => {
@@ -483,7 +483,7 @@ describe("useThreadStorage", () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(loadCustomNames).mockReturnValue({});
-    vi.mocked(loadThreadSnapshots).mockReturnValue({
+    vi.mocked(loadLegacyThreadSnapshots).mockReturnValue({
       "ws-1:thread-legacy": {
         workspaceId: "ws-1",
         threadId: "thread-legacy",
@@ -502,14 +502,14 @@ describe("useThreadStorage", () => {
 
     expect(result.current.listThreadSnapshots("ws-1")).toEqual([]);
     expect(writePersistedThreadStorageState).not.toHaveBeenCalled();
-    expect(clearThreadSnapshots).not.toHaveBeenCalled();
+    expect(clearLegacyThreadSnapshots).not.toHaveBeenCalled();
   });
 
   it("migrates legacy snapshots only after native storage responds successfully", async () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(loadCustomNames).mockReturnValue({});
-    vi.mocked(loadThreadSnapshots).mockReturnValue({
+    vi.mocked(loadLegacyThreadSnapshots).mockReturnValue({
       "ws-1:thread-legacy": {
         workspaceId: "ws-1",
         threadId: "thread-legacy",
@@ -562,14 +562,14 @@ describe("useThreadStorage", () => {
       })
     );
 
-    expect(clearThreadSnapshots).not.toHaveBeenCalled();
+    expect(clearLegacyThreadSnapshots).not.toHaveBeenCalled();
   });
 
   it("clears ignored legacy local snapshots once native thread storage is authoritative", async () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(loadCustomNames).mockReturnValue({});
-    vi.mocked(loadThreadSnapshots).mockReturnValue({
+    vi.mocked(loadLegacyThreadSnapshots).mockReturnValue({
       "ws-1:thread-legacy": {
         workspaceId: "ws-1",
         threadId: "thread-legacy",
@@ -606,7 +606,7 @@ describe("useThreadStorage", () => {
       ]);
     });
 
-    expect(clearThreadSnapshots).toHaveBeenCalled();
+    expect(clearLegacyThreadSnapshots).toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
       "Ignoring legacy local thread snapshots because runtime-backed thread storage is available.",
       expect.objectContaining({
