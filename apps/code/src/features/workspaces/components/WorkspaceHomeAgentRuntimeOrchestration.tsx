@@ -12,6 +12,7 @@ import {
   DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG,
   formatRuntimeTimestamp,
   parseRuntimeBatchPreviewState,
+  readRuntimeParallelDispatchPlanLaunchError,
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
 import { WorkspaceHomeAgentRuntimeParallelDispatchSection } from "./WorkspaceHomeAgentRuntimeParallelDispatchSection";
 import { WorkspaceHomeRuntimePolicyIndicator } from "./WorkspaceHomeRuntimePolicyIndicator";
@@ -195,6 +196,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         .map((dependency) => `${dependency} -> ${task.taskKey}`)
     );
   }, [runtimeBatchPreview.tasks]);
+  const runtimeBatchPreviewLaunchError = runtimeBatchPreview.enabled
+    ? readRuntimeParallelDispatchPlanLaunchError(runtimeBatchPreview)
+    : null;
   const runtimePlan = runtimeLaunchPreparation?.plan ?? null;
   const runtimePlanNeedsApproval =
     runtimeLaunchPlanApprovalRequired && runtimeLaunchPlanVersion !== null;
@@ -1124,6 +1128,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               runtimeDraftInstruction.trim().length === 0 ||
               selectedProviderRoute?.launchAllowed === false ||
               !launchReadiness.launchAllowed ||
+              runtimeBatchPreviewLaunchError !== null ||
               (runtimePlanNeedsApproval && !runtimeLaunchPlanApproved)
             }
           >

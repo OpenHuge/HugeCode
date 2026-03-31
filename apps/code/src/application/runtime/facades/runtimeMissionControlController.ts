@@ -15,6 +15,7 @@ import { buildWorkspaceRuntimeMissionControlProjection } from "./runtimeWorkspac
 import { useRuntimeWorkspaceLaunchDefaults } from "./runtimeWorkspaceLaunchDefaultsFacade";
 import type { RuntimeParallelDispatchPlan } from "./runtimeParallelDispatchManager";
 import {
+  readRuntimeParallelDispatchPlanLaunchError,
   reconcileRuntimeParallelDispatchTasks,
   startRuntimeParallelDispatch,
   useRuntimeParallelDispatchWorkspace,
@@ -275,6 +276,11 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       setRuntimeActionLoading(true);
       try {
         if (dispatchPlan?.enabled && dispatchPlan.tasks.length > 0) {
+          const dispatchPlanError = readRuntimeParallelDispatchPlanLaunchError(dispatchPlan);
+          if (dispatchPlanError) {
+            setRuntimeError(dispatchPlanError);
+            return;
+          }
           const dispatch = await startRuntimeParallelDispatch({
             workspaceId,
             objective: draft.runtimeDraftInstruction,

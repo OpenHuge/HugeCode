@@ -102,8 +102,9 @@ export function WorkspaceHomeAgentRuntimeParallelDispatchSection({
             )}
           </div>
           <div className={controlStyles.sectionMeta}>
-            Outcome labels: success = completed task; failed = retries exhausted; skipped = blocked
-            by dependencies or failure policy; retried = task rerun up to maxRetries.
+            Outcome labels: success = completed task; failed = retries exhausted without a skip
+            policy; skipped = dependency or failure policy prevented completion; retried = task
+            rerun after a launch or runtime failure up to maxRetries.
           </div>
           {parallelDispatch.sessions.map((session) => (
             <div key={session.sessionId} className={controlStyles.controlSection}>

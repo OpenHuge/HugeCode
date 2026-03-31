@@ -326,6 +326,30 @@ function mapRuntimeTaskStatus(
   }
 }
 
+export function readRuntimeParallelDispatchPlanLaunchError(
+  plan: RuntimeParallelDispatchPlan
+): string | null {
+  if (!plan.enabled) {
+    return "Parallel dispatch must be enabled before it can be started.";
+  }
+  if (plan.parseError) {
+    return plan.parseError;
+  }
+  if (plan.tasks.length === 0) {
+    return "Enabled parallel dispatch must include at least one task.";
+  }
+  if (plan.duplicateTaskKeyHints.length > 0) {
+    return plan.duplicateTaskKeyHints[0] ?? "Parallel dispatch task keys must be unique.";
+  }
+  if (plan.dependencyHints.length > 0) {
+    return plan.dependencyHints[0] ?? "Parallel dispatch dependencies must reference known tasks.";
+  }
+  if (plan.cycleHint) {
+    return `Cycle hint: ${plan.cycleHint}.`;
+  }
+  return null;
+}
+
 function buildChildLaunchRequest(input: {
   base: RuntimeRunStartRequest;
   objective: string;
@@ -550,6 +574,7 @@ export function createRuntimeParallelDispatchManager(
   const stores = new Map<string, RuntimeParallelDispatchWorkspaceStore>();
   const workspaceListeners = new Map<string, Set<SnapshotListener>>();
   const now = deps.now ?? Date.now;
+  let sessionSequence = 0;
 
   const getWorkspaceListeners = (workspaceId: string) => {
     const existing = workspaceListeners.get(workspaceId);
@@ -587,6 +612,52 @@ export function createRuntimeParallelDispatchManager(
       taskMap.set("updatedAt", updatedAt);
       taskMap.set("errorMessage", "Dispatch halted after an upstream chunk failure.");
     }
+  };
+
+  const retryChunkAfterFailure = (input: {
+    store: RuntimeParallelDispatchWorkspaceStore;
+    sessionId: string;
+    taskKey: string;
+    updatedAt: number;
+    errorMessage: string;
+    origin: string;
+  }) => {
+    const { tasks, session } = ensureSessionContainers(input.store, input.sessionId);
+    const taskMap = tasks.getOrCreateContainer(input.taskKey, new LoroMap());
+    taskMap.set("status", "pending");
+    taskMap.set("taskId", null);
+    taskMap.set("runId", null);
+    taskMap.set("resolvedBackendId", null);
+    taskMap.set("launchedAt", null);
+    taskMap.set("updatedAt", input.updatedAt);
+    taskMap.set("errorMessage", input.errorMessage);
+    session.set("updatedAt", input.updatedAt);
+    commitStore(input.store, input.origin);
+  };
+
+  const finalizeChunkFailure = (input: {
+    store: RuntimeParallelDispatchWorkspaceStore;
+    runtime: RuntimeParallelDispatchSessionRuntime;
+    sessionId: string;
+    taskKey: string;
+    updatedAt: number;
+    errorMessage: string;
+    task: RuntimeParallelDispatchChunkRuntime;
+    origin: string;
+  }) => {
+    const { tasks, session } = ensureSessionContainers(input.store, input.sessionId);
+    const taskMap = tasks.getOrCreateContainer(input.taskKey, new LoroMap());
+    const terminalStatus: RuntimeParallelDispatchChunkStatus =
+      input.task.onFailure === "skip" ? "skipped" : "failed";
+    taskMap.set("status", terminalStatus);
+    taskMap.set("updatedAt", input.updatedAt);
+    taskMap.set("errorMessage", input.errorMessage);
+    session.set("updatedAt", input.updatedAt);
+    if (input.task.onFailure === "halt") {
+      input.runtime.halted = true;
+      blockPendingTasksForSession(input.store, input.sessionId, input.updatedAt);
+    }
+    commitStore(input.store, input.origin);
   };
 
   const maybeFlushSession = async (workspaceId: string, sessionId: string): Promise<void> => {
@@ -633,7 +704,7 @@ export function createRuntimeParallelDispatchManager(
         const { tasks, session } = ensureSessionContainers(store, sessionId);
         const taskMap = tasks.getOrCreateContainer(taskKey, new LoroMap());
         const updatedAt = now();
-        taskMap.set("status", "blocked");
+        taskMap.set("status", "skipped");
         taskMap.set("updatedAt", updatedAt);
         taskMap.set("errorMessage", "A dependency did not complete successfully.");
         session.set("updatedAt", updatedAt);
@@ -682,24 +753,34 @@ export function createRuntimeParallelDispatchManager(
           nextTaskMap.set("updatedAt", updatedAt);
           nextSession.set("updatedAt", updatedAt);
           commitStore(store, "parallel_dispatch_launched");
+          void maybeFlushSession(workspaceId, sessionId);
         })
         .catch((error) => {
           const updatedAt = now();
           const errorMessage = error instanceof Error ? error.message : String(error);
-          const { tasks: nextTasks, session: nextSession } = ensureSessionContainers(
-            store,
-            sessionId
-          );
-          const nextTaskMap = nextTasks.getOrCreateContainer(taskKey, new LoroMap());
-          nextTaskMap.set("status", "failed");
-          nextTaskMap.set("errorMessage", errorMessage);
-          nextTaskMap.set("updatedAt", updatedAt);
-          nextSession.set("updatedAt", updatedAt);
-          if (task.onFailure === "halt") {
-            runtime.halted = true;
-            blockPendingTasksForSession(store, sessionId, updatedAt);
+          task.taskId = null;
+          task.runId = null;
+          if (task.attemptCount <= task.maxRetries) {
+            retryChunkAfterFailure({
+              store,
+              sessionId,
+              taskKey,
+              updatedAt,
+              errorMessage,
+              origin: "parallel_dispatch_launch_retry_pending",
+            });
+          } else {
+            finalizeChunkFailure({
+              store,
+              runtime,
+              sessionId,
+              taskKey,
+              updatedAt,
+              errorMessage,
+              task,
+              origin: "parallel_dispatch_launch_failed",
+            });
           }
-          commitStore(store, "parallel_dispatch_launch_failed");
           void maybeFlushSession(workspaceId, sessionId);
         });
     }
@@ -709,9 +790,16 @@ export function createRuntimeParallelDispatchManager(
     async startDispatch(
       input: StartRuntimeParallelDispatchInput
     ): Promise<StartRuntimeParallelDispatchResult> {
+      if (!input.plan.enabled) {
+        throw new Error("Parallel dispatch must be enabled before it can be started.");
+      }
+      const planError = readRuntimeParallelDispatchPlanLaunchError(input.plan);
+      if (planError) {
+        throw new Error(planError);
+      }
       await ensureLoroReady();
       const store = getStore(input.workspaceId);
-      const sessionId = createSessionId(now);
+      const sessionId = `${createSessionId(now)}-${++sessionSequence}`;
       const createdAt = now();
       const runtime: RuntimeParallelDispatchSessionRuntime = {
         workspaceId: input.workspaceId,
@@ -774,7 +862,7 @@ export function createRuntimeParallelDispatchManager(
         const sessionSnapshot = store.snapshot.sessions.find(
           (session) => session.sessionId === sessionId
         );
-        let changed = false;
+        let needsCommit = false;
         for (const taskKey of runtime.taskOrder) {
           const chunk = runtime.tasks.get(taskKey);
           if (!chunk?.taskId) {
@@ -792,6 +880,47 @@ export function createRuntimeParallelDispatchManager(
           const currentTaskSnapshot = sessionSnapshot?.tasks.find(
             (task) => task.taskKey === taskKey
           );
+          if (nextStatus === "failed") {
+            const terminalStatus: RuntimeParallelDispatchChunkStatus =
+              chunk.onFailure === "skip" ? "skipped" : "failed";
+            if (
+              currentTaskSnapshot?.status === terminalStatus &&
+              currentTaskSnapshot.resolvedBackendId === nextResolvedBackendId &&
+              currentTaskSnapshot.errorMessage === nextErrorMessage &&
+              (runtimeTask.status !== "failed" || chunk.attemptCount > chunk.maxRetries)
+            ) {
+              continue;
+            }
+            const updatedAt = now();
+            if (chunk.attemptCount <= chunk.maxRetries) {
+              chunk.taskId = null;
+              chunk.runId = null;
+              retryChunkAfterFailure({
+                store,
+                sessionId,
+                taskKey,
+                updatedAt,
+                errorMessage: nextErrorMessage ?? "Runtime chunk failed.",
+                origin: "parallel_dispatch_runtime_retry_pending",
+              });
+            } else {
+              finalizeChunkFailure({
+                store,
+                runtime,
+                sessionId,
+                taskKey,
+                updatedAt,
+                errorMessage:
+                  nextErrorMessage ??
+                  (runtimeTask.status === "failed"
+                    ? "Runtime chunk failed."
+                    : `Runtime chunk ${runtimeTask.status}.`),
+                task: chunk,
+                origin: "parallel_dispatch_runtime_reconcile_failed",
+              });
+            }
+            continue;
+          }
           if (
             currentTaskSnapshot?.status === nextStatus &&
             currentTaskSnapshot.resolvedBackendId === nextResolvedBackendId &&
@@ -805,13 +934,9 @@ export function createRuntimeParallelDispatchManager(
           taskMap.set("updatedAt", updatedAt);
           taskMap.set("errorMessage", nextErrorMessage);
           session.set("updatedAt", updatedAt);
-          changed = true;
-          if (nextStatus === "failed" && chunk.onFailure === "halt") {
-            runtime.halted = true;
-            blockPendingTasksForSession(store, sessionId, updatedAt);
-          }
+          needsCommit = true;
         }
-        if (changed) {
+        if (needsCommit) {
           commitStore(store, "parallel_dispatch_runtime_reconcile");
         }
         void maybeFlushSession(workspaceId, sessionId);
@@ -838,6 +963,7 @@ export function createRuntimeParallelDispatchManager(
       stores.clear();
       workspaceListeners.clear();
       loroReadyPromise = null;
+      sessionSequence = 0;
     },
   };
 }

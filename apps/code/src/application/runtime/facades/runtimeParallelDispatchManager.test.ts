@@ -4,6 +4,7 @@ import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import {
   createRuntimeParallelDispatchManager,
   parseRuntimeParallelDispatchPlan,
+  readRuntimeParallelDispatchPlanLaunchError,
 } from "./runtimeParallelDispatchManager";
 
 function createDeferred<T>() {
@@ -204,6 +205,25 @@ describe("parseRuntimeParallelDispatchPlan", () => {
       }),
     ]);
   });
+
+  it("surfaces a launch error for enabled plans with invalid dependency graphs", () => {
+    const plan = parseRuntimeParallelDispatchPlan(
+      JSON.stringify({
+        enabled: true,
+        maxParallel: 2,
+        tasks: [
+          {
+            taskKey: "review",
+            dependsOn: ["missing"],
+          },
+        ],
+      })
+    );
+
+    expect(readRuntimeParallelDispatchPlanLaunchError(plan)).toBe(
+      'Dependency hint: "review" depends on missing task "missing".'
+    );
+  });
 });
 
 describe("runtimeParallelDispatchManager", () => {
@@ -398,5 +418,183 @@ describe("runtimeParallelDispatchManager", () => {
       ["implement", "completed"],
       ["fuse", "completed"],
     ]);
+  });
+
+  it("retries launch failures up to maxRetries before marking the chunk failed", async () => {
+    let attempts = 0;
+    const launchRun = vi.fn(async (request: RuntimeRunStartRequest) => {
+      attempts += 1;
+      if (request.title === "Retry launcher" && attempts === 1) {
+        throw new Error("transient launch failure");
+      }
+      return createRuntimeRunRecord("run-retry", {
+        title: request.title ?? "Retry launcher",
+        backendId: "backend-retry",
+        preferredBackendIds: ["backend-retry"],
+        status: "queued",
+      });
+    });
+    const manager = createRuntimeParallelDispatchManager({
+      launchRun,
+      now: (() => {
+        let tick = 200;
+        return () => tick++;
+      })(),
+    });
+
+    await manager.startDispatch({
+      workspaceId: "ws-1",
+      objective: "Retry objective",
+      launchRequest: createLaunchRequest(),
+      plan: parseRuntimeParallelDispatchPlan(
+        JSON.stringify({
+          enabled: true,
+          maxParallel: 1,
+          tasks: [
+            {
+              taskKey: "retry",
+              title: "Retry launcher",
+              instruction: "Retry launch failures before giving up.",
+              preferredBackendIds: ["backend-retry"],
+              dependsOn: [],
+              maxRetries: 1,
+              onFailure: "continue",
+            },
+          ],
+        })
+      ),
+    });
+    await flushMicrotasks();
+
+    expect(launchRun).toHaveBeenCalledTimes(2);
+    const snapshot = manager.getWorkspaceSnapshot("ws-1");
+    expect(snapshot.sessions[0]?.tasks).toEqual([
+      expect.objectContaining({
+        taskKey: "retry",
+        status: "running",
+        attemptCount: 2,
+        taskId: "run-retry",
+      }),
+    ]);
+  });
+
+  it("treats skip-policy failures as skipped and skips dependent chunks without halting unrelated work", async () => {
+    const launchRun = vi.fn(async (request: RuntimeRunStartRequest) => {
+      switch (request.title) {
+        case "Optional discovery":
+          return createRuntimeRunRecord("run-optional", {
+            title: "Optional discovery",
+            backendId: "backend-optional",
+            preferredBackendIds: ["backend-optional"],
+            status: "queued",
+          });
+        case "Independent follow-up":
+          return createRuntimeRunRecord("run-follow-up", {
+            title: "Independent follow-up",
+            backendId: "backend-follow-up",
+            preferredBackendIds: ["backend-follow-up"],
+            status: "queued",
+          });
+        default:
+          throw new Error(`Unexpected launch title: ${request.title ?? "unknown"}`);
+      }
+    });
+    const manager = createRuntimeParallelDispatchManager({
+      launchRun,
+      now: (() => {
+        let tick = 300;
+        return () => tick++;
+      })(),
+    });
+
+    await manager.startDispatch({
+      workspaceId: "ws-1",
+      objective: "Skip objective",
+      launchRequest: createLaunchRequest(),
+      plan: parseRuntimeParallelDispatchPlan(
+        JSON.stringify({
+          enabled: true,
+          maxParallel: 1,
+          tasks: [
+            {
+              taskKey: "optional",
+              title: "Optional discovery",
+              instruction: "Optional discovery can be skipped.",
+              preferredBackendIds: ["backend-optional"],
+              dependsOn: [],
+              maxRetries: 0,
+              onFailure: "skip",
+            },
+            {
+              taskKey: "dependent",
+              title: "Dependent summary",
+              instruction: "This chunk depends on optional discovery.",
+              preferredBackendIds: ["backend-dependent"],
+              dependsOn: ["optional"],
+              maxRetries: 0,
+              onFailure: "continue",
+            },
+            {
+              taskKey: "follow-up",
+              title: "Independent follow-up",
+              instruction: "This chunk should continue after skip-policy failures.",
+              preferredBackendIds: ["backend-follow-up"],
+              dependsOn: [],
+              maxRetries: 0,
+              onFailure: "continue",
+            },
+          ],
+        })
+      ),
+    });
+
+    manager.reconcileRuntimeTasks("ws-1", [
+      createRuntimeTaskSummary("run-optional", "failed", {
+        title: "Optional discovery",
+        backendId: "backend-optional",
+        preferredBackendIds: ["backend-optional"],
+        errorMessage: "optional failed",
+      }),
+    ]);
+    await flushMicrotasks();
+
+    expect(launchRun).toHaveBeenCalledTimes(2);
+    const snapshot = manager.getWorkspaceSnapshot("ws-1");
+    expect(snapshot.sessions[0]?.tasks.map((task) => [task.taskKey, task.status])).toEqual([
+      ["optional", "skipped"],
+      ["dependent", "skipped"],
+      ["follow-up", "running"],
+    ]);
+  });
+
+  it("rejects enabled dispatch plans that still contain validation errors", async () => {
+    const manager = createRuntimeParallelDispatchManager({
+      launchRun: vi.fn(),
+      now: () => 400,
+    });
+
+    await expect(
+      manager.startDispatch({
+        workspaceId: "ws-1",
+        objective: "Invalid objective",
+        launchRequest: createLaunchRequest(),
+        plan: parseRuntimeParallelDispatchPlan(
+          JSON.stringify({
+            enabled: true,
+            maxParallel: 1,
+            tasks: [
+              {
+                taskKey: "a",
+                dependsOn: ["b"],
+              },
+              {
+                taskKey: "b",
+                dependsOn: ["a"],
+              },
+            ],
+          })
+        ),
+      })
+    ).rejects.toThrow("Cycle hint: a -> b -> a.");
   });
 });

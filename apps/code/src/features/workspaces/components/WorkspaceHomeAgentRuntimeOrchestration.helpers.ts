@@ -6,7 +6,10 @@ export {
   normalizeRuntimeProviderCatalogEntry,
   normalizeRuntimeTaskForProjection,
 } from "../../../application/runtime/facades/runtimeMissionControlProjectionNormalization";
-export { parseRuntimeParallelDispatchPlan as parseRuntimeBatchPreviewState } from "../../../application/runtime/facades/runtimeParallelDispatchManager";
+export {
+  parseRuntimeParallelDispatchPlan as parseRuntimeBatchPreviewState,
+  readRuntimeParallelDispatchPlanLaunchError,
+} from "../../../application/runtime/facades/runtimeParallelDispatchManager";
 import {
   readRuntimeErrorCode,
   readRuntimeErrorMessage,

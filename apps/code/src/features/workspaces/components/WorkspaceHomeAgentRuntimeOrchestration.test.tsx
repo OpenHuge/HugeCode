@@ -3142,9 +3142,64 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     expect(
       screen.getByText(
-        "Outcome labels: success = completed task; failed = retries exhausted; skipped = blocked by dependencies or failure policy; retried = task rerun up to maxRetries."
+        "Outcome labels: success = completed task; failed = retries exhausted without a skip policy; skipped = dependency or failure policy prevented completion; retried = task rerun after a launch or runtime failure up to maxRetries."
       )
     ).toBeTruthy();
+  });
+
+  it("does not allow starting an enabled dispatch plan while validation hints remain", async () => {
+    mockRuntimeTasks([]);
+    submitTaskApprovalDecisionMock.mockResolvedValue({
+      recorded: true,
+      approvalId: "approval-1",
+      taskId: "runtime-running-1",
+      status: "running",
+      message: "ok",
+    });
+    vi.mocked(startAgentTask).mockResolvedValue({} as Awaited<ReturnType<typeof startAgentTask>>);
+    render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {
+        target: { value: "Do not start invalid parallel plans." },
+      });
+
+      fireEvent.change(screen.getByLabelText("Batch config (parallel dispatch)"), {
+        target: {
+          value: JSON.stringify(
+            {
+              enabled: true,
+              maxParallel: 2,
+              tasks: [
+                {
+                  taskKey: "plan",
+                  dependsOn: ["missing"],
+                  maxRetries: 1,
+                  onFailure: "halt",
+                },
+              ],
+            },
+            null,
+            2
+          ),
+        },
+      });
+    });
+
+    const approveCurrentPlanButton = screen.queryByRole("button", {
+      name: "Approve current plan",
+    });
+    if (approveCurrentPlanButton) {
+      fireEvent.click(approveCurrentPlanButton);
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Start mission run" })).toHaveProperty(
+        "disabled",
+        true
+      );
+    });
+    expect(startRuntimeJobWithRemoteSelectionMock).not.toHaveBeenCalled();
   });
 
   it("keeps start mission run payload unchanged when batch preview config changes", async () => {
