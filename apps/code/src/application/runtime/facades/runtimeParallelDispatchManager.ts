@@ -1,7 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import {
-  createFallbackRuntimeParallelDispatchDocumentRuntime,
   loadRuntimeParallelDispatchDocumentRuntime,
   resetRuntimeParallelDispatchDocumentRuntimeForTests,
   type RuntimeParallelDispatchDoc,
@@ -773,9 +772,11 @@ export function createRuntimeParallelDispatchManager(
 
   const ensureDocumentRuntime = () => {
     if (!documentRuntimePromise) {
-      documentRuntimePromise = loadDocumentRuntime().catch(() =>
-        createFallbackRuntimeParallelDispatchDocumentRuntime()
-      );
+      documentRuntimePromise = loadDocumentRuntime().catch(async () => {
+        const { createFallbackRuntimeParallelDispatchDocumentRuntime } =
+          await import("./runtimeParallelDispatchFallbackRuntime");
+        return createFallbackRuntimeParallelDispatchDocumentRuntime();
+      });
     }
     return documentRuntimePromise;
   };

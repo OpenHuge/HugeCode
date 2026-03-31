@@ -17,6 +17,7 @@ import * as styles from "./ReviewPackSurface.css";
 import { ReviewDetailSection } from "./ReviewPackSurfaceSections";
 
 type ReviewPackBrowserVerificationDetail = MissionRunDetailModel | ReviewPackDetailModel;
+type ReviewPackBrowserVerificationReviewDetail = ReviewPackDetailModel;
 
 export type ReviewPackBrowserVerificationLane = {
   attachments: RuntimeBrowserVerificationAttachment[];
@@ -64,8 +65,22 @@ function mergeArtifacts(
   return nextArtifacts;
 }
 
+function buildDisplayedReproductionGuidance(
+  detail: ReviewPackBrowserVerificationDetail,
+  attachments: RuntimeBrowserVerificationAttachment[]
+) {
+  const next = detail.kind === "mission_run" ? [] : [...detail.reproductionGuidance];
+  for (const attachment of attachments) {
+    const step = buildAttachmentReproductionStep(attachment);
+    if (!next.includes(step)) {
+      next.push(step);
+    }
+  }
+  return next;
+}
+
 function buildDisplayedDecisionActionability(
-  detail: ReviewPackDetailModel,
+  detail: ReviewPackBrowserVerificationReviewDetail,
   attachments: RuntimeBrowserVerificationAttachment[],
   pendingCandidate: RuntimeBrowserVerificationCandidate | null
 ) {
@@ -212,19 +227,10 @@ export function useReviewPackBrowserVerificationLane(
     () => (detail ? mergeArtifacts(detail.artifacts, attachments) : []),
     [attachments, detail]
   );
-  const displayedReproductionGuidance = useMemo(() => {
-    if (!detail) {
-      return [];
-    }
-    const next = [...detail.reproductionGuidance];
-    for (const attachment of attachments) {
-      const step = buildAttachmentReproductionStep(attachment);
-      if (!next.includes(step)) {
-        next.push(step);
-      }
-    }
-    return next;
-  }, [attachments, detail]);
+  const displayedReproductionGuidance = useMemo(
+    () => (detail ? buildDisplayedReproductionGuidance(detail, attachments) : []),
+    [attachments, detail]
+  );
   const displayedLimitations = useMemo(
     () => (detail ? buildDisplayedLimitations(detail, pendingCandidate) : []),
     [detail, pendingCandidate]

@@ -2,6 +2,7 @@ import type {
   HugeCodeEvidenceState,
   HugeCodeFailureClass,
   HugeCodeMissionNavigationTarget as RuntimeMissionNavigationTarget,
+  HugeCodeReviewArtifactRef,
   HugeCodeReviewFinding,
   HugeCodeReviewGateSummary,
   HugeCodeRunState,
@@ -196,7 +197,7 @@ export type ReviewPackDetailModel = {
   nextActionDetail?: string | null;
   warnings: string[];
   validations: MissionControlProjection["reviewPacks"][number]["validations"];
-  artifacts: MissionControlProjection["reviewPacks"][number]["artifacts"];
+  artifacts: HugeCodeReviewArtifactRef[];
   checksPerformed: string[];
   recommendedNextAction: string | null;
   navigationTarget: MissionNavigationTarget;
@@ -283,7 +284,7 @@ export type MissionRunDetailModel = {
   sourceLabel: string;
   warnings: string[];
   validations: MissionControlProjection["runs"][number]["validations"];
-  artifacts: MissionControlProjection["runs"][number]["artifacts"];
+  artifacts: HugeCodeReviewArtifactRef[];
   routeSummary: string;
   routeDetails: string[];
   reviewIntelligence?: ReviewIntelligenceSummary | null;
@@ -1174,7 +1175,7 @@ export function buildReviewPackDetailModel(input: {
     nextActionDetail: operatorAction?.detail ?? reviewRecommendedNextAction,
     warnings: reviewPack.warnings,
     validations: reviewPack.validations,
-    artifacts: reviewPack.artifacts,
+    artifacts: reviewPack.artifacts ?? [],
     checksPerformed: reviewPack.checksPerformed,
     recommendedNextAction: reviewRecommendedNextAction,
     navigationTarget,

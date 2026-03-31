@@ -65,7 +65,7 @@ export function SplitPanel({ className, ...props }: SplitPanelProps) {
   return <SharedSplitPanel {...props} className={withAppClassName("app-split-panel", className)} />;
 }
 
-export interface ListRowProps extends SharedListRowProps {}
+export type ListRowProps = SharedListRowProps;
 
 export function ListRow({ className, ...props }: ListRowProps) {
   return <SharedListRow {...props} className={withAppClassName("app-list-row", className)} />;

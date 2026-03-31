@@ -290,7 +290,7 @@ export function attachRuntimeBrowserVerificationEvidence(
     input: candidate.input,
     sourceUrl: candidate.input.sourceUrl,
     selector: candidate.input.selector,
-    traceId: candidate.result.traceId,
+    traceId: readTrimmedText(candidate.result.traceId),
     readinessState: candidate.readinessState,
     readinessSource: candidate.readinessSource,
     readinessSourceLabel: candidate.readinessSourceLabel,
@@ -372,7 +372,14 @@ export function listRuntimeBrowserVerificationAttachments(input: RuntimeBrowserV
 }
 
 function readRuntimeBrowserVerificationSnapshot(
-  input: RuntimeBrowserVerificationScope | { workspaceId: string; taskId?: null; runId?: null }
+  input:
+    | RuntimeBrowserVerificationScope
+    | {
+        workspaceId: string;
+        taskId?: string | null;
+        runId?: string | null;
+        reviewPackId?: string | null;
+      }
 ): RuntimeBrowserVerificationSnapshot {
   const candidate = readRuntimeBrowserVerificationCandidate(input.workspaceId);
   const attachments =
