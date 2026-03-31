@@ -106,6 +106,8 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
   Shared app-facing lifecycle event vocabulary, ordering guarantees, and hook-checkpoint boundary for Mission Control and debug consumers.
 - [runtime-browser-assessment-loop.md](./runtime-browser-assessment-loop.md)
   Canonical local browser self-healing loop, proxy safeguards, and infinite-feedback-loop prevention rules.
+- [browser-grounded-verification-lane.md](./browser-grounded-verification-lane.md)
+  Thin desktop-first lane that lets browser extraction attach provenance-backed evidence to Review Pack and actionability surfaces.
 - [runtime-continuity-readiness.md](./runtime-continuity-readiness.md)
   Canonical continuation / review actionability contract, next-action
   precedence, and compat exit rules for first-party UI surfaces.

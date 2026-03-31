@@ -109,6 +109,8 @@ export {
   PanelSearchField,
 } from "./components/panel/PanelPrimitives";
 export {
+  ListRow,
+  type ListRowProps,
   ShellFrame,
   ShellSection,
   ShellToolbar,

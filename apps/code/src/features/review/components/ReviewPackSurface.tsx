@@ -8,10 +8,8 @@ import {
   Select,
   StatusBadge,
   Textarea,
-  type StatusBadgeTone,
 } from "../../../design-system";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
-import { formatRelativeTime } from "../../../utils/time";
 import type {
   MissionControlFreshnessState,
   MissionNavigationTarget,
@@ -54,24 +52,16 @@ import {
   renderWarnings,
 } from "./ReviewPackSurfaceSections";
 import {
-  ReviewLoopHeader,
-  ReviewSignalGroup,
-  ReviewSummaryCard,
-} from "./review-loop/ReviewLoopAdapters";
-import {
   type ReviewAutomationTarget,
   type ReviewAutofixTarget,
   type PreparedInterventionDraft,
   useReviewPackSurfaceController,
 } from "./useReviewPackSurfaceController";
-
-type ReviewAutomationState = {
-  runningReviewAgentKey: string | null;
-  applyingReviewAutofixKey: string | null;
-  reviewAutomationError: string | null;
-  handleRunReviewAgent: (input: ReviewAutomationTarget) => Promise<void>;
-  handleApplyReviewAutofix: (input: ReviewAutofixTarget) => Promise<void>;
-};
+import {
+  ReviewPackBrowserVerificationSection,
+  useReviewPackBrowserVerificationLane,
+} from "./ReviewPackBrowserVerificationSection";
+import { ReviewPackMissionRunDetail } from "./ReviewPackMissionRunDetail";
 
 export type ReviewPackSurfaceProps = {
   workspaceName?: string | null;
@@ -264,367 +254,6 @@ function renderDecisionActions(
   );
 }
 
-function resolveRunStateTone(runState: MissionRunDetailModel["runState"]): StatusBadgeTone {
-  switch (runState) {
-    case "review_ready":
-      return "success";
-    case "failed":
-      return "error";
-    case "needs_input":
-    case "paused":
-    case "cancelled":
-      return "warning";
-    case "running":
-    case "validating":
-      return "progress";
-    case "queued":
-    case "preparing":
-    case "draft":
-    default:
-      return "default";
-  }
-}
-
-function resolveOperatorHealthTone(
-  health: MissionRunDetailModel["operatorHealth"]
-): StatusBadgeTone {
-  switch (health) {
-    case "healthy":
-      return "success";
-    case "blocked":
-      return "error";
-    case "attention":
-    default:
-      return "warning";
-  }
-}
-
-function renderMissionRunDetail(
-  detail: MissionRunDetailModel,
-  fallbackReason: string | null,
-  onOpenMissionTarget: (target: MissionNavigationTarget) => void,
-  reviewAutomationCallbacks: Pick<
-    ReviewPackSurfaceProps,
-    "onRunReviewAgent" | "onApplyReviewAutofix"
-  >,
-  reviewAutomationState: ReviewAutomationState,
-  workspaceSkillCatalogState: RuntimeWorkspaceSkillCatalogState,
-  focusedEvidenceBucketKind: string | null,
-  onFocusEvidenceBucket: (kind: string | null) => void
-) {
-  const validations = detail.validations ?? [];
-  const artifacts = detail.artifacts ?? [];
-  const navigationTarget = detail.navigationTarget;
-  const cockpitActions =
-    navigationTarget === null
-      ? []
-      : [
-          {
-            id: "open-mission-target",
-            label: getNavigationTargetButtonLabel(navigationTarget),
-            onClick: () => onOpenMissionTarget(navigationTarget),
-          },
-        ];
-  const reviewAutomationTarget = {
-    workspaceId: detail.workspaceId,
-    taskId: detail.taskId,
-    runId: detail.runId,
-  } satisfies ReviewAutomationTarget;
-  const reviewAutomationScopeKey = buildReviewAutomationScopeKey(reviewAutomationTarget);
-  const autofixCandidate = detail.autofixCandidate;
-  return (
-    <Card className={styles.detailCard} padding="lg" variant="translucent">
-      <ReviewLoopHeader
-        eyebrow="Mission Detail"
-        title={detail.taskTitle}
-        description={detail.summary}
-        signals={
-          <ReviewSignalGroup className={styles.chipRow}>
-            <StatusBadge tone={resolveRunStateTone(detail.runState)}>
-              {detail.runStateLabel}
-            </StatusBadge>
-            <StatusBadge tone={resolveOperatorHealthTone(detail.operatorHealth)}>
-              {detail.operatorHeadline}
-            </StatusBadge>
-            {detail.secondaryLabel ? <StatusBadge>{detail.secondaryLabel}</StatusBadge> : null}
-          </ReviewSignalGroup>
-        }
-      />
-      <div className={styles.contextGrid}>
-        <ReviewSummaryCard
-          label="Workspace"
-          value={detail.workspaceName}
-          detail="Runtime-owned mission workspace"
-        />
-        <ReviewSummaryCard
-          label="Updated"
-          value={formatRelativeTime(detail.updatedAt)}
-          detail="Mission detail freshness"
-        />
-        <ReviewSummaryCard
-          label="Source"
-          value={detail.sourceLabel}
-          detail="Published mission source"
-        />
-        <ReviewSummaryCard
-          label="Run"
-          value={detail.runTitle ?? detail.runId}
-          detail="Linked execution attempt"
-        />
-      </div>
-
-      {fallbackReason ? (
-        <Card className={styles.emptyState} variant="subtle">
-          {fallbackReason}
-        </Card>
-      ) : null}
-
-      {detail.compactEvidenceInput ? (
-        <CompactReviewEvidenceCard
-          descriptor={buildCompactReviewEvidenceDescriptor(detail.compactEvidenceInput)}
-          testId="review-mission-run-compact-evidence"
-        />
-      ) : null}
-
-      {renderOperatorCockpit({
-        operatorSnapshot: detail.operatorSnapshot,
-        placement: detail.placement,
-        governance: detail.governance,
-        approval: {
-          label: detail.approvalLabel,
-          summary: detail.approvalSummary,
-        },
-        nextAction: {
-          label: detail.nextActionLabel,
-          detail: detail.nextActionDetail,
-        },
-        workspaceEvidence: detail.workspaceEvidence,
-        focusedEvidenceBucketKind,
-        onFocusEvidenceBucket,
-        actions: cockpitActions,
-      })}
-
-      {navigationTarget ? (
-        <Card className={styles.actionCard} variant="subtle">
-          <CardTitle className={styles.actionTitle}>
-            {getNavigationTargetCardTitle(navigationTarget)}
-          </CardTitle>
-          <CardDescription className={styles.bodyText}>
-            {getNavigationTargetDescription(navigationTarget)}
-          </CardDescription>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => onOpenMissionTarget(navigationTarget)}
-          >
-            {getNavigationTargetButtonLabel(navigationTarget)}
-          </Button>
-        </Card>
-      ) : null}
-
-      <ReviewDetailSection title="Route and supervision">
-        <ul className={styles.bulletList}>
-          <li className={styles.bulletItem}>
-            <span className={styles.bulletHeadline}>{detail.routeSummary}</span>
-            <span className={styles.bulletCopy}>
-              {detail.routeDetails.join(" | ") || "Routing detail was not published for this run."}
-            </span>
-          </li>
-          <li className={styles.bulletItem}>
-            <span className={styles.bulletHeadline}>{detail.operatorHeadline}</span>
-            <span className={styles.bulletCopy}>
-              {detail.operatorDetail ?? "The runtime did not publish additional operator guidance."}
-            </span>
-          </li>
-          {detail.approvalLabel ? (
-            <li className={styles.bulletItem}>
-              <span className={styles.bulletHeadline}>{detail.approvalLabel}</span>
-              <span className={styles.bulletCopy}>
-                {detail.approvalSummary ?? "Approval detail was not published for this run."}
-              </span>
-            </li>
-          ) : null}
-        </ul>
-      </ReviewDetailSection>
-
-      {detail.executionContext ? (
-        <ReviewDetailSection title="Execution context">
-          <div className={styles.bodyText}>{detail.executionContext.summary}</div>
-          {renderCopyList(
-            detail.executionContext.details,
-            "The runtime did not publish additional execution context."
-          )}
-        </ReviewDetailSection>
-      ) : null}
-
-      {detail.sourceProvenance ? (
-        <ReviewDetailSection title="Source provenance">
-          <div className={styles.bodyText}>{detail.sourceProvenance.summary}</div>
-          {renderCopyList(
-            detail.sourceProvenance.details,
-            "GitHub source provenance was not published for this mission run."
-          )}
-        </ReviewDetailSection>
-      ) : null}
-
-      {detail.reviewIntelligence ||
-      detail.reviewGate ||
-      detail.reviewProfileId ||
-      detail.reviewRunId ||
-      typeof reviewAutomationCallbacks.onRunReviewAgent === "function" ||
-      autofixCandidate?.status === "available" ? (
-        <ReviewDetailSection title="Review intelligence">
-          {renderReviewIntelligenceBlock(detail, {
-            workspaceSkillCatalogState,
-            scopeKey: reviewAutomationScopeKey,
-            reviewAgentLabel: detail.reviewRunId ? "Re-run review agent" : "Run review agent",
-            runningReviewAgentKey: reviewAutomationState.runningReviewAgentKey,
-            applyingReviewAutofixKey: reviewAutomationState.applyingReviewAutofixKey,
-            reviewAutomationError: reviewAutomationState.reviewAutomationError,
-            runReviewAgentEnabled: typeof reviewAutomationCallbacks.onRunReviewAgent === "function",
-            autofixEnabled: typeof reviewAutomationCallbacks.onApplyReviewAutofix === "function",
-            actionHandlers: {
-              onRunReviewAgent:
-                typeof reviewAutomationCallbacks.onRunReviewAgent === "function"
-                  ? () => {
-                      void reviewAutomationState.handleRunReviewAgent(reviewAutomationTarget);
-                    }
-                  : null,
-              onApplyReviewAutofix:
-                typeof reviewAutomationCallbacks.onApplyReviewAutofix === "function" &&
-                autofixCandidate
-                  ? () => {
-                      void reviewAutomationState.handleApplyReviewAutofix({
-                        ...reviewAutomationTarget,
-                        autofixCandidate,
-                      });
-                    }
-                  : null,
-              onRelaunchWithFindings:
-                navigationTarget !== null
-                  ? () => {
-                      onOpenMissionTarget(navigationTarget);
-                    }
-                  : null,
-            },
-          })}
-        </ReviewDetailSection>
-      ) : null}
-
-      {shouldShowWorkspaceSkillCatalog(detail, workspaceSkillCatalogState) && (
-        <ReviewDetailSection title="Workspace skill catalog">
-          {renderWorkspaceSkillCatalog(detail, workspaceSkillCatalogState)}
-        </ReviewDetailSection>
-      )}
-
-      {getReviewFindings(detail).length > 0 ? (
-        <ReviewDetailSection
-          title="Review findings"
-          meta={`${getReviewFindings(detail).length} item${getReviewFindings(detail).length === 1 ? "" : "s"}`}
-        >
-          {renderReviewFindings(detail)}
-        </ReviewDetailSection>
-      ) : null}
-
-      {getSkillUsage(detail).length > 0 ? (
-        <ReviewDetailSection
-          title="Skill usage"
-          meta={`${getSkillUsage(detail).length} item${getSkillUsage(detail).length === 1 ? "" : "s"}`}
-        >
-          {renderSkillUsage(detail)}
-        </ReviewDetailSection>
-      ) : null}
-
-      {detail.missionBrief ? (
-        <ReviewDetailSection title="Mission brief">
-          <div className={styles.bodyText}>{detail.missionBrief.summary}</div>
-          {renderCopyList(detail.missionBrief.details, "Mission brief detail was not published.")}
-        </ReviewDetailSection>
-      ) : null}
-
-      {detail.relaunchContext ? (
-        <ReviewDetailSection title="Relaunch context">
-          <div className={styles.bodyText}>{detail.relaunchContext.summary}</div>
-          {renderCopyList(
-            detail.relaunchContext.details,
-            "Relaunch context detail was not published."
-          )}
-        </ReviewDetailSection>
-      ) : null}
-
-      {detail.lineage ? (
-        <ReviewDetailSection title="Mission lineage">
-          <div className={styles.bodyText}>{detail.lineage.summary}</div>
-          {renderCopyList(detail.lineage.details, "Mission lineage detail was not published.")}
-        </ReviewDetailSection>
-      ) : null}
-
-      {detail.ledger ? (
-        <ReviewDetailSection title="Run ledger">
-          <div className={styles.bodyText}>{detail.ledger.summary}</div>
-          {renderCopyList(detail.ledger.details, "Run ledger detail was not published.")}
-        </ReviewDetailSection>
-      ) : null}
-
-      {detail.checkpoint ? (
-        <ReviewDetailSection title="Checkpoint and handoff">
-          <div className={styles.bodyText}>{detail.checkpoint.summary}</div>
-          {renderCopyList(
-            detail.checkpoint.details,
-            "Checkpoint and handoff detail was not published."
-          )}
-        </ReviewDetailSection>
-      ) : null}
-
-      <ReviewDetailSection title="AutoDrive route snapshot">
-        {renderCopyList(detail.autoDriveSummary, detail.emptySectionLabels.autoDrive)}
-      </ReviewDetailSection>
-
-      <ReviewDetailSection title="Sub-agent supervision">
-        {renderSubAgentSummary(detail.subAgentSummary)}
-      </ReviewDetailSection>
-
-      <ReviewDetailSection
-        title="Validation evidence"
-        meta={
-          validations.length > 0
-            ? `${validations.length} item${validations.length === 1 ? "" : "s"}`
-            : undefined
-        }
-      >
-        {renderValidationItems(detail)}
-      </ReviewDetailSection>
-
-      <ReviewDetailSection
-        title="Warnings"
-        meta={
-          detail.warnings.length > 0
-            ? `${detail.warnings.length} item${detail.warnings.length === 1 ? "" : "s"}`
-            : undefined
-        }
-      >
-        {renderWarnings(detail)}
-      </ReviewDetailSection>
-
-      <ReviewDetailSection
-        title="Artifacts and evidence"
-        meta={
-          artifacts.length > 0
-            ? `${artifacts.length} item${artifacts.length === 1 ? "" : "s"}`
-            : undefined
-        }
-      >
-        {renderArtifacts(detail)}
-      </ReviewDetailSection>
-
-      <ReviewDetailSection title="Mission limitations">
-        {renderCopyList(detail.limitations, "No additional runtime limitations were recorded.")}
-      </ReviewDetailSection>
-    </Card>
-  );
-}
-
 function shouldShowWorkspaceSkillCatalog(
   detail: Pick<MissionRunDetailModel | ReviewPackDetailModel, "reviewIntelligence">,
   workspaceSkillCatalogState: RuntimeWorkspaceSkillCatalogState
@@ -662,6 +291,27 @@ export function ReviewPackSurface({
     reviewPackDetail?.reviewIntelligence?.autofixCandidate ??
     reviewPackDetail?.autofixCandidate ??
     null;
+  const missionRunBrowserVerificationLane = useReviewPackBrowserVerificationLane(missionRunDetail);
+  const reviewPackBrowserVerificationLane = useReviewPackBrowserVerificationLane(reviewPackDetail);
+  const displayedMissionRunDetail = missionRunDetail
+    ? {
+        ...missionRunDetail,
+        artifacts: missionRunBrowserVerificationLane.displayedArtifacts,
+        reproductionGuidance: missionRunBrowserVerificationLane.displayedReproductionGuidance,
+        limitations: missionRunBrowserVerificationLane.displayedLimitations,
+      }
+    : null;
+  const displayedReviewPackDetail = reviewPackDetail
+    ? {
+        ...reviewPackDetail,
+        artifacts: reviewPackBrowserVerificationLane.displayedArtifacts,
+        reproductionGuidance: reviewPackBrowserVerificationLane.displayedReproductionGuidance,
+        limitations: reviewPackBrowserVerificationLane.displayedLimitations,
+        decisionActionability:
+          reviewPackBrowserVerificationLane.displayedDecisionActionability ??
+          reviewPackDetail.decisionActionability,
+      }
+    : null;
   const reviewPackAutomationScopeKey = reviewPackDetail
     ? buildReviewAutomationScopeKey({
         workspaceId: reviewPackDetail.workspaceId,
@@ -784,170 +434,179 @@ export function ReviewPackSurface({
       </div>
 
       <div className={styles.detailRail}>
-        {missionRunDetail ? (
-          renderMissionRunDetail(
-            missionRunDetail,
-            fallbackReason,
-            onOpenMissionTarget,
-            {
+        {displayedMissionRunDetail ? (
+          <ReviewPackMissionRunDetail
+            detail={displayedMissionRunDetail}
+            fallbackReason={fallbackReason}
+            onOpenMissionTarget={onOpenMissionTarget}
+            reviewAutomationCallbacks={{
               onRunReviewAgent,
               onApplyReviewAutofix,
-            },
-            {
+            }}
+            reviewAutomationState={{
               runningReviewAgentKey,
               applyingReviewAutofixKey,
               reviewAutomationError,
               handleRunReviewAgent,
               handleApplyReviewAutofix,
-            },
-            workspaceSkillCatalogState,
-            focusedEvidenceBucketKind,
-            setFocusedEvidenceBucketKind
-          )
-        ) : reviewPackDetail && displayedReviewDecision ? (
+            }}
+            workspaceSkillCatalogState={workspaceSkillCatalogState}
+            focusedEvidenceBucketKind={focusedEvidenceBucketKind}
+            onFocusEvidenceBucket={setFocusedEvidenceBucketKind}
+            browserVerificationLane={missionRunBrowserVerificationLane}
+          />
+        ) : displayedReviewPackDetail && displayedReviewDecision ? (
           <Card className={styles.detailCard} padding="lg" variant="translucent">
             <ReviewPackSurfaceHero
-              reviewPackDetail={reviewPackDetail}
+              reviewPackDetail={displayedReviewPackDetail}
               displayedReviewDecision={displayedReviewDecision}
               fallbackReason={fallbackReason}
             />
-            {reviewPackDetail.compactEvidenceInput ? (
+            {displayedReviewPackDetail.compactEvidenceInput ? (
               <CompactReviewEvidenceCard
                 descriptor={buildCompactReviewEvidenceDescriptor(
-                  reviewPackDetail.compactEvidenceInput
+                  displayedReviewPackDetail.compactEvidenceInput
                 )}
                 testId="review-pack-compact-evidence"
               />
             ) : null}
-            {renderControlDeviceHandoff(reviewPackDetail)}
+            {renderControlDeviceHandoff(displayedReviewPackDetail)}
             {renderOperatorCockpit({
-              operatorSnapshot: reviewPackDetail.operatorSnapshot,
-              placement: reviewPackDetail.placement,
-              governance: reviewPackDetail.governance,
+              operatorSnapshot: displayedReviewPackDetail.operatorSnapshot,
+              placement: displayedReviewPackDetail.placement,
+              governance: displayedReviewPackDetail.governance,
               nextAction: {
-                label: reviewPackDetail.nextActionLabel ?? "Recommended next action",
+                label: displayedReviewPackDetail.nextActionLabel ?? "Recommended next action",
                 detail:
-                  reviewPackDetail.nextActionDetail ??
-                  reviewPackDetail.recommendedNextAction ??
+                  displayedReviewPackDetail.nextActionDetail ??
+                  displayedReviewPackDetail.recommendedNextAction ??
                   "Inspect the runtime evidence, validate the result, then accept or retry.",
               },
-              workspaceEvidence: reviewPackDetail.workspaceEvidence,
+              workspaceEvidence: displayedReviewPackDetail.workspaceEvidence,
               focusedEvidenceBucketKind,
               onFocusEvidenceBucket: setFocusedEvidenceBucketKind,
               actions: reviewPackCockpitActions,
             })}
-            {reviewPackDetail.provenanceSummary ||
-            reviewPackDetail.placement?.summary ||
-            reviewPackDetail.lineage?.summary ? (
+            {displayedReviewPackDetail.provenanceSummary ||
+            displayedReviewPackDetail.placement?.summary ||
+            displayedReviewPackDetail.lineage?.summary ? (
               <Card className={styles.actionCard} variant="subtle">
                 <CardTitle className={styles.actionTitle}>Source and runtime lineage</CardTitle>
                 <div className={styles.bodyText}>
                   {[
-                    reviewPackDetail.provenanceSummary,
-                    reviewPackDetail.placement?.summary,
-                    reviewPackDetail.lineage?.summary,
+                    displayedReviewPackDetail.provenanceSummary,
+                    displayedReviewPackDetail.placement?.summary,
+                    displayedReviewPackDetail.lineage?.summary,
                   ]
                     .filter((value): value is string => Boolean(value))
                     .join(" | ")}
                 </div>
               </Card>
             ) : null}
-            {reviewPackDetail.navigationTarget ? (
+            {displayedReviewPackDetail.navigationTarget ? (
               <Card className={styles.actionCard} variant="subtle">
                 <CardTitle className={styles.actionTitle}>
-                  {getNavigationTargetCardTitle(reviewPackDetail.navigationTarget)}
+                  {getNavigationTargetCardTitle(displayedReviewPackDetail.navigationTarget)}
                 </CardTitle>
                 <CardDescription className={styles.bodyText}>
-                  {getNavigationTargetDescription(reviewPackDetail.navigationTarget)}
+                  {getNavigationTargetDescription(displayedReviewPackDetail.navigationTarget)}
                 </CardDescription>
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => onOpenMissionTarget(reviewPackDetail.navigationTarget)}
+                  onClick={() => onOpenMissionTarget(displayedReviewPackDetail.navigationTarget)}
                 >
-                  {reviewPackDetail.nextActionLabel ??
-                    getNavigationTargetButtonLabel(reviewPackDetail.navigationTarget)}
+                  {displayedReviewPackDetail.nextActionLabel ??
+                    getNavigationTargetButtonLabel(displayedReviewPackDetail.navigationTarget)}
                 </Button>
               </Card>
             ) : null}
-            {reviewPackDetail.failureClassLabel || reviewPackDetail.failureClassSummary ? (
+            {displayedReviewPackDetail.failureClassLabel ||
+            displayedReviewPackDetail.failureClassSummary ? (
               <Card className={styles.actionCard} variant="subtle">
                 <CardTitle className={styles.actionTitle}>
-                  {reviewPackDetail.failureClassLabel ?? "Failure class"}
+                  {displayedReviewPackDetail.failureClassLabel ?? "Failure class"}
                 </CardTitle>
                 <CardDescription className={styles.bodyText}>
-                  {reviewPackDetail.failureClassSummary ??
+                  {displayedReviewPackDetail.failureClassSummary ??
                     "Runtime attached structured failure metadata for this review pack."}
                 </CardDescription>
               </Card>
             ) : null}
-            {(reviewPackDetail.failureClass || reviewPackDetail.publishHandoff) && (
+            {(displayedReviewPackDetail.failureClass ||
+              displayedReviewPackDetail.publishHandoff) && (
               <section id={FAILURE_CONTEXT_SECTION_ID}>
                 <ReviewDetailSection title="Recovery context">
                   <div className={styles.failureContext}>
-                    {reviewPackDetail.failureClass ? (
-                      <StatusBadge tone="warning">{reviewPackDetail.failureClassLabel}</StatusBadge>
+                    {displayedReviewPackDetail.failureClass ? (
+                      <StatusBadge tone="warning">
+                        {displayedReviewPackDetail.failureClassLabel}
+                      </StatusBadge>
                     ) : null}
                     <div className={styles.bodyText}>
-                      {reviewPackDetail.failureClassSummary ??
+                      {displayedReviewPackDetail.failureClassSummary ??
                         "The runtime recorded a failure class for this run."}
                     </div>
-                    {reviewPackDetail.publishHandoff
-                      ? renderPublishHandoff(reviewPackDetail.publishHandoff)
+                    {displayedReviewPackDetail.publishHandoff
+                      ? renderPublishHandoff(displayedReviewPackDetail.publishHandoff)
                       : null}
                   </div>
                 </ReviewDetailSection>
               </section>
             )}
+            <ReviewPackBrowserVerificationSection
+              detail={displayedReviewPackDetail}
+              lane={reviewPackBrowserVerificationLane}
+            />
             <ReviewDetailSection
               title="Assumptions and inferred context"
               meta={
-                reviewPackDetail.assumptions.length > 0
-                  ? `${reviewPackDetail.assumptions.length} item${reviewPackDetail.assumptions.length === 1 ? "" : "s"}`
+                displayedReviewPackDetail.assumptions.length > 0
+                  ? `${displayedReviewPackDetail.assumptions.length} item${displayedReviewPackDetail.assumptions.length === 1 ? "" : "s"}`
                   : undefined
               }
             >
               {renderCopyList(
-                reviewPackDetail.assumptions,
-                reviewPackDetail.emptySectionLabels.assumptions
+                displayedReviewPackDetail.assumptions,
+                displayedReviewPackDetail.emptySectionLabels.assumptions
               )}
             </ReviewDetailSection>
             <ReviewDetailSection
               title="Validation outcome"
               meta={
-                reviewPackDetail.validations.length > 0
-                  ? `${reviewPackDetail.validations.length} item${reviewPackDetail.validations.length === 1 ? "" : "s"}`
+                displayedReviewPackDetail.validations.length > 0
+                  ? `${displayedReviewPackDetail.validations.length} item${displayedReviewPackDetail.validations.length === 1 ? "" : "s"}`
                   : undefined
               }
             >
-              {renderValidationItems(reviewPackDetail)}
+              {renderValidationItems(displayedReviewPackDetail)}
             </ReviewDetailSection>
             <ReviewDetailSection
               title="Warnings"
               meta={
-                reviewPackDetail.warnings.length > 0
-                  ? `${reviewPackDetail.warnings.length} item${reviewPackDetail.warnings.length === 1 ? "" : "s"}`
+                displayedReviewPackDetail.warnings.length > 0
+                  ? `${displayedReviewPackDetail.warnings.length} item${displayedReviewPackDetail.warnings.length === 1 ? "" : "s"}`
                   : undefined
               }
             >
-              {renderWarnings(reviewPackDetail)}
+              {renderWarnings(displayedReviewPackDetail)}
             </ReviewDetailSection>
             <ReviewDetailSection
               title="Checks performed"
               meta={
-                reviewPackDetail.checksPerformed.length > 0
-                  ? `${reviewPackDetail.checksPerformed.length} item${reviewPackDetail.checksPerformed.length === 1 ? "" : "s"}`
+                displayedReviewPackDetail.checksPerformed.length > 0
+                  ? `${displayedReviewPackDetail.checksPerformed.length} item${displayedReviewPackDetail.checksPerformed.length === 1 ? "" : "s"}`
                   : undefined
               }
             >
-              {reviewPackDetail.checksPerformed.length === 0 ? (
+              {displayedReviewPackDetail.checksPerformed.length === 0 ? (
                 <div className={styles.bodyText}>
                   The runtime did not publish a named checklist for this review pack.
                 </div>
               ) : (
                 <ul className={styles.bulletList}>
-                  {reviewPackDetail.checksPerformed.map((check) => (
+                  {displayedReviewPackDetail.checksPerformed.map((check) => (
                     <li key={check} className={styles.bulletItem}>
                       <span className={styles.bulletCopy}>{check}</span>
                     </li>
@@ -958,86 +617,94 @@ export function ReviewPackSurface({
             <ReviewDetailSection
               title="Artifacts and evidence"
               meta={
-                reviewPackDetail.artifacts.length > 0
-                  ? `${reviewPackDetail.artifacts.length} item${reviewPackDetail.artifacts.length === 1 ? "" : "s"}`
+                displayedReviewPackDetail.artifacts.length > 0
+                  ? `${displayedReviewPackDetail.artifacts.length} item${displayedReviewPackDetail.artifacts.length === 1 ? "" : "s"}`
                   : undefined
               }
             >
-              {renderArtifacts(reviewPackDetail)}
+              {renderArtifacts(displayedReviewPackDetail)}
             </ReviewDetailSection>
             <ReviewDetailSection
               title="Reproduction guidance"
               meta={
-                reviewPackDetail.reproductionGuidance.length > 0
-                  ? `${reviewPackDetail.reproductionGuidance.length} item${reviewPackDetail.reproductionGuidance.length === 1 ? "" : "s"}`
+                displayedReviewPackDetail.reproductionGuidance.length > 0
+                  ? `${displayedReviewPackDetail.reproductionGuidance.length} item${displayedReviewPackDetail.reproductionGuidance.length === 1 ? "" : "s"}`
                   : undefined
               }
             >
               {renderCopyList(
-                reviewPackDetail.reproductionGuidance,
-                reviewPackDetail.emptySectionLabels.reproduction
+                displayedReviewPackDetail.reproductionGuidance,
+                displayedReviewPackDetail.emptySectionLabels.reproduction
               )}
             </ReviewDetailSection>
             <ReviewDetailSection
               title="Rollback guidance"
               meta={
-                reviewPackDetail.rollbackGuidance.length > 0
-                  ? `${reviewPackDetail.rollbackGuidance.length} item${reviewPackDetail.rollbackGuidance.length === 1 ? "" : "s"}`
+                displayedReviewPackDetail.rollbackGuidance.length > 0
+                  ? `${displayedReviewPackDetail.rollbackGuidance.length} item${displayedReviewPackDetail.rollbackGuidance.length === 1 ? "" : "s"}`
                   : undefined
               }
             >
               {renderCopyList(
-                reviewPackDetail.rollbackGuidance,
-                reviewPackDetail.emptySectionLabels.rollback
+                displayedReviewPackDetail.rollbackGuidance,
+                displayedReviewPackDetail.emptySectionLabels.rollback
               )}
             </ReviewDetailSection>
             <ReviewDetailSection
               title="Backend audit"
-              meta={reviewPackDetail.backendAudit.missingReason ? "Derived" : undefined}
+              meta={displayedReviewPackDetail.backendAudit.missingReason ? "Derived" : undefined}
             >
-              <div className={styles.bodyText}>{reviewPackDetail.backendAudit.summary}</div>
-              {reviewPackDetail.backendAudit.details.length > 0 ? (
+              <div className={styles.bodyText}>
+                {displayedReviewPackDetail.backendAudit.summary}
+              </div>
+              {displayedReviewPackDetail.backendAudit.details.length > 0 ? (
                 <ul className={styles.bulletList}>
-                  {reviewPackDetail.backendAudit.details.map((item) => (
+                  {displayedReviewPackDetail.backendAudit.details.map((item) => (
                     <li key={item} className={styles.bulletItem}>
                       <span className={styles.bulletCopy}>{item}</span>
                     </li>
                   ))}
                 </ul>
               ) : null}
-              {reviewPackDetail.backendAudit.missingReason ? (
-                <div className={styles.bodyText}>{reviewPackDetail.backendAudit.missingReason}</div>
+              {displayedReviewPackDetail.backendAudit.missingReason ? (
+                <div className={styles.bodyText}>
+                  {displayedReviewPackDetail.backendAudit.missingReason}
+                </div>
               ) : null}
             </ReviewDetailSection>
-            {reviewPackDetail.executionContext ? (
+            {displayedReviewPackDetail.executionContext ? (
               <ReviewDetailSection title="Execution context">
-                <div className={styles.bodyText}>{reviewPackDetail.executionContext.summary}</div>
+                <div className={styles.bodyText}>
+                  {displayedReviewPackDetail.executionContext.summary}
+                </div>
                 {renderCopyList(
-                  reviewPackDetail.executionContext.details,
+                  displayedReviewPackDetail.executionContext.details,
                   "The runtime did not publish additional execution context."
                 )}
               </ReviewDetailSection>
             ) : null}
-            {reviewPackDetail.sourceProvenance ? (
+            {displayedReviewPackDetail.sourceProvenance ? (
               <ReviewDetailSection title="Source provenance">
-                <div className={styles.bodyText}>{reviewPackDetail.sourceProvenance.summary}</div>
+                <div className={styles.bodyText}>
+                  {displayedReviewPackDetail.sourceProvenance.summary}
+                </div>
                 {renderCopyList(
-                  reviewPackDetail.sourceProvenance.details,
+                  displayedReviewPackDetail.sourceProvenance.details,
                   "GitHub source provenance was not published for this review pack."
                 )}
               </ReviewDetailSection>
             ) : null}
-            {reviewPackDetail.reviewIntelligence ||
-            reviewPackDetail.reviewGate ||
-            reviewPackDetail.reviewProfileId ||
-            reviewPackDetail.reviewRunId ||
+            {displayedReviewPackDetail.reviewIntelligence ||
+            displayedReviewPackDetail.reviewGate ||
+            displayedReviewPackDetail.reviewProfileId ||
+            displayedReviewPackDetail.reviewRunId ||
             typeof onRunReviewAgent === "function" ||
             reviewPackAutofixCandidate?.status === "available" ? (
               <ReviewDetailSection title="Review intelligence">
-                {renderReviewIntelligenceBlock(reviewPackDetail, {
+                {renderReviewIntelligenceBlock(displayedReviewPackDetail, {
                   workspaceSkillCatalogState,
                   scopeKey: reviewPackAutomationScopeKey,
-                  reviewAgentLabel: reviewPackDetail.reviewRunId
+                  reviewAgentLabel: displayedReviewPackDetail.reviewRunId
                     ? "Re-run review agent"
                     : "Run review agent",
                   runningReviewAgentKey,
@@ -1050,10 +717,10 @@ export function ReviewPackSurface({
                       typeof onRunReviewAgent === "function"
                         ? () => {
                             void handleRunReviewAgent({
-                              workspaceId: reviewPackDetail.workspaceId,
-                              taskId: reviewPackDetail.taskId,
-                              runId: reviewPackDetail.runId,
-                              reviewPackId: reviewPackDetail.id,
+                              workspaceId: displayedReviewPackDetail.workspaceId,
+                              taskId: displayedReviewPackDetail.taskId,
+                              runId: displayedReviewPackDetail.runId,
+                              reviewPackId: displayedReviewPackDetail.id,
                             });
                           }
                         : null,
@@ -1061,126 +728,135 @@ export function ReviewPackSurface({
                       typeof onApplyReviewAutofix === "function" && reviewPackAutofixCandidate
                         ? () => {
                             void handleApplyReviewAutofix({
-                              workspaceId: reviewPackDetail.workspaceId,
-                              taskId: reviewPackDetail.taskId,
-                              runId: reviewPackDetail.runId,
-                              reviewPackId: reviewPackDetail.id,
+                              workspaceId: displayedReviewPackDetail.workspaceId,
+                              taskId: displayedReviewPackDetail.taskId,
+                              runId: displayedReviewPackDetail.runId,
+                              reviewPackId: displayedReviewPackDetail.id,
                               autofixCandidate: reviewPackAutofixCandidate,
                             });
                           }
                         : null,
-                    onRelaunchWithFindings: reviewPackDetail.navigationTarget
+                    onRelaunchWithFindings: displayedReviewPackDetail.navigationTarget
                       ? () => {
-                          onOpenMissionTarget(reviewPackDetail.navigationTarget);
+                          onOpenMissionTarget(displayedReviewPackDetail.navigationTarget);
                         }
                       : () => scrollToSection(DECISION_ACTIONS_SECTION_ID),
                   },
                 })}
               </ReviewDetailSection>
             ) : null}
-            {shouldShowWorkspaceSkillCatalog(reviewPackDetail, workspaceSkillCatalogState) && (
+            {shouldShowWorkspaceSkillCatalog(
+              displayedReviewPackDetail,
+              workspaceSkillCatalogState
+            ) && (
               <ReviewDetailSection title="Workspace skill catalog">
-                {renderWorkspaceSkillCatalog(reviewPackDetail, workspaceSkillCatalogState)}
+                {renderWorkspaceSkillCatalog(displayedReviewPackDetail, workspaceSkillCatalogState)}
               </ReviewDetailSection>
             )}
-            {getReviewFindings(reviewPackDetail).length > 0 ? (
+            {getReviewFindings(displayedReviewPackDetail).length > 0 ? (
               <ReviewDetailSection
                 title="Review findings"
-                meta={`${getReviewFindings(reviewPackDetail).length} item${getReviewFindings(reviewPackDetail).length === 1 ? "" : "s"}`}
+                meta={`${getReviewFindings(displayedReviewPackDetail).length} item${getReviewFindings(displayedReviewPackDetail).length === 1 ? "" : "s"}`}
               >
-                {renderReviewFindings(reviewPackDetail)}
+                {renderReviewFindings(displayedReviewPackDetail)}
               </ReviewDetailSection>
             ) : null}
-            {getSkillUsage(reviewPackDetail).length > 0 ? (
+            {getSkillUsage(displayedReviewPackDetail).length > 0 ? (
               <ReviewDetailSection
                 title="Skill usage"
-                meta={`${getSkillUsage(reviewPackDetail).length} item${getSkillUsage(reviewPackDetail).length === 1 ? "" : "s"}`}
+                meta={`${getSkillUsage(displayedReviewPackDetail).length} item${getSkillUsage(displayedReviewPackDetail).length === 1 ? "" : "s"}`}
               >
-                {renderSkillUsage(reviewPackDetail)}
+                {renderSkillUsage(displayedReviewPackDetail)}
               </ReviewDetailSection>
             ) : null}
-            {reviewPackDetail.missionBrief ? (
+            {displayedReviewPackDetail.missionBrief ? (
               <ReviewDetailSection title="Mission brief">
-                <div className={styles.bodyText}>{reviewPackDetail.missionBrief.summary}</div>
+                <div className={styles.bodyText}>
+                  {displayedReviewPackDetail.missionBrief.summary}
+                </div>
                 {renderCopyList(
-                  reviewPackDetail.missionBrief.details,
+                  displayedReviewPackDetail.missionBrief.details,
                   "Mission brief detail was not published."
                 )}
               </ReviewDetailSection>
             ) : null}
-            {reviewPackDetail.relaunchContext ? (
+            {displayedReviewPackDetail.relaunchContext ? (
               <ReviewDetailSection title="Relaunch context">
-                <div className={styles.bodyText}>{reviewPackDetail.relaunchContext.summary}</div>
+                <div className={styles.bodyText}>
+                  {displayedReviewPackDetail.relaunchContext.summary}
+                </div>
                 {renderCopyList(
-                  reviewPackDetail.relaunchContext.details,
+                  displayedReviewPackDetail.relaunchContext.details,
                   "Relaunch context detail was not published."
                 )}
               </ReviewDetailSection>
             ) : null}
-            {reviewPackDetail.lineage ? (
+            {displayedReviewPackDetail.lineage ? (
               <ReviewDetailSection title="Mission lineage">
-                <div className={styles.bodyText}>{reviewPackDetail.lineage.summary}</div>
+                <div className={styles.bodyText}>{displayedReviewPackDetail.lineage.summary}</div>
                 {renderCopyList(
-                  reviewPackDetail.lineage.details,
+                  displayedReviewPackDetail.lineage.details,
                   "Mission lineage detail was not published."
                 )}
               </ReviewDetailSection>
             ) : null}
-            {reviewPackDetail.ledger ? (
+            {displayedReviewPackDetail.ledger ? (
               <ReviewDetailSection title="Run ledger">
-                <div className={styles.bodyText}>{reviewPackDetail.ledger.summary}</div>
+                <div className={styles.bodyText}>{displayedReviewPackDetail.ledger.summary}</div>
                 {renderCopyList(
-                  reviewPackDetail.ledger.details,
+                  displayedReviewPackDetail.ledger.details,
                   "Run ledger detail was not published."
                 )}
               </ReviewDetailSection>
             ) : null}
 
-            {reviewPackDetail.checkpoint ? (
+            {displayedReviewPackDetail.checkpoint ? (
               <ReviewDetailSection title="Checkpoint and handoff">
-                <div className={styles.bodyText}>{reviewPackDetail.checkpoint.summary}</div>
+                <div className={styles.bodyText}>
+                  {displayedReviewPackDetail.checkpoint.summary}
+                </div>
                 {renderCopyList(
-                  reviewPackDetail.checkpoint.details,
+                  displayedReviewPackDetail.checkpoint.details,
                   "Checkpoint and handoff detail was not published."
                 )}
               </ReviewDetailSection>
             ) : null}
 
             <ReviewDetailSection title="Relaunch options">
-              {renderRelaunchOptions(reviewPackDetail.relaunchOptions)}
+              {renderRelaunchOptions(displayedReviewPackDetail.relaunchOptions)}
             </ReviewDetailSection>
 
             <ReviewDetailSection title="Sub-agent supervision">
-              {renderSubAgentSummary(reviewPackDetail.subAgentSummary)}
+              {renderSubAgentSummary(displayedReviewPackDetail.subAgentSummary)}
             </ReviewDetailSection>
 
             <ReviewDetailSection title="Publish handoff">
-              {renderPublishHandoff(reviewPackDetail.publishHandoff)}
+              {renderPublishHandoff(displayedReviewPackDetail.publishHandoff)}
             </ReviewDetailSection>
 
             <section id={DECISION_ACTIONS_SECTION_ID}>
               <ReviewDetailSection
                 title="Review decisions and follow-up"
-                meta={`${reviewPackDetail.decisionActions.filter((action) => action.enabled).length}/${reviewPackDetail.decisionActions.length} available`}
+                meta={`${displayedReviewPackDetail.decisionActions.filter((action) => action.enabled).length}/${displayedReviewPackDetail.decisionActions.length} available`}
               >
-                {reviewPackDetail.decisionActionability ? (
+                {displayedReviewPackDetail.decisionActionability ? (
                   <div className={styles.section}>
                     <div className={styles.bodyText}>
-                      Decision source: {reviewPackDetail.decisionActionability.sourceLabel}
+                      Decision source: {displayedReviewPackDetail.decisionActionability.sourceLabel}
                     </div>
                     <div className={styles.bodyText}>
-                      {reviewPackDetail.decisionActionability.summary}
+                      {displayedReviewPackDetail.decisionActionability.summary}
                     </div>
-                    {reviewPackDetail.decisionActionability.details.length > 0
+                    {displayedReviewPackDetail.decisionActionability.details.length > 0
                       ? renderCopyList(
-                          reviewPackDetail.decisionActionability.details,
+                          displayedReviewPackDetail.decisionActionability.details,
                           "Decision availability detail was not published."
                         )
                       : null}
                   </div>
                 ) : null}
                 {renderDecisionActions(
-                  reviewPackDetail,
+                  displayedReviewPackDetail,
                   onOpenMissionTarget,
                   onSubmitDecisionAction,
                   handlePrepareInterventionDraft,
@@ -1264,18 +940,18 @@ export function ReviewPackSurface({
             <ReviewDetailSection
               title="Limitations and missing evidence"
               meta={
-                reviewPackDetail.limitations.length > 0
-                  ? `${reviewPackDetail.limitations.length} item${reviewPackDetail.limitations.length === 1 ? "" : "s"}`
+                displayedReviewPackDetail.limitations.length > 0
+                  ? `${displayedReviewPackDetail.limitations.length} item${displayedReviewPackDetail.limitations.length === 1 ? "" : "s"}`
                   : undefined
               }
             >
-              {reviewPackDetail.limitations.length === 0 ? (
+              {displayedReviewPackDetail.limitations.length === 0 ? (
                 <div className={styles.bodyText}>
                   No additional review limitations are currently recorded for this pack.
                 </div>
               ) : (
                 <ul className={styles.bulletList}>
-                  {reviewPackDetail.limitations.map((limitation) => (
+                  {displayedReviewPackDetail.limitations.map((limitation) => (
                     <li key={limitation} className={styles.bulletItem}>
                       <span className={styles.bulletCopy}>{limitation}</span>
                     </li>

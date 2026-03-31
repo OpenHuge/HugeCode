@@ -1,5 +1,4 @@
-import { ListRow } from "@ku0/ui";
-import { StatusBadge } from "../../../design-system";
+import { ListRow, StatusBadge } from "../../../design-system";
 import type {
   RuntimeParallelDispatchPlan,
   RuntimeParallelDispatchWorkspaceSnapshot,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeRunStartRequest, RuntimeRunStartV2Response } from "../ports/runtimeClient";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
+import type { RuntimeParallelDispatchDocumentRuntime } from "./runtimeParallelDispatchDocumentRuntime";
 import {
   createRuntimeParallelDispatchManager,
   parseRuntimeParallelDispatchPlan,
@@ -819,6 +820,95 @@ describe("runtimeParallelDispatchManager", () => {
         total: 2,
         completed: 2,
       },
+    });
+  });
+
+  it("falls back to the in-memory document runtime when the loro loader is unavailable", async () => {
+    const persistence = createInMemoryPersistence();
+    const loadDocumentRuntime = vi.fn<() => Promise<RuntimeParallelDispatchDocumentRuntime>>(
+      async () => {
+        throw new Error("loro runtime unavailable");
+      }
+    );
+    const launchRun = vi.fn(async (request: RuntimeRunStartRequest) => {
+      if (request.title !== "Fallback chunk") {
+        throw new Error(`Unexpected fallback launch title: ${request.title ?? "unknown"}`);
+      }
+      return createRuntimeRunRecord("run-fallback", {
+        title: "Fallback chunk",
+        backendId: "backend-fallback",
+        preferredBackendIds: ["backend-fallback"],
+        status: "queued",
+      });
+    });
+
+    const firstManager = createRuntimeParallelDispatchManager({
+      launchRun,
+      loadDocumentRuntime,
+      persistence,
+      now: (() => {
+        let tick = 700;
+        return () => tick++;
+      })(),
+    });
+
+    await firstManager.startDispatch({
+      workspaceId: "ws-1",
+      objective: "Fallback objective",
+      launchRequest: createLaunchRequest(),
+      plan: parseRuntimeParallelDispatchPlan(
+        JSON.stringify({
+          enabled: true,
+          maxParallel: 1,
+          tasks: [
+            {
+              taskKey: "fallback",
+              title: "Fallback chunk",
+              instruction: "Proceed without the optional loro runtime.",
+              preferredBackendIds: ["backend-fallback"],
+              dependsOn: [],
+              maxRetries: 0,
+              onFailure: "halt",
+            },
+          ],
+        })
+      ),
+    });
+    await flushMicrotasks();
+
+    expect(loadDocumentRuntime).toHaveBeenCalledTimes(1);
+    expect(firstManager.getWorkspaceSnapshot("ws-1").sessions[0]).toMatchObject({
+      objective: "Fallback objective",
+      tasks: [
+        {
+          taskKey: "fallback",
+          status: "running",
+          resolvedBackendId: "backend-fallback",
+        },
+      ],
+    });
+
+    const restoredManager = createRuntimeParallelDispatchManager({
+      launchRun: vi.fn(async () => createRuntimeRunRecord("unused")),
+      loadDocumentRuntime,
+      persistence,
+      now: (() => {
+        let tick = 800;
+        return () => tick++;
+      })(),
+    });
+
+    await waitForAssertion(() => {
+      expect(restoredManager.getWorkspaceSnapshot("ws-1").sessions[0]).toMatchObject({
+        objective: "Fallback objective",
+        tasks: [
+          {
+            taskKey: "fallback",
+            status: "running",
+            resolvedBackendId: "backend-fallback",
+          },
+        ],
+      });
     });
   });
 });

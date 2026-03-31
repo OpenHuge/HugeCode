@@ -45,7 +45,7 @@ const allowedCompatFiles = new Map<string, string>([
   ["apps/code/src/design-system/components/panel/PanelPrimitives.test.tsx", "export {};\n"],
   [
     "apps/code/src/design-system/components/shell/ShellPrimitives.tsx",
-    'import { ShellFrame as SharedShellFrame } from "@ku0/design-system";\nfunction join(values) { return values.filter(Boolean).join(" "); }\nexport function ShellFrame({ className, ...props }) { return <SharedShellFrame {...props} className={join(["app-shell-frame", className])} />; }\nexport function ShellSection() { return null; }\nexport function ShellToolbar() { return null; }\nexport function SplitPanel() { return null; }\n',
+    'import { ListRow as SharedListRow, ShellFrame as SharedShellFrame } from "@ku0/design-system";\nfunction join(values) { return values.filter(Boolean).join(" "); }\nexport function ShellFrame({ className, ...props }) { return <SharedShellFrame {...props} className={join(["app-shell-frame", className])} />; }\nexport function ShellSection() { return null; }\nexport function ShellToolbar() { return null; }\nexport function SplitPanel() { return null; }\nexport function ListRow(props) { return <SharedListRow {...props} className={join(["app-list-row", props.className])} />; }\n',
   ],
   ["apps/code/src/design-system/components/shell/ShellPrimitives.test.tsx", "export {};\n"],
   [
@@ -195,6 +195,8 @@ export {
   PanelSearchField,
 } from "./components/panel/PanelPrimitives";
 export {
+  ListRow,
+  type ListRowProps,
   ShellFrame,
   ShellSection,
   ShellToolbar,

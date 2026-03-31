@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ShellFrame, ShellSection, ShellToolbar, SplitPanel } from "./ShellPrimitives";
+import { ListRow, ShellFrame, ShellSection, ShellToolbar, SplitPanel } from "./ShellPrimitives";
 
 describe("ShellPrimitives", () => {
   it("keeps shared shell and split-panel semantics through the app-owned shell grammar surface", () => {
@@ -46,5 +46,20 @@ describe("ShellPrimitives", () => {
     expect(markup).toContain("Scope");
     expect(markup).toContain("Mission signals");
     expect(markup).toContain("Shell sections");
+  });
+
+  it("keeps list-row semantics through the app-owned shell grammar surface", () => {
+    const markup = renderToStaticMarkup(
+      <ListRow
+        className="custom-list-row"
+        title="Browser verification"
+        description="Latest extraction candidate"
+      />
+    );
+
+    expect(markup).toContain("app-list-row");
+    expect(markup).toContain("custom-list-row");
+    expect(markup).toContain('data-list-row="true"');
+    expect(markup).toContain("Browser verification");
   });
 });

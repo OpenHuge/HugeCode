@@ -5,6 +5,10 @@ import {
   getLastBrowserExtractionResult,
   type RuntimeBrowserReadinessSummary,
 } from "../ports/browserCapability";
+import {
+  recordRuntimeBrowserVerificationResult,
+  recordRuntimeBrowserVerificationTriggered,
+} from "./runtimeBrowserVerificationEvidence";
 
 type RuntimeBrowserExtractionResultTone = "success" | "warning" | "danger";
 type RuntimeBrowserExtractionResultSource = "readiness" | "extract" | "history" | null;
@@ -43,6 +47,14 @@ export type RuntimeBrowserExtractionOperatorState = {
     tone: "neutral" | "warning" | "danger";
     message: string;
   } | null;
+};
+
+export type RuntimeBrowserVerificationTelemetryContext = {
+  workspaceId: string;
+  taskId?: string | null;
+  runId?: string | null;
+  reviewPackId?: string | null;
+  eventSource?: "mission_control" | "review_surface" | null;
 };
 
 const EMPTY_HISTORY_MESSAGE =
@@ -249,7 +261,8 @@ function readErrorMessage(error: unknown): string {
 }
 
 export function useRuntimeBrowserExtractionOperator(
-  readiness: RuntimeBrowserReadinessSummary
+  readiness: RuntimeBrowserReadinessSummary,
+  telemetryContext?: RuntimeBrowserVerificationTelemetryContext
 ): RuntimeBrowserExtractionOperatorState {
   const [sourceUrl, setSourceUrl] = useState("");
   const [selector, setSelector] = useState("");
@@ -288,6 +301,23 @@ export function useRuntimeBrowserExtractionOperator(
 
     setOperation("extract");
     setNotice(null);
+    if (telemetryContext?.workspaceId) {
+      recordRuntimeBrowserVerificationTriggered({
+        workspaceId: telemetryContext.workspaceId,
+        readiness,
+        input: buildRequest({ sourceUrl, selector }),
+        intendedScope:
+          telemetryContext.taskId && telemetryContext.runId
+            ? {
+                workspaceId: telemetryContext.workspaceId,
+                taskId: telemetryContext.taskId,
+                runId: telemetryContext.runId,
+                reviewPackId: telemetryContext.reviewPackId ?? null,
+              }
+            : null,
+        eventSource: telemetryContext.eventSource ?? null,
+      });
+    }
     try {
       const nextResult = await extractBrowserContent(buildRequest({ sourceUrl, selector }));
       if (!nextResult) {
@@ -297,6 +327,25 @@ export function useRuntimeBrowserExtractionOperator(
             "Desktop host did not return a browser extraction result. Retry once the host bridge is stable.",
         });
         return;
+      }
+      if (telemetryContext?.workspaceId) {
+        recordRuntimeBrowserVerificationResult({
+          workspaceId: telemetryContext.workspaceId,
+          readiness,
+          source: "extract",
+          input: buildRequest({ sourceUrl, selector }),
+          result: nextResult,
+          intendedScope:
+            telemetryContext.taskId && telemetryContext.runId
+              ? {
+                  workspaceId: telemetryContext.workspaceId,
+                  taskId: telemetryContext.taskId,
+                  runId: telemetryContext.runId,
+                  reviewPackId: telemetryContext.reviewPackId ?? null,
+                }
+              : null,
+          eventSource: telemetryContext.eventSource ?? null,
+        });
       }
       setResult(nextResult);
       setResultSource("extract");
@@ -308,7 +357,7 @@ export function useRuntimeBrowserExtractionOperator(
     } finally {
       setOperation(null);
     }
-  }, [canExtract, readiness.recommendedAction, selector, sourceUrl]);
+  }, [canExtract, readiness, selector, sourceUrl, telemetryContext]);
 
   const reviewLastResult = useCallback(async () => {
     if (!canReviewLastResult) {
@@ -330,6 +379,24 @@ export function useRuntimeBrowserExtractionOperator(
         });
         return;
       }
+      if (telemetryContext?.workspaceId) {
+        recordRuntimeBrowserVerificationResult({
+          workspaceId: telemetryContext.workspaceId,
+          readiness,
+          source: "history",
+          result: nextResult,
+          intendedScope:
+            telemetryContext.taskId && telemetryContext.runId
+              ? {
+                  workspaceId: telemetryContext.workspaceId,
+                  taskId: telemetryContext.taskId,
+                  runId: telemetryContext.runId,
+                  reviewPackId: telemetryContext.reviewPackId ?? null,
+                }
+              : null,
+          eventSource: telemetryContext.eventSource ?? null,
+        });
+      }
       setResult(nextResult);
       setResultSource("history");
     } catch (error) {
@@ -340,7 +407,7 @@ export function useRuntimeBrowserExtractionOperator(
     } finally {
       setOperation(null);
     }
-  }, [canReviewLastResult, reviewLastResultDisabledReason]);
+  }, [canReviewLastResult, readiness, reviewLastResultDisabledReason, telemetryContext]);
 
   const resultPresentation = useMemo(
     () => (result ? buildRuntimeBrowserExtractionResultPresentation(result) : null),

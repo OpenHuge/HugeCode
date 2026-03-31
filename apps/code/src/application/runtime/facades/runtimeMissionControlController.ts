@@ -105,7 +105,10 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   }, [snapshot.runtimeTasks, workspaceId]);
   const browserReadiness = readBrowserReadiness();
   const browserAssessment = useRuntimeBrowserAssessmentOperator(workspaceId, browserReadiness);
-  const browserExtraction = useRuntimeBrowserExtractionOperator(browserReadiness);
+  const browserExtraction = useRuntimeBrowserExtractionOperator(browserReadiness, {
+    workspaceId,
+    eventSource: "mission_control",
+  });
   const runtimePlugins = useMemo(() => {
     const browserAssessmentPlugin = buildRuntimeBrowserAssessmentPluginDescriptor({
       readiness: browserReadiness,
