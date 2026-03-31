@@ -52,6 +52,8 @@ export type SupportedAppServerMethod = (typeof SUPPORTED_APP_SERVER_METHODS)[num
 
 export const METHODS_HANDLED_OUTSIDE_USE_APP_SERVER_EVENTS = [
   "app/list/updated",
+  "account/login/completed",
+  "loginChatGptComplete",
   "native_state_fabric_updated",
 ] as const satisfies readonly SupportedAppServerMethod[];
 

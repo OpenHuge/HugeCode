@@ -470,7 +470,16 @@ export type RuntimeAgentTaskListInput = {
 
 export type RuntimeAgentTaskStartInput = {
   workspaceId: string;
+  /**
+   * @deprecated Compatibility-only bridge back to legacy thread ownership.
+   * New product lifecycle work should launch kernel v2 runs without depending
+   * on thread identity as the primary execution contract.
+   */
   threadId?: string | null;
+  /**
+   * @deprecated Compatibility-only carry-over from the thread/turn pipeline.
+   * Canonical kernel v2 lifecycle state should be tracked by run id.
+   */
   requestId?: string;
   title?: string | null;
   taskSource?: HugeCodeTaskSourceSummary | null;

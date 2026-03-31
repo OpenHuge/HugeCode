@@ -2,8 +2,8 @@ import type {
   AgentTaskAutoDriveState,
   RuntimeAutonomyRequestV2,
 } from "@ku0/code-runtime-host-contract";
-import { sendUserMessage } from "../ports/tauriThreads";
 import type { AccessMode } from "../../../types";
+import { createRuntimeSessionCommandFacade } from "./runtimeSessionCommandFacade";
 
 type LaunchAutoDriveThreadInput = {
   workspaceId: string;
@@ -18,14 +18,19 @@ type LaunchAutoDriveThreadInput = {
 };
 
 export async function launchAutoDriveThread(params: LaunchAutoDriveThreadInput) {
-  return sendUserMessage(params.workspaceId, params.threadId, params.instruction, {
-    model: params.modelId,
-    effort: params.reasonEffort,
-    accessMode: params.accessMode,
-    executionMode: "runtime",
-    missionMode: "delegate",
-    preferredBackendIds: params.preferredBackendIds ?? null,
-    autoDrive: params.autoDrive,
-    autonomyRequest: params.autonomyRequest ?? null,
+  return createRuntimeSessionCommandFacade(params.workspaceId).sendMessage({
+    threadId: params.threadId,
+    text: params.instruction,
+    options: {
+      model: params.modelId,
+      effort: params.reasonEffort,
+      accessMode: params.accessMode,
+      executionMode: "runtime",
+      missionMode: "delegate",
+      preferredBackendIds: params.preferredBackendIds ?? null,
+      autoDrive: params.autoDrive,
+      autonomyRequest: params.autonomyRequest ?? null,
+      telemetrySource: "runtime_autodrive_thread_launch",
+    },
   });
 }

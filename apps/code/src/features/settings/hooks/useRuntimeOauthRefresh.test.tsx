@@ -7,7 +7,6 @@ import {
   readActiveOauthPopupLoginId,
   setActiveOauthPopupLoginId,
 } from "../components/sections/settings-codex-accounts-card/oauthHelpers";
-import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import {
   type RuntimeUpdatedEvent,
   type ScopedRuntimeUpdatedEventSnapshot,
@@ -15,17 +14,11 @@ import {
 } from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import { useOauthPopupRefresh, useRuntimeOauthRefresh } from "./useRuntimeOauthRefresh";
 
-vi.mock("../../../application/runtime/ports/events", () => ({
-  subscribeAppServerEvents: vi.fn(),
-}));
-
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   useScopedRuntimeUpdatedEvent: vi.fn(),
 }));
 
 let runtimeUpdatedListener: ((event: RuntimeUpdatedEvent) => void) | null = null;
-let appServerListener: ((event: { workspace_id?: string; message?: unknown }) => void) | null =
-  null;
 const EMPTY_RUNTIME_UPDATED_SNAPSHOT: ScopedRuntimeUpdatedEventSnapshot = {
   revision: 0,
   lastEvent: null,
@@ -34,7 +27,6 @@ let runtimeUpdatedRevisionCounter = 0;
 
 beforeEach(() => {
   runtimeUpdatedListener = null;
-  appServerListener = null;
   runtimeUpdatedRevisionCounter = 0;
   vi.mocked(useScopedRuntimeUpdatedEvent).mockImplementation(() => {
     const [snapshot, setSnapshot] = useState<ScopedRuntimeUpdatedEventSnapshot>(
@@ -58,14 +50,6 @@ beforeEach(() => {
     }, []);
 
     return snapshot;
-  });
-  vi.mocked(subscribeAppServerEvents).mockImplementation((callback) => {
-    appServerListener = callback as typeof appServerListener;
-    return () => {
-      if (appServerListener === callback) {
-        appServerListener = null;
-      }
-    };
   });
 });
 
@@ -145,7 +129,7 @@ describe("useRuntimeOauthRefresh", () => {
     expect(refreshOAuthState).not.toHaveBeenCalled();
   });
 
-  it("refreshes when account/login/completed reports success", async () => {
+  it("refreshes when runtime/updated oauth reports success", async () => {
     const refreshOAuthState = vi.fn();
     const setError = vi.fn();
 
@@ -157,15 +141,11 @@ describe("useRuntimeOauthRefresh", () => {
     );
 
     await act(async () => {
-      appServerListener?.({
-        workspace_id: "workspace-1",
-        message: {
-          method: "account/login/completed",
-          params: {
-            loginId: "login-1",
-            success: true,
-          },
-        },
+      emitRuntimeUpdatedOauth({
+        scope: ["oauth"],
+        reason: "oauth_codex_login_completed",
+        oauthLoginId: "login-1",
+        oauthLoginSuccess: true,
       });
     });
 

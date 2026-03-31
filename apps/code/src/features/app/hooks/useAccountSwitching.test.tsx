@@ -3,7 +3,6 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import {
   subscribeScopedRuntimeUpdatedEvents,
   type RuntimeUpdatedEvent,
@@ -14,17 +13,13 @@ import {
   runCodexLogin,
   type OAuthAccountSummary,
 } from "../../../application/runtime/ports/tauriOauth";
-import type { AccountSnapshot, AppServerEvent } from "../../../types";
+import type { AccountSnapshot } from "../../../types";
 import { useAccountSwitching } from "./useAccountSwitching";
 
 vi.mock("../../../application/runtime/ports/tauriOauth", () => ({
   bindOAuthPoolAccount: vi.fn(),
   runCodexLogin: vi.fn(),
   cancelCodexLogin: vi.fn(),
-}));
-
-vi.mock("../../../application/runtime/ports/events", () => ({
-  subscribeAppServerEvents: vi.fn(),
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
@@ -46,22 +41,16 @@ function Harness(props: Handlers & { onChange: (value: HookResult) => void }) {
   return null;
 }
 
-let listener: ((event: AppServerEvent) => void) | null = null;
 let runtimeUpdatedListener: ((event: RuntimeUpdatedEvent) => void) | null = null;
 const unlisten = vi.fn();
 let latest: HookResult | null = null;
 
 beforeEach(() => {
-  listener = null;
   runtimeUpdatedListener = null;
   latest = null;
   unlisten.mockReset();
   openUrlMock.mockReset();
   vi.mocked(bindOAuthPoolAccount).mockReset();
-  vi.mocked(subscribeAppServerEvents).mockImplementation((cb) => {
-    listener = cb;
-    return unlisten;
-  });
   vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, cb) => {
     runtimeUpdatedListener = cb;
     return unlisten;
@@ -251,7 +240,7 @@ describe("useAccountSwitching", () => {
     });
   });
 
-  it("opens the auth URL and refreshes after account/login/completed", async () => {
+  it("opens the auth URL and refreshes after runtime/updated oauth completion", async () => {
     vi.mocked(runCodexLogin).mockResolvedValue({
       loginId: "login-1",
       authUrl: "https://example.com/auth",
@@ -269,7 +258,7 @@ describe("useAccountSwitching", () => {
       alertError,
     });
 
-    expect(listener).toBeTypeOf("function");
+    expect(runtimeUpdatedListener).toBeTypeOf("function");
 
     await act(async () => {
       await latest?.handleSwitchAccount();
@@ -282,12 +271,11 @@ describe("useAccountSwitching", () => {
     expect(latest?.accountSwitching).toBe(true);
 
     act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "account/login/completed",
-          params: { loginId: "login-1", success: true, error: null },
-        },
+      emitRuntimeUpdatedOauth({
+        scope: ["oauth"],
+        reason: "oauth_codex_login_completed",
+        oauthLoginId: "login-1",
+        oauthLoginSuccess: true,
       });
     });
 
@@ -299,7 +287,7 @@ describe("useAccountSwitching", () => {
     await act(async () => {
       root.unmount();
     });
-    expect(unlisten).toHaveBeenCalledTimes(2);
+    expect(unlisten).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to window.open when openUrl fails", async () => {
@@ -409,12 +397,12 @@ describe("useAccountSwitching", () => {
     expect(latest?.accountSwitching).toBe(false);
 
     act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "account/login/completed",
-          params: { loginId: "login-2", success: false, error: "boom" },
-        },
+      emitRuntimeUpdatedOauth({
+        scope: ["oauth"],
+        reason: "oauth_codex_login_completed",
+        oauthLoginId: "login-2",
+        oauthLoginSuccess: false,
+        oauthLoginError: "boom",
       });
     });
 
@@ -537,13 +525,15 @@ describe("useAccountSwitching", () => {
     expect(latest?.accountSwitching).toBe(false);
 
     act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "account/login/completed",
-          params: { loginId: "login-ws-1", success: true, error: null },
+      emitRuntimeUpdatedOauth(
+        {
+          scope: ["oauth"],
+          reason: "oauth_codex_login_completed",
+          oauthLoginId: "login-ws-1",
+          oauthLoginSuccess: true,
         },
-      });
+        "ws-1"
+      );
     });
 
     expect(refreshAccountInfo).toHaveBeenCalledWith("ws-1");

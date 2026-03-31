@@ -279,10 +279,6 @@ type AppServerEventHandlers = {
   ) => void;
   onAccountRateLimitsUpdated?: (workspaceId: string, rateLimits: Record<string, unknown>) => void;
   onAccountUpdated?: (workspaceId: string, authMode: string | null) => void;
-  onAccountLoginCompleted?: (
-    workspaceId: string,
-    payload: { loginId: string | null; success: boolean; error: string | null }
-  ) => void;
   onSessionConfigured?: (workspaceId: string, payload: SessionConfiguredPayload) => void;
   onChatgptAuthTokensRefreshRequest?: (request: ChatgptAuthTokensRefreshRequest) => void;
   onMcpServerOauthLoginCompleted?: (
@@ -312,7 +308,6 @@ type AppServerEventHandlers = {
 
 export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "account/chatgptAuthTokens/refresh",
-  "account/login/completed",
   "account/rateLimits/updated",
   "account/updated",
   "authStatusChange",
@@ -345,7 +340,6 @@ export const METHODS_ROUTED_IN_USE_APP_SERVER_EVENTS = [
   "turn/plan/updated",
   "turn/started",
   "mcpServer/oauthLogin/completed",
-  "loginChatGptComplete",
   "model/rerouted",
   "sessionConfigured",
   "deprecationNotice",
@@ -745,36 +739,6 @@ export function useAppServerEvents(handlers: AppServerEventHandlers) {
         const authMode =
           typeof authModeRaw === "string" && authModeRaw.trim().length > 0 ? authModeRaw : null;
         currentHandlers.onAccountUpdated?.(workspace_id, authMode);
-        return;
-      }
-
-      if (method === "account/login/completed") {
-        const loginIdRaw = params.loginId ?? params.login_id ?? null;
-        const loginId =
-          typeof loginIdRaw === "string" && loginIdRaw.trim().length > 0 ? loginIdRaw : null;
-        const success = Boolean(params.success);
-        const errorRaw = params.error ?? null;
-        const error = typeof errorRaw === "string" && errorRaw.trim().length > 0 ? errorRaw : null;
-        currentHandlers.onAccountLoginCompleted?.(workspace_id, {
-          loginId,
-          success,
-          error,
-        });
-        return;
-      }
-
-      if (method === "loginChatGptComplete") {
-        const loginIdRaw = params.loginId ?? params.login_id ?? null;
-        const loginId =
-          typeof loginIdRaw === "string" && loginIdRaw.trim().length > 0 ? loginIdRaw : null;
-        const success = Boolean(params.success);
-        const errorRaw = params.error ?? null;
-        const error = typeof errorRaw === "string" && errorRaw.trim().length > 0 ? errorRaw : null;
-        currentHandlers.onAccountLoginCompleted?.(workspace_id, {
-          loginId,
-          success,
-          error,
-        });
         return;
       }
 

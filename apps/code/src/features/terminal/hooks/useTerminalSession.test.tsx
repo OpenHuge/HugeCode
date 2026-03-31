@@ -3,7 +3,10 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as runtimeEvents from "../../../application/runtime/ports/events";
+import {
+  subscribeScopedRuntimeUpdatedEvents,
+  type RuntimeUpdatedEvent,
+} from "../../../application/runtime/ports/runtimeUpdatedEvents";
 import {
   openTerminalSession,
   readTerminalSession,
@@ -45,8 +48,11 @@ vi.mock("@xterm/addon-fit", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/events", () => ({
-  subscribeAppServerEvents: vi.fn(() => () => undefined),
   subscribeTerminalExit: vi.fn(() => () => undefined),
+}));
+
+vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
+  subscribeScopedRuntimeUpdatedEvents: vi.fn(() => () => undefined),
 }));
 
 vi.mock("../../../application/runtime/ports/tauriTerminal", () => ({
@@ -219,13 +225,13 @@ describe("useTerminalSession", () => {
   });
 
   it("streams terminal output from native state fabric updates without terminal output subscriptions", async () => {
-    const appServerListeners = new Set<
-      Parameters<typeof runtimeEvents.subscribeAppServerEvents>[0]
+    const runtimeUpdatedListeners = new Set<
+      Parameters<typeof subscribeScopedRuntimeUpdatedEvents>[1]
     >();
-    vi.mocked(runtimeEvents.subscribeAppServerEvents).mockImplementation((onEvent) => {
-      appServerListeners.add(onEvent);
+    vi.mocked(subscribeScopedRuntimeUpdatedEvents).mockImplementation((_options, onEvent) => {
+      runtimeUpdatedListeners.add(onEvent);
       return () => {
-        appServerListeners.delete(onEvent);
+        runtimeUpdatedListeners.delete(onEvent);
       };
     });
     vi.mocked(openTerminalSession).mockResolvedValue({
@@ -274,12 +280,13 @@ describe("useTerminalSession", () => {
     });
 
     act(() => {
-      for (const listener of appServerListeners) {
-        listener({
+      const event: RuntimeUpdatedEvent = {
+        event: {
           workspace_id: "ws-fabric",
           message: {
-            method: "native_state_fabric_updated",
+            method: "runtime/updated",
             params: {
+              scope: ["terminal"],
               scopeKind: "terminal",
               changeKind: "terminalOutputAppended",
               workspaceId: "ws-fabric",
@@ -287,6 +294,24 @@ describe("useTerminalSession", () => {
               chunk: "hello fabric",
             },
           },
+        },
+        params: {
+          scope: ["terminal"],
+          scopeKind: "terminal",
+          changeKind: "terminalOutputAppended",
+          workspaceId: "ws-fabric",
+          sessionId: "terminal-fabric-1",
+          chunk: "hello fabric",
+        },
+        scope: ["terminal"],
+        reason: "terminal_output_appended",
+        eventWorkspaceId: "ws-fabric",
+        paramsWorkspaceId: "ws-fabric",
+        isWorkspaceLocalEvent: false,
+      };
+      for (const listener of runtimeUpdatedListeners) {
+        listener({
+          ...event,
         });
       }
     });

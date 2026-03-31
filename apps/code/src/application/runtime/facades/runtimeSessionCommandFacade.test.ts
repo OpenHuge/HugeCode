@@ -1,8 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createRuntimeSessionCommandFacade,
   type RuntimeSessionCommandDependencies,
 } from "./runtimeSessionCommandFacade";
+import { recordSentryMetric } from "../../../features/shared/sentry";
+import { __resetRuntimeLegacyLifecycleTelemetryForTests } from "../../../services/runtimeLegacyLifecycleTelemetry";
+
+vi.mock("../../../features/shared/sentry", () => ({
+  recordSentryMetric: vi.fn(),
+}));
 
 function createDependencies(): RuntimeSessionCommandDependencies {
   return {
@@ -21,6 +27,66 @@ function createDependencies(): RuntimeSessionCommandDependencies {
 }
 
 describe("createRuntimeSessionCommandFacade", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    __resetRuntimeLegacyLifecycleTelemetryForTests();
+  });
+
+  it("records compatibility telemetry for legacy turn lifecycle calls", async () => {
+    const deps = createDependencies();
+    const facade = createRuntimeSessionCommandFacade("ws-1", deps);
+
+    await facade.sendMessage({
+      threadId: "thread-1",
+      text: "hello",
+      options: {
+        executionMode: "runtime",
+        missionMode: "delegate",
+        telemetrySource: "thread_messaging",
+      },
+    });
+    await facade.steerTurn({
+      threadId: "thread-1",
+      turnId: "turn-1",
+      text: "continue",
+      options: {
+        executionMode: "runtime",
+        telemetrySource: "thread_messaging",
+      },
+    });
+    await facade.interruptTurn({
+      threadId: "thread-1",
+      turnId: "turn-1",
+      telemetrySource: "thread_messaging",
+    });
+
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_legacy_lifecycle_usage",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          method: "code_turn_send",
+          source: "thread_messaging",
+          workspace_id: "ws-1",
+          thread_id: "thread-1",
+          mission_mode: "delegate",
+        }),
+      })
+    );
+    expect(recordSentryMetric).toHaveBeenCalledWith(
+      "runtime_legacy_lifecycle_usage",
+      1,
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          method: "code_turn_interrupt",
+          source: "thread_messaging",
+          workspace_id: "ws-1",
+          thread_id: "thread-1",
+        }),
+      })
+    );
+  });
+
   it("binds workspace-scoped command calls", async () => {
     const deps = createDependencies();
     const facade = createRuntimeSessionCommandFacade("ws-1", deps);

@@ -291,7 +291,9 @@ export function useThreadActions({
         payload: { workspaceId },
       });
       try {
-        const response = await startThreadService(workspaceId);
+        const response = await startThreadService(workspaceId, {
+          telemetrySource: "thread_actions",
+        });
         onDebug?.({
           id: `${Date.now()}-server-thread-start`,
           timestamp: Date.now(),
@@ -355,10 +357,9 @@ export function useThreadActions({
         dispatch({ type: "setThreadResumeLoading", threadId, isLoading: true });
       }
       try {
-        const response = (await resumeThreadService(workspaceId, threadId)) as Record<
-          string,
-          unknown
-        > | null;
+        const response = (await resumeThreadService(workspaceId, threadId, {
+          telemetrySource: "thread_actions",
+        })) as Record<string, unknown> | null;
         onDebug?.({
           id: `${Date.now()}-server-thread-resume`,
           timestamp: Date.now(),
@@ -957,7 +958,9 @@ export function useThreadActions({
   const archiveThread = useCallback(
     async (workspaceId: string, threadId: string) => {
       try {
-        await archiveThreadService(workspaceId, threadId);
+        await archiveThreadService(workspaceId, threadId, {
+          telemetrySource: "thread_actions",
+        });
       } catch (error) {
         onDebug?.({
           id: `${Date.now()}-client-thread-archive-error`,

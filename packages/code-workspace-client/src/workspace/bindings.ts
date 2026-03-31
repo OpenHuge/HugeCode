@@ -162,6 +162,12 @@ export type WorkspaceClientRuntimeAgentControlBindings = {
   ) => Promise<RuntimeRunCheckpointApprovalAck>;
 };
 
+/**
+ * Compatibility-only thread lifecycle bindings.
+ *
+ * Keep thread/turn workflows contained here instead of extending them as the
+ * default product execution model.
+ */
 export type WorkspaceClientRuntimeThreadsBindings = {
   listThreads: (input: { workspaceId: string }) => Promise<ThreadSummary[]>;
   createThread: (input: { workspaceId: string; title: string | null }) => Promise<ThreadSummary>;

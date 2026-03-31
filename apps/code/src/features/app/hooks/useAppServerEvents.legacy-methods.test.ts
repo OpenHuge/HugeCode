@@ -66,33 +66,6 @@ describe("useAppServerEvents legacy notification method compatibility", () => {
     });
   });
 
-  it("maps loginChatGptComplete to account login completed handler", async () => {
-    const handlers: Handlers = {
-      onAccountLoginCompleted: vi.fn(),
-    };
-    const { root } = await mount(handlers);
-
-    act(() => {
-      listener?.({
-        workspace_id: "ws-1",
-        message: {
-          method: "loginChatGptComplete",
-          params: { loginId: "legacy-login-1", success: false, error: "denied" },
-        },
-      });
-    });
-
-    expect(handlers.onAccountLoginCompleted).toHaveBeenCalledWith("ws-1", {
-      loginId: "legacy-login-1",
-      success: false,
-      error: "denied",
-    });
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
   it("routes sessionConfigured payloads to handler", async () => {
     const handlers: Handlers = {
       onSessionConfigured: vi.fn(),
