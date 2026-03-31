@@ -9,11 +9,7 @@ import type {
   HugeCodeTaskModeSource,
   HugeCodeTaskSourceSummary,
 } from "@ku0/code-runtime-host-contract";
-import {
-  resolveRuntimeContinuation,
-  resolveRuntimeNextOperatorAction,
-  resolveRuntimeSessionBoundary,
-} from "@ku0/code-runtime-host-contract";
+import { resolveCanonicalRuntimeTruth } from "@ku0/code-runtime-host-contract";
 import { resolveExecutionProfile } from "./runtimeMissionControlExecutionProfiles";
 import { buildProfileReadiness, buildRoutingSummary } from "./runtimeMissionControlRouting";
 import type { RunProjectionRoutingContext } from "./runtimeMissionControlRouting";
@@ -213,51 +209,31 @@ export function projectAgentTaskSummaryToRunSummary(
     executionGraph: projectRuntimeExecutionGraphSummary(task.executionGraph),
   };
 
-  const run: HugeCodeRunSummary = {
-    ...baseRun,
-    sessionBoundary: resolveRuntimeSessionBoundary({
-      workspaceId: baseRun.workspaceId,
-      taskId: baseRun.taskId,
-      runId: baseRun.id,
-      reviewPackId: baseRun.reviewPackId ?? null,
-      checkpoint: baseRun.checkpoint ?? null,
-      missionLinkage: baseRun.missionLinkage ?? null,
-      sessionBoundary: task.sessionBoundary ?? null,
-    }),
-  };
-
-  run.continuation = resolveRuntimeContinuation({
-    workspaceId: run.workspaceId,
-    taskId: run.taskId,
-    runId: run.id,
-    reviewPackId: run.reviewPackId ?? null,
-    state: run.state,
-    checkpoint: run.checkpoint ?? null,
-    missionLinkage: run.missionLinkage ?? null,
-    actionability: run.actionability ?? null,
-    publishHandoff: run.publishHandoff ?? null,
-    takeoverBundle: run.takeoverBundle ?? null,
-    sessionBoundary: run.sessionBoundary ?? null,
+  const canonicalTruth = resolveCanonicalRuntimeTruth({
+    workspaceId: baseRun.workspaceId,
+    taskId: baseRun.taskId,
+    runId: baseRun.id,
+    reviewPackId: baseRun.reviewPackId ?? null,
+    state: baseRun.state,
+    checkpoint: baseRun.checkpoint ?? null,
+    missionLinkage: baseRun.missionLinkage ?? null,
+    actionability: baseRun.actionability ?? null,
+    publishHandoff: baseRun.publishHandoff ?? null,
+    takeoverBundle: baseRun.takeoverBundle ?? null,
+    sessionBoundary: task.sessionBoundary ?? null,
     continuation: task.continuation ?? null,
-  });
-  run.nextOperatorAction = resolveRuntimeNextOperatorAction({
-    workspaceId: run.workspaceId,
-    taskId: run.taskId,
-    runId: run.id,
-    reviewPackId: run.reviewPackId ?? null,
-    state: run.state,
-    approval: run.approval ?? null,
-    reviewDecision: run.reviewDecision ?? null,
-    nextAction: run.nextAction ?? null,
-    checkpoint: run.checkpoint ?? null,
-    missionLinkage: run.missionLinkage ?? null,
-    actionability: run.actionability ?? null,
-    publishHandoff: run.publishHandoff ?? null,
-    takeoverBundle: run.takeoverBundle ?? null,
-    sessionBoundary: run.sessionBoundary ?? null,
-    continuation: run.continuation ?? null,
+    approval: baseRun.approval ?? null,
+    reviewDecision: baseRun.reviewDecision ?? null,
+    nextAction: baseRun.nextAction ?? null,
     nextOperatorAction: task.nextOperatorAction ?? null,
   });
+
+  const run: HugeCodeRunSummary = {
+    ...baseRun,
+    sessionBoundary: canonicalTruth.sessionBoundary,
+    continuation: canonicalTruth.continuation,
+    nextOperatorAction: canonicalTruth.nextOperatorAction,
+  };
 
   return {
     ...run,

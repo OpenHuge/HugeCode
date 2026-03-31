@@ -638,6 +638,92 @@ describe("runtimeMissionControlFacade", () => {
     expect(reviewPack?.actionability).toEqual(run.actionability);
   });
 
+  it("keeps review-pack recommended next action aligned with canonical continuation truth", () => {
+    const run = projectAgentTaskSummaryToRunSummary({
+      taskId: "run-canonical-continuation-1",
+      workspaceId: "ws-1",
+      threadId: null,
+      requestId: null,
+      title: "Use canonical continuation first",
+      status: "completed",
+      accessMode: "full-access",
+      provider: "openai",
+      modelId: "gpt-5.3-codex",
+      routedProvider: "openai",
+      routedModelId: "gpt-5.3-codex",
+      routedPool: "codex",
+      routedSource: "workspace-default",
+      currentStep: 0,
+      createdAt: 1,
+      updatedAt: 6,
+      startedAt: 2,
+      completedAt: 6,
+      errorCode: null,
+      errorMessage: null,
+      pendingApprovalId: null,
+      reviewPackId: "review-pack:run-canonical-continuation-1",
+      nextAction: {
+        label: "Inspect stale fallback",
+        action: "review",
+        detail: "This stale next-action detail should not win.",
+      },
+      continuation: {
+        state: "ready",
+        pathKind: "review",
+        source: "review_actionability",
+        summary: "Canonical runtime continuation is ready.",
+        detail: "Open the published review continuation.",
+        recommendedAction: "Use the runtime-published review continuation.",
+        target: {
+          kind: "review_pack",
+          workspaceId: "ws-1",
+          taskId: "runtime-task:run-canonical-continuation-1",
+          runId: "run-canonical-continuation-1",
+          reviewPackId: "review-pack:run-canonical-continuation-1",
+          checkpointId: null,
+          traceId: null,
+        },
+        reviewPackId: "review-pack:run-canonical-continuation-1",
+        reviewActionability: null,
+        sessionBoundary: {
+          workspaceId: "ws-1",
+          taskId: "runtime-task:run-canonical-continuation-1",
+          runId: "run-canonical-continuation-1",
+          missionTaskId: "runtime-task:run-canonical-continuation-1",
+          sessionKind: "run",
+          threadId: null,
+          requestId: null,
+          reviewPackId: "review-pack:run-canonical-continuation-1",
+          checkpointId: null,
+          traceId: null,
+          navigationTarget: {
+            kind: "run",
+            workspaceId: "ws-1",
+            taskId: "runtime-task:run-canonical-continuation-1",
+            runId: "run-canonical-continuation-1",
+            reviewPackId: "review-pack:run-canonical-continuation-1",
+            checkpointId: null,
+            traceId: null,
+          },
+        },
+      },
+      steps: [],
+    } satisfies AgentTaskSummary);
+
+    const reviewPack = projectCompletedRunToReviewPackSummary(run);
+
+    expect(reviewPack).toMatchObject({
+      continuation: {
+        summary: "Canonical runtime continuation is ready.",
+      },
+      recommendedNextAction: "Open the published review continuation.",
+      nextOperatorAction: {
+        action: "open_review_pack",
+        detail: "Open the published review continuation.",
+      },
+    });
+  });
+
   it("marks review-pack evidence as explicit-but-unvalidated when runtime has no validation result", () => {
     expect(
       projectCompletedRunToReviewPackSummary(
@@ -686,7 +772,7 @@ describe("runtimeMissionControlFacade", () => {
     ).toMatchObject({
       taskId: resolveMissionTaskId("run-1", null),
       validationOutcome: "unknown",
-      recommendedNextAction: "The run finished and is ready for operator review.",
+      recommendedNextAction: "Accept or reject this result from the review surface.",
     });
   });
 

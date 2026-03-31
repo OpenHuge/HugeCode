@@ -263,8 +263,8 @@ describe("buildSharedMissionControlSummary", () => {
       "workspace-1"
     );
 
-    expect(summary.missionItems[0]?.detail).toBe("Inspect the review pack and accept or retry.");
-    expect(summary.missionItems[0]?.highlights).toContain("Next: Open review pack");
+    expect(summary.missionItems[0]?.detail).toBe("Review pack is ready.");
+    expect(summary.missionItems[0]?.highlights).toContain("Next: Open review");
     expect(summary.reviewItems[0]?.summary).toBe("Open the published review pack.");
   });
 

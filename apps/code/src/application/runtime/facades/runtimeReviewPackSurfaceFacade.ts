@@ -12,7 +12,6 @@ import type {
   HugeCodeValidationOutcome,
   RuntimeReviewGetV2Response,
 } from "@ku0/code-runtime-host-contract";
-import { resolveRuntimeContinuation } from "@ku0/code-runtime-host-contract";
 import { type RuntimeContinuityReadinessState } from "./runtimeContinuityReadiness";
 import { formatHugeCodeRunStateLabel } from "./runtimeMissionControlRunState";
 import {
@@ -509,21 +508,7 @@ function buildReviewPackContinuity(input: {
     missionLinkage: input.reviewPack.missionLinkage ?? input.run?.missionLinkage ?? null,
     publishHandoff: input.reviewPack.publishHandoff ?? input.run?.publishHandoff ?? null,
     reviewPackId: input.reviewPack.id,
-    continuation:
-      input.reviewPack.continuation ??
-      input.run?.continuation ??
-      resolveRuntimeContinuation({
-        workspaceId: input.reviewPack.workspaceId,
-        taskId: input.reviewPack.taskId,
-        runId: input.reviewPack.runId,
-        reviewPackId: input.reviewPack.id,
-        state: input.run?.state ?? "review_ready",
-        checkpoint,
-        missionLinkage: input.reviewPack.missionLinkage ?? input.run?.missionLinkage ?? null,
-        actionability: input.reviewPack.actionability ?? input.run?.actionability ?? null,
-        publishHandoff: input.reviewPack.publishHandoff ?? input.run?.publishHandoff ?? null,
-        takeoverBundle: input.reviewPack.takeoverBundle ?? input.run?.takeoverBundle ?? null,
-      }),
+    continuation: input.reviewPack.continuation ?? input.run?.continuation ?? null,
   });
 
   if (continuation.state === "missing") {
@@ -784,6 +769,7 @@ export function buildReviewPackDetailModel(input: {
       profileReadinessSummary: run.profileReadiness?.summary,
     });
     const runtimeContinuation = buildRuntimeContinuationDescriptor({
+      continuation: run.continuation ?? null,
       runState: run.state,
       checkpoint: run.checkpoint ?? null,
       missionLinkage: run.missionLinkage ?? null,

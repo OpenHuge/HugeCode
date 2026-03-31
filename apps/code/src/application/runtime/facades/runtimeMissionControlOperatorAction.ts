@@ -4,7 +4,7 @@ import type {
   HugeCodeTakeoverTarget,
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
-import { resolveRuntimeNextOperatorAction } from "@ku0/code-runtime-host-contract";
+import { resolveCanonicalRuntimeTruth } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
 import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
 import { readRuntimeOperatorActionText } from "./runtimeOperatorActionPresentation";
@@ -35,9 +35,39 @@ function readOptionalText(value: string | null | undefined) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-function buildContinuation(input: MissionOperatorActionInput) {
-  return buildRuntimeContinuationDescriptor({
+function resolveCanonicalTruth(
+  input: MissionOperatorActionInput &
+    Partial<Pick<MissionOperatorActionContext, "workspaceId" | "taskId" | "runId">>
+) {
+  return resolveCanonicalRuntimeTruth({
+    workspaceId:
+      input.workspaceId ?? input.reviewPack?.workspaceId ?? input.run?.workspaceId ?? null,
+    taskId: input.taskId ?? input.reviewPack?.taskId ?? input.run?.taskId ?? null,
+    runId: input.runId ?? input.reviewPack?.runId ?? input.run?.id ?? null,
+    reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
+    state: input.run?.state ?? (input.reviewPack ? "review_ready" : null),
+    reviewStatus: input.reviewPack?.reviewStatus ?? null,
+    approval: input.run?.approval ?? null,
+    reviewDecision: input.reviewPack?.reviewDecision ?? input.run?.reviewDecision ?? null,
+    nextAction: input.run?.nextAction ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
+    missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
+    actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
+    publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+    sessionBoundary: input.reviewPack?.sessionBoundary ?? input.run?.sessionBoundary ?? null,
     continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
+    nextOperatorAction:
+      input.reviewPack?.nextOperatorAction ?? input.run?.nextOperatorAction ?? null,
+  });
+}
+
+function buildContinuation(
+  input: MissionOperatorActionInput,
+  canonicalTruth = resolveCanonicalTruth(input)
+) {
+  return buildRuntimeContinuationDescriptor({
+    continuation: canonicalTruth.continuation,
     runState: input.run?.state ?? (input.reviewPack ? "review_ready" : null),
     checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
     missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
@@ -46,39 +76,6 @@ function buildContinuation(input: MissionOperatorActionInput) {
     takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
     nextAction: input.run?.nextAction ?? null,
     reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
-  });
-}
-
-function resolvePublishedNextOperatorAction(
-  input: MissionOperatorActionContext
-): HugeCodeNextOperatorAction | null {
-  if (input.reviewPack?.nextOperatorAction) {
-    return input.reviewPack.nextOperatorAction;
-  }
-  if (input.run?.nextOperatorAction) {
-    return input.run.nextOperatorAction;
-  }
-  if (!input.run) {
-    return null;
-  }
-  return resolveRuntimeNextOperatorAction({
-    workspaceId: input.workspaceId,
-    taskId: input.taskId,
-    runId: input.runId,
-    reviewPackId: input.reviewPack?.id ?? input.run.reviewPackId ?? null,
-    state: input.run.state,
-    reviewStatus: input.reviewPack?.reviewStatus ?? null,
-    approval: input.run.approval ?? null,
-    reviewDecision: input.reviewPack?.reviewDecision ?? input.run.reviewDecision ?? null,
-    nextAction: input.run.nextAction ?? null,
-    checkpoint: input.reviewPack?.checkpoint ?? input.run.checkpoint ?? null,
-    missionLinkage: input.reviewPack?.missionLinkage ?? input.run.missionLinkage ?? null,
-    actionability: input.reviewPack?.actionability ?? input.run.actionability ?? null,
-    publishHandoff: input.reviewPack?.publishHandoff ?? input.run.publishHandoff ?? null,
-    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run.takeoverBundle ?? null,
-    sessionBoundary: input.reviewPack?.sessionBoundary ?? input.run.sessionBoundary ?? null,
-    continuation: input.reviewPack?.continuation ?? input.run.continuation ?? null,
-    nextOperatorAction: null,
   });
 }
 
@@ -202,10 +199,9 @@ export function resolveCheckpointHandoffLabel(input: MissionOperatorActionInput)
 export function buildMissionOverviewOperatorSignal(
   input: MissionOperatorActionInput
 ): string | null {
-  const continuation = buildContinuation(input);
-  const runtimeActionText = readRuntimeOperatorActionText(
-    input.reviewPack?.nextOperatorAction ?? input.run?.nextOperatorAction ?? null
-  );
+  const canonicalTruth = resolveCanonicalTruth(input);
+  const continuation = buildContinuation(input, canonicalTruth);
+  const runtimeActionText = readRuntimeOperatorActionText(canonicalTruth.nextOperatorAction);
   return (
     input.run?.operatorSnapshot?.currentActivity?.trim() ||
     input.run?.operatorSnapshot?.blocker?.trim() ||
@@ -221,8 +217,9 @@ export function buildMissionOverviewOperatorSignal(
 export function resolveCanonicalMissionOperatorAction(
   input: MissionOperatorActionContext
 ): MissionOperatorActionModel | null {
-  const continuation = buildContinuation(input);
-  const operatorAction = resolvePublishedNextOperatorAction(input);
+  const canonicalTruth = resolveCanonicalTruth(input);
+  const continuation = buildContinuation(input, canonicalTruth);
+  const operatorAction = canonicalTruth.nextOperatorAction;
 
   if (!continuation && !operatorAction && !input.run && !input.reviewPack) {
     return null;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  resolveCanonicalRuntimeTruth,
   resolveRuntimeContinuation,
   resolveRuntimeNextOperatorAction,
   resolveRuntimeSessionBoundary,
@@ -222,7 +223,7 @@ describe("runtimeTruthCompat", () => {
     });
   });
 
-  it("keeps explicit runtime next-action detail ahead of fallback continuation copy", () => {
+  it("keeps canonical review continuation detail ahead of legacy next-action fallback copy", () => {
     const action = resolveRuntimeNextOperatorAction({
       workspaceId: "ws-1",
       taskId: "task-1",
@@ -246,7 +247,84 @@ describe("runtimeTruthCompat", () => {
 
     expect(action).toMatchObject({
       action: "open_review_pack",
-      detail: "Inspect the review pack and accept or retry.",
+      detail: "Review pack is ready.",
+    });
+  });
+
+  it("resolves the frozen boundary, continuation, and next-action bundle from one helper", () => {
+    const truth = resolveCanonicalRuntimeTruth({
+      workspaceId: "ws-1",
+      taskId: "task-1",
+      runId: "run-1",
+      reviewPackId: "review-pack:run-1",
+      state: "review_ready",
+      continuation: {
+        state: "ready",
+        pathKind: "review",
+        source: "review_actionability",
+        summary: "Canonical review continuation is ready.",
+        detail: "Open the published review continuation.",
+        recommendedAction: "Use the runtime-published review continuation.",
+        target: {
+          kind: "review_pack",
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:run-1",
+          checkpointId: null,
+          traceId: null,
+        },
+        reviewPackId: "review-pack:run-1",
+        reviewActionability: null,
+        sessionBoundary: {
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          missionTaskId: "task-1",
+          sessionKind: "run",
+          threadId: null,
+          requestId: null,
+          reviewPackId: "review-pack:run-1",
+          checkpointId: null,
+          traceId: null,
+          navigationTarget: {
+            kind: "run",
+            workspaceId: "ws-1",
+            taskId: "task-1",
+            runId: "run-1",
+            reviewPackId: "review-pack:run-1",
+            checkpointId: null,
+            traceId: null,
+          },
+        },
+      },
+    });
+
+    expect(truth.sessionBoundary).toEqual({
+      workspaceId: "ws-1",
+      taskId: "task-1",
+      runId: "run-1",
+      missionTaskId: "task-1",
+      sessionKind: "run",
+      threadId: null,
+      requestId: null,
+      reviewPackId: "review-pack:run-1",
+      checkpointId: null,
+      traceId: null,
+      navigationTarget: {
+        kind: "run",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewPackId: "review-pack:run-1",
+        checkpointId: null,
+        traceId: null,
+      },
+    });
+    expect(truth.continuation?.detail).toBe("Open the published review continuation.");
+    expect(truth.nextOperatorAction).toMatchObject({
+      action: "open_review_pack",
+      detail: "Open the published review continuation.",
     });
   });
 });

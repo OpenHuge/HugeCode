@@ -1102,6 +1102,7 @@ export {
   resolveCodeRuntimeRpcMethod,
 } from "./codeRuntimeRpcCompat.js";
 export {
+  resolveCanonicalRuntimeTruth,
   resolveRuntimeContinuation,
   resolveRuntimeNextOperatorAction,
   resolveRuntimeSessionBoundary,
