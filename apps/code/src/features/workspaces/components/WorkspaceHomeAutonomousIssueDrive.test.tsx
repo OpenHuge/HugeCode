@@ -33,6 +33,7 @@ describe("WorkspaceHomeAutonomousIssueDrive", () => {
       <WorkspaceHomeAutonomousIssueDrive
         launchAllowed
         runtimeLoading={false}
+        repositoryExecutionContractStatus="ready"
         driveIssue={driveIssue}
       />
     );
@@ -58,5 +59,32 @@ describe("WorkspaceHomeAutonomousIssueDrive", () => {
       screen.getByText("GitHub issue #42 is ready on the governed runtime path.")
     ).toBeTruthy();
     expect(screen.getByText(/Launch: balanced-delegate/)).toBeTruthy();
+  });
+
+  it("blocks issue drive when governed launch preflight is not ready", async () => {
+    const driveIssue = vi.fn();
+
+    render(
+      <WorkspaceHomeAutonomousIssueDrive
+        launchAllowed
+        runtimeLoading={false}
+        repositoryExecutionContractStatus="loading"
+        driveIssue={driveIssue}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("GitHub issue URI"), {
+      target: {
+        value: "https://github.com/acme/hugecode/issues/42",
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Drive issue" })).toHaveProperty("disabled", true);
+    expect(
+      screen.getByText(
+        "GitHub source launch is waiting for repository execution defaults to finish loading."
+      )
+    ).toBeTruthy();
+    expect(driveIssue).not.toHaveBeenCalled();
   });
 });

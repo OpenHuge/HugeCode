@@ -38,8 +38,9 @@ Treat the CI check names as explicit requests for missing local proof:
   sign that the PR changed shell startup, runtime readiness, bundle-sensitive
   code, or frontend-owning dependencies without running
   `pnpm validate:frontend-optimization` locally first. Workflow-only CI
-  plumbing edits should stay in repository-governance lanes and not wake this
-  browser/build gate by themselves.
+  plumbing edits and generic feature-level `apps/code` UI edits should stay in
+  repository-governance or affected-build/test lanes instead of waking this
+  browser/build gate.
 
 When documenting or reviewing PR process, point authors to the local command
 that corresponds to the failing gate instead of telling them to "wait for CI and
@@ -107,6 +108,9 @@ Public workflow entrypoints currently include:
   `app_circular`, and `frontend_optimization` should stay script-backed in
   `scripts/classify-ci-change-scope.mjs` instead of relying on mixed positive
   and negative `paths-filter` globs.
+- The `CI` workflow should keep those exclude-heavy boundaries out of
+  `dorny/paths-filter` once the workflow consumes the script-backed outputs
+  directly; do not carry duplicate YAML ownership maps for the same lane.
 - Shared Playwright bootstrap should install Chromium with `--only-shell` when
   CI stays on the default headless Chromium lane without a `channel` override;
   this keeps browser downloads aligned with current Playwright guidance and
@@ -114,8 +118,23 @@ Public workflow entrypoints currently include:
 - Shared Playwright bootstrap should cache browser binaries by OS and lockfile
   so repeated frontend/browser gates do not redownload Chromium on every run.
 - Frontend optimization classification should stay focused on runtime or build-affecting frontend dependencies; pure type-package bumps should normally be covered by quality/typecheck instead of forcing bundle and browser lanes.
+- Frontend optimization should wake for startup/build shell files,
+  runtime-readiness wiring, Playwright/E2E owners, design-system surfaces,
+  bundle-budget scripts, and frontend dependency churn. Generic `apps/code`
+  feature/component edits should normally stay out of that lane.
 - Frontend optimization should not fan out for generic CI plumbing edits. Workflow-governance and shared action changes belong in repository governance lanes unless they also touch runtime-owning frontend or bundle-budget surfaces.
 - Frontend optimization reusable-workflow edits should stay covered by workflow governance and validation, not by forcing the full browser and bundle lane on infrastructure-only pull requests.
+- Runtime contract parity should stay scoped to runtime-owned contracts,
+  runtime-client bindings, runtime specs, and runtime-parity scripts. CI entry
+  workflows, reusable wrapper edits, and shared setup actions should stay in
+  repository-governance validation unless a runtime-owned surface changed too.
+- Affected-build and affected-test skip classification should stay split:
+  storybook, fixture, and markdown-only support changes may skip
+  `pnpm test:affected`, but real `.test` and `.spec` edits must continue to run
+  the affected-test lane even when the affected-build lane can fast-skip.
+- Workflow-governance regression tests for merge-queue paths, repo SOT, and CI
+  scope classification should remain on the repository-governance path instead
+  of waking product-facing quality or affected lanes by themselves.
 - PR-triggered desktop and CodeQL lanes should stay path-scoped so dependency-only or docs-only changes do not fan out into full desktop matrices or static-analysis runs before `main`; keep broader protection on `push` to `main` and scheduled scans.
 - PR-triggered desktop builds should stay host-owned in merge-queue mode: wake them for `apps/code-electron/**`, not for generic `apps/code` frontend churn. Workflow or shared-action edits may still trigger the workflow for visibility, but those PRs should fast-skip packaging jobs unless host-owned surfaces also changed. In queue mode, even host-owned PRs should stay on the Linux-only PR lane and leave the broader three-platform matrix to `push`/mainline coverage.
 - Linux-only PR desktop fast paths should not pay a separate `Prepare frontend dist` job plus artifact round-trip. When the PR only needs the single Linux verify lane, prepare the frontend locally inside that build job and reserve any shared artifact workflow for full PR matrices and non-PR release coverage.

@@ -1765,6 +1765,57 @@ describe("frozen rpc contract spec", () => {
     expect(spec.rpc.executionGraphFields).toEqual(CODE_RUNTIME_RPC_EXECUTION_GRAPH_FIELDS);
     expect(spec.rpc.executionGraphFields).toEqual(buildCodeRuntimeRpcSpec().executionGraphFields);
   });
+
+  it("keeps the canonical runtime rpc shell thin and delegating to split modules", () => {
+    const shellSource = readFileSync(new URL("./codeRuntimeRpc.ts", import.meta.url), "utf8");
+
+    expect(shellSource.split("\n").length).toBeLessThanOrEqual(140);
+    expect(shellSource).not.toMatch(/from "\.\/hugeCodeMissionControl\.js"/);
+    expect(shellSource).not.toMatch(/from "\.\/code-runtime-rpc\/runtimeRunsAndSubAgents\.js"/);
+    expect(shellSource).not.toMatch(/export (interface|type) RuntimeRun/);
+  });
+
+  it("does not expose legacy alias payload fields for hot rpc request maps", () => {
+    const requestMapSource = readFileSync(
+      new URL("./code-runtime-rpc/requestPayloadMap.ts", import.meta.url),
+      "utf8"
+    );
+
+    const turnSendSection = requestMapSource.slice(
+      requestMapSource.indexOf("[CODE_RUNTIME_RPC_METHODS.TURN_SEND]"),
+      requestMapSource.indexOf("[CODE_RUNTIME_RPC_METHODS.TURN_INTERRUPT]")
+    );
+    expect(turnSendSection).not.toContain("TurnSendRequestCompat");
+    expect(turnSendSection).not.toContain("request_id");
+    expect(turnSendSection).not.toContain("context_prefix");
+    expect(turnSendSection).not.toContain("preferred_backend_ids");
+
+    const runPrepareSection = requestMapSource.slice(
+      requestMapSource.indexOf("[CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2]"),
+      requestMapSource.indexOf("[CODE_RUNTIME_RPC_METHODS.RUN_START_V2]")
+    );
+    expect(runPrepareSection).not.toContain("workspace_id");
+    expect(runPrepareSection).not.toContain("request_id");
+    expect(runPrepareSection).not.toContain("preferred_backend_ids");
+    expect(runPrepareSection).not.toContain("timeout_ms");
+
+    const runStartSection = requestMapSource.slice(
+      requestMapSource.indexOf("[CODE_RUNTIME_RPC_METHODS.RUN_START_V2]"),
+      requestMapSource.indexOf("[CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2]")
+    );
+    expect(runStartSection).not.toContain("workspace_id");
+    expect(runStartSection).not.toContain("request_id");
+    expect(runStartSection).not.toContain("preferred_backend_ids");
+    expect(runStartSection).not.toContain("timeout_ms");
+
+    const runInterveneSection = requestMapSource.slice(
+      requestMapSource.indexOf("[CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2]"),
+      requestMapSource.indexOf("[CODE_RUNTIME_RPC_METHODS.RUN_GET_V2]")
+    );
+    expect(runInterveneSection).not.toContain("run_id");
+    expect(runInterveneSection).not.toContain("instruction_patch");
+    expect(runInterveneSection).not.toContain("preferred_backend_ids");
+  });
 });
 
 describe("rpc transport contract", () => {

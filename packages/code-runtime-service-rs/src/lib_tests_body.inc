@@ -5374,6 +5374,38 @@ exit 1
         });
     }
 
+    #[tokio::test]
+    async fn runtime_run_start_v2_requires_approved_plan_version() {
+        let app = test_router();
+        let start_payload = send_rpc_request_raw(
+            app.clone(),
+            json!({
+                "method": "code_runtime_run_start_v2",
+                "params": {
+                    "workspaceId": "workspace-web",
+                    "accessMode": "full-access",
+                    "steps": [{
+                        "kind": "read",
+                        "path": "AGENTS.md"
+                    }]
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(start_payload["ok"], Value::Bool(false));
+        assert_eq!(
+            start_payload["error"]["code"],
+            Value::String("INVALID_PARAMS".to_string())
+        );
+        assert!(
+            start_payload["error"]["message"]
+                .as_str()
+                .is_some_and(|message| message.contains("approvedPlanVersion is required")),
+            "unexpected error payload: {start_payload}"
+        );
+    }
+
     #[test]
     fn agent_task_write_requires_prior_read_of_same_path() {
         run_async_test_on_large_stack(async move {

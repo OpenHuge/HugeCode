@@ -1,5 +1,29 @@
+// Canonical shell only: keep domain payload ownership in split `code-runtime-rpc/*` modules.
 export type * from "./code-runtime-rpc/foundation.js";
-export * from "./code-runtime-rpc/rpcCore.js";
+export {
+  CODE_RUNTIME_CANONICAL_MISSION_LAUNCH_METHODS,
+  CODE_RUNTIME_RPC_CAPABILITY_PROFILES,
+  CODE_RUNTIME_RPC_EMPTY_PARAMS,
+  CODE_RUNTIME_RPC_ERROR_CODES,
+  CODE_RUNTIME_RPC_FEATURES,
+  CODE_RUNTIME_RPC_INVOCATION_COMPLETION_MODES,
+  CODE_RUNTIME_RPC_METHOD_LIST,
+  CODE_RUNTIME_RPC_METHODS,
+  CODE_RUNTIME_RPC_TRANSPORTS,
+} from "./code-runtime-rpc/rpcCore.js";
+export type {
+  CodeRuntimeRpcCapabilities,
+  CodeRuntimeRpcCapabilitiesMetadata,
+  CodeRuntimeRpcCapabilityProfile,
+  CodeRuntimeRpcEmptyParams,
+  CodeRuntimeRpcError,
+  CodeRuntimeRpcErrorCode,
+  CodeRuntimeRpcInvocationCompletionMode,
+  CodeRuntimeRpcInvocationPolicy,
+  CodeRuntimeRpcMethod,
+  CodeRuntimeRpcResponseEnvelope,
+  CodeRuntimeRpcTransports,
+} from "./code-runtime-rpc/rpcCore.js";
 
 export type * from "./code-runtime-rpc/agentExecution.js";
 
