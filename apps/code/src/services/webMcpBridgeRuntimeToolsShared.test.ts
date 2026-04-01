@@ -147,6 +147,48 @@ describe("webMcpBridgeRuntimeToolsShared delegated skill resolution", () => {
     });
   });
 
+  it("consumes shared executable-skill readers when they are exposed on runtime control", async () => {
+    const readRuntimeExecutableSkills = vi.fn(async () => ({
+      catalogSessionId: "session-2",
+      fallbackToLegacyTransport: false,
+      entries: [
+        {
+          canonicalSkillId: "session.review",
+          runtimeSkillId: "session.review",
+          acceptedSkillIds: ["session.review", "review-skill"],
+          availability: {
+            invocationId: "session.review",
+            live: true,
+            activationState: "active" as const,
+            readiness: {
+              state: "ready" as const,
+              summary: "Ready.",
+              detail: "Overlay-backed skill is ready.",
+            },
+          },
+          source: null,
+          metadata: null,
+        },
+      ],
+    }));
+    const listRuntimeInvocations = vi.fn(async () => []);
+
+    const catalog = await getRuntimeLiveSkillCatalogIndex(
+      {
+        readRuntimeExecutableSkills,
+        listRuntimeInvocations,
+      } as never,
+      { sessionId: "session-2" }
+    );
+
+    expect(readRuntimeExecutableSkills).toHaveBeenCalledWith({
+      sessionId: "session-2",
+    });
+    expect(listRuntimeInvocations).not.toHaveBeenCalled();
+    expect(catalog?.catalogSessionId).toBe("session-2");
+    expect(catalog?.knownSkillIds.has("review-skill")).toBe(true);
+  });
+
   it("falls back to live skill listings only when invocation catalog is unavailable", async () => {
     const listLiveSkills = vi.fn(async () => [
       {

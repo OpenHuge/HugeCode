@@ -552,6 +552,27 @@ export type RuntimeAllowedSkillResolution = {
   entries: RuntimeSkillIdResolution[];
 };
 
+export type RuntimeExecutableSkillCatalogEntry = {
+  canonicalSkillId: string;
+  runtimeSkillId: string;
+  acceptedSkillIds: string[];
+  availability: NonNullable<RuntimeSkillIdResolution["availability"]>;
+  source: RuntimeInvocationDescriptor["source"] | null;
+  metadata: JsonRecord | null;
+};
+
+export type RuntimeExecutableSkillCatalog = {
+  catalogSessionId: string | null;
+  fallbackToLegacyTransport: boolean;
+  entries: RuntimeExecutableSkillCatalogEntry[];
+};
+
+export type RuntimeExecutableSkillResolution = RuntimeSkillIdResolution & {
+  runtimeSkillId: string;
+  source: RuntimeInvocationDescriptor["source"] | null;
+  metadata: JsonRecord | null;
+};
+
 export type RuntimeSubAgentSendInput = {
   sessionId: string;
   instruction: string;
@@ -956,6 +977,17 @@ export type RuntimeAgentControl = {
     invocationId: string;
     sessionId?: string | null;
   }) => Promise<RuntimeInvocationDescriptor | null>;
+  readRuntimeExecutableSkills?: (input?: {
+    sessionId?: string | null;
+  }) => Promise<RuntimeExecutableSkillCatalog>;
+  resolveRuntimeExecutableSkill?: (input: {
+    skillId: string;
+    sessionId?: string | null;
+  }) => Promise<RuntimeExecutableSkillResolution>;
+  runRuntimeExecutableSkill?: (input: {
+    request: LiveSkillExecuteRequest;
+    sessionId?: string | null;
+  }) => Promise<LiveSkillExecutionResult>;
   listLiveSkills?: () => Promise<LiveSkillSummary[]>;
   runLiveSkill?: (input: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
   spawnSubAgentSession?: (input: {

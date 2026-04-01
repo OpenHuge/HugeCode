@@ -463,12 +463,14 @@ export class AutoDriveRunController {
     const failures: string[] = [];
     for (const command of commands) {
       try {
-        const result = await params.deps.runLiveSkill({
-          skillId: "core-bash",
-          input: command,
-          options: {
-            workspaceId: params.run.workspaceId,
-            command,
+        const result = await params.deps.runRuntimeExecutableSkill({
+          request: {
+            skillId: "core-bash",
+            input: command,
+            options: {
+              workspaceId: params.run.workspaceId,
+              command,
+            },
           },
         });
         const exitCode =

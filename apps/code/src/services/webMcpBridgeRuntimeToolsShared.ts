@@ -1,10 +1,10 @@
 import { applyRuntimeContextBudgetToToolOutput } from "./runtimeContextBudget";
+import { createRuntimeExecutableSkillFacade } from "../application/runtime/facades/runtimeExecutableSkillFacade";
 import {
   canonicalizeLiveSkillId,
   listAcceptedLiveSkillIds,
-  listAcceptedLiveSkillIdsFromCatalogSkill,
   normalizeLiveSkillLookupId,
-} from "./runtimeClientLiveSkills";
+} from "../application/runtime/facades/runtimeLiveSkillAliases";
 import {
   invalidInputError,
   methodUnavailableError,
@@ -17,7 +17,6 @@ import type {
   RuntimeAgentAccessMode,
   RuntimeAgentControl,
   RuntimeAgentReasonEffort,
-  RuntimeInvocationDescriptor,
   RuntimeSkillIdResolution,
   RuntimeAgentTaskExecutionMode,
   RuntimeSubAgentSessionHandle,
@@ -89,15 +88,6 @@ export type RuntimeLiveSkillCatalogIndex = {
   acceptedSkillIdsByCanonicalId: Map<string, string[]>;
   entriesByCanonicalSkillId: Map<string, NonNullable<RuntimeSkillIdResolution["availability"]>>;
 };
-
-function isRuntimeExecutableSkillInvocation(entry: RuntimeInvocationDescriptor): boolean {
-  return (
-    entry.kind === "skill" &&
-    ((typeof entry.metadata?.runtimeSkillId === "string" &&
-      entry.metadata.runtimeSkillId.trim().length > 0) ||
-      (typeof entry.source.pluginId === "string" && entry.source.pluginId.trim().length > 0))
-  );
-}
 
 export type SubAgentSpawnInputHelpers = Pick<
   RuntimeToolHelpers,
@@ -396,58 +386,14 @@ export function buildRuntimeAllowedSkillResolution(
   };
 }
 
-function buildLegacyReadyAvailability(): NonNullable<RuntimeSkillIdResolution["availability"]> {
-  return {
-    invocationId: null,
-    live: true,
-    activationState: "active",
-    readiness: {
-      state: "ready",
-      summary: "Legacy live skill listing reports this skill as available.",
-      detail:
-        "Activation-backed invocation data is unavailable, so legacy live skill transport is being used.",
-    },
-  };
-}
-
-function buildInvocationAvailability(
-  entry: RuntimeInvocationDescriptor
-): NonNullable<RuntimeSkillIdResolution["availability"]> {
-  return {
-    invocationId: entry.id,
-    live: entry.live,
-    activationState: entry.activationState,
-    readiness: {
-      ...entry.readiness,
-    },
-  };
-}
-
-function shouldPreferSkillAvailability(
-  nextEntry: RuntimeInvocationDescriptor,
-  currentAvailability: NonNullable<RuntimeSkillIdResolution["availability"]> | undefined
-): boolean {
-  if (!currentAvailability) {
-    return true;
-  }
-  if (nextEntry.live !== currentAvailability.live) {
-    return nextEntry.live;
-  }
-  if (nextEntry.source.sourceScope !== "session_overlay" && currentAvailability.invocationId) {
-    return false;
-  }
-  if (nextEntry.source.sourceScope === "session_overlay" && currentAvailability.invocationId) {
-    return true;
-  }
-  return false;
-}
-
-function buildRuntimeLiveSkillCatalogIndex(
-  liveSkills: Array<{
-    id: string;
-    aliases?: string[] | null;
-  }>
-): RuntimeLiveSkillCatalogIndex {
+function buildRuntimeLiveSkillCatalogIndexFromExecutableCatalog(catalog: {
+  catalogSessionId: string | null;
+  entries: Array<{
+    canonicalSkillId: string;
+    acceptedSkillIds: string[];
+    availability: NonNullable<RuntimeSkillIdResolution["availability"]>;
+  }>;
+}): RuntimeLiveSkillCatalogIndex {
   const knownSkillIds = new Set<string>();
   const canonicalSkillIdByAcceptedId = new Map<string, string>();
   const acceptedSkillIdsByCanonicalId = new Map<string, string[]>();
@@ -456,78 +402,26 @@ function buildRuntimeLiveSkillCatalogIndex(
     NonNullable<RuntimeSkillIdResolution["availability"]>
   >();
 
-  for (const skill of liveSkills) {
-    const canonicalSkillId = canonicalizeLiveSkillId(skill.id) ?? skill.id.trim();
-    const acceptedSkillIds = listAcceptedLiveSkillIdsFromCatalogSkill(skill);
-    const acceptedSkillEntries = acceptedSkillIdsByCanonicalId.get(canonicalSkillId) ?? [];
-    const acceptedSkillEntryLookup = new Set(
-      acceptedSkillEntries.map((entry) => normalizeLiveSkillLookupId(entry))
-    );
-    for (const acceptedSkillId of acceptedSkillIds) {
-      const normalizedAcceptedSkillId = normalizeLiveSkillLookupId(acceptedSkillId);
-      if (!acceptedSkillEntryLookup.has(normalizedAcceptedSkillId)) {
-        acceptedSkillEntries.push(acceptedSkillId);
-        acceptedSkillEntryLookup.add(normalizedAcceptedSkillId);
-      }
-      knownSkillIds.add(normalizedAcceptedSkillId);
-      canonicalSkillIdByAcceptedId.set(normalizedAcceptedSkillId, canonicalSkillId);
-    }
-    acceptedSkillIdsByCanonicalId.set(canonicalSkillId, acceptedSkillEntries);
-    entriesByCanonicalSkillId.set(canonicalSkillId, buildLegacyReadyAvailability());
-  }
-
-  return {
-    catalogSessionId: null,
-    knownSkillIds,
-    canonicalSkillIdByAcceptedId,
-    acceptedSkillIdsByCanonicalId,
-    entriesByCanonicalSkillId,
-  };
-}
-
-function buildRuntimeExecutableSkillCatalogIndex(
-  skillInvocations: RuntimeInvocationDescriptor[],
-  catalogSessionId: string | null
-): RuntimeLiveSkillCatalogIndex {
-  const knownSkillIds = new Set<string>();
-  const canonicalSkillIdByAcceptedId = new Map<string, string>();
-  const acceptedSkillIdsByCanonicalId = new Map<string, string[]>();
-  const entriesByCanonicalSkillId = new Map<
-    string,
-    NonNullable<RuntimeSkillIdResolution["availability"]>
-  >();
-
-  for (const entry of skillInvocations) {
-    const canonicalSkillId = canonicalizeLiveSkillId(entry.id) ?? entry.id.trim();
-    const acceptedSkillIds = listAcceptedLiveSkillIdsFromCatalogSkill({
-      id: entry.id,
-      aliases: Array.isArray(entry.metadata?.aliases)
-        ? entry.metadata.aliases.filter(
-            (value): value is string => typeof value === "string" && value.trim().length > 0
-          )
-        : [],
-    });
-    const acceptedSkillEntries = acceptedSkillIdsByCanonicalId.get(canonicalSkillId) ?? [];
+  for (const entry of catalog.entries) {
+    const acceptedSkillEntries = acceptedSkillIdsByCanonicalId.get(entry.canonicalSkillId) ?? [];
     const acceptedSkillEntryLookup = new Set(
       acceptedSkillEntries.map((acceptedSkillId) => normalizeLiveSkillLookupId(acceptedSkillId))
     );
-    for (const acceptedSkillId of acceptedSkillIds) {
+    for (const acceptedSkillId of entry.acceptedSkillIds) {
       const normalizedAcceptedSkillId = normalizeLiveSkillLookupId(acceptedSkillId);
       if (!acceptedSkillEntryLookup.has(normalizedAcceptedSkillId)) {
         acceptedSkillEntries.push(acceptedSkillId);
         acceptedSkillEntryLookup.add(normalizedAcceptedSkillId);
       }
       knownSkillIds.add(normalizedAcceptedSkillId);
-      canonicalSkillIdByAcceptedId.set(normalizedAcceptedSkillId, canonicalSkillId);
+      canonicalSkillIdByAcceptedId.set(normalizedAcceptedSkillId, entry.canonicalSkillId);
     }
-    acceptedSkillIdsByCanonicalId.set(canonicalSkillId, acceptedSkillEntries);
-    if (shouldPreferSkillAvailability(entry, entriesByCanonicalSkillId.get(canonicalSkillId))) {
-      entriesByCanonicalSkillId.set(canonicalSkillId, buildInvocationAvailability(entry));
-    }
+    acceptedSkillIdsByCanonicalId.set(entry.canonicalSkillId, acceptedSkillEntries);
+    entriesByCanonicalSkillId.set(entry.canonicalSkillId, entry.availability);
   }
 
   return {
-    catalogSessionId,
+    catalogSessionId: catalog.catalogSessionId,
     knownSkillIds,
     canonicalSkillIdByAcceptedId,
     acceptedSkillIdsByCanonicalId,
@@ -541,23 +435,27 @@ export async function getRuntimeLiveSkillCatalogIndex(
     sessionId?: string | null;
   }
 ): Promise<RuntimeLiveSkillCatalogIndex | null> {
-  // Delegated skill resolution must derive from activation-backed invocation truth
-  // when available. Legacy live skill transport remains a fallback for older
-  // embeds that do not expose invocation catalog readers yet.
-  if (typeof runtimeControl.listRuntimeInvocations === "function") {
-    const skillInvocations = (
-      await runtimeControl.listRuntimeInvocations({
-        sessionId: input?.sessionId ?? null,
-        kind: "skill",
-      })
-    ).filter(isRuntimeExecutableSkillInvocation) as RuntimeInvocationDescriptor[];
-    return buildRuntimeExecutableSkillCatalogIndex(skillInvocations, input?.sessionId ?? null);
-  }
-  if (typeof runtimeControl.listLiveSkills !== "function") {
+  const executableSkills =
+    typeof runtimeControl.readRuntimeExecutableSkills === "function"
+      ? await runtimeControl.readRuntimeExecutableSkills({
+          sessionId: input?.sessionId ?? null,
+        })
+      : await createRuntimeExecutableSkillFacade({
+          listRuntimeInvocations: runtimeControl.listRuntimeInvocations,
+          listLiveSkills: runtimeControl.listLiveSkills,
+          runLiveSkill:
+            typeof runtimeControl.runLiveSkill === "function"
+              ? runtimeControl.runLiveSkill
+              : async () => {
+                  throw methodUnavailableError("runtime-live-skill-catalog", "runLiveSkill");
+                },
+        }).readCatalog({
+          sessionId: input?.sessionId ?? null,
+        });
+  if (executableSkills.entries.length === 0 && !executableSkills.fallbackToLegacyTransport) {
     return null;
   }
-  const liveSkills = await runtimeControl.listLiveSkills();
-  return buildRuntimeLiveSkillCatalogIndex(liveSkills);
+  return buildRuntimeLiveSkillCatalogIndexFromExecutableCatalog(executableSkills);
 }
 
 export async function getKnownRuntimeLiveSkillIds(

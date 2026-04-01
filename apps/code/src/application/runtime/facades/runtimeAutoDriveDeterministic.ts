@@ -431,7 +431,7 @@ export function createDeterministicAutoDriveHarness(
         message: "closed",
       };
     },
-    runLiveSkill: async (): Promise<LiveSkillExecutionResult> => ({
+    runRuntimeExecutableSkill: async (): Promise<LiveSkillExecutionResult> => ({
       runId: "live-skill-run-deterministic",
       skillId: "core-bash",
       status: "completed",

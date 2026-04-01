@@ -126,6 +126,9 @@ export function useDebugRuntimeProbe({ workspaceId = null }: UseDebugRuntimeProb
       }
     }
 
+    // Debug probe intentionally targets the raw transport so operators can
+    // inspect runtime behavior even when activation-backed execution gates are
+    // diagnosing availability issues elsewhere.
     void runRuntimeProbe("live skill", () =>
       runRuntimeLiveSkill({
         skillId: normalizedSkillId,
