@@ -119,6 +119,9 @@ describe("runtimeExecutableSkillFacade", () => {
           invocationId: "session.review",
           activationState: "active",
           live: true,
+          publicationStatus: "published",
+          publicationReason:
+            "Published because activation-backed runtime skill session.review is active: Skill is active.",
         }),
       }),
     ]);
@@ -147,6 +150,9 @@ describe("runtimeExecutableSkillFacade", () => {
         invocationId: null,
         activationState: "active",
         live: true,
+        publicationStatus: "published",
+        publicationReason:
+          "Published because legacy runtime skill core-grep is available via live-skill fallback while activation-backed invocation data is unavailable.",
       },
     });
   });
@@ -183,6 +189,9 @@ describe("runtimeExecutableSkillFacade", () => {
         invocationId: "session.review",
         live: true,
         activationState: "degraded",
+        publicationStatus: "published",
+        publicationReason:
+          "Published because activation-backed runtime skill session.review is degraded: Skill is active with reduced readiness.",
       },
     });
 
@@ -225,6 +234,11 @@ describe("runtimeExecutableSkillFacade", () => {
     ).rejects.toMatchObject({
       code: "refresh_pending",
       activationState: "refresh_pending",
+      availability: expect.objectContaining({
+        publicationStatus: "hidden",
+        publicationReason:
+          "Hidden because activation-backed runtime skill session.review is refresh_pending: Skill refresh is pending.",
+      }),
       readiness: expect.objectContaining({
         summary: "Skill refresh is pending.",
       }),

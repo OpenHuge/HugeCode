@@ -160,6 +160,9 @@ describe("webMcpBridgeRuntimeToolsShared delegated skill resolution", () => {
             invocationId: "session.review",
             live: true,
             activationState: "active" as const,
+            publicationStatus: "published" as const,
+            publicationReason:
+              "Published because activation-backed runtime skill session.review is active: Ready.",
             readiness: {
               state: "ready" as const,
               summary: "Ready.",
@@ -231,6 +234,9 @@ describe("webMcpBridgeRuntimeToolsShared delegated skill resolution", () => {
               invocationId: "session.review",
               live: true,
               activationState: "degraded",
+              publicationStatus: "published",
+              publicationReason:
+                "Published because activation-backed runtime skill session.review is degraded: Skill is active with reduced readiness.",
               readiness: {
                 state: "attention",
                 summary: "Skill is active with reduced readiness.",
@@ -255,6 +261,9 @@ describe("webMcpBridgeRuntimeToolsShared delegated skill resolution", () => {
             invocationId: "session.review",
             live: true,
             activationState: "degraded",
+            publicationStatus: "published",
+            publicationReason:
+              "Published because activation-backed runtime skill session.review is degraded: Skill is active with reduced readiness.",
             readiness: {
               state: "attention",
               summary: "Skill is active with reduced readiness.",
@@ -281,6 +290,9 @@ describe("webMcpBridgeRuntimeToolsShared delegated skill resolution", () => {
                 invocationId: "session.review",
                 live: false,
                 activationState: "refresh_pending",
+                publicationStatus: "hidden",
+                publicationReason:
+                  "Hidden because activation-backed runtime skill session.review is refresh_pending: Skill refresh is pending.",
                 readiness: {
                   state: "attention",
                   summary: "Skill refresh is pending.",
@@ -292,6 +304,8 @@ describe("webMcpBridgeRuntimeToolsShared delegated skill resolution", () => {
         },
         "spawn-runtime-sub-agent-session"
       )
-    ).toThrow(/refresh_pending/i);
+    ).toThrow(
+      /Hidden because activation-backed runtime skill session\.review is refresh_pending: Skill refresh is pending\./i
+    );
   });
 });

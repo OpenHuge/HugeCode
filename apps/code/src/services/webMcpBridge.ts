@@ -127,6 +127,9 @@ function toContextDescriptorOptions(options?: {
     reasonCodes: string[];
   } | null;
   runtimeToolNames?: readonly string[];
+  runtimeSkillBackedToolPublicationDecision?: Awaited<
+    ReturnType<typeof readRuntimeSkillBackedToolPublicationDecision>
+  >;
 }): WebMcpContextDescriptorOptions | undefined {
   if (!options) {
     return undefined;
@@ -148,6 +151,21 @@ function toContextDescriptorOptions(options?: {
     activeModelContext: options.activeModelContext,
     toolExposureDecision,
     runtimeToolNames: options.runtimeToolNames,
+    runtimeSkillBackedToolPublication: options.runtimeSkillBackedToolPublicationDecision
+      ? {
+          publishedToolNames: options.runtimeSkillBackedToolPublicationDecision.publishedToolNames,
+          hiddenToolNames: options.runtimeSkillBackedToolPublicationDecision.hiddenToolNames,
+          entries: options.runtimeSkillBackedToolPublicationDecision.entries.map((entry) => ({
+            toolName: entry.toolName,
+            canonicalSkillId: entry.canonicalSkillId,
+            status: entry.status,
+            reason: entry.reason,
+            activationState: entry.availability?.activationState ?? null,
+            readinessState: entry.availability?.readiness.state ?? null,
+            readinessSummary: entry.availability?.readiness.summary ?? null,
+          })),
+        }
+      : null,
   };
 }
 
@@ -191,9 +209,21 @@ export async function syncWebMcpAgentControl(
     wrapToolsWithInputSchemaPreflight,
     resolveToolExposurePolicy: resolveRuntimeToolExposurePolicy,
     buildResources: (snapshot, descriptorOptions) =>
-      buildWebMcpResources(snapshot, toContextDescriptorOptions(descriptorOptions)),
+      buildWebMcpResources(
+        snapshot,
+        toContextDescriptorOptions({
+          ...descriptorOptions,
+          runtimeSkillBackedToolPublicationDecision,
+        })
+      ),
     buildPrompts: (snapshot, descriptorOptions) =>
-      buildWebMcpPrompts(snapshot, toContextDescriptorOptions(descriptorOptions)),
+      buildWebMcpPrompts(
+        snapshot,
+        toContextDescriptorOptions({
+          ...descriptorOptions,
+          runtimeSkillBackedToolPublicationDecision,
+        })
+      ),
   });
 }
 
