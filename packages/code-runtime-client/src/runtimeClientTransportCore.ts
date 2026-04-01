@@ -98,7 +98,7 @@ export async function invokeDesktopHostRaw<Result>(
       toRuntimeRpcInvocationError(cause) ??
       new RuntimeRpcInvocationError({
         code: CODE_RUNTIME_RPC_ERROR_CODES.INTERNAL_ERROR,
-        message: `Desktop host runtime ${method} failed.`,
+        message: `Electron bridge runtime ${method} failed.`,
       })
     );
   }

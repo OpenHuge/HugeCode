@@ -140,7 +140,7 @@ export function deriveSharedWorkspaceShellErrors(input: {
     input.hostStartupError
       ? {
           id: `host:${input.hostStartupError}`,
-          title: "Desktop host status unavailable",
+          title: "Electron bridge status unavailable",
           message: input.hostStartupError,
         }
       : null,

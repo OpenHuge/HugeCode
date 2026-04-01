@@ -220,16 +220,16 @@ export function ReadinessSummary({
                 }`}
               />
               <span className={styles.readinessLabel}>
-                {state.hostStartupStatus?.label ?? "Desktop host"}
+                {state.hostStartupStatus?.label ?? "Electron bridge"}
               </span>
             </div>
             <p className={styles.body}>
               {state.hostStartupLoadState === "idle" || state.hostStartupLoadState === "loading"
-                ? "Desktop host capabilities are hydrating after shell startup."
+                ? "Electron bridge capabilities are hydrating after shell startup."
                 : state.hostStartupLoadState === "refreshing"
-                  ? "Refreshing desktop host startup status without blocking the shared shell."
+                  ? "Refreshing Electron bridge startup status without blocking the shared shell."
                   : (state.hostStartupStatus?.detail ??
-                    "Desktop host status is available once the shared shell finishes startup hydration.")}
+                    "Electron bridge status is available once the shared shell finishes startup hydration.")}
             </p>
           </article>
         ) : null}

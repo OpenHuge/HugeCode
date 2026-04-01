@@ -3,6 +3,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { WorkspaceClientHostStartupStatus } from "../workspace/bindings";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
 import { WorkspaceShellApp } from "./WorkspaceShellApp";
 import type { MissionControlSnapshot } from "./sharedWorkspaceShellTestHarness";
@@ -199,11 +200,14 @@ describe("WorkspaceShellApp routes", () => {
       <WorkspaceClientBindingsProvider
         bindings={createBindings({
           hostPlatform: "desktop",
-          readStartupStatus: vi.fn(async () => ({
-            tone: "attention",
-            label: "Electron updates need attention",
-            detail: "Manual updates are required for this build.",
-          })),
+          readStartupStatus: vi.fn(
+            async () =>
+              ({
+                tone: "attention",
+                label: "Electron updates need attention",
+                detail: "Manual updates are required for this build.",
+              }) satisfies WorkspaceClientHostStartupStatus
+          ),
         })}
       >
         <WorkspaceShellApp />
@@ -211,7 +215,7 @@ describe("WorkspaceShellApp routes", () => {
     );
 
     expect(
-      screen.getByText("Desktop host capabilities are hydrating after shell startup.")
+      screen.getByText("Electron bridge capabilities are hydrating after shell startup.")
     ).toBeTruthy();
     expect(await screen.findByText("Electron updates need attention")).toBeTruthy();
     expect(screen.getByText("Manual updates are required for this build.")).toBeTruthy();

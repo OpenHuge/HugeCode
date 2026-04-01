@@ -104,7 +104,7 @@ export function WorkspaceHomeAgentRuntimeBrowserSection(
         <div className="workspace-home-code-runtime-item-main">
           <strong>Browser assessment operator</strong>
           <span>
-            Run the canonical localized render loop through the desktop-host browser capability
+            Run the canonical localized render loop through the Electron bridge browser capability
             facade and feed DOM, console, and accessibility findings back into the runtime.
           </span>
           <span>
@@ -251,8 +251,8 @@ export function WorkspaceHomeAgentRuntimeBrowserSection(
         <div className="workspace-home-code-runtime-item-main">
           <strong>Browser extraction operator</strong>
           <span>
-            Trigger the canonical desktop-host extraction contract from Mission Control and keep the
-            latest host-published result available for review.
+            Trigger the canonical Electron bridge extraction contract from Mission Control and keep
+            the latest host-published result available for review.
           </span>
           <span>
             Operator path: extract and history reads stay inside the approved application/runtime
