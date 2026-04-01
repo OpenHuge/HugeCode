@@ -16,6 +16,7 @@ import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/po
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
 import type { ApprovalRequest, RequestUserInputRequest } from "../../../types";
+import { useRuntimeWebMcpCatalogRevision } from "../../app/hooks/useRuntimeWebMcpCatalogRevision";
 import { WorkspaceHomeAgentIntentSection } from "./WorkspaceHomeAgentIntentSection";
 import {
   DEFAULT_INTENT,
@@ -250,6 +251,10 @@ export function WorkspaceHomeAgentControl({
     activeModelContext,
     intent,
   });
+  const runtimeWebMcpCatalogRevision = useRuntimeWebMcpCatalogRevision({
+    workspaceId: workspace.id,
+    enabled: webMcpEnabled && controlPreferencesReady,
+  });
   const responseRequiredState = useMemo(
     () => ({ approvals, userInputRequests }),
     [approvals, userInputRequests]
@@ -352,33 +357,41 @@ export function WorkspaceHomeAgentControl({
         }
         return window.confirm(message);
       },
-    }).then((result) => {
-      if (disposed) {
-        return;
-      }
-      if (!result.supported) {
-        setBridgeToolExposureReasonCodes([]);
-        if (!result.capabilities.modelContext) {
-          setBridgeStatus("WebMCP browser API unavailable");
-          setBridgeError(null);
+    })
+      .then((result) => {
+        if (disposed) {
           return;
         }
-        setBridgeStatus("WebMCP capability incomplete");
+        if (!result.supported) {
+          setBridgeToolExposureReasonCodes([]);
+          if (!result.capabilities.modelContext) {
+            setBridgeStatus("WebMCP browser API unavailable");
+            setBridgeError(null);
+            return;
+          }
+          setBridgeStatus("WebMCP capability incomplete");
+          setBridgeError(result.error);
+          return;
+        }
         setBridgeError(result.error);
-        return;
-      }
-      setBridgeError(result.error);
-      if (!result.enabled) {
-        setBridgeToolExposureReasonCodes([]);
-        setBridgeStatus("WebMCP disabled");
-        return;
-      }
-      setBridgeToolExposureReasonCodes(result.toolExposureReasonCodes ?? []);
-      const exposureLabel = result.toolExposureMode ? `, ${result.toolExposureMode} catalog` : "";
-      setBridgeStatus(
-        `${result.registeredTools} tool${result.registeredTools === 1 ? "" : "s"} synced (${result.mode}${exposureLabel})`
-      );
-    });
+        if (!result.enabled) {
+          setBridgeToolExposureReasonCodes([]);
+          setBridgeStatus("WebMCP disabled");
+          return;
+        }
+        setBridgeToolExposureReasonCodes(result.toolExposureReasonCodes ?? []);
+        const exposureLabel = result.toolExposureMode ? `, ${result.toolExposureMode} catalog` : "";
+        setBridgeStatus(
+          `${result.registeredTools} tool${result.registeredTools === 1 ? "" : "s"} synced (${result.mode}${exposureLabel})`
+        );
+      })
+      .catch((error) => {
+        if (disposed) {
+          return;
+        }
+        setBridgeError(error instanceof Error ? error.message : String(error));
+        setBridgeStatus("WebMCP sync failed");
+      });
 
     return () => {
       disposed = true;
@@ -392,6 +405,7 @@ export function WorkspaceHomeAgentControl({
     readOnlyMode,
     requireUserApproval,
     responseRequiredState,
+    runtimeWebMcpCatalogRevision,
     runtimeWebMcpContextPolicy.selectionPolicy?.toolExposureProfile,
     runtimeControl,
     snapshot,
