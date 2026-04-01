@@ -1,6 +1,5 @@
 import { resourceNotFoundError } from "./webMcpBridgeRuntimeToolHelpers";
 import {
-  assertKnownRuntimeLiveSkillIds,
   buildRuntimeAllowedSkillResolution,
   buildRuntimeSubAgentSessionHandle,
   type BuildRuntimeToolsOptions,
@@ -9,6 +8,7 @@ import {
   getRequiredSubAgentSessionId,
   normalizeSubAgentSpawnInput,
   requireSubAgentControlMethod,
+  validateAllowedRuntimeSkillIds,
   type WebMcpToolDescriptor,
 } from "./webMcpBridgeRuntimeToolsShared";
 
@@ -34,6 +34,7 @@ export function buildRuntimeSubAgentTools(
           provider: { type: "string" },
           modelId: { type: "string" },
           scopeProfile: { type: "string", enum: ["general", "research", "review"] },
+          catalogSessionId: { type: "string" },
           allowedSkillIds: {
             oneOf: [{ type: "array", items: { type: "string" } }, { type: "string" }],
           },
@@ -56,7 +57,10 @@ export function buildRuntimeSubAgentTools(
           "spawnSubAgentSession",
           "spawn-runtime-sub-agent-session"
         );
-        const liveSkillCatalogIndex = await getRuntimeLiveSkillCatalogIndex(runtimeControl);
+        const catalogSessionId = helpers.toNonEmptyString(input.catalogSessionId);
+        const liveSkillCatalogIndex = await getRuntimeLiveSkillCatalogIndex(runtimeControl, {
+          sessionId: catalogSessionId,
+        });
         const allowedSkillResolution = buildRuntimeAllowedSkillResolution(
           input.allowedSkillIds,
           helpers,
@@ -69,9 +73,9 @@ export function buildRuntimeSubAgentTools(
           liveSkillCatalogIndex,
           agent
         );
-        assertKnownRuntimeLiveSkillIds(
+        validateAllowedRuntimeSkillIds(
           spawnInput.allowedSkillIds,
-          liveSkillCatalogIndex?.knownSkillIds ?? null,
+          liveSkillCatalogIndex,
           "spawn-runtime-sub-agent-session"
         );
         const session = await spawnSubAgentSession(spawnInput);

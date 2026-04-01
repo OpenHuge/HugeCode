@@ -865,6 +865,189 @@ describe("webMcpBridge sub-agent session integration", () => {
     expect(listLiveSkills).toHaveBeenCalledTimes(2);
   });
 
+  it("uses catalogSessionId to resolve delegated allowedSkillIds from activation truth", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const runtimeControlBase = createRuntimeControlBase();
+    const listRuntimeInvocations = vi.fn(async (input?: { sessionId?: string | null }) => [
+      {
+        id: "session.review",
+        title: "Session Review",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "session_overlay",
+        live: true,
+        activationState: "degraded",
+        readiness: {
+          state: "attention",
+          summary: "Overlay skill is active with warnings.",
+          detail: "The overlay binding is active while refresh catches up.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "overlay:session-1:review",
+          sourceType: "session_overlay",
+          sourceScope: "session_overlay",
+          sourceRef: "session.review",
+          pluginId: "session.review",
+          packageRef: null,
+          overlayId: "review",
+          sessionId: input?.sessionId ?? null,
+        },
+        metadata: {
+          runtimeSkillId: "session.review",
+          aliases: ["review-skill"],
+        },
+      },
+    ]);
+    const listLiveSkills = vi.fn(async () => [
+      {
+        id: "legacy-review",
+        name: "Legacy Review",
+        description: "legacy",
+        kind: "skill",
+        source: "builtin",
+      },
+    ]);
+    const spawnSubAgentSession = vi.fn(async () => ({
+      sessionId: "sub-agent-session-overlay",
+      workspaceId: snapshot.workspaceId,
+      threadId: null,
+      title: null,
+      status: "running",
+      accessMode: "on-request",
+      reasonEffort: "medium",
+      provider: null,
+      modelId: null,
+      activeTaskId: null,
+      lastTaskId: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      closedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      scopeProfile: "review",
+      allowedSkillIds: ["session.review"],
+      allowNetwork: false,
+      workspaceReadPaths: null,
+      parentRunId: null,
+      profileDescriptor: null,
+      checkpointId: null,
+      traceId: null,
+      recovered: false,
+      checkpointState: null,
+      approvalEvents: null,
+      compactionSummary: null,
+      evalTags: null,
+    }));
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        ...runtimeControlBase,
+        listRuntimeInvocations,
+        listLiveSkills,
+        spawnSubAgentSession,
+        sendSubAgentInstruction: vi.fn(async () => ({ session: null, task: null })),
+        waitSubAgentSession: vi.fn(async () => ({
+          session: null,
+          task: null,
+          done: true,
+          timedOut: false,
+        })),
+      } as unknown as NonNullable<Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]>,
+    });
+
+    const spawnTool = registeredTools.find(
+      (tool) => tool.name === "spawn-runtime-sub-agent-session"
+    );
+    expect(spawnTool).toBeTruthy();
+    if (!spawnTool) {
+      throw new Error("spawn-runtime-sub-agent-session tool not found");
+    }
+
+    const spawnResponse = await Promise.resolve(
+      spawnTool.execute(
+        {
+          scopeProfile: "review",
+          catalogSessionId: "session-1",
+          allowedSkillIds: ["review-skill"],
+        },
+        null
+      )
+    );
+
+    expect(listRuntimeInvocations).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      kind: "skill",
+    });
+    expect(listLiveSkills).not.toHaveBeenCalled();
+    expect(spawnSubAgentSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scopeProfile: "review",
+        allowedSkillIds: ["session.review"],
+      })
+    );
+    expect(spawnResponse).toMatchObject({
+      ok: true,
+      data: {
+        allowedSkillResolution: {
+          catalogSessionId: "session-1",
+          entries: [
+            expect.objectContaining({
+              resolvedSkillId: "session.review",
+              availability: expect.objectContaining({
+                invocationId: "session.review",
+                live: true,
+                activationState: "degraded",
+                readiness: expect.objectContaining({
+                  state: "attention",
+                  summary: "Overlay skill is active with warnings.",
+                }),
+              }),
+            }),
+          ],
+        },
+      },
+    });
+
+    const startTool = registeredTools.find((tool) => tool.name === "start-runtime-run");
+    expect(startTool).toBeTruthy();
+    if (!startTool) {
+      throw new Error("start-runtime-run tool not found");
+    }
+
+    await Promise.resolve(
+      startTool.execute(
+        {
+          instruction: "Use sub agents to review the overlay behavior.",
+          catalogSessionId: "session-1",
+          allowedSkillIds: ["review-skill"],
+        },
+        null
+      )
+    );
+
+    expect(listRuntimeInvocations).toHaveBeenLastCalledWith({
+      sessionId: "session-1",
+      kind: "skill",
+    });
+  });
+
   it("executes batch runtime sub-agent orchestration and returns per-item results", async () => {
     let registeredTools: Array<{
       name: string;

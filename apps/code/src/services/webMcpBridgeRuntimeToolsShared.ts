@@ -83,9 +83,11 @@ export type BuildRuntimeToolsOptions = {
 type WorkspaceIdHelper = Pick<RuntimeToolHelpers, "toNonEmptyString">;
 
 export type RuntimeLiveSkillCatalogIndex = {
+  catalogSessionId: string | null;
   knownSkillIds: Set<string>;
   canonicalSkillIdByAcceptedId: Map<string, string>;
   acceptedSkillIdsByCanonicalId: Map<string, string[]>;
+  entriesByCanonicalSkillId: Map<string, NonNullable<RuntimeSkillIdResolution["availability"]>>;
 };
 
 function isRuntimeExecutableSkillInvocation(entry: RuntimeInvocationDescriptor): boolean {
@@ -337,6 +339,13 @@ function resolveRuntimeSkillId(
   );
 }
 
+function resolveRuntimeSkillAvailability(
+  resolvedSkillId: string,
+  liveSkillCatalogIndex?: RuntimeLiveSkillCatalogIndex | null
+): RuntimeSkillIdResolution["availability"] {
+  return liveSkillCatalogIndex?.entriesByCanonicalSkillId.get(resolvedSkillId) ?? null;
+}
+
 function resolveAcceptedRuntimeSkillIds(
   requestedSkillId: string,
   resolvedSkillId: string,
@@ -363,6 +372,7 @@ export function buildRuntimeSkillIdResolution(
       resolvedSkillId,
       liveSkillCatalogIndex
     ),
+    availability: resolveRuntimeSkillAvailability(resolvedSkillId, liveSkillCatalogIndex),
   };
 }
 
@@ -379,10 +389,57 @@ export function buildRuntimeAllowedSkillResolution(
     buildRuntimeSkillIdResolution(skillId, liveSkillCatalogIndex)
   );
   return {
+    catalogSessionId: liveSkillCatalogIndex?.catalogSessionId ?? null,
     requestedSkillIds,
     resolvedSkillIds: Array.from(new Set(entries.map((entry) => entry.resolvedSkillId))),
     entries,
   };
+}
+
+function buildLegacyReadyAvailability(): NonNullable<RuntimeSkillIdResolution["availability"]> {
+  return {
+    invocationId: null,
+    live: true,
+    activationState: "active",
+    readiness: {
+      state: "ready",
+      summary: "Legacy live skill listing reports this skill as available.",
+      detail:
+        "Activation-backed invocation data is unavailable, so legacy live skill transport is being used.",
+    },
+  };
+}
+
+function buildInvocationAvailability(
+  entry: RuntimeInvocationDescriptor
+): NonNullable<RuntimeSkillIdResolution["availability"]> {
+  return {
+    invocationId: entry.id,
+    live: entry.live,
+    activationState: entry.activationState,
+    readiness: {
+      ...entry.readiness,
+    },
+  };
+}
+
+function shouldPreferSkillAvailability(
+  nextEntry: RuntimeInvocationDescriptor,
+  currentAvailability: NonNullable<RuntimeSkillIdResolution["availability"]> | undefined
+): boolean {
+  if (!currentAvailability) {
+    return true;
+  }
+  if (nextEntry.live !== currentAvailability.live) {
+    return nextEntry.live;
+  }
+  if (nextEntry.source.sourceScope !== "session_overlay" && currentAvailability.invocationId) {
+    return false;
+  }
+  if (nextEntry.source.sourceScope === "session_overlay" && currentAvailability.invocationId) {
+    return true;
+  }
+  return false;
 }
 
 function buildRuntimeLiveSkillCatalogIndex(
@@ -394,6 +451,10 @@ function buildRuntimeLiveSkillCatalogIndex(
   const knownSkillIds = new Set<string>();
   const canonicalSkillIdByAcceptedId = new Map<string, string>();
   const acceptedSkillIdsByCanonicalId = new Map<string, string[]>();
+  const entriesByCanonicalSkillId = new Map<
+    string,
+    NonNullable<RuntimeSkillIdResolution["availability"]>
+  >();
 
   for (const skill of liveSkills) {
     const canonicalSkillId = canonicalizeLiveSkillId(skill.id) ?? skill.id.trim();
@@ -412,12 +473,65 @@ function buildRuntimeLiveSkillCatalogIndex(
       canonicalSkillIdByAcceptedId.set(normalizedAcceptedSkillId, canonicalSkillId);
     }
     acceptedSkillIdsByCanonicalId.set(canonicalSkillId, acceptedSkillEntries);
+    entriesByCanonicalSkillId.set(canonicalSkillId, buildLegacyReadyAvailability());
   }
 
   return {
+    catalogSessionId: null,
     knownSkillIds,
     canonicalSkillIdByAcceptedId,
     acceptedSkillIdsByCanonicalId,
+    entriesByCanonicalSkillId,
+  };
+}
+
+function buildRuntimeExecutableSkillCatalogIndex(
+  skillInvocations: RuntimeInvocationDescriptor[],
+  catalogSessionId: string | null
+): RuntimeLiveSkillCatalogIndex {
+  const knownSkillIds = new Set<string>();
+  const canonicalSkillIdByAcceptedId = new Map<string, string>();
+  const acceptedSkillIdsByCanonicalId = new Map<string, string[]>();
+  const entriesByCanonicalSkillId = new Map<
+    string,
+    NonNullable<RuntimeSkillIdResolution["availability"]>
+  >();
+
+  for (const entry of skillInvocations) {
+    const canonicalSkillId = canonicalizeLiveSkillId(entry.id) ?? entry.id.trim();
+    const acceptedSkillIds = listAcceptedLiveSkillIdsFromCatalogSkill({
+      id: entry.id,
+      aliases: Array.isArray(entry.metadata?.aliases)
+        ? entry.metadata.aliases.filter(
+            (value): value is string => typeof value === "string" && value.trim().length > 0
+          )
+        : [],
+    });
+    const acceptedSkillEntries = acceptedSkillIdsByCanonicalId.get(canonicalSkillId) ?? [];
+    const acceptedSkillEntryLookup = new Set(
+      acceptedSkillEntries.map((acceptedSkillId) => normalizeLiveSkillLookupId(acceptedSkillId))
+    );
+    for (const acceptedSkillId of acceptedSkillIds) {
+      const normalizedAcceptedSkillId = normalizeLiveSkillLookupId(acceptedSkillId);
+      if (!acceptedSkillEntryLookup.has(normalizedAcceptedSkillId)) {
+        acceptedSkillEntries.push(acceptedSkillId);
+        acceptedSkillEntryLookup.add(normalizedAcceptedSkillId);
+      }
+      knownSkillIds.add(normalizedAcceptedSkillId);
+      canonicalSkillIdByAcceptedId.set(normalizedAcceptedSkillId, canonicalSkillId);
+    }
+    acceptedSkillIdsByCanonicalId.set(canonicalSkillId, acceptedSkillEntries);
+    if (shouldPreferSkillAvailability(entry, entriesByCanonicalSkillId.get(canonicalSkillId))) {
+      entriesByCanonicalSkillId.set(canonicalSkillId, buildInvocationAvailability(entry));
+    }
+  }
+
+  return {
+    catalogSessionId,
+    knownSkillIds,
+    canonicalSkillIdByAcceptedId,
+    acceptedSkillIdsByCanonicalId,
+    entriesByCanonicalSkillId,
   };
 }
 
@@ -427,24 +541,17 @@ export async function getRuntimeLiveSkillCatalogIndex(
     sessionId?: string | null;
   }
 ): Promise<RuntimeLiveSkillCatalogIndex | null> {
+  // Delegated skill resolution must derive from activation-backed invocation truth
+  // when available. Legacy live skill transport remains a fallback for older
+  // embeds that do not expose invocation catalog readers yet.
   if (typeof runtimeControl.listRuntimeInvocations === "function") {
-    const liveSkillInvocations = (
+    const skillInvocations = (
       await runtimeControl.listRuntimeInvocations({
         sessionId: input?.sessionId ?? null,
-        activeOnly: true,
         kind: "skill",
       })
     ).filter(isRuntimeExecutableSkillInvocation) as RuntimeInvocationDescriptor[];
-    return buildRuntimeLiveSkillCatalogIndex(
-      liveSkillInvocations.map((entry) => ({
-        id: entry.id,
-        aliases: Array.isArray(entry.metadata?.aliases)
-          ? entry.metadata.aliases.filter(
-              (value): value is string => typeof value === "string" && value.trim().length > 0
-            )
-          : [],
-      }))
-    );
+    return buildRuntimeExecutableSkillCatalogIndex(skillInvocations, input?.sessionId ?? null);
   }
   if (typeof runtimeControl.listLiveSkills !== "function") {
     return null;
@@ -459,23 +566,43 @@ export async function getKnownRuntimeLiveSkillIds(
   return (await getRuntimeLiveSkillCatalogIndex(runtimeControl))?.knownSkillIds ?? null;
 }
 
-export function assertKnownRuntimeLiveSkillIds(
+export function validateAllowedRuntimeSkillIds(
   allowedSkillIds: string[] | null | undefined,
-  knownLiveSkillIds: Set<string> | null,
+  liveSkillCatalogIndex: RuntimeLiveSkillCatalogIndex | null | undefined,
   toolName: string
 ): void {
-  if (!allowedSkillIds || allowedSkillIds.length === 0 || knownLiveSkillIds === null) {
+  if (
+    !allowedSkillIds ||
+    allowedSkillIds.length === 0 ||
+    liveSkillCatalogIndex === null ||
+    liveSkillCatalogIndex === undefined
+  ) {
     return;
   }
   const unknownSkillIds = allowedSkillIds.filter(
-    (skillId) => !knownLiveSkillIds.has(normalizeLiveSkillLookupId(skillId))
+    (skillId) => !liveSkillCatalogIndex.knownSkillIds.has(normalizeLiveSkillLookupId(skillId))
   );
-  if (unknownSkillIds.length === 0) {
-    return;
+  if (unknownSkillIds.length > 0) {
+    throw invalidInputError(
+      `${toolName} received unknown allowedSkillIds: ${unknownSkillIds.join(", ")}.`
+    );
   }
-  throw invalidInputError(
-    `${toolName} received unknown allowedSkillIds: ${unknownSkillIds.join(", ")}.`
-  );
+
+  const unavailableSkillEntries = allowedSkillIds.flatMap((skillId) => {
+    const resolution = buildRuntimeSkillIdResolution(skillId, liveSkillCatalogIndex);
+    const availability = resolution.availability;
+    if (!availability || availability.live) {
+      return [];
+    }
+    return [
+      `${resolution.resolvedSkillId} is ${availability.activationState}: ${availability.readiness.summary}`,
+    ];
+  });
+  if (unavailableSkillEntries.length > 0) {
+    throw invalidInputError(
+      `${toolName} received unavailable allowedSkillIds: ${unavailableSkillEntries.join("; ")}.`
+    );
+  }
 }
 
 export function getRequiredSubAgentSessionId(

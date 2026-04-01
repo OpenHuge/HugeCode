@@ -533,9 +533,20 @@ export type RuntimeSkillIdResolution = {
   resolvedSkillId: string;
   aliasApplied: boolean;
   acceptedSkillIds: string[];
+  availability?: {
+    invocationId: string | null;
+    live: boolean;
+    activationState: RuntimeInvocationActivationState;
+    readiness: {
+      state: RuntimeInvocationReadinessState;
+      summary: string;
+      detail: string;
+    };
+  } | null;
 };
 
 export type RuntimeAllowedSkillResolution = {
+  catalogSessionId: string | null;
   requestedSkillIds: string[];
   resolvedSkillIds: string[];
   entries: RuntimeSkillIdResolution[];
