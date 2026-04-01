@@ -45,12 +45,22 @@ type RuntimeListedLiveSkill = LiveSkillSummary & {
   acceptedSkillIds: string[];
   alternateSkillIds: string[];
   discoveredSkillIds: string[];
+  invocationId: string | null;
+  activationState: RuntimeInvocationDescriptor["activationState"] | null;
+  readiness: RuntimeInvocationDescriptor["readiness"] | null;
 };
 
-function toInvocationLiveSkillSummary(skill: RuntimeInvocationDescriptor): LiveSkillSummary {
+function toInvocationLiveSkillSummary(skill: RuntimeInvocationDescriptor): RuntimeListedLiveSkill {
   const tags = Array.isArray(skill.metadata?.tags)
     ? skill.metadata.tags.filter((entry): entry is string => typeof entry === "string")
     : [];
+  const canonicalSkillId = canonicalizeLiveSkillId(skill.id) ?? skill.id;
+  const aliases = Array.isArray(skill.metadata?.aliases)
+    ? skill.metadata.aliases.filter((entry): entry is string => typeof entry === "string")
+    : [];
+  const acceptedSkillIds = Array.from(
+    new Set([skill.id, ...aliases, ...listAcceptedLiveSkillIds(skill.id)])
+  );
   return {
     id: skill.id,
     name: skill.title,
@@ -70,9 +80,15 @@ function toInvocationLiveSkillSummary(skill: RuntimeInvocationDescriptor): LiveS
     enabled: skill.live,
     supportsNetwork: false,
     tags,
-    aliases: Array.isArray(skill.metadata?.aliases)
-      ? skill.metadata.aliases.filter((entry): entry is string => typeof entry === "string")
-      : [],
+    aliases,
+    canonicalSkillId,
+    isCanonicalId: skill.id === canonicalSkillId,
+    acceptedSkillIds,
+    alternateSkillIds: acceptedSkillIds.filter((entry) => entry !== skill.id),
+    discoveredSkillIds: [skill.id],
+    invocationId: skill.id,
+    activationState: skill.activationState,
+    readiness: { ...skill.readiness },
   };
 }
 
@@ -85,7 +101,9 @@ function isRuntimeExecutableSkillInvocation(skill: RuntimeInvocationDescriptor):
   );
 }
 
-function buildListedRuntimeLiveSkill(skill: LiveSkillSummary): RuntimeListedLiveSkill {
+function buildListedRuntimeLiveSkill(
+  skill: LiveSkillSummary | RuntimeListedLiveSkill
+): RuntimeListedLiveSkill {
   const canonicalSkillId = canonicalizeLiveSkillId(skill.id) ?? skill.id;
   const runtimeAliases = Array.isArray(skill.aliases)
     ? skill.aliases.filter(
@@ -104,6 +122,9 @@ function buildListedRuntimeLiveSkill(skill: LiveSkillSummary): RuntimeListedLive
     acceptedSkillIds,
     alternateSkillIds: acceptedSkillIds.filter((entry) => entry !== skill.id),
     discoveredSkillIds: [skill.id],
+    invocationId: "invocationId" in skill ? skill.invocationId : null,
+    activationState: "activationState" in skill ? skill.activationState : null,
+    readiness: "readiness" in skill ? skill.readiness : null,
   };
 }
 

@@ -1288,6 +1288,108 @@ describe("webMcpBridge", () => {
     });
   });
 
+  it("surfaces activation state and readiness for non-live runtime skills", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async () => [
+      {
+        id: "core-grep",
+        title: "Core Grep",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "runtime_binding",
+        live: false,
+        activationState: "refresh_pending",
+        readiness: {
+          state: "attention",
+          summary: "Refresh is rebuilding this skill.",
+          detail: "The runtime is re-binding core-grep after a recent refresh.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "plugin:core-grep",
+          sourceType: "runtime_plugin",
+          sourceScope: "runtime",
+          sourceRef: "core-grep",
+          pluginId: "core-grep",
+          packageRef: null,
+          overlayId: null,
+          sessionId: null,
+        },
+        metadata: {
+          runtimeSkillId: "core-grep",
+          aliases: ["grep", "search"],
+          kind: "file_search",
+          source: "builtin",
+          tags: ["search"],
+        },
+      },
+    ]);
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+      },
+    });
+
+    const listSkillsTool = registeredTools.find((tool) => tool.name === "list-runtime-live-skills");
+    expect(listSkillsTool).toBeTruthy();
+    if (!listSkillsTool) {
+      throw new Error("list-runtime-live-skills tool not found");
+    }
+
+    await expect(
+      Promise.resolve(listSkillsTool.execute({ enabled: false }, null))
+    ).resolves.toMatchObject({
+      data: {
+        skills: [
+          expect.objectContaining({
+            id: "core-grep",
+            enabled: false,
+            activationState: "refresh_pending",
+            readiness: expect.objectContaining({
+              state: "attention",
+              summary: "Refresh is rebuilding this skill.",
+            }),
+          }),
+        ],
+      },
+    });
+  });
+
   it("prefers activation-backed invocation truth for delegated skill resolution", async () => {
     let registeredTools: Array<{
       name: string;
@@ -1462,6 +1564,130 @@ describe("webMcpBridge", () => {
     );
   });
 
+  it("uses activation-backed availability for search-workspace-files explanations", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async () => [
+      {
+        id: "core-grep",
+        title: "Core Grep",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "runtime_binding",
+        live: false,
+        activationState: "refresh_pending",
+        readiness: {
+          state: "attention",
+          summary: "Refresh is rebuilding this skill.",
+          detail: "core-grep is temporarily unavailable while activation refresh completes.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "plugin:core-grep",
+          sourceType: "runtime_plugin",
+          sourceScope: "runtime",
+          sourceRef: "core-grep",
+          pluginId: "core-grep",
+          packageRef: null,
+          overlayId: null,
+          sessionId: null,
+        },
+        metadata: {
+          runtimeSkillId: "core-grep",
+          aliases: ["grep", "search"],
+          kind: "file_search",
+          source: "builtin",
+          tags: ["search"],
+        },
+      },
+    ]);
+    const listLiveSkills = vi.fn(async () => [
+      {
+        id: "core-grep",
+        name: "Core Grep",
+        description: "Search",
+        kind: "file_search",
+        source: "builtin",
+        version: "1.0.0",
+        enabled: true,
+        supportsNetwork: false,
+        tags: ["search"],
+      },
+    ]);
+    const runLiveSkill = vi.fn(async () => ({
+      runId: "live-skill-run-grep-activation-blocked",
+      skillId: "core-grep",
+      status: "completed" as const,
+      message: "ok",
+      output: "",
+      network: null,
+      artifacts: [],
+      metadata: {},
+    }));
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+        listLiveSkills,
+        runLiveSkill: runLiveSkill as NonNullable<
+          NonNullable<
+            Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]
+          >["runLiveSkill"]
+        >,
+      },
+    });
+
+    const searchTool = registeredTools.find((tool) => tool.name === "search-workspace-files");
+    expect(searchTool).toBeTruthy();
+    if (!searchTool) {
+      throw new Error("search-workspace-files tool not found");
+    }
+
+    await expect(
+      Promise.resolve(searchTool.execute({ pattern: "workspaceId" }, null))
+    ).rejects.toThrow(/refresh_pending/i);
+    expect(listRuntimeInvocations).toHaveBeenCalledWith({
+      sessionId: null,
+      activeOnly: null,
+      kind: "skill",
+    });
+    expect(listLiveSkills).not.toHaveBeenCalled();
+    expect(runLiveSkill).not.toHaveBeenCalled();
+  });
+
   it("canonicalizes runtime-only live-skill aliases from the runtime catalog", async () => {
     let registeredTools: Array<{
       name: string;
@@ -1572,6 +1798,129 @@ describe("webMcpBridge", () => {
         },
       })
     );
+  });
+
+  it("blocks run-runtime-live-skill when activation truth reports a non-live skill", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async () => [
+      {
+        id: "core-grep",
+        title: "Core Grep",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "runtime_binding",
+        live: false,
+        activationState: "failed",
+        readiness: {
+          state: "blocked",
+          summary: "Binding failed for core-grep.",
+          detail: "The runtime cannot execute core-grep until the binding failure is resolved.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "plugin:core-grep",
+          sourceType: "runtime_plugin",
+          sourceScope: "runtime",
+          sourceRef: "core-grep",
+          pluginId: "core-grep",
+          packageRef: null,
+          overlayId: null,
+          sessionId: null,
+        },
+        metadata: {
+          runtimeSkillId: "core-grep",
+          aliases: ["grep", "ripgrep"],
+          kind: "file_search",
+          source: "builtin",
+          tags: ["search"],
+        },
+      },
+    ]);
+    const listLiveSkills = vi.fn(async () => [
+      {
+        id: "core-grep",
+        name: "Core Grep",
+        description: "Search",
+        kind: "file_search",
+        source: "builtin",
+        version: "1.0.0",
+        enabled: true,
+        supportsNetwork: false,
+        tags: ["search"],
+      },
+    ]);
+    const runLiveSkill = vi.fn(async () => ({
+      runId: "live-skill-run-grep-blocked",
+      skillId: "core-grep",
+      status: "completed" as const,
+      message: "ok",
+      output: "",
+      network: null,
+      artifacts: [],
+      metadata: {},
+    }));
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+        listLiveSkills,
+        runLiveSkill: runLiveSkill as NonNullable<
+          NonNullable<
+            Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]
+          >["runLiveSkill"]
+        >,
+      },
+    });
+
+    const runLiveSkillTool = registeredTools.find((tool) => tool.name === "run-runtime-live-skill");
+    expect(runLiveSkillTool).toBeTruthy();
+    if (!runLiveSkillTool) {
+      throw new Error("run-runtime-live-skill tool not found");
+    }
+
+    await expect(
+      Promise.resolve(runLiveSkillTool.execute({ skillId: "ripgrep", input: "workspaceId" }, null))
+    ).rejects.toThrow(/failed/i);
+    expect(listRuntimeInvocations).toHaveBeenCalledWith({
+      sessionId: null,
+      kind: "skill",
+    });
+    expect(listLiveSkills).not.toHaveBeenCalled();
+    expect(runLiveSkill).not.toHaveBeenCalled();
   });
 
   it("uses agent metadata fallback for query-network-analysis context and keeps explicit inputs highest priority", async () => {

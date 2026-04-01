@@ -29,6 +29,7 @@ import {
 import type {
   RuntimeAgentControl,
   RuntimeInvocationDescriptor,
+  RuntimeSkillIdResolution,
   WebMcpAgent,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
@@ -42,6 +43,7 @@ type RuntimeLiveSkillSummary = {
   id: string;
   canonicalSkillId: string;
   enabled: boolean;
+  availability: NonNullable<RuntimeSkillIdResolution["availability"]> | null;
 };
 
 function isRuntimeExecutableSkillInvocation(entry: RuntimeInvocationDescriptor): boolean {
@@ -58,11 +60,13 @@ let cachedLiveSkills: {
     | RuntimeAgentControl["listRuntimeInvocations"]
     | RuntimeAgentControl["listLiveSkills"]
     | null;
+  sessionId: string | null;
   expiresAtMs: number;
   value: RuntimeLiveSkillSummary[];
   inFlight: Promise<RuntimeLiveSkillSummary[]> | null;
 } = {
   source: null,
+  sessionId: null,
   expiresAtMs: 0,
   value: emptyLiveSkillList,
   inFlight: null,
@@ -79,9 +83,29 @@ export function invalidateCachedRuntimeLiveSkills(
   }
   cachedLiveSkills = {
     source: source ?? null,
+    sessionId: null,
     expiresAtMs: 0,
     value: emptyLiveSkillList,
     inFlight: null,
+  };
+}
+
+function buildLegacyLiveSkillAvailability(
+  skill: Pick<RuntimeLiveSkillSummary, "id" | "enabled">
+): NonNullable<RuntimeSkillIdResolution["availability"]> | null {
+  if (!skill.enabled) {
+    return null;
+  }
+  return {
+    invocationId: null,
+    live: true,
+    activationState: "active",
+    readiness: {
+      state: "ready",
+      summary: `Legacy runtime listing reports ${skill.id} as enabled.`,
+      detail:
+        "Activation-backed invocation data is unavailable, so legacy live skill transport is being used.",
+    },
   };
 }
 
@@ -102,12 +126,18 @@ async function getCachedLiveSkills(
   if (
     !forceRefresh &&
     cachedLiveSkills.source === source &&
+    cachedLiveSkills.sessionId === (options?.sessionId ?? null) &&
     cachedLiveSkills.inFlight === null &&
     now < cachedLiveSkills.expiresAtMs
   ) {
     return cachedLiveSkills.value;
   }
-  if (!forceRefresh && cachedLiveSkills.source === source && cachedLiveSkills.inFlight) {
+  if (
+    !forceRefresh &&
+    cachedLiveSkills.source === source &&
+    cachedLiveSkills.sessionId === (options?.sessionId ?? null) &&
+    cachedLiveSkills.inFlight
+  ) {
     return cachedLiveSkills.inFlight;
   }
 
@@ -132,16 +162,28 @@ async function getCachedLiveSkills(
               id: invocation.id,
               canonicalSkillId: canonicalizeLiveSkillId(invocation.id) ?? invocation.id,
               enabled: invocation.live,
+              availability: {
+                invocationId: invocation.id,
+                live: invocation.live,
+                activationState: invocation.activationState,
+                readiness: { ...invocation.readiness },
+              },
             };
           }
-          return {
+          const summary = {
             id: skill.id,
             canonicalSkillId: canonicalizeLiveSkillId(skill.id) ?? skill.id,
             enabled: skill.enabled,
+            availability: null,
+          };
+          return {
+            ...summary,
+            availability: buildLegacyLiveSkillAvailability(summary),
           };
         });
       cachedLiveSkills = {
         source,
+        sessionId: options?.sessionId ?? null,
         expiresAtMs: Date.now() + LIVE_SKILL_LIST_CACHE_TTL_MS,
         value: normalizedSkills,
         inFlight: null,
@@ -151,6 +193,7 @@ async function getCachedLiveSkills(
     .catch((error) => {
       cachedLiveSkills = {
         source,
+        sessionId: options?.sessionId ?? null,
         expiresAtMs: 0,
         value: emptyLiveSkillList,
         inFlight: null,
@@ -160,6 +203,7 @@ async function getCachedLiveSkills(
 
   cachedLiveSkills = {
     source,
+    sessionId: options?.sessionId ?? null,
     expiresAtMs: 0,
     value: emptyLiveSkillList,
     inFlight,
@@ -174,12 +218,24 @@ function findRuntimeLiveSkillByCanonicalId(
   return liveSkills.find((skill) => skill.canonicalSkillId === canonicalSkillId) ?? null;
 }
 
+function buildRuntimeLiveSkillUnavailableMessage(input: {
+  skill: RuntimeLiveSkillSummary;
+  defaultMessage: string;
+}): string {
+  const availability = input.skill.availability;
+  if (!availability || availability.live) {
+    return input.defaultMessage;
+  }
+  return `${input.defaultMessage} Current activation state: ${availability.activationState}. ${availability.readiness.summary}`;
+}
+
 async function assertRuntimeLiveSkillAvailable(input: {
   runtimeControl: RuntimeAgentControl;
   canonicalSkillId: string;
   toolName: string;
   unavailableMessage?: string;
   sessionId?: string | null;
+  liveSkillCatalogIndex?: Awaited<ReturnType<typeof getRuntimeLiveSkillCatalogIndex>> | null;
 }): Promise<void> {
   if (
     typeof input.runtimeControl.listRuntimeInvocations !== "function" &&
@@ -188,6 +244,20 @@ async function assertRuntimeLiveSkillAvailable(input: {
     return;
   }
   const findSkill = async (forceRefresh: boolean) => {
+    if (input.liveSkillCatalogIndex && !forceRefresh) {
+      const availability = input.liveSkillCatalogIndex.entriesByCanonicalSkillId.get(
+        input.canonicalSkillId
+      );
+      if (!availability) {
+        return null;
+      }
+      return {
+        id: input.canonicalSkillId,
+        canonicalSkillId: input.canonicalSkillId,
+        enabled: availability.live,
+        availability,
+      } satisfies RuntimeLiveSkillSummary;
+    }
     const liveSkills =
       (await getCachedLiveSkills(input.runtimeControl, {
         forceRefresh,
@@ -209,7 +279,12 @@ async function assertRuntimeLiveSkillAvailable(input: {
     throw methodUnavailableError(
       input.toolName,
       `live skill ${input.canonicalSkillId}`,
-      input.unavailableMessage
+      buildRuntimeLiveSkillUnavailableMessage({
+        skill,
+        defaultMessage:
+          input.unavailableMessage ??
+          `live skill ${input.canonicalSkillId} is unavailable in this runtime.`,
+      })
     );
   }
 }
@@ -808,6 +883,7 @@ export function buildRuntimeWorkspaceTools(
           canonicalSkillId,
           toolName: "run-runtime-live-skill",
           sessionId,
+          liveSkillCatalogIndex,
         });
         const options = toOptionalRecord(input.options);
         const normalizedOptions: Record<string, unknown> = {
