@@ -566,6 +566,7 @@ export function WorkspaceHomeAgentControl({
           <LazyWorkspaceHomeAgentWebMcpConsoleSection
             webMcpSupported={webMcpSupported}
             webMcpEnabled={webMcpEnabled}
+            catalogRevision={runtimeWebMcpCatalogRevision}
             autoExecuteCalls={webMcpAutoExecuteCalls}
             onSetAutoExecuteCalls={handleAutoExecuteCallsChange}
             mode={webMcpConsoleMode}

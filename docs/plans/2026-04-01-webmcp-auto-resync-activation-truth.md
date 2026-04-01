@@ -11,6 +11,7 @@
 - Added `useRuntimeWebMcpCatalogRevision(...)` as an app-local hook that listens to `runtime.updated` for the active workspace.
 - The hook only reacts to `bootstrap` and `skills` scopes, debounces clustered updates, and returns a monotonically increasing revision token.
 - `WorkspaceHomeAgentControlCore` now includes that revision token in the WebMCP sync effect dependencies, so activation-truth changes trigger a fresh catalog sync without waiting for incidental UI changes.
+- `WorkspaceHomeAgentWebMcpConsoleSection` now consumes the same revision token to refresh its displayed catalog after a publication resync, so the operator-facing console does not lag behind the bridge registration state.
 - Failed auto-resync attempts preserve the last registered catalog and reuse the existing bridge status and error surface instead of tearing the bridge down.
 
 ## Scope Boundaries
@@ -21,6 +22,5 @@
 
 ## Remaining Gaps
 
-- The on-demand WebMCP console still refreshes its displayed catalog through its existing fetch path rather than subscribing to the new revision token directly.
 - Raw diagnostic and debug transport remains intentionally outside the activation-backed publication path.
 - Future phases can widen auto-resync only if there is evidence that additional `runtime.updated` scopes materially affect published runtime tools.
