@@ -215,6 +215,7 @@ function renderSection(
   overrides: Partial<{
     webMcpSupported: boolean;
     webMcpEnabled: boolean;
+    catalogRevision: number;
     autoExecuteCalls: boolean;
     onSetAutoExecuteCalls: (value: boolean) => void;
     mode: "basic" | "advanced";
@@ -225,6 +226,7 @@ function renderSection(
     <WorkspaceHomeAgentWebMcpConsoleSection
       webMcpSupported={overrides.webMcpSupported ?? true}
       webMcpEnabled={overrides.webMcpEnabled ?? true}
+      catalogRevision={overrides.catalogRevision ?? 0}
       autoExecuteCalls={overrides.autoExecuteCalls ?? true}
       onSetAutoExecuteCalls={overrides.onSetAutoExecuteCalls ?? vi.fn()}
       mode={overrides.mode ?? "advanced"}
@@ -264,6 +266,43 @@ describe("WorkspaceHomeAgentWebMcpConsoleSection", () => {
     await waitFor(() => {
       expect(invalidateCachedRuntimeLiveSkills).toHaveBeenCalledTimes(2);
       expect(listWebMcpCatalog).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("refreshes catalog when the workspace catalog revision increases", async () => {
+    let catalogRevision = 0;
+    vi.mocked(listWebMcpCatalog)
+      .mockResolvedValueOnce(createCatalog())
+      .mockResolvedValueOnce(
+        createCatalog({
+          tools: [{ name: "get-project-overview" }, { name: "search-workspace-files" }],
+        })
+      );
+
+    const { rerender } = renderSection({ catalogRevision });
+
+    await waitFor(() => {
+      expect(listWebMcpCatalog).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("tools: 1")).toBeTruthy();
+    });
+
+    catalogRevision = 1;
+    rerender(
+      <WorkspaceHomeAgentWebMcpConsoleSection
+        webMcpSupported
+        webMcpEnabled
+        catalogRevision={catalogRevision}
+        autoExecuteCalls
+        onSetAutoExecuteCalls={vi.fn()}
+        mode="advanced"
+        onSetMode={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(invalidateCachedRuntimeLiveSkills).toHaveBeenCalledTimes(2);
+      expect(listWebMcpCatalog).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("tools: 2")).toBeTruthy();
     });
   });
 

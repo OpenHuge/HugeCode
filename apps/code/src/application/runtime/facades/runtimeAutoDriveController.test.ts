@@ -325,7 +325,7 @@ function createDeps(): AutoDriveControllerDeps {
         followUpQuestions: [],
       },
     }),
-    runLiveSkill: vi.fn().mockResolvedValue({
+    runRuntimeExecutableSkill: vi.fn().mockResolvedValue({
       runId: "live-skill-run",
       skillId: "core-bash",
       status: "completed",
@@ -960,16 +960,92 @@ describe("AutoDriveRunController", () => {
       },
     });
 
-    expect(deps.runLiveSkill).toHaveBeenCalledWith(
+    expect(deps.runRuntimeExecutableSkill).toHaveBeenCalledWith(
       expect.objectContaining({
-        skillId: "core-bash",
-        input: "pnpm validate",
-        options: expect.objectContaining({
-          command: "pnpm validate",
+        request: expect.objectContaining({
+          skillId: "core-bash",
+          input: "pnpm validate",
+          options: expect.objectContaining({
+            command: "pnpm validate",
+          }),
         }),
       })
     );
     expect(validation.commands).toEqual(["pnpm validate"]);
+  });
+
+  it("marks validation as failed when executable skill gating rejects core-bash availability", async () => {
+    const deps = createDeps();
+    vi.mocked(deps.runRuntimeExecutableSkill).mockRejectedValueOnce(
+      new Error("core-bash is refresh_pending: Skill refresh is pending.")
+    );
+    const context = createContext(1);
+    context.repo.scripts = {
+      validateFast: "pnpm validate:fast",
+      validate: "pnpm validate",
+    };
+    context.executionTuning = {
+      summary: "Recent failures require the full validation gate.",
+      reasons: ["validation_failed"],
+      effectiveMaxFilesPerIteration: 2,
+      validationCommandPreference: "full",
+      publishPriority: "none",
+      cautionLevel: "high",
+    };
+    const controller = new AutoDriveRunController({
+      deps,
+      ledger: {
+        writeRun: vi.fn().mockResolvedValue(undefined),
+        writeContext: vi.fn().mockResolvedValue(undefined),
+        writeProposal: vi.fn().mockResolvedValue(undefined),
+        writeSummary: vi.fn().mockResolvedValue(undefined),
+        writeReroute: vi.fn().mockResolvedValue(undefined),
+        writeFinalReport: vi.fn().mockResolvedValue(undefined),
+      },
+      run: createRun(),
+    });
+
+    const controllerWithInternals = controller as unknown as {
+      defaultValidateIteration: (params: {
+        deps: AutoDriveControllerDeps;
+        iteration: number;
+        run: AutoDriveRunRecord;
+        context: AutoDriveContextSnapshot;
+        proposal: AutoDriveRouteProposal;
+        task: {
+          taskId: string;
+          status: "completed";
+          title: string;
+          steps: [];
+          errorMessage: null;
+        };
+      }) => Promise<{
+        ran: boolean;
+        commands: string[];
+        success: boolean | null;
+        failures: string[];
+        summary: string;
+      }>;
+    };
+
+    const validation = await controllerWithInternals.defaultValidateIteration({
+      deps,
+      iteration: 1,
+      run: createRun(),
+      context,
+      proposal: createProposal(1),
+      task: {
+        taskId: "task-validate",
+        status: "completed",
+        title: "Validate waypoint",
+        steps: [],
+        errorMessage: null,
+      },
+    });
+
+    expect(validation.success).toBe(false);
+    expect(validation.failures).toEqual(["pnpm validate"]);
+    expect(validation.summary).toContain("Validation failed for");
   });
 
   it("restarts the session when execution tuning changes the desired reasoning effort", async () => {

@@ -86,6 +86,7 @@ function createCompatibility(
       "plugins.catalog",
       "plugins.registry",
       "composition.runtime",
+      "extensions.activation",
       "control.agent",
       "session.commands",
     ],

@@ -16,13 +16,22 @@ import {
   bootstrapRuntimeKernelProjection,
   subscribeRuntimeKernelProjection,
 } from "../../../services/runtimeKernelProjectionTransport";
-import { createRuntimeKernelPluginCatalogFacade } from "./runtimeKernelPlugins";
+import {
+  createRuntimeKernelPluginCatalogFacade,
+  createRuntimeKernelPluginExecutionProvider,
+} from "./runtimeKernelPlugins";
 import {
   RUNTIME_KERNEL_CAPABILITY_KEYS,
   type WorkspaceRuntimeCapabilityProvider,
 } from "./runtimeKernelCapabilities";
 import { createRuntimeKernelPluginRegistryFacade } from "./runtimeKernelPluginRegistry";
 import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
+import { createRuntimeExtensionActivationService } from "./runtimeExtensionActivation";
+import { createRuntimeInvocationCatalogFacade } from "../facades/runtimeInvocationCatalogFacade";
+import { createRuntimeExecutableSkillFacade } from "../facades/runtimeExecutableSkillFacade";
+import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
+import { runRuntimeLiveSkill } from "../ports/runtime";
+import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
 
 function mapWorkspaceClientRuntimeMode(
   mode: ReturnType<typeof detectRuntimeMode>
@@ -63,10 +72,14 @@ export function createRuntimeKernel(): RuntimeKernel {
         return cachedScope;
       }
 
-      const runtimeAgentControlDependencies = createRuntimeAgentControlDependencies(workspaceId, {
-        workspaceClientRuntime,
+      let runtimeExecutableSkills: ReturnType<typeof createRuntimeExecutableSkillFacade> | null =
+        null;
+      const pluginCatalog = createRuntimeKernelPluginCatalogFacade({
+        workspaceId,
+        executionProvider: createRuntimeKernelPluginExecutionProvider({
+          executableSkills: () => runtimeExecutableSkills,
+        }),
       });
-      const pluginCatalog = createRuntimeKernelPluginCatalogFacade({ workspaceId });
       const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
         workspaceId,
         pluginCatalog,
@@ -76,11 +89,33 @@ export function createRuntimeKernel(): RuntimeKernel {
         pluginCatalog,
         pluginRegistry,
       });
+      const extensionActivation = createRuntimeExtensionActivationService({
+        workspaceId,
+        pluginCatalog,
+        pluginRegistry,
+        readWorkspaceSkillManifests: readRuntimeWorkspaceSkillManifests,
+        listRuntimeLiveSkills,
+      });
+      const invocationCatalog = createRuntimeInvocationCatalogFacade({
+        activation: extensionActivation,
+      });
+      runtimeExecutableSkills = createRuntimeExecutableSkillFacade({
+        listRuntimeInvocations: invocationCatalog.listInvocations,
+        listLiveSkills: listRuntimeLiveSkills,
+        runLiveSkill: runRuntimeLiveSkill,
+      });
       const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
           createCapability: () =>
-            createRuntimeAgentControlFacade(workspaceId, runtimeAgentControlDependencies),
+            createRuntimeAgentControlFacade(
+              workspaceId,
+              createRuntimeAgentControlDependencies(workspaceId, {
+                workspaceClientRuntime,
+                invocationCatalog,
+                executableSkills: runtimeExecutableSkills,
+              })
+            ),
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
@@ -97,6 +132,14 @@ export function createRuntimeKernel(): RuntimeKernel {
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime,
           createCapability: () => compositionRuntime,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.extensionActivation,
+          createCapability: () => extensionActivation,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog,
+          createCapability: () => invocationCatalog,
         },
       ];
       const scope = createWorkspaceRuntimeScope({

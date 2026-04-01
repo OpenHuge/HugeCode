@@ -869,7 +869,7 @@ describe("webMcpBridge", () => {
     });
   });
 
-  it("fails search-workspace-files when core-grep live skill is unavailable", async () => {
+  it("hides search-workspace-files when activation truth reports core-grep as non-live", async () => {
     let registeredTools: Array<{
       name: string;
       execute: (input: Record<string, unknown>, agent: unknown) => unknown;
@@ -880,17 +880,6 @@ describe("webMcpBridge", () => {
         registeredTools = payload.tools as typeof registeredTools;
       },
     });
-
-    const runLiveSkill = vi.fn(async () => ({
-      runId: "live-skill-run-1",
-      skillId: "core-grep",
-      status: "completed" as const,
-      message: "ok",
-      output: "",
-      network: null,
-      artifacts: [],
-      metadata: {},
-    }));
 
     await syncWebMcpAgentControl({
       enabled: true,
@@ -917,47 +906,48 @@ describe("webMcpBridge", () => {
           status: "running",
           message: "recorded",
         }),
-        listLiveSkills: async () => [
+        listRuntimeInvocations: async () => [
           {
             id: "core-grep",
-            name: "Core Grep",
-            description: "Search",
-            kind: "file_search",
-            source: "builtin",
+            title: "Core Grep",
             version: "1.0.0",
-            enabled: false,
-            supportsNetwork: false,
-            tags: ["core", "search"],
+            kind: "skill",
+            bindingStage: "runtime_binding",
+            live: false,
+            activationState: "failed",
+            readiness: {
+              state: "blocked",
+              summary: "Core grep failed activation.",
+              detail: "The runtime grep binder is broken.",
+            },
+            diagnostics: [],
+            transitionHistory: [],
+            source: {
+              activationId: "plugin:core-grep",
+              sourceType: "runtime_plugin",
+              sourceScope: "runtime",
+              sourceRef: "core-grep",
+              pluginId: "core-grep",
+              packageRef: null,
+              overlayId: null,
+              sessionId: null,
+            },
+            metadata: {
+              runtimeSkillId: "core-grep",
+              aliases: ["grep", "rg", "search"],
+              kind: "file_search",
+              source: "builtin",
+              tags: ["core", "search"],
+            },
           },
         ],
-        runLiveSkill: runLiveSkill as NonNullable<
-          NonNullable<
-            Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]
-          >["runLiveSkill"]
-        >,
       },
     });
 
     const searchTool = registeredTools.find((tool) => tool.name === "search-workspace-files");
-    expect(searchTool).toBeTruthy();
-    if (!searchTool) {
-      throw new Error("search-workspace-files tool not found");
-    }
-
-    let unavailableSkillError: unknown = null;
-    try {
-      await Promise.resolve(searchTool.execute({ pattern: "workspaceId" }, null));
-    } catch (error) {
-      unavailableSkillError = error;
-    }
-    expect(unavailableSkillError).toBeInstanceOf(Error);
-    expect(readRuntimeCode(unavailableSkillError)).toBe(
-      RUNTIME_MESSAGE_CODES.runtime.validation.methodUnavailable
-    );
-    expect((unavailableSkillError as Error).message).toContain(
-      "core-grep live skill is unavailable in this runtime."
-    );
-    expect(runLiveSkill).not.toHaveBeenCalled();
+    expect(searchTool).toBeUndefined();
+    expect(registeredTools.some((tool) => tool.name === "list-runtime-live-skills")).toBe(true);
+    expect(registeredTools.some((tool) => tool.name === "run-runtime-live-skill")).toBe(true);
   });
 
   it("allows search-workspace-files when the runtime catalog exposes only a grep alias", async () => {
@@ -1047,6 +1037,717 @@ describe("webMcpBridge", () => {
         input: "workspaceId",
       })
     );
+  });
+
+  it("prefers activation-backed runtime invocations over direct live-skill listing for workspace search availability", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async () => [
+      {
+        id: "core-grep",
+        title: "Core Grep",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "runtime_binding",
+        live: true,
+        activationState: "active",
+        readiness: {
+          state: "ready",
+          summary: "Plugin is active.",
+          detail: "Live contributions are available now.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "plugin:core-grep",
+          sourceType: "runtime_plugin",
+          sourceScope: "runtime",
+          sourceRef: "core-grep",
+          pluginId: "core-grep",
+          packageRef: null,
+          overlayId: null,
+          sessionId: null,
+        },
+        metadata: {
+          aliases: ["grep", "search"],
+          kind: "file_search",
+          source: "builtin",
+          tags: ["search"],
+        },
+      },
+    ]);
+    const listLiveSkills = vi.fn(async () => [
+      {
+        id: "core-grep",
+        name: "Core Grep",
+        description: "Search",
+        kind: "file_search",
+        source: "builtin",
+        version: "1.0.0",
+        enabled: false,
+        supportsNetwork: false,
+        tags: ["core", "search"],
+      },
+    ]);
+    const runLiveSkill = vi.fn(async () => ({
+      runId: "live-skill-run-grep-activation",
+      skillId: "core-grep",
+      status: "completed" as const,
+      message: "ok",
+      output: "",
+      network: null,
+      artifacts: [],
+      metadata: {},
+    }));
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+        listLiveSkills,
+        runLiveSkill: runLiveSkill as NonNullable<
+          NonNullable<
+            Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]
+          >["runLiveSkill"]
+        >,
+      },
+    });
+
+    const searchTool = registeredTools.find((tool) => tool.name === "search-workspace-files");
+    expect(searchTool).toBeTruthy();
+    if (!searchTool) {
+      throw new Error("search-workspace-files tool not found");
+    }
+
+    await expect(
+      Promise.resolve(searchTool.execute({ pattern: "workspaceId" }, null))
+    ).resolves.toMatchObject({
+      message: "Workspace file search completed.",
+    });
+
+    expect(listRuntimeInvocations).toHaveBeenCalled();
+    expect(runLiveSkill).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skillId: "core-grep",
+      })
+    );
+  });
+
+  it("keeps search-workspace-files published when activation truth reports degraded but live core-grep", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations: async () => [
+          {
+            id: "core-grep",
+            title: "Core Grep",
+            version: "1.0.0",
+            kind: "skill",
+            bindingStage: "runtime_binding",
+            live: true,
+            activationState: "degraded",
+            readiness: {
+              state: "attention",
+              summary: "Core grep is active with reduced readiness.",
+              detail: "Secondary matcher backend is missing.",
+            },
+            diagnostics: [],
+            transitionHistory: [],
+            source: {
+              activationId: "plugin:core-grep",
+              sourceType: "runtime_plugin",
+              sourceScope: "runtime",
+              sourceRef: "core-grep",
+              pluginId: "core-grep",
+              packageRef: null,
+              overlayId: null,
+              sessionId: null,
+            },
+            metadata: {
+              runtimeSkillId: "core-grep",
+              aliases: ["grep", "rg", "search"],
+              kind: "file_search",
+              source: "builtin",
+              tags: ["core", "search"],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(registeredTools.some((tool) => tool.name === "search-workspace-files")).toBe(true);
+  });
+
+  it("lists runtime live skills from activation-backed invocation truth with session overlays", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async (input?: { sessionId?: string | null }) => [
+      {
+        id: "session.review",
+        title: "Session Review",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "session_overlay",
+        live: true,
+        activationState: "active",
+        readiness: {
+          state: "ready",
+          summary: "Overlay is active.",
+          detail: "Live contributions are available now.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "overlay:session-1:review",
+          sourceType: "session_overlay",
+          sourceScope: "session_overlay",
+          sourceRef: "session.review",
+          pluginId: "session.review",
+          packageRef: null,
+          overlayId: "review",
+          sessionId: input?.sessionId ?? null,
+        },
+        metadata: {
+          runtimeSkillId: "session.review",
+          aliases: ["session-review"],
+          kind: "skill",
+          source: "session_overlay",
+          tags: ["review"],
+        },
+      },
+    ]);
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+      },
+    });
+
+    const listSkillsTool = registeredTools.find((tool) => tool.name === "list-runtime-live-skills");
+    expect(listSkillsTool).toBeTruthy();
+    if (!listSkillsTool) {
+      throw new Error("list-runtime-live-skills tool not found");
+    }
+
+    await expect(
+      Promise.resolve(
+        listSkillsTool.execute(
+          {
+            sessionId: "session-1",
+            enabled: true,
+            canonicalOnly: true,
+          },
+          null
+        )
+      )
+    ).resolves.toMatchObject({
+      message: "Runtime live skills retrieved.",
+      data: {
+        total: 1,
+        skills: [
+          expect.objectContaining({
+            id: "session.review",
+            acceptedSkillIds: expect.arrayContaining(["session.review", "session-review"]),
+          }),
+        ],
+      },
+    });
+
+    expect(listRuntimeInvocations).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      activeOnly: true,
+      kind: "skill",
+    });
+  });
+
+  it("surfaces activation state and readiness for non-live runtime skills", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async () => [
+      {
+        id: "core-grep",
+        title: "Core Grep",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "runtime_binding",
+        live: false,
+        activationState: "refresh_pending",
+        readiness: {
+          state: "attention",
+          summary: "Refresh is rebuilding this skill.",
+          detail: "The runtime is re-binding core-grep after a recent refresh.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "plugin:core-grep",
+          sourceType: "runtime_plugin",
+          sourceScope: "runtime",
+          sourceRef: "core-grep",
+          pluginId: "core-grep",
+          packageRef: null,
+          overlayId: null,
+          sessionId: null,
+        },
+        metadata: {
+          runtimeSkillId: "core-grep",
+          aliases: ["grep", "search"],
+          kind: "file_search",
+          source: "builtin",
+          tags: ["search"],
+        },
+      },
+    ]);
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+      },
+    });
+
+    const listSkillsTool = registeredTools.find((tool) => tool.name === "list-runtime-live-skills");
+    expect(listSkillsTool).toBeTruthy();
+    if (!listSkillsTool) {
+      throw new Error("list-runtime-live-skills tool not found");
+    }
+
+    await expect(
+      Promise.resolve(listSkillsTool.execute({ enabled: false }, null))
+    ).resolves.toMatchObject({
+      data: {
+        skills: [
+          expect.objectContaining({
+            id: "core-grep",
+            enabled: false,
+            activationState: "refresh_pending",
+            readiness: expect.objectContaining({
+              state: "attention",
+              summary: "Refresh is rebuilding this skill.",
+            }),
+          }),
+        ],
+      },
+    });
+  });
+
+  it("prefers activation-backed invocation truth for delegated skill resolution", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async (input?: { sessionId?: string | null }) => [
+      {
+        id: "session.review",
+        title: "Session Review",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "session_overlay",
+        live: true,
+        activationState: "degraded",
+        readiness: {
+          state: "attention",
+          summary: "Overlay review skill is active with warnings.",
+          detail: "The overlay remains invocable during refresh.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "overlay:session-1:review",
+          sourceType: "session_overlay",
+          sourceScope: "session_overlay",
+          sourceRef: "session.review",
+          pluginId: "session.review",
+          packageRef: null,
+          overlayId: "review",
+          sessionId: input?.sessionId ?? null,
+        },
+        metadata: {
+          runtimeSkillId: "session.review",
+          aliases: ["review-skill"],
+        },
+      },
+    ]);
+    const listLiveSkills = vi.fn(async () => [
+      {
+        id: "legacy-review",
+        name: "Legacy Review",
+        description: "legacy",
+        kind: "skill",
+        source: "builtin",
+        version: "1.0.0",
+        enabled: true,
+        supportsNetwork: false,
+        tags: [],
+      },
+    ]);
+    const spawnSubAgentSession = vi.fn(async () => ({
+      sessionId: "sub-agent-session-1",
+      workspaceId: snapshot.workspaceId,
+      threadId: null,
+      title: null,
+      status: "running",
+      accessMode: "on-request",
+      reasonEffort: "medium",
+      provider: null,
+      modelId: null,
+      activeTaskId: null,
+      lastTaskId: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      closedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      scopeProfile: "review",
+      allowedSkillIds: ["session.review"],
+      allowNetwork: false,
+      workspaceReadPaths: null,
+      parentRunId: null,
+      profileDescriptor: null,
+      checkpointId: null,
+      traceId: null,
+      recovered: false,
+      checkpointState: null,
+      approvalEvents: null,
+      compactionSummary: null,
+      evalTags: null,
+    }));
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+        listLiveSkills,
+        spawnSubAgentSession,
+        sendSubAgentInstruction: vi.fn(async () => ({ session: null, task: null })),
+        waitSubAgentSession: vi.fn(async () => ({
+          session: null,
+          task: null,
+          done: true,
+          timedOut: false,
+        })),
+      },
+    });
+
+    const spawnTool = registeredTools.find(
+      (tool) => tool.name === "spawn-runtime-sub-agent-session"
+    );
+    expect(spawnTool).toBeTruthy();
+    if (!spawnTool) {
+      throw new Error("spawn-runtime-sub-agent-session tool not found");
+    }
+
+    await expect(
+      Promise.resolve(
+        spawnTool.execute(
+          {
+            catalogSessionId: "session-1",
+            allowedSkillIds: ["review-skill"],
+          },
+          null
+        )
+      )
+    ).resolves.toMatchObject({
+      data: {
+        allowedSkillResolution: {
+          catalogSessionId: "session-1",
+          entries: [
+            expect.objectContaining({
+              resolvedSkillId: "session.review",
+              availability: expect.objectContaining({
+                activationState: "degraded",
+                live: true,
+              }),
+            }),
+          ],
+        },
+      },
+    });
+
+    expect(listRuntimeInvocations).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      kind: "skill",
+    });
+    expect(listLiveSkills).not.toHaveBeenCalled();
+    expect(spawnSubAgentSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowedSkillIds: ["session.review"],
+      })
+    );
+  });
+
+  it("hides search-workspace-files when activation truth reports refresh_pending core-grep", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async () => [
+      {
+        id: "core-grep",
+        title: "Core Grep",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "runtime_binding",
+        live: false,
+        activationState: "refresh_pending",
+        readiness: {
+          state: "attention",
+          summary: "Refresh is rebuilding this skill.",
+          detail: "core-grep is temporarily unavailable while activation refresh completes.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "plugin:core-grep",
+          sourceType: "runtime_plugin",
+          sourceScope: "runtime",
+          sourceRef: "core-grep",
+          pluginId: "core-grep",
+          packageRef: null,
+          overlayId: null,
+          sessionId: null,
+        },
+        metadata: {
+          runtimeSkillId: "core-grep",
+          aliases: ["grep", "search"],
+          kind: "file_search",
+          source: "builtin",
+          tags: ["search"],
+        },
+      },
+    ]);
+    const listLiveSkills = vi.fn(async () => [
+      {
+        id: "core-grep",
+        name: "Core Grep",
+        description: "Search",
+        kind: "file_search",
+        source: "builtin",
+        version: "1.0.0",
+        enabled: true,
+        supportsNetwork: false,
+        tags: ["search"],
+      },
+    ]);
+    const runLiveSkill = vi.fn(async () => ({
+      runId: "live-skill-run-grep-activation-blocked",
+      skillId: "core-grep",
+      status: "completed" as const,
+      message: "ok",
+      output: "",
+      network: null,
+      artifacts: [],
+      metadata: {},
+    }));
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+        listLiveSkills,
+        runLiveSkill: runLiveSkill as NonNullable<
+          NonNullable<
+            Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]
+          >["runLiveSkill"]
+        >,
+      },
+    });
+
+    const searchTool = registeredTools.find((tool) => tool.name === "search-workspace-files");
+    expect(searchTool).toBeUndefined();
+    expect(registeredTools.some((tool) => tool.name === "list-runtime-live-skills")).toBe(true);
+    expect(registeredTools.some((tool) => tool.name === "run-runtime-live-skill")).toBe(true);
+    expect(listRuntimeInvocations).toHaveBeenCalledWith({
+      sessionId: null,
+      kind: "skill",
+    });
+    expect(listLiveSkills).not.toHaveBeenCalled();
+    expect(runLiveSkill).not.toHaveBeenCalled();
   });
 
   it("canonicalizes runtime-only live-skill aliases from the runtime catalog", async () => {
@@ -1159,6 +1860,239 @@ describe("webMcpBridge", () => {
         },
       })
     );
+  });
+
+  it("blocks run-runtime-live-skill when activation truth reports a non-live skill", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const listRuntimeInvocations = vi.fn(async () => [
+      {
+        id: "core-grep",
+        title: "Core Grep",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "runtime_binding",
+        live: false,
+        activationState: "failed",
+        readiness: {
+          state: "blocked",
+          summary: "Binding failed for core-grep.",
+          detail: "The runtime cannot execute core-grep until the binding failure is resolved.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "plugin:core-grep",
+          sourceType: "runtime_plugin",
+          sourceScope: "runtime",
+          sourceRef: "core-grep",
+          pluginId: "core-grep",
+          packageRef: null,
+          overlayId: null,
+          sessionId: null,
+        },
+        metadata: {
+          runtimeSkillId: "core-grep",
+          aliases: ["grep", "ripgrep"],
+          kind: "file_search",
+          source: "builtin",
+          tags: ["search"],
+        },
+      },
+    ]);
+    const listLiveSkills = vi.fn(async () => [
+      {
+        id: "core-grep",
+        name: "Core Grep",
+        description: "Search",
+        kind: "file_search",
+        source: "builtin",
+        version: "1.0.0",
+        enabled: true,
+        supportsNetwork: false,
+        tags: ["search"],
+      },
+    ]);
+    const runLiveSkill = vi.fn(async () => ({
+      runId: "live-skill-run-grep-blocked",
+      skillId: "core-grep",
+      status: "completed" as const,
+      message: "ok",
+      output: "",
+      network: null,
+      artifacts: [],
+      metadata: {},
+    }));
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listRuntimeInvocations,
+        listLiveSkills,
+        runLiveSkill: runLiveSkill as NonNullable<
+          NonNullable<
+            Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]
+          >["runLiveSkill"]
+        >,
+      },
+    });
+
+    const runLiveSkillTool = registeredTools.find((tool) => tool.name === "run-runtime-live-skill");
+    expect(runLiveSkillTool).toBeTruthy();
+    if (!runLiveSkillTool) {
+      throw new Error("run-runtime-live-skill tool not found");
+    }
+
+    await expect(
+      Promise.resolve(runLiveSkillTool.execute({ skillId: "ripgrep", input: "workspaceId" }, null))
+    ).rejects.toThrow(/failed/i);
+    expect(listRuntimeInvocations).toHaveBeenCalledWith({
+      sessionId: null,
+      kind: "skill",
+    });
+    expect(listLiveSkills).not.toHaveBeenCalled();
+    expect(runLiveSkill).not.toHaveBeenCalled();
+  });
+
+  it("prefers the activation-backed executable runner over raw live-skill transport", async () => {
+    let registeredTools: Array<{
+      name: string;
+      execute: (input: Record<string, unknown>, agent: unknown) => unknown;
+    }> = [];
+
+    setModelContext({
+      provideContext: (payload) => {
+        registeredTools = payload.tools as typeof registeredTools;
+      },
+    });
+
+    const runRuntimeExecutableSkill = vi.fn(async (input: Record<string, unknown>) => ({
+      runId: "live-skill-run-1",
+      skillId: ((input.request as Record<string, unknown>).skillId as string) ?? "core-grep",
+      status: "completed" as const,
+      message: "ok",
+      output: "done",
+      network: null,
+      artifacts: [],
+      metadata: {},
+    }));
+    const runLiveSkill = vi.fn(async () => ({
+      runId: "legacy-run",
+      skillId: "core-grep",
+      status: "completed" as const,
+      message: "legacy",
+      output: "legacy",
+      network: null,
+      artifacts: [],
+      metadata: {},
+    }));
+
+    await syncWebMcpAgentControl({
+      enabled: true,
+      readOnlyMode: false,
+      requireUserApproval: false,
+      snapshot,
+      actions,
+      runtimeControl: {
+        listTasks: async () => [],
+        getTaskStatus: async () => null,
+        startTask: async () => {
+          throw new Error("not used");
+        },
+        interruptTask: async () => ({
+          accepted: true,
+          taskId: "runtime-1",
+          status: "interrupted",
+          message: "interrupted",
+        }),
+        submitTaskApprovalDecision: async () => ({
+          recorded: true,
+          approvalId: "approval-1",
+          taskId: "runtime-1",
+          status: "running",
+          message: "recorded",
+        }),
+        listLiveSkills: async () => [
+          {
+            id: "core-grep",
+            name: "Core Grep",
+            description: "Search",
+            kind: "file_search",
+            source: "builtin",
+            version: "1.0.0",
+            enabled: true,
+            supportsNetwork: false,
+            tags: ["core", "search"],
+            aliases: ["core-grep", "grep", "search"],
+          },
+        ],
+        runRuntimeExecutableSkill: runRuntimeExecutableSkill as NonNullable<
+          NonNullable<
+            Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]
+          >["runRuntimeExecutableSkill"]
+        >,
+        runLiveSkill: runLiveSkill as NonNullable<
+          NonNullable<
+            Parameters<typeof syncWebMcpAgentControl>[0]["runtimeControl"]
+          >["runLiveSkill"]
+        >,
+      },
+    });
+
+    const runLiveSkillTool = registeredTools.find((tool) => tool.name === "run-runtime-live-skill");
+    expect(runLiveSkillTool).toBeTruthy();
+    if (!runLiveSkillTool) {
+      throw new Error("run-runtime-live-skill tool not found");
+    }
+
+    await expect(
+      Promise.resolve(runLiveSkillTool.execute({ skillId: "grep", input: "workspaceId" }, null))
+    ).resolves.toMatchObject({
+      message: "Runtime live skill executed.",
+    });
+
+    expect(runRuntimeExecutableSkill).toHaveBeenCalledWith({
+      request: {
+        skillId: "core-grep",
+        input: "workspaceId",
+        options: {
+          workspaceId: "ws-1",
+        },
+      },
+      sessionId: null,
+    });
+    expect(runLiveSkill).not.toHaveBeenCalled();
   });
 
   it("uses agent metadata fallback for query-network-analysis context and keeps explicit inputs highest priority", async () => {
@@ -1444,7 +2378,7 @@ describe("webMcpBridge", () => {
       message: "Workspace file search completed.",
     });
 
-    expect(listLiveSkills).toHaveBeenCalledTimes(3);
+    expect(listLiveSkills).toHaveBeenCalledTimes(4);
     expect(runLiveSkill).toHaveBeenCalledTimes(1);
   });
 
@@ -2202,6 +3136,17 @@ describe("webMcpBridge", () => {
           message: "recorded",
         }),
         listLiveSkills: async () => [
+          {
+            id: "core-bash",
+            name: "Core Bash",
+            description: "Execute shell commands",
+            kind: "shell",
+            source: "builtin",
+            version: "1.0.0",
+            enabled: true,
+            supportsNetwork: false,
+            tags: ["core", "bash"],
+          },
           {
             id: "js_repl",
             name: "JS REPL",

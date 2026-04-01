@@ -79,6 +79,7 @@ import { WorkspaceHomeAgentWebMcpConsoleToolCallCard } from "./WorkspaceHomeAgen
 type WorkspaceHomeAgentWebMcpConsoleSectionProps = {
   webMcpSupported: boolean;
   webMcpEnabled: boolean;
+  catalogRevision?: number;
   autoExecuteCalls: boolean;
   onSetAutoExecuteCalls: (value: boolean) => void;
   mode: "basic" | "advanced";
@@ -89,6 +90,7 @@ type WorkspaceHomeAgentWebMcpConsoleSectionProps = {
 export function WorkspaceHomeAgentWebMcpConsoleSection({
   webMcpSupported,
   webMcpEnabled,
+  catalogRevision = 0,
   autoExecuteCalls,
   onSetAutoExecuteCalls,
   mode,
@@ -134,6 +136,7 @@ export function WorkspaceHomeAgentWebMcpConsoleSection({
   const [runtimeMetricsError, setRuntimeMetricsError] = useState<string | null>(null);
   const [runtimeMetricsLoading, setRuntimeMetricsLoading] = useState(false);
   const [runtimeMetricsChannelUnavailable, setRuntimeMetricsChannelUnavailable] = useState(false);
+  const [lastCatalogRefreshRevision, setLastCatalogRefreshRevision] = useState<number | null>(null);
 
   const capabilitySnapshot = useMemo(
     () => catalog?.capabilities ?? getWebMcpCapabilities(),
@@ -365,6 +368,27 @@ export function WorkspaceHomeAgentWebMcpConsoleSection({
     }
     void refreshCatalog();
   }, [catalog, catalogError, catalogLoading, listCatalogAvailable, refreshCatalog]);
+
+  useEffect(() => {
+    if (!listCatalogAvailable) {
+      return;
+    }
+    if (lastCatalogRefreshRevision === null) {
+      setLastCatalogRefreshRevision(catalogRevision);
+      return;
+    }
+    if (catalogRevision <= lastCatalogRefreshRevision || catalogLoading) {
+      return;
+    }
+    setLastCatalogRefreshRevision(catalogRevision);
+    void refreshCatalog();
+  }, [
+    catalogLoading,
+    catalogRevision,
+    lastCatalogRefreshRevision,
+    listCatalogAvailable,
+    refreshCatalog,
+  ]);
 
   const refreshRuntimeMetrics = useCallback(async () => {
     if (!webMcpSupported || !webMcpEnabled) {

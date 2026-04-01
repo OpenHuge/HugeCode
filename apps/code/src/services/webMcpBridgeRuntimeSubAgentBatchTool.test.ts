@@ -513,6 +513,110 @@ describe("webMcpBridgeRuntimeSubAgentBatchTool", () => {
     ]);
   });
 
+  it("uses catalogSessionId for activation-backed batch skill resolution", async () => {
+    const spawnSubAgentSession = vi.fn(async () => createSession("session-overlay-batch"));
+    const sendSubAgentInstruction = vi.fn(async ({ sessionId }: { sessionId: string }) => ({
+      session: createSession(sessionId),
+      task: null,
+    }));
+    const waitSubAgentSession = vi.fn(async ({ sessionId }: { sessionId: string }) => ({
+      session: createSession(sessionId),
+      task: null,
+      done: true,
+      timedOut: false,
+    }));
+    const listRuntimeInvocations = vi.fn(async (input?: { sessionId?: string | null }) => [
+      {
+        id: "session.review",
+        title: "Session Review",
+        version: "1.0.0",
+        kind: "skill",
+        bindingStage: "session_overlay",
+        live: true,
+        activationState: "degraded",
+        readiness: {
+          state: "attention",
+          summary: "Overlay skill is active with warnings.",
+          detail: "The overlay binding remains usable during refresh.",
+        },
+        diagnostics: [],
+        transitionHistory: [],
+        source: {
+          activationId: "overlay:session-1:review",
+          sourceType: "session_overlay",
+          sourceScope: "session_overlay",
+          sourceRef: "session.review",
+          pluginId: "session.review",
+          packageRef: null,
+          overlayId: "review",
+          sessionId: input?.sessionId ?? null,
+        },
+        metadata: {
+          runtimeSkillId: "session.review",
+          aliases: ["review-skill"],
+        },
+      },
+    ]);
+    const listLiveSkills = vi.fn(async () => [
+      {
+        id: "legacy-review",
+        aliases: ["review-skill"],
+      },
+    ]);
+    const tool = createTool({
+      listRuntimeInvocations,
+      listLiveSkills,
+      spawnSubAgentSession,
+      sendSubAgentInstruction,
+      waitSubAgentSession,
+    });
+
+    const response = (await Promise.resolve(
+      tool.execute(
+        {
+          catalogSessionId: "session-1",
+          tasks: [
+            {
+              taskKey: "overlay-review",
+              instruction: "review session overlay",
+              allowedSkillIds: ["review-skill"],
+            },
+          ],
+        },
+        null
+      )
+    )) as { data: { results: Array<Record<string, unknown>> } };
+
+    expect(listRuntimeInvocations).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      kind: "skill",
+    });
+    expect(listLiveSkills).not.toHaveBeenCalled();
+    expect(spawnSubAgentSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowedSkillIds: ["session.review"],
+      })
+    );
+    expect(response.data.results).toMatchObject([
+      {
+        taskKey: "overlay-review",
+        allowedSkillResolution: {
+          catalogSessionId: "session-1",
+          entries: [
+            expect.objectContaining({
+              resolvedSkillId: "session.review",
+              availability: expect.objectContaining({
+                invocationId: "session.review",
+                live: true,
+                activationState: "degraded",
+              }),
+            }),
+          ],
+        },
+      },
+    ]);
+  });
+
   it("uses agent metadata fallback for batch default provider-model and keeps explicit inputs highest priority", async () => {
     const spawnSubAgentSession = vi.fn(async () => createSession("session-ambient"));
     const sendSubAgentInstruction = vi.fn(async ({ sessionId }: { sessionId: string }) => ({

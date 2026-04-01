@@ -2,6 +2,10 @@ import { readRuntimeKernelPluginCompositionMetadata } from "../kernel/runtimeKer
 import { readRuntimeKernelPluginRegistryMetadata } from "../kernel/runtimeKernelPluginRegistry";
 import { readRuntimeKernelRoutingPluginMetadata } from "../kernel/runtimeKernelRoutingPlugins";
 import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPluginTypes";
+import type {
+  RuntimeExtensionActivationRecord,
+  RuntimeExtensionActivationState,
+} from "../kernel/runtimeExtensionActivation";
 
 export type RuntimeKernelPluginReadinessState = "ready" | "attention" | "blocked";
 
@@ -61,6 +65,12 @@ export type RuntimeKernelPluginReadinessEntry = {
     label: string;
     detail: string;
   };
+  activationState: {
+    state: RuntimeKernelPluginReadinessState;
+    lifecycle: RuntimeExtensionActivationState | "untracked";
+    label: string;
+    detail: string;
+  };
   remediationSummary: string;
 };
 
@@ -116,6 +126,77 @@ function toSourceLabel(source: RuntimeKernelPluginDescriptor["source"]) {
     case "execution_route":
       return "Execution route";
   }
+}
+
+function toActivationRecordId(plugin: RuntimeKernelPluginDescriptor) {
+  const registryMetadata = readRuntimeKernelPluginRegistryMetadata(plugin.metadata);
+  if (registryMetadata?.packageRef) {
+    return `package:${registryMetadata.packageRef}`;
+  }
+  if (plugin.source === "repo_manifest") {
+    return `behavior:workspace:${plugin.id}`;
+  }
+  return `plugin:${plugin.id}`;
+}
+
+function buildActivationState(
+  plugin: RuntimeKernelPluginDescriptor,
+  activationRecords?: RuntimeExtensionActivationRecord[]
+): RuntimeKernelPluginReadinessEntry["activationState"] {
+  const activationRecord = activationRecords?.find(
+    (record) => record.activationId === toActivationRecordId(plugin)
+  );
+  if (!activationRecord) {
+    return {
+      state: plugin.source === "repo_manifest" ? "attention" : "ready",
+      lifecycle: "untracked",
+      label: "Untracked",
+      detail:
+        plugin.source === "repo_manifest"
+          ? "Activation truth has not been compiled for this repository declaration yet."
+          : "Activation truth is not separately tracked for this plugin.",
+    };
+  }
+
+  if (activationRecord.state === "active") {
+    return {
+      state: "ready",
+      lifecycle: "active",
+      label: "Active",
+      detail: activationRecord.readiness.detail,
+    };
+  }
+  if (
+    activationRecord.state === "degraded" ||
+    activationRecord.state === "deactivated" ||
+    activationRecord.state === "installed" ||
+    activationRecord.state === "bound" ||
+    activationRecord.state === "verified" ||
+    activationRecord.state === "discovered"
+  ) {
+    return {
+      state: "attention",
+      lifecycle: activationRecord.state,
+      label:
+        activationRecord.state === "deactivated"
+          ? "Deactivated"
+          : activationRecord.state === "degraded"
+            ? "Degraded"
+            : "Pending",
+      detail: activationRecord.readiness.detail,
+    };
+  }
+  return {
+    state: "blocked",
+    lifecycle: activationRecord.state,
+    label:
+      activationRecord.state === "uninstalled"
+        ? "Uninstalled"
+        : activationRecord.state === "refresh_pending"
+          ? "Refreshing"
+          : "Failed",
+    detail: activationRecord.readiness.detail,
+  };
 }
 
 function buildCapabilitySupport(
@@ -452,6 +533,7 @@ function buildBadges(input: {
   readinessState: RuntimeKernelPluginReadinessState;
   selectionState: RuntimeKernelPluginReadinessEntry["selectionState"];
   trustState: RuntimeKernelPluginReadinessEntry["trustState"];
+  activationState: RuntimeKernelPluginReadinessEntry["activationState"];
 }): RuntimeKernelPluginReadinessBadge[] {
   const badges: RuntimeKernelPluginReadinessBadge[] = [
     {
@@ -495,6 +577,18 @@ function buildBadges(input: {
           : "danger",
   });
 
+  if (input.activationState.lifecycle !== "untracked") {
+    badges.push({
+      label: input.activationState.label,
+      tone:
+        input.activationState.state === "ready"
+          ? "success"
+          : input.activationState.state === "attention"
+            ? "warning"
+            : "danger",
+    });
+  }
+
   if (input.plugin.source === "wasi_host" || input.plugin.source === "rpc_host") {
     badges.push({
       label: "Host truth",
@@ -511,7 +605,11 @@ function buildReadinessState(input: {
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"];
   selectionState: RuntimeKernelPluginReadinessEntry["selectionState"];
   trustState: RuntimeKernelPluginReadinessEntry["trustState"];
+  activationState: RuntimeKernelPluginReadinessEntry["activationState"];
 }): RuntimeKernelPluginReadinessState {
+  if (input.activationState.lifecycle !== "untracked") {
+    return input.activationState.state;
+  }
   if (
     (!input.plugin.enabled && input.plugin.source !== "repo_manifest") ||
     input.plugin.binding.state === "unbound" ||
@@ -542,8 +640,12 @@ function buildReadinessDetail(
   readinessState: RuntimeKernelPluginReadinessState,
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"],
   selectionState: RuntimeKernelPluginReadinessEntry["selectionState"],
-  trustState: RuntimeKernelPluginReadinessEntry["trustState"]
+  trustState: RuntimeKernelPluginReadinessEntry["trustState"],
+  activationState: RuntimeKernelPluginReadinessEntry["activationState"]
 ) {
+  if (activationState.lifecycle !== "untracked") {
+    return activationState.detail;
+  }
   if (readinessState === "blocked") {
     if (plugin.binding.state === "unbound") {
       return (
@@ -592,8 +694,25 @@ function buildRemediationSummary(
   readinessState: RuntimeKernelPluginReadinessState,
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"],
   selectionState: RuntimeKernelPluginReadinessEntry["selectionState"],
-  trustState: RuntimeKernelPluginReadinessEntry["trustState"]
+  trustState: RuntimeKernelPluginReadinessEntry["trustState"],
+  activationState: RuntimeKernelPluginReadinessEntry["activationState"]
 ) {
+  if (activationState.lifecycle === "active") {
+    return "No operator action required.";
+  }
+  if (activationState.lifecycle === "deactivated") {
+    return "Reactivate this contribution to restore its live runtime surfaces.";
+  }
+  if (activationState.lifecycle === "degraded") {
+    return "Inspect activation diagnostics and rerun refresh before relying on this contribution.";
+  }
+  if (
+    activationState.lifecycle === "failed" ||
+    activationState.lifecycle === "uninstalled" ||
+    activationState.lifecycle === "refresh_pending"
+  ) {
+    return "Fix the activation failure or rerun activation refresh before relying on this contribution.";
+  }
   if (plugin.source === "wasi_host") {
     return "Connect the WASI host binder so runtime can satisfy the published WIT imports.";
   }
@@ -642,19 +761,22 @@ function buildRemediationSummary(
 }
 
 export function buildRuntimeKernelPluginReadinessEntries(
-  plugins: RuntimeKernelPluginDescriptor[]
+  plugins: RuntimeKernelPluginDescriptor[],
+  activationRecords?: RuntimeExtensionActivationRecord[]
 ): RuntimeKernelPluginReadinessEntry[] {
   return plugins.map((plugin) => {
     const capabilitySupport = buildCapabilitySupport(plugin);
     const permissionState = buildPermissionState(plugin);
     const selectionState = buildSelectionState(plugin);
     const trustState = buildTrustState(plugin);
+    const activationState = buildActivationState(plugin, activationRecords);
     const readinessState = buildReadinessState({
       plugin,
       capabilitySupport,
       permissionState,
       selectionState,
       trustState,
+      activationState,
     });
 
     return {
@@ -668,6 +790,7 @@ export function buildRuntimeKernelPluginReadinessEntries(
         readinessState,
         selectionState,
         trustState,
+        activationState,
       }),
       capabilitySupport,
       permissionState,
@@ -679,17 +802,20 @@ export function buildRuntimeKernelPluginReadinessEntries(
           readinessState,
           permissionState,
           selectionState,
-          trustState
+          trustState,
+          activationState
         ),
       },
       selectionState,
       trustState,
+      activationState,
       remediationSummary: buildRemediationSummary(
         plugin,
         readinessState,
         permissionState,
         selectionState,
-        trustState
+        trustState,
+        activationState
       ),
     };
   });

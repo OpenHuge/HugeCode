@@ -18,6 +18,7 @@ import {
 } from "../ports/runtimeExtensions";
 import { listRuntimeKernelCapabilities } from "../ports/runtimeKernelCapabilities";
 import { getProvidersCatalog, listOAuthAccounts, listOAuthPools } from "../ports/oauth";
+import type { RuntimeExecutableSkillFacade } from "../facades/runtimeExecutableSkillFacade";
 import type { RuntimeWorkspaceSkillManifest } from "./runtimeWorkspaceSkillManifests";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
 import {
@@ -968,11 +969,31 @@ export function createRuntimeKernelPluginResourceProvider(): RuntimeKernelPlugin
   };
 }
 
-export function createRuntimeKernelPluginExecutionProvider(): RuntimeKernelPluginExecutionProvider {
+export function createRuntimeKernelPluginExecutionProvider(input?: {
+  executableSkills?:
+    | Pick<RuntimeExecutableSkillFacade, "runSkill">
+    | (() => Pick<RuntimeExecutableSkillFacade, "runSkill"> | null)
+    | null;
+}): RuntimeKernelPluginExecutionProvider {
+  const resolveExecutableSkills = () => {
+    if (typeof input?.executableSkills === "function") {
+      return input.executableSkills();
+    }
+    return input?.executableSkills ?? null;
+  };
   return {
     executePlugin: async (_workspaceId, descriptor, request) => {
       const availability = resolveRuntimeKernelPluginExecutionAvailability(descriptor);
       if (availability.mode === "live_skill") {
+        const executableSkills = resolveExecutableSkills();
+        if (executableSkills) {
+          return executableSkills.runSkill({
+            request: {
+              ...request,
+              skillId: descriptor.id,
+            },
+          });
+        }
         return runRuntimeLiveSkill(request);
       }
       throw new Error(

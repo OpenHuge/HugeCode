@@ -788,7 +788,10 @@ export type AutoDriveControllerDeps = {
   runRuntimeBrowserDebug?: (
     request: RuntimeBrowserDebugRunRequest
   ) => Promise<RuntimeBrowserDebugRunResponse>;
-  runLiveSkill: (request: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
+  runRuntimeExecutableSkill: (input: {
+    request: LiveSkillExecuteRequest;
+    sessionId?: string | null;
+  }) => Promise<LiveSkillExecutionResult>;
   now?: () => number;
   createRunId?: () => string;
   delay?: (durationMs: number) => Promise<void>;

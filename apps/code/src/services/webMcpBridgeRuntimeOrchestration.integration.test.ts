@@ -24,6 +24,14 @@ import {
 } from "./webMcpBridge";
 import { RUNTIME_TOOL_OUTPUT_MAX_CHARS } from "./webMcpBridgeRuntimeToolHelpers";
 
+const ACTIVATION_FILTERED_RUNTIME_TOOL_NAMES = [
+  "list-workspace-tree",
+  "write-workspace-file",
+  "edit-workspace-file",
+  "execute-workspace-command",
+  "query-network-analysis",
+] as const;
+
 type ModelContextStub = {
   provideContext?: (payload: {
     tools?: unknown[];
@@ -1042,9 +1050,17 @@ describe("webMcpBridge runtime orchestration integration", () => {
       responseRequiredState,
     });
 
-    expect(result.registeredTools).toBe(WEB_MCP_ALL_TOOL_NAMES.length);
-    expect(registeredTools).toHaveLength(WEB_MCP_ALL_TOOL_NAMES.length);
+    expect(result.registeredTools).toBe(
+      WEB_MCP_ALL_TOOL_NAMES.length - ACTIVATION_FILTERED_RUNTIME_TOOL_NAMES.length
+    );
+    expect(registeredTools).toHaveLength(
+      WEB_MCP_ALL_TOOL_NAMES.length - ACTIVATION_FILTERED_RUNTIME_TOOL_NAMES.length
+    );
     WEB_MCP_RUNTIME_CONTROL_TOOL_NAMES.forEach((toolName) => {
+      if (ACTIVATION_FILTERED_RUNTIME_TOOL_NAMES.includes(toolName as never)) {
+        expect(registeredTools.some((tool) => tool.name === toolName)).toBe(false);
+        return;
+      }
       expect(registeredTools.some((tool) => tool.name === toolName)).toBe(true);
     });
     RUNTIME_SUB_AGENT_TOOL_NAMES.forEach((toolName) => {
@@ -1112,7 +1128,7 @@ describe("webMcpBridge runtime orchestration integration", () => {
         null
       )
     );
-    expect(listLiveSkills).toHaveBeenCalledTimes(1);
+    expect(listLiveSkills).toHaveBeenCalledTimes(2);
     expect(runLiveSkill).toHaveBeenCalledWith({
       skillId: "core-grep",
       input: "workspaceId",
@@ -1153,7 +1169,7 @@ describe("webMcpBridge runtime orchestration integration", () => {
         null
       )
     );
-    expect(listLiveSkills).toHaveBeenCalledTimes(2);
+    expect(listLiveSkills).toHaveBeenCalledTimes(3);
     expect(listSkillsResponse).toMatchObject({
       ok: true,
       code: expect.any(String),
