@@ -39,11 +39,9 @@ type UseWorkspacePersistentFlowStateInput = {
   workspaceId: string;
   intent: AgentIntentState;
   runs: ActiveIntentContextRunInput[];
-  legacyCachedIntent: AgentIntentState | null;
-  legacyCacheCorrupted: boolean;
 };
 
-export type PersistentFlowHydrationSource = "host" | "legacy_cache" | "derived" | "none";
+export type PersistentFlowHydrationSource = "host" | "derived" | "none";
 export type PersistentFlowLoadState = "loading" | "ready" | "error";
 
 export type PersistentFlowIndicator = {
@@ -58,7 +56,6 @@ type BuildPersistentFlowIndicatorInput = {
   context: ActiveIntentContext | null;
   loadState: PersistentFlowLoadState;
   saveError: string | null;
-  legacyCacheCorrupted: boolean;
 };
 
 export type WorkspacePersistentFlowState = {
@@ -239,17 +236,6 @@ export function buildPersistentFlowIndicator(
     };
   }
 
-  if (input.source === "legacy_cache" && input.context) {
-    return {
-      tone: "warning",
-      label: "Recovered cached intent",
-      detail: input.legacyCacheCorrupted
-        ? "Recovered from the last healthy local cache snapshot after ignoring corrupted cache data."
-        : "Recovered from the local cache while host-backed persistence refreshes.",
-      recovered: true,
-    };
-  }
-
   if (input.context) {
     return {
       tone: "neutral",
@@ -261,11 +247,9 @@ export function buildPersistentFlowIndicator(
   }
 
   return {
-    tone: input.legacyCacheCorrupted ? "warning" : "neutral",
+    tone: "neutral",
     label: "Persistent flow state",
-    detail: input.legacyCacheCorrupted
-      ? "Corrupted local cache was ignored. Host-backed flow state will republish from current runtime truth."
-      : "Persistent flow state will appear once the workspace has intent or runtime evidence.",
+    detail: "Persistent flow state will appear once the workspace has intent or runtime evidence.",
     recovered: false,
   };
 }
@@ -418,7 +402,7 @@ export function useWorkspacePersistentFlowState(
               }
             : createEmptyDiagnostics()
         );
-        setSource(hostContext ? "host" : input.legacyCachedIntent ? "legacy_cache" : "none");
+        setSource(hostContext ? "host" : "none");
         setLoadState("ready");
         setSaveError(null);
       } catch (error) {
@@ -427,7 +411,7 @@ export function useWorkspacePersistentFlowState(
         }
         setPersistedContext(null);
         setDiagnostics(createEmptyDiagnostics());
-        setSource(input.legacyCachedIntent ? "legacy_cache" : "none");
+        setSource("none");
         setLoadState("ready");
         setSaveError(resolvePersistenceErrorMessage(error));
       }
@@ -448,14 +432,9 @@ export function useWorkspacePersistentFlowState(
       cancelled = true;
       unsubscribe();
     };
-  }, [input.legacyCachedIntent, input.workspaceId]);
+  }, [input.workspaceId]);
 
-  const hydratedIntent =
-    source === "host"
-      ? toAgentIntentState(persistedContext?.intent)
-      : source === "legacy_cache"
-        ? input.legacyCachedIntent
-        : null;
+  const hydratedIntent = source === "host" ? toAgentIntentState(persistedContext?.intent) : null;
   const effectiveIntent =
     isMeaningfulIntent(input.intent) || !hydratedIntent ? input.intent : hydratedIntent;
   const derivedContext = mergeActiveIntentContext(
@@ -530,7 +509,6 @@ export function useWorkspacePersistentFlowState(
       context: effectiveContext,
       loadState,
       saveError,
-      legacyCacheCorrupted: input.legacyCacheCorrupted,
     }),
   };
 }

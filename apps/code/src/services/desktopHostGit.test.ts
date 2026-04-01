@@ -1,4 +1,7 @@
-import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
+import {
+  invokeDesktopCommand,
+  isDesktopHostRuntime,
+} from "../application/runtime/ports/desktopHostCore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchGit,
@@ -11,12 +14,12 @@ import {
   revertGitAll,
 } from "./desktopHostGit";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: vi.fn(),
+vi.mock("../application/runtime/ports/desktopHostCore", () => ({
+  invokeDesktopCommand: vi.fn(),
   isDesktopHostRuntime: vi.fn(),
 }));
 
-const invokeMock = vi.mocked(invoke);
+const invokeMock = vi.mocked(invokeDesktopCommand);
 const isDesktopHostRuntimeMock = vi.mocked(isDesktopHostRuntime);
 
 beforeEach(() => {
@@ -25,7 +28,7 @@ beforeEach(() => {
 });
 
 describe("desktopHostGit", () => {
-  it("returns fallback values for non-desktop-host list/read APIs", async () => {
+  it("returns fallback values for non-desktop host list/read APIs", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(listGitRoots("ws-1", 2)).resolves.toEqual([]);
@@ -36,7 +39,7 @@ describe("desktopHostGit", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("throws for non-desktop-host mutating desktop commands", async () => {
+  it("throws for non-desktop host mutating desktop commands", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(pushGit("ws-1")).rejects.toThrow(
@@ -51,7 +54,7 @@ describe("desktopHostGit", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("invokes desktop commands with normalized payloads in desktop-host mode", async () => {
+  it("invokes desktop commands with normalized payloads in desktop host mode", async () => {
     invokeMock.mockResolvedValueOnce(["/repo"]);
     invokeMock.mockResolvedValueOnce([{ path: "src/a.ts", diff: "@@" }]);
     invokeMock.mockResolvedValueOnce(undefined);

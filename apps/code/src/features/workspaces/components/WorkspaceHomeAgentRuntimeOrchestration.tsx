@@ -41,15 +41,11 @@ const WorkspaceHomeAutonomousIssueDrive = lazy(async () => {
 type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
   intent?: AgentIntentState;
-  legacyCachedIntent?: AgentIntentState | null;
-  legacyCacheCorrupted?: boolean;
 };
 
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
   intent = DEFAULT_INTENT,
-  legacyCachedIntent = null,
-  legacyCacheCorrupted = false,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
@@ -254,8 +250,6 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     workspaceId,
     intent,
     runs: persistentFlowRuns,
-    legacyCachedIntent,
-    legacyCacheCorrupted,
   });
 
   return (

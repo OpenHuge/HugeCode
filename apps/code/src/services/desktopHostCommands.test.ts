@@ -1,13 +1,16 @@
-import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
+import {
+  invokeDesktopCommand,
+  isDesktopHostRuntime,
+} from "../application/runtime/ports/desktopHostCore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateCommitMessage, setMenuAccelerators } from "./desktopHostCommands";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: vi.fn(),
+vi.mock("../application/runtime/ports/desktopHostCore", () => ({
+  invokeDesktopCommand: vi.fn(),
   isDesktopHostRuntime: vi.fn(),
 }));
 
-const invokeMock = vi.mocked(invoke);
+const invokeMock = vi.mocked(invokeDesktopCommand);
 const isDesktopHostRuntimeMock = vi.mocked(isDesktopHostRuntime);
 
 beforeEach(() => {
@@ -34,7 +37,7 @@ describe("desktopHostCommands", () => {
     });
   });
 
-  it("invokes commit message generation in desktop-host mode", async () => {
+  it("invokes commit message generation in desktop host mode", async () => {
     invokeMock.mockResolvedValueOnce("feat: update runtime adapter");
 
     await expect(generateCommitMessage("ws-1")).resolves.toBe("feat: update runtime adapter");
@@ -43,7 +46,7 @@ describe("desktopHostCommands", () => {
     });
   });
 
-  it("rejects commit message generation outside desktop-host mode", async () => {
+  it("rejects commit message generation outside desktop host mode", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(generateCommitMessage("ws-2")).rejects.toThrow(
@@ -52,7 +55,7 @@ describe("desktopHostCommands", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("skips menu accelerator updates outside desktop-host mode", async () => {
+  it("skips menu accelerator updates outside desktop host mode", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(

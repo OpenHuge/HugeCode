@@ -2,7 +2,6 @@
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { writeCachedState } from "./workspaceHomeAgentControlState";
 import type { WorkspaceAgentControlPersistedControls } from "./workspaceHomeAgentControlState";
 import { syncWebMcpAgentControl } from "../../../application/runtime/ports/webMcpBridge";
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
@@ -125,8 +124,6 @@ const workspace = {
   name: "Workspace Agent Control",
 };
 
-const storageKey = `workspace-home-agent-control:${workspace.id}`;
-
 function buildPersistedControls(
   patch: Partial<WorkspaceAgentControlPersistedControls> = {}
 ): WorkspaceAgentControlPersistedControls {
@@ -205,29 +202,10 @@ describe("WorkspaceHomeAgentControl", () => {
         recovered: false,
       },
     });
-    writeCachedState(workspace.id, {
-      version: 7,
-      intent: {
-        objective: "Coordinate agent tasks",
-        constraints: "",
-        successCriteria: "",
-        deadline: null,
-        priority: "medium",
-        managerNotes: "",
-      },
-      webMcpEnabled: true,
-      webMcpConsoleMode: "basic",
-      lastKnownPersistedControls: {
-        readOnlyMode: false,
-        requireUserApproval: true,
-        webMcpAutoExecuteCalls: true,
-      },
-    });
   });
 
   afterEach(() => {
     cleanup();
-    window.localStorage.removeItem(storageKey);
     vi.clearAllMocks();
   });
 
@@ -289,7 +267,8 @@ describe("WorkspaceHomeAgentControl", () => {
       })
     );
     expect(screen.getByText(/4 tools synced \(provideContext, slim catalog\)/i)).toBeTruthy();
-    expect(screen.getByText(/Runtime kernel v2 prepare: balanced\/slim/i)).toBeTruthy();
+    expect(screen.getByText(/Context policy/i)).toBeTruthy();
+    expect(screen.getByText(/Waiting for objective/i)).toBeTruthy();
     expect(
       screen.getByText(/Source: live runtime truth \| Context fingerprint: ctx-123/i)
     ).toBeTruthy();
@@ -357,12 +336,11 @@ describe("WorkspaceHomeAgentControl", () => {
       );
     });
 
-    expect(screen.getByText(/Using provider heuristics/i)).toBeTruthy();
+    expect(screen.getByText(/Waiting for objective/i)).toBeTruthy();
     expect(screen.getByText(/Runtime WebMCP context policy is unavailable/i)).toBeTruthy();
   });
 
   it("hydrates the intent from recovered host-backed flow state when local intent is empty", async () => {
-    window.localStorage.removeItem(storageKey);
     vi.mocked(useWorkspacePersistentFlowState).mockReturnValue({
       context: {
         schemaVersion: "active-intent-context/v1",

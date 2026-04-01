@@ -2,9 +2,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  clearLegacyThreadSnapshots,
   loadCustomNames,
-  loadLegacyThreadSnapshots,
   loadPinnedThreads,
   loadThreadActivity,
   STORAGE_KEY_CUSTOM_NAMES,
@@ -16,15 +14,12 @@ import {
   readPersistedThreadStorageState,
   writePersistedThreadStorageState,
 } from "../../../application/runtime/ports/threadSnapshots";
-import { logger } from "../../../application/runtime/ports/logger";
 import { useThreadStorage } from "./useThreadStorage";
 
 vi.mock("../utils/threadStorage", () => ({
   MAX_PINS_SOFT_LIMIT: 2,
   STORAGE_KEY_CUSTOM_NAMES: "custom-names",
   STORAGE_KEY_PINNED_THREADS: "pinned-threads",
-  loadLegacyThreadSnapshots: vi.fn(() => ({})),
-  clearLegacyThreadSnapshots: vi.fn(),
   loadCustomNames: vi.fn(),
   loadPinnedThreads: vi.fn(),
   loadThreadActivity: vi.fn(),
@@ -42,16 +37,9 @@ vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
   writePersistedThreadStorageState: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/logger", () => ({
-  logger: {
-    warn: vi.fn(),
-  },
-}));
-
 describe("useThreadStorage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(loadLegacyThreadSnapshots).mockReturnValue({});
   });
 
   it("loads initial data and updates custom names on storage events", async () => {
@@ -483,15 +471,6 @@ describe("useThreadStorage", () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(loadCustomNames).mockReturnValue({});
-    vi.mocked(loadLegacyThreadSnapshots).mockReturnValue({
-      "ws-1:thread-legacy": {
-        workspaceId: "ws-1",
-        threadId: "thread-legacy",
-        name: "Legacy thread",
-        updatedAt: 91,
-        items: [{ id: "msg-legacy", kind: "message", role: "user", text: "restore legacy" }],
-      },
-    });
     vi.mocked(readPersistedThreadStorageState).mockRejectedValue(new Error("runtime unavailable"));
 
     const { result } = renderHook(() => useThreadStorage());
@@ -502,82 +481,30 @@ describe("useThreadStorage", () => {
 
     expect(result.current.listThreadSnapshots("ws-1")).toEqual([]);
     expect(writePersistedThreadStorageState).not.toHaveBeenCalled();
-    expect(clearLegacyThreadSnapshots).not.toHaveBeenCalled();
   });
 
-  it("migrates legacy snapshots only after native storage responds successfully", async () => {
+  it("ignores legacy local snapshots even when native storage is empty", async () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(loadCustomNames).mockReturnValue({});
-    vi.mocked(loadLegacyThreadSnapshots).mockReturnValue({
-      "ws-1:thread-legacy": {
-        workspaceId: "ws-1",
-        threadId: "thread-legacy",
-        name: "Legacy thread",
-        updatedAt: 91,
-        items: [{ id: "msg-legacy", kind: "message", role: "user", text: "restore legacy" }],
-      },
-    });
     vi.mocked(readPersistedThreadStorageState).mockResolvedValue({
       snapshots: {},
       pendingDraftMessagesByWorkspace: {},
     });
-    vi.mocked(writePersistedThreadStorageState).mockResolvedValue(false);
 
     const { result } = renderHook(() => useThreadStorage());
 
     await waitFor(() => {
-      expect(result.current.listThreadSnapshots("ws-1")).toEqual([
-        {
-          workspaceId: "ws-1",
-          threadId: "thread-legacy",
-          name: "Legacy thread",
-          updatedAt: 91,
-          items: [{ id: "msg-legacy", kind: "message", role: "user", text: "restore legacy" }],
-        },
-      ]);
+      expect(result.current.listThreadSnapshots("ws-1")).toEqual([]);
     });
 
-    await waitFor(() => {
-      expect(writePersistedThreadStorageState).toHaveBeenCalledWith({
-        snapshots: {
-          "ws-1:thread-legacy": {
-            workspaceId: "ws-1",
-            threadId: "thread-legacy",
-            name: "Legacy thread",
-            updatedAt: 91,
-            items: [{ id: "msg-legacy", kind: "message", role: "user", text: "restore legacy" }],
-          },
-        },
-        pendingDraftMessagesByWorkspace: {},
-        lastActiveThreadIdByWorkspace: {},
-      });
-    });
-
-    expect(logger.warn).toHaveBeenCalledWith(
-      "Hydrating legacy local thread snapshots as a temporary non-authoritative fallback.",
-      expect.objectContaining({
-        snapshotCount: 1,
-        persistToNative: true,
-      })
-    );
-
-    expect(clearLegacyThreadSnapshots).not.toHaveBeenCalled();
+    expect(writePersistedThreadStorageState).not.toHaveBeenCalled();
   });
 
-  it("clears ignored legacy local snapshots once native thread storage is authoritative", async () => {
+  it("keeps native thread storage authoritative without touching legacy local snapshots", async () => {
     vi.mocked(loadThreadActivity).mockReturnValue({});
     vi.mocked(loadPinnedThreads).mockReturnValue({});
     vi.mocked(loadCustomNames).mockReturnValue({});
-    vi.mocked(loadLegacyThreadSnapshots).mockReturnValue({
-      "ws-1:thread-legacy": {
-        workspaceId: "ws-1",
-        threadId: "thread-legacy",
-        name: "Legacy thread",
-        updatedAt: 91,
-        items: [{ id: "msg-legacy", kind: "message", role: "user", text: "legacy residue" }],
-      },
-    });
     vi.mocked(readPersistedThreadStorageState).mockResolvedValue({
       snapshots: {
         "ws-1:thread-native": {
@@ -606,14 +533,7 @@ describe("useThreadStorage", () => {
       ]);
     });
 
-    expect(clearLegacyThreadSnapshots).toHaveBeenCalled();
-    expect(logger.warn).toHaveBeenCalledWith(
-      "Ignoring legacy local thread snapshots because runtime-backed thread storage is available.",
-      expect.objectContaining({
-        snapshotCount: 1,
-        migrationOnly: true,
-      })
-    );
+    expect(writePersistedThreadStorageState).not.toHaveBeenCalled();
   });
 
   it("does not overwrite persisted thread items with an empty summary-only refresh", async () => {

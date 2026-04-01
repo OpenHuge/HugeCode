@@ -1,5 +1,9 @@
-import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
-import { listen } from "@desktop-host/event";
+import {
+  invoke,
+  invokeDesktopCommand,
+  isDesktopHostRuntime,
+} from "../application/runtime/ports/desktopHostCore";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   detectRuntimeMode,
@@ -80,23 +84,21 @@ import {
   submitRuntimeJobApprovalDecision,
 } from "./runtimeJobsBridge";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: vi.fn(),
-  isDesktopHostRuntime: vi.fn(() => true),
-}));
+vi.mock("../application/runtime/ports/desktopHostCore", () => {
+  const invokeMock = vi.fn();
+  return {
+    invoke: invokeMock,
+    invokeDesktopCommand: invokeMock,
+    isDesktopHostRuntime: vi.fn(() => true),
+  };
+});
 
-vi.mock("@desktop-host/event", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@desktop-host/dialogs", () => ({
+vi.mock("../application/runtime/ports/desktopHostDialogs", () => ({
   open: vi.fn(),
-}));
-
-vi.mock("@desktop-host/notifications", () => ({
-  isPermissionGranted: vi.fn(),
-  requestPermission: vi.fn(),
-  sendNotification: vi.fn(),
 }));
 
 vi.mock("./runtimeClient", () => ({
@@ -133,6 +135,7 @@ describe("desktop host invoke wrappers", () => {
       wsEndpointPath: null,
       error: null,
     });
+    expect(vi.mocked(invokeDesktopCommand)).toBe(invokeMock);
   });
 
   it("does not fall back to invoke when runtime providers catalog fails", async () => {

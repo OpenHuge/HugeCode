@@ -46,15 +46,6 @@ const blankIntent: AgentIntentState = {
   managerNotes: "",
 };
 
-const legacyIntent: AgentIntentState = {
-  objective: "Legacy cached intent",
-  constraints: "Keep runtime truth authoritative",
-  successCriteria: "Recover after restart",
-  deadline: null,
-  priority: "high",
-  managerNotes: "Fallback only",
-};
-
 function createDiagnosticsResponse(): WorkspaceDiagnosticsListResponse {
   return {
     workspaceId: "workspace-1",
@@ -152,8 +143,6 @@ describe("useWorkspacePersistentFlowState", () => {
             reviewPackId: "review-pack-1",
           },
         ],
-        legacyCachedIntent: legacyIntent,
-        legacyCacheCorrupted: false,
       })
     );
 
@@ -232,8 +221,6 @@ describe("useWorkspacePersistentFlowState", () => {
             reviewPackId: "review-pack-1",
           },
         ],
-        legacyCachedIntent: null,
-        legacyCacheCorrupted: false,
       })
     );
 
@@ -251,7 +238,7 @@ describe("useWorkspacePersistentFlowState", () => {
     );
   });
 
-  it("falls back to the last healthy legacy cache snapshot when host-backed state is missing", async () => {
+  it("does not recover persistent flow state from legacy local cache when host-backed state is missing", async () => {
     getAppSettingsMock.mockResolvedValue({});
     listWorkspaceDiagnosticsMock.mockResolvedValue(null);
 
@@ -260,8 +247,6 @@ describe("useWorkspacePersistentFlowState", () => {
         workspaceId: "workspace-1",
         intent: blankIntent,
         runs: [],
-        legacyCachedIntent: legacyIntent,
-        legacyCacheCorrupted: true,
       })
     );
 
@@ -269,10 +254,12 @@ describe("useWorkspacePersistentFlowState", () => {
       expect(result.current.loadState).toBe("ready");
     });
 
-    expect(result.current.source).toBe("legacy_cache");
-    expect(result.current.hydratedIntent).toEqual(legacyIntent);
-    expect(result.current.indicator.tone).toBe("warning");
-    expect(result.current.indicator.detail).toContain("corrupted cache");
+    expect(result.current.source).toBe("none");
+    expect(result.current.hydratedIntent).toBeNull();
+    expect(result.current.indicator.label).toBe("Persistent flow state");
+    expect(result.current.indicator.detail).toContain(
+      "Persistent flow state will appear once the workspace has intent or runtime evidence."
+    );
   });
 
   it("preserves persisted run history when startup hydration has intent but no fresh runs yet", async () => {
@@ -310,8 +297,6 @@ describe("useWorkspacePersistentFlowState", () => {
         workspaceId: "workspace-1",
         intent: blankIntent,
         runs: [],
-        legacyCachedIntent: null,
-        legacyCacheCorrupted: false,
       })
     );
 
@@ -338,8 +323,6 @@ describe("useWorkspacePersistentFlowState", () => {
           constraints: "Keep continuity state across restarts",
         },
         runs: [],
-        legacyCachedIntent: null,
-        legacyCacheCorrupted: false,
       })
     );
 
@@ -434,8 +417,6 @@ describe("useWorkspacePersistentFlowState", () => {
           managerNotes: "Update intent without losing recovered run history",
         },
         runs: [],
-        legacyCachedIntent: null,
-        legacyCacheCorrupted: false,
       })
     );
 

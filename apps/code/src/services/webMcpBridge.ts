@@ -184,10 +184,12 @@ export {
   callWebMcpTool,
   createWebMcpMessage,
   elicitWebMcpInput,
+  formatMissingMethodsMessage,
+  getModelContext,
   getWebMcpCapabilities,
   listWebMcpCatalog,
   supportsWebMcp,
-} from "./webMcpBridgeModelContextApi";
+} from "@ku0/code-runtime-webmcp-client/webMcpBridgeModelContextApi";
 export type * from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 export { WebMcpInputSchemaValidationError } from "@ku0/code-runtime-client/webMcpInputSchemaValidationError";
 export { invalidateCachedRuntimeLiveSkills } from "./webMcpBridgeRuntimeWorkspaceTools";

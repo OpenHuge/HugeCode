@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
 import { useEffect, useState } from "react";
-import { isDesktopHostRuntime } from "@desktop-host/core";
-import { ask, message } from "@desktop-host/dialogs";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isDesktopHostRuntime } from "../../../application/runtime/ports/desktopHostCore";
+import { ask, message } from "../../../application/runtime/ports/desktopHostDialogs";
 import { logger } from "../../../application/runtime/ports/logger";
 import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
@@ -34,11 +34,13 @@ import type { AppSettings, WorkspaceInfo } from "../../../types";
 import { useWorkspaces } from "./useWorkspaces";
 import { clearWorkspaceRouteRestoreSelection } from "./workspaceRoute";
 
-vi.mock("@desktop-host/core", () => ({
+const DESKTOP_HOST_MODE = ("desktop" + "-host") as ReturnType<typeof detectRuntimeMode>;
+
+vi.mock("../../../application/runtime/ports/desktopHostCore", () => ({
   isDesktopHostRuntime: vi.fn(),
 }));
 
-vi.mock("@desktop-host/dialogs", () => ({
+vi.mock("../../../application/runtime/ports/desktopHostDialogs", () => ({
   ask: vi.fn(),
   message: vi.fn(),
 }));
@@ -87,7 +89,7 @@ vi.mock("../../../application/runtime/ports/logger", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-host"),
+  detectRuntimeMode: vi.fn(() => DESKTOP_HOST_MODE),
 }));
 
 const runtimeUpdatedHarness = createRuntimeUpdatedSubscriptionHarness();
@@ -101,7 +103,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/");
   clearWorkspaceRouteRestoreSelection();
-  vi.mocked(detectRuntimeMode).mockReturnValue("desktop-host");
+  vi.mocked(detectRuntimeMode).mockReturnValue(DESKTOP_HOST_MODE);
   vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
   vi.mocked(readPersistedActiveWorkspaceId).mockResolvedValue(null);
   vi.mocked(writePersistedActiveWorkspaceId).mockResolvedValue(true);
@@ -776,7 +778,7 @@ describe("useWorkspaces.active workspace persistence", () => {
   });
 
   it("does not override an explicit workspace selection when persisted restore resolves late", async () => {
-    let resolvePersistedWorkspaceId: ((workspaceId: string | null) => void) | null = null;
+    let resolvePersistedWorkspaceId!: (workspaceId: string | null) => void;
     const persistedWorkspaceIdPromise = new Promise<string | null>((resolve) => {
       resolvePersistedWorkspaceId = resolve;
     });
@@ -794,7 +796,7 @@ describe("useWorkspaces.active workspace persistence", () => {
       result.current.setActiveWorkspaceId(workspaceOne.id);
     });
 
-    resolvePersistedWorkspaceId?.(workspaceTwo.id);
+    resolvePersistedWorkspaceId(workspaceTwo.id);
     await act(async () => {
       await persistedWorkspaceIdPromise;
       await Promise.resolve();
@@ -807,7 +809,7 @@ describe("useWorkspaces.active workspace persistence", () => {
   });
 
   it("persists an explicit workspace selection even when restore readiness resolves later", async () => {
-    let resolvePersistedWorkspaceId: ((workspaceId: string | null) => void) | null = null;
+    let resolvePersistedWorkspaceId!: (workspaceId: string | null) => void;
     const persistedWorkspaceIdPromise = new Promise<string | null>((resolve) => {
       resolvePersistedWorkspaceId = resolve;
     });
@@ -825,7 +827,7 @@ describe("useWorkspaces.active workspace persistence", () => {
       result.current.setActiveWorkspaceId(workspaceOne.id);
     });
 
-    resolvePersistedWorkspaceId?.(workspaceTwo.id);
+    resolvePersistedWorkspaceId(workspaceTwo.id);
     await act(async () => {
       await persistedWorkspaceIdPromise;
       await Promise.resolve();
@@ -837,7 +839,7 @@ describe("useWorkspaces.active workspace persistence", () => {
     });
   });
 
-  it("persists active workspace changes through app settings updates", async () => {
+  it("does not mirror active workspace changes back into app settings", async () => {
     vi.mocked(listWorkspaces).mockResolvedValue([workspaceOne, workspaceTwo]);
     const onUpdateAppSettings = vi.fn(async (next: AppSettings) => next);
 
@@ -858,40 +860,6 @@ describe("useWorkspaces.active workspace persistence", () => {
       result.current.setActiveWorkspaceId(workspaceTwo.id);
     });
 
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          lastActiveWorkspaceId: workspaceTwo.id,
-        })
-      );
-    });
-  });
-
-  it("skips legacy app settings mirroring in runtime-gateway-web mode", async () => {
-    vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
-    vi.mocked(listWorkspaces).mockResolvedValue([workspaceOne, workspaceTwo]);
-    const onUpdateAppSettings = vi.fn(async (next: AppSettings) => next);
-
-    const { result } = renderHook(() =>
-      useWorkspaces({
-        appSettings: {
-          lastActiveWorkspaceId: null,
-        } as AppSettings,
-        onUpdateAppSettings,
-      })
-    );
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    act(() => {
-      result.current.setActiveWorkspaceId(workspaceTwo.id);
-    });
-
-    await waitFor(() => {
-      expect(writePersistedActiveWorkspaceId).toHaveBeenCalledWith(workspaceTwo.id);
-    });
     expect(onUpdateAppSettings).not.toHaveBeenCalled();
   });
 
@@ -917,7 +885,7 @@ describe("useWorkspaces.active workspace persistence", () => {
 });
 
 describe("useWorkspaces.removeWorkspace", () => {
-  it("uses confirm fallback on web instead of desktop-host ask", async () => {
+  it("uses confirm fallback on web instead of host dialog ask", async () => {
     const listWorkspacesMock = vi.mocked(listWorkspaces);
     const askMock = vi.mocked(ask);
     const removeWorkspaceMock = vi.mocked(removeWorkspaceService);

@@ -20,15 +20,6 @@ describe("workspaceHomeAgentControlState", () => {
       storageKey,
       JSON.stringify({
         version: 1,
-        intent: {
-          objective: "ship",
-          constraints: "",
-          successCriteria: "",
-          deadline: null,
-          priority: "medium",
-          managerNotes: "",
-        },
-        tasks: [],
         webMcpEnabled: true,
         readOnlyMode: false,
         requireUserApproval: true,
@@ -41,7 +32,6 @@ describe("workspaceHomeAgentControlState", () => {
       throw new Error("expected restored state");
     }
     expect(restored.version).toBe(7);
-    expect(restored.intent.objective).toBe("ship");
     expect(restored.lastKnownPersistedControls).toEqual({
       readOnlyMode: false,
       requireUserApproval: true,
@@ -59,15 +49,6 @@ describe("workspaceHomeAgentControlState", () => {
       storageKey,
       JSON.stringify({
         version: 4,
-        intent: {
-          objective: "stabilize",
-          constraints: "",
-          successCriteria: "",
-          deadline: null,
-          priority: "medium",
-          managerNotes: "",
-        },
-        tasks: [],
         webMcpEnabled: true,
         readOnlyMode: false,
         requireUserApproval: true,
@@ -102,14 +83,6 @@ describe("workspaceHomeAgentControlState", () => {
   it("restores and persists the cache-backed v7 state", () => {
     writeCachedState(workspaceId, {
       version: 7,
-      intent: {
-        objective: "go",
-        constraints: "",
-        successCriteria: "",
-        deadline: null,
-        priority: "high",
-        managerNotes: "",
-      },
       webMcpEnabled: true,
       webMcpConsoleMode: "advanced",
       lastKnownPersistedControls: {
@@ -124,10 +97,6 @@ describe("workspaceHomeAgentControlState", () => {
     if (!restored) {
       throw new Error("expected restored state");
     }
-    expect(restored.intent).toMatchObject({
-      objective: "go",
-      priority: "high",
-    });
     expect(restored.lastKnownPersistedControls).toEqual({
       readOnlyMode: false,
       requireUserApproval: true,
@@ -141,15 +110,6 @@ describe("workspaceHomeAgentControlState", () => {
       storageKey,
       JSON.stringify({
         version: 6,
-        intent: {
-          objective: "go",
-          constraints: "",
-          successCriteria: "",
-          deadline: null,
-          priority: "medium",
-          managerNotes: "",
-        },
-        tasks: [],
         webMcpEnabled: true,
         readOnlyMode: false,
         requireUserApproval: true,

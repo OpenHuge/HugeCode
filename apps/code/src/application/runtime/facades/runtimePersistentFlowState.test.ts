@@ -150,7 +150,6 @@ describe("runtimePersistentFlowState", () => {
       }),
       loadState: "ready",
       saveError: null,
-      legacyCacheCorrupted: false,
     });
 
     expect(indicator.tone).toBe("success");

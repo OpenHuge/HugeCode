@@ -1,4 +1,7 @@
-import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
+import {
+  invokeDesktopCommand,
+  isDesktopHostRuntime,
+} from "../application/runtime/ports/desktopHostCore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyWorktreeChanges,
@@ -9,12 +12,12 @@ import {
   renameWorktreeUpstream,
 } from "./desktopHostWorkspace";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: vi.fn(),
+vi.mock("../application/runtime/ports/desktopHostCore", () => ({
+  invokeDesktopCommand: vi.fn(),
   isDesktopHostRuntime: vi.fn(),
 }));
 
-const invokeMock = vi.mocked(invoke);
+const invokeMock = vi.mocked(invokeDesktopCommand);
 const isDesktopHostRuntimeMock = vi.mocked(isDesktopHostRuntime);
 
 beforeEach(() => {
@@ -73,7 +76,7 @@ describe("desktopHostWorkspace", () => {
     });
   });
 
-  it("throws for open_workspace_in outside desktop-host runtime", async () => {
+  it("throws for open_workspace_in outside desktop host runtime", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(openWorkspaceIn("/tmp/defaults", {})).rejects.toThrow(
@@ -101,7 +104,7 @@ describe("desktopHostWorkspace", () => {
     });
   });
 
-  it("throws for upstream worktree rename outside desktop-host runtime", async () => {
+  it("throws for upstream worktree rename outside desktop host runtime", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(
@@ -111,7 +114,7 @@ describe("desktopHostWorkspace", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("invokes upstream worktree rename in desktop-host mode", async () => {
+  it("invokes upstream worktree rename in desktop host mode", async () => {
     invokeMock.mockResolvedValueOnce(undefined);
 
     await expect(

@@ -286,7 +286,7 @@ function createBrowserReadinessSummary(overrides: Record<string, unknown> = {}) 
     state: "ready",
     headline: "Browser readiness confirmed",
     detail: "Desktop host bridge publishes the browser extraction contract.",
-    recommendedAction: "Use the desktop-host browser extraction contract.",
+    recommendedAction: "Use the host browser extraction contract.",
     runtimeHost: "electron",
     source: "desktop_host_bridge",
     sourceLabel: "Desktop host bridge",
@@ -1124,8 +1124,6 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           priority: "high",
           managerNotes: "",
         }}
-        legacyCachedIntent={null}
-        legacyCacheCorrupted={false}
       />
     );
 

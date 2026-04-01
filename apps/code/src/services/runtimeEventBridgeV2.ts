@@ -28,7 +28,7 @@ import {
   type RuntimeEventReplayCursor,
   type Unsubscribe,
 } from "./runtimeEventBridgeTransportShared";
-import { createRuntimeEventStateMachine } from "./runtimeEventStateMachine";
+import { createRuntimeEventStateMachine } from "@ku0/code-runtime-client/runtimeEventStateMachine";
 import type {
   AgentEnvelopeAck,
   AgentEnvelopeFailure,

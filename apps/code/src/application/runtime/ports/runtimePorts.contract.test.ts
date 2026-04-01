@@ -331,4 +331,17 @@ describe("runtime port contract", () => {
 
     expect(source).not.toMatch(/from\s+["']\.\/(?:compat|legacy)[A-Za-z0-9]*["']/);
   });
+
+  it("deletes app-local shared runtime shim files once the shared package owns them", () => {
+    const deletedServiceShims = [
+      "../../../services/runtimeClientRpcHelpers.ts",
+      "../../../services/runtimeClientRpcPayloads.ts",
+      "../../../services/runtimeEventStateMachine.ts",
+      "../../../services/webMcpBridgeModelContextApi.ts",
+    ] as const;
+
+    for (const relativePath of deletedServiceShims) {
+      expect(() => readFileSync(path.resolve(import.meta.dirname, relativePath), "utf8")).toThrow();
+    }
+  });
 });
