@@ -345,7 +345,7 @@ export async function renameWorkspace(id: string, displayName: string): Promise<
 export async function isWorkspacePathDir(path: string): Promise<boolean> {
   if (!isDesktopHostRuntime()) {
     void path;
-    throw new Error("Workspace path validation is only available in Desktop host runtime.");
+    throw new Error("Workspace path validation is only available through the Electron bridge.");
   }
   return invoke<boolean>("is_workspace_path_dir", { path });
 }
@@ -359,7 +359,7 @@ export async function addClone(
     void sourceWorkspaceId;
     void copiesFolder;
     void copyName;
-    throw new Error("Workspace cloning is only available in Desktop host runtime.");
+    throw new Error("Workspace cloning is only available through the Electron bridge.");
   }
   return invoke<WorkspaceInfo>("add_clone", {
     sourceWorkspaceId,
@@ -379,7 +379,7 @@ export async function addWorktree(
     void branch;
     void name;
     void copyAgentsMd;
-    throw new Error("Worktree creation is only available in Desktop host runtime.");
+    throw new Error("Worktree creation is only available through the Electron bridge.");
   }
   return invoke<WorkspaceInfo>("add_worktree", { parentId, branch, name, copyAgentsMd });
 }
@@ -391,7 +391,7 @@ export async function updateWorkspaceSettings(
   if (!isDesktopHostRuntime()) {
     void id;
     void settings;
-    throw new Error("Workspace settings update is only available in Desktop host runtime.");
+    throw new Error("Workspace settings update is only available through the Electron bridge.");
   }
   return invoke<WorkspaceInfo>("update_workspace_settings", { id, settings });
 }
@@ -403,7 +403,7 @@ export async function updateWorkspaceCodexBin(
   if (!isDesktopHostRuntime()) {
     void id;
     void codex_bin;
-    throw new Error("Workspace codex bin update is only available in Desktop host runtime.");
+    throw new Error("Workspace codex bin update is only available through the Electron bridge.");
   }
   return invoke<WorkspaceInfo>("update_workspace_codex_bin", { id, codex_bin });
 }
@@ -415,7 +415,7 @@ export async function removeWorkspace(id: string): Promise<void> {
 export async function removeWorktree(id: string): Promise<void> {
   if (!isDesktopHostRuntime()) {
     void id;
-    throw new Error("Worktree removal is only available in Desktop host runtime.");
+    throw new Error("Worktree removal is only available through the Electron bridge.");
   }
   return invoke("remove_worktree", { id });
 }
@@ -424,7 +424,7 @@ export async function renameWorktree(id: string, branch: string): Promise<Worksp
   if (!isDesktopHostRuntime()) {
     void id;
     void branch;
-    throw new Error("Worktree rename is only available in Desktop host runtime.");
+    throw new Error("Worktree rename is only available through the Electron bridge.");
   }
   return invoke<WorkspaceInfo>("rename_worktree", { id, branch });
 }

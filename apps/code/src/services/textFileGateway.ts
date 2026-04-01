@@ -113,7 +113,7 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
       }
       if (deps.isMissingDesktopHostInvokeError(error)) {
         deps.logRuntimeWarning(
-          "Desktop host invoke bridge unavailable; using local text-file fallback.",
+          "Electron bridge invoke unavailable; using local text-file fallback.",
           {
             capabilityState: "browser-local-only",
             scope,
@@ -125,7 +125,7 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
       }
       if (deps.isMissingDesktopHostCommandError(error, deps.readCommand)) {
         deps.logRuntimeWarning(
-          `Desktop host ${deps.readCommand} command unavailable; using browser-local text-file fallback.`,
+          `Electron bridge ${deps.readCommand} command unavailable; using browser-local text-file fallback.`,
           {
             capabilityState: "browser-local-only",
             scope,
@@ -157,7 +157,7 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
     } catch (error) {
       if (deps.isMissingDesktopHostInvokeError(error)) {
         deps.logRuntimeWarning(
-          "Desktop host invoke bridge unavailable; using browser-local text-file fallback write.",
+          "Electron bridge invoke unavailable; using browser-local text-file fallback write.",
           {
             capabilityState: "browser-local-only",
             scope,
@@ -170,7 +170,7 @@ export function createTextFileGateway(deps: TextFileGatewayDeps) {
       }
       if (deps.isMissingDesktopHostCommandError(error, deps.writeCommand)) {
         deps.logRuntimeWarning(
-          `Desktop host ${deps.writeCommand} command unavailable; using browser-local text-file fallback.`,
+          `Electron bridge ${deps.writeCommand} command unavailable; using browser-local text-file fallback.`,
           {
             capabilityState: "browser-local-only",
             scope,

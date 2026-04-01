@@ -330,7 +330,7 @@ describe("useWorkspaces.updateWorkspaceSettings", () => {
     vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     listWorkspacesMock.mockResolvedValue([{ ...workspaceOne }]);
     updateWorkspaceSettingsMock.mockRejectedValue(
-      new Error("Workspace settings update is only available in Desktop host runtime.")
+      new Error("Workspace settings update is only available through the Electron bridge.")
     );
 
     const { result } = renderHook(() => useWorkspaces());
@@ -368,7 +368,7 @@ describe("useWorkspaces.updateWorkspaceSettings", () => {
     vi.mocked(isDesktopHostRuntime).mockReturnValue(false);
     listWorkspacesMock.mockResolvedValue([{ ...workspaceOne }]);
     updateWorkspaceSettingsMock.mockRejectedValue(
-      new Error("Workspace settings update is only available in Desktop host runtime.")
+      new Error("Workspace settings update is only available through the Electron bridge.")
     );
 
     const { result } = renderHook(() => useWorkspaces());

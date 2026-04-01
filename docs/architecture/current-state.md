@@ -55,7 +55,7 @@ The real end-to-end runtime path today is:
 ### Shadow or duplicated client paths
 
 - `apps/code/src/services/*`
-  Still contains a broad runtime client layer, WebMCP layer, desktop host bridge layer, transport state machines, fallback handling, and some duplicated shared-client logic.
+  Still contains a broad runtime client layer, WebMCP layer, Electron bridge adapter layer, transport state machines, fallback handling, and some duplicated shared-client logic.
 - `packages/code-runtime-client`
   Already owns part of the canonical runtime client surface, but extraction is incomplete because `apps/code/src/services/*` still carries neighboring forks.
 - `packages/code-runtime-webmcp-client`

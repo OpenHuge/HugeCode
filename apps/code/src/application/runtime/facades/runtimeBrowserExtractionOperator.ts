@@ -324,7 +324,7 @@ export function useRuntimeBrowserExtractionOperator(
         setNotice({
           tone: "warning",
           message:
-            "Desktop host did not return a browser extraction result. Retry once the host bridge is stable.",
+            "Electron bridge did not return a browser extraction result. Retry once the bridge is stable.",
         });
         return;
       }

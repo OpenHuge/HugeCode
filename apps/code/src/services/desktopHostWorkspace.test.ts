@@ -80,7 +80,7 @@ describe("desktopHostWorkspace", () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(openWorkspaceIn("/tmp/defaults", {})).rejects.toThrow(
-      "Open in is unavailable outside the desktop host."
+      "Open in is unavailable outside the Electron desktop host."
     );
 
     expect(invokeMock).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe("desktopHostWorkspace", () => {
 
     await expect(
       renameWorktreeUpstream("wt-upstream", "feature/old", "feature/new")
-    ).rejects.toThrow("Upstream worktree rename is unavailable outside the desktop host.");
+    ).rejects.toThrow("Upstream worktree rename is unavailable outside the Electron desktop host.");
 
     expect(invokeMock).not.toHaveBeenCalled();
   });
