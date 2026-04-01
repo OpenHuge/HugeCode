@@ -81,6 +81,7 @@ import type {
   RuntimeExtensionRegistrySearchRequest,
   RuntimeExtensionRemoveRequest,
   RuntimeExtensionResourceReadRequest,
+  RuntimeExtensionToolInvokeRequest,
   RuntimeExtensionSetStateRequest,
   RuntimeExtensionToolsListRequest,
   RuntimeExtensionUiAppDescriptor,
@@ -633,6 +634,11 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2]: RuntimeExtensionToolsListRequest & {
     workspace_id?: string | null;
     extension_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOL_INVOKE_V2]: RuntimeExtensionToolInvokeRequest & {
+    workspace_id?: string | null;
+    extension_id?: string;
+    tool_name?: string;
   };
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2]: RuntimeExtensionResourceReadRequest & {
     workspace_id?: string | null;

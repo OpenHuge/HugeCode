@@ -29,6 +29,29 @@ describe("runtimeClientRpcExtensionsFactory", () => {
     );
   });
 
+  it("builds extension tool invoke payloads with canonical nullable fields", async () => {
+    const invokeRpc = vi.fn(async () => ({ ok: true })) as unknown as RuntimeRpcInvoker;
+    const client = createExtendedRpcRuntimeClient(invokeRpc);
+
+    await client.extensionToolInvokeV2({
+      workspaceId: "ws-1",
+      extensionId: "ext-1",
+      toolName: "tool.one",
+      input: {
+        query: "catalog",
+      },
+    });
+
+    expect(invokeRpc).toHaveBeenCalledWith(RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_TOOL_INVOKE_V2, {
+      workspaceId: "ws-1",
+      extensionId: "ext-1",
+      toolName: "tool.one",
+      input: {
+        query: "catalog",
+      },
+    });
+  });
+
   it("normalizes terminal session summaries returned by core rpc methods", async () => {
     const invokeRpc = vi.fn(
       async () =>

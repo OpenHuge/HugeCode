@@ -12,6 +12,8 @@ import type {
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionSpec,
   RuntimeExtensionsConfigResponse,
+  RuntimeExtensionToolInvokeRequest,
+  RuntimeExtensionToolInvokeResponse,
   RuntimeExtensionToolSummary,
   RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
@@ -93,6 +95,13 @@ export async function listRuntimeExtensionToolsWithFallback(
   request: { workspaceId?: string | null; extensionId: string }
 ): Promise<RuntimeExtensionToolSummary[]> {
   return client.extensionToolsListV2(request);
+}
+
+export async function invokeRuntimeExtensionToolWithFallback(
+  client: RuntimeClient,
+  request: RuntimeExtensionToolInvokeRequest
+): Promise<RuntimeExtensionToolInvokeResponse> {
+  return client.extensionToolInvokeV2(request);
 }
 
 export async function readRuntimeExtensionResourceWithFallback(

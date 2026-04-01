@@ -12,6 +12,8 @@ import type {
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionSpec,
   RuntimeExtensionSetStateRequest,
+  RuntimeExtensionToolInvokeRequest,
+  RuntimeExtensionToolInvokeResponse,
   RuntimeExtensionsConfigResponse,
   RuntimeExtensionToolSummary,
   RuntimeExtensionUpdateRequest,
@@ -21,6 +23,7 @@ import {
   evaluateRuntimeExtensionPermissionsWithFallback,
   getRuntimeExtensionWithFallback,
   installRuntimeExtensionWithFallback,
+  invokeRuntimeExtensionToolWithFallback,
   listRuntimeExtensionRegistrySourcesWithFallback,
   listRuntimeExtensionToolsWithFallback,
   listRuntimeExtensionsWithFallback,
@@ -76,6 +79,12 @@ export async function listRuntimeExtensionTools(request: {
   extensionId: string;
 }): Promise<RuntimeExtensionToolSummary[]> {
   return listRuntimeExtensionToolsWithFallback(getRuntimeClient(), request);
+}
+
+export async function invokeRuntimeExtensionTool(
+  request: RuntimeExtensionToolInvokeRequest
+): Promise<RuntimeExtensionToolInvokeResponse> {
+  return invokeRuntimeExtensionToolWithFallback(getRuntimeClient(), request);
 }
 
 export async function readRuntimeExtensionResource(

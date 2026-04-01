@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createRuntimeKernel } from "./createRuntimeKernel";
+import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "./runtimeKernelCapabilities";
+import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
 import type { ConfiguredWebRuntimeGatewayProfile } from "../../../services/runtimeWebGatewayConfig";
 import { setConfiguredWebRuntimeGatewayProfile } from "../../../services/runtimeWebGatewayConfig";
 
@@ -112,6 +114,15 @@ const runtimeMocks = vi.hoisted(() => ({
   commitGit: vi.fn(async () => undefined),
   listWorkspaceFileEntries: vi.fn(async () => [{ id: "file-1", path: "src/a.ts" }]),
   readWorkspaceFile: vi.fn(async () => ({ content: "hello", truncated: false })),
+  runRuntimeLiveSkill: vi.fn(async () => ({
+    runId: "skill-run-1",
+    skillId: "review-agent",
+    output: "done",
+    metadata: {},
+  })),
+  listRuntimeExtensionTools: vi.fn(async () => []),
+  invokeRuntimeExtensionTool: vi.fn(async () => ({ ok: true })),
+  listRuntimePrompts: vi.fn(async () => []),
 }));
 
 vi.mock("../ports/runtimeClient", () => ({
@@ -206,6 +217,19 @@ vi.mock("../ports/runtimeGit", () => ({
 vi.mock("../ports/runtimeWorkspaceFiles", () => ({
   listRuntimeWorkspaceFileEntries: runtimeMocks.listWorkspaceFileEntries,
   readRuntimeWorkspaceFile: runtimeMocks.readWorkspaceFile,
+}));
+
+vi.mock("../ports/runtime", () => ({
+  runRuntimeLiveSkill: runtimeMocks.runRuntimeLiveSkill,
+}));
+
+vi.mock("../ports/runtimeExtensions", () => ({
+  listRuntimeExtensionTools: runtimeMocks.listRuntimeExtensionTools,
+  invokeRuntimeExtensionTool: runtimeMocks.invokeRuntimeExtensionTool,
+}));
+
+vi.mock("../ports/runtimePrompts", () => ({
+  listRuntimePrompts: runtimeMocks.listRuntimePrompts,
 }));
 
 vi.mock("./createWorkspaceRuntimeScope", () => ({
@@ -372,5 +396,24 @@ describe("createRuntimeKernel", () => {
     expect(runtimeMocks.listThreads).toHaveBeenCalledOnce();
     expect(runtimeMocks.getGitStatus).toHaveBeenCalledOnce();
     expect(runtimeMocks.listWorkspaceFileEntries).toHaveBeenCalledOnce();
+  });
+
+  it("wires the invocation execute capability into each workspace scope", () => {
+    vi.mocked(createWorkspaceRuntimeScope).mockReturnValue({
+      getCapability: vi.fn(),
+    } as never);
+    const kernel = createRuntimeKernel();
+    kernel.getWorkspaceScope("workspace-1");
+
+    expect(createWorkspaceRuntimeScope).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "workspace-1",
+        capabilityProviders: expect.arrayContaining([
+          expect.objectContaining({
+            key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationExecute,
+          }),
+        ]),
+      })
+    );
   });
 });

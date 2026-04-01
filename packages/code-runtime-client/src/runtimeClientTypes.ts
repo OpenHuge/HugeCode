@@ -95,6 +95,8 @@ import type {
   RuntimeExtensionResourceReadRequest,
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionSetStateRequest,
+  RuntimeExtensionToolInvokeRequest,
+  RuntimeExtensionToolInvokeResponse,
   RuntimeExtensionToolSummary,
   RuntimeExtensionToolsListRequest,
   RuntimeMcpServerStatusListRequest,
@@ -382,6 +384,9 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     extensionToolsListV2: (
       request: RuntimeExtensionToolsListRequest
     ) => Promise<RuntimeExtensionToolSummary[]>;
+    extensionToolInvokeV2: (
+      request: RuntimeExtensionToolInvokeRequest
+    ) => Promise<RuntimeExtensionToolInvokeResponse>;
     extensionResourceReadV2: (
       request: RuntimeExtensionResourceReadRequest
     ) => Promise<RuntimeExtensionResourceReadResponse>;

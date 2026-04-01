@@ -16,15 +16,22 @@ import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlF
 import { createRuntimeGateway } from "../facades/RuntimeGateway";
 import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import { getMissionControlSnapshot } from "../ports/missionControl";
-import { listRuntimePrompts } from "../ports/runtimePrompts";
 import { detectRuntimeMode, readRuntimeCapabilitiesSummary } from "../ports/runtimeClient";
-import { listRuntimeExtensionTools } from "../ports/runtimeExtensions";
+import {
+  invokeRuntimeExtensionTool,
+  listRuntimeExtensionTools,
+} from "../ports/runtimeExtensions";
+import { startRuntimeRunV2 } from "../ports/runtimeJobs";
+import { listRuntimePrompts } from "../ports/runtimePrompts";
 import { runRuntimeLiveSkill } from "../ports/runtime";
 import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import { configureManualWebRuntimeGatewayTarget } from "../ports/runtimeWebGatewayConfig";
 import { createRuntimeAgentControlDependencies } from "./createRuntimeAgentControlDependencies";
+import { createWorkspaceClientRuntimeBindings } from "./createWorkspaceClientRuntimeBindings";
+import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
 import { createRuntimeExtensionActivationService } from "./runtimeExtensionActivation";
 import { createRuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalog";
+import { createRuntimeInvocationExecuteFacade } from "./runtimeInvocationExecute";
 import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
 import {
   RUNTIME_KERNEL_CAPABILITY_KEYS,
@@ -37,8 +44,6 @@ import {
 } from "./runtimeKernelPlugins";
 import type { RuntimeKernel } from "./runtimeKernelTypes";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
-import { createWorkspaceClientRuntimeBindings } from "./createWorkspaceClientRuntimeBindings";
-import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
 
 function mapWorkspaceClientRuntimeMode(
   mode: ReturnType<typeof detectRuntimeMode>
@@ -91,6 +96,7 @@ export function createRuntimeKernel(): RuntimeKernel {
         workspaceId,
         pluginCatalog,
       });
+      const sessionCommands = createRuntimeSessionCommandFacade(workspaceId);
       const compositionRuntime = createRuntimeKernelCompositionFacade({
         workspaceId,
         pluginCatalog,
@@ -138,6 +144,15 @@ export function createRuntimeKernel(): RuntimeKernel {
         listLiveSkills: listRuntimeLiveSkills,
         runLiveSkill: runRuntimeLiveSkill,
       });
+      const invocationExecute = createRuntimeInvocationExecuteFacade({
+        workspaceId,
+        invocationCatalog,
+        sessionCommands,
+        startRuntimeRun: startRuntimeRunV2,
+        runRuntimeLiveSkill,
+        invokeRuntimeExtensionTool,
+        listRuntimePrompts,
+      });
       const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
@@ -153,11 +168,15 @@ export function createRuntimeKernel(): RuntimeKernel {
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
-          createCapability: () => createRuntimeSessionCommandFacade(workspaceId),
+          createCapability: () => sessionCommands,
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog,
           createCapability: () => invocationCatalog,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationExecute,
+          createCapability: () => invocationExecute,
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,

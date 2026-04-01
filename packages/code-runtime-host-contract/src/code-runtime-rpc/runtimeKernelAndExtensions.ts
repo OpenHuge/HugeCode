@@ -616,6 +616,15 @@ export type RuntimeExtensionToolsListRequest = {
   extensionId: string;
 };
 
+export type RuntimeExtensionToolInvokeRequest = {
+  workspaceId?: string | null;
+  extensionId: string;
+  toolName: string;
+  input?: Record<string, unknown> | null;
+};
+
+export type RuntimeExtensionToolInvokeResponse = unknown;
+
 export type RuntimeExtensionResourceReadRequest = {
   workspaceId?: string | null;
   extensionId: string;

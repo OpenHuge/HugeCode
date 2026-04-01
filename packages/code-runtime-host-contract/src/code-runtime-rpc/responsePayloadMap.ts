@@ -58,6 +58,7 @@ import type {
   RuntimeExtensionRegistrySearchResponse,
   RuntimeExtensionRegistrySource,
   RuntimeExtensionResourceReadResponse,
+  RuntimeExtensionToolInvokeResponse,
   RuntimeExtensionToolSummary,
   RuntimeMcpServerStatusListResponse,
   RuntimePolicySnapshot,
@@ -260,6 +261,7 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_PERMISSIONS_EVALUATE_V2]: RuntimeExtensionPermissionsEvaluateResponse;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_HEALTH_READ_V2]: RuntimeExtensionHealthReadResponse;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2]: RuntimeExtensionToolSummary[];
+  [CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOL_INVOKE_V2]: RuntimeExtensionToolInvokeResponse;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2]: RuntimeExtensionResourceReadResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1]: RuntimeSessionExportResponse;
   [CODE_RUNTIME_RPC_METHODS.SESSION_IMPORT_V1]: RuntimeSessionImportResponse;

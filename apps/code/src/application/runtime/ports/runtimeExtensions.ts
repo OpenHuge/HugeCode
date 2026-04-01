@@ -12,6 +12,8 @@ export type {
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionsConfigResponse,
   RuntimeExtensionSetStateRequest,
+  RuntimeExtensionToolInvokeRequest,
+  RuntimeExtensionToolInvokeResponse,
   RuntimeExtensionToolSummary,
   RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
@@ -20,6 +22,7 @@ export {
   getRuntimeExtension,
   getRuntimeExtensionsConfig,
   installRuntimeExtension,
+  invokeRuntimeExtensionTool,
   listRuntimeExtensionRegistrySources,
   listRuntimeExtensionTools,
   listRuntimeExtensions,

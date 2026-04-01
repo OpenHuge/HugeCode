@@ -649,6 +649,13 @@ export function createExtendedRpcRuntimeClient<
         adaptRuntimeRpcPayload("extensionToolsList", request)
       );
     },
+    extensionToolInvokeV2(request) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.EXTENSION_TOOL_INVOKE_V2,
+        adaptRuntimeRpcPayload("extensionToolInvoke", request)
+      );
+    },
     extensionResourceReadV2(request) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,
