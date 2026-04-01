@@ -340,6 +340,12 @@ importers:
       '@ku0/code-platform-interfaces':
         specifier: workspace:*
         version: link:../code-platform-interfaces
+      '@ku0/code-runtime-host-contract':
+        specifier: workspace:*
+        version: link:../code-runtime-host-contract
+      '@ku0/code-runtime-webmcp-client':
+        specifier: workspace:*
+        version: link:../code-runtime-webmcp-client
       '@ku0/code-workspace-client':
         specifier: workspace:*
         version: link:../code-workspace-client
