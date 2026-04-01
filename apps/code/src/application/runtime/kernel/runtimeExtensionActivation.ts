@@ -301,9 +301,14 @@ function createReadiness(
   };
 }
 
-function readContributionHints(
-  manifest: RuntimeBehaviorAssetInput
-): NonNullable<RuntimeBehaviorAssetInput["contributionHints"]> {
+function readContributionHints(manifest: RuntimeBehaviorAssetInput): {
+  hooks: string[];
+  resources: string[];
+  routes: string[];
+  policies: string[];
+  subagentRoles: string[];
+  hostBindings: string[];
+} {
   return {
     hooks: manifest.contributionHints?.hooks ?? [],
     resources: manifest.contributionHints?.resources ?? [],

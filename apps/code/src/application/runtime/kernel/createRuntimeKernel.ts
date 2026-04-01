@@ -101,7 +101,7 @@ export function createRuntimeKernel(): RuntimeKernel {
       });
       runtimeExecutableSkills = createRuntimeExecutableSkillFacade({
         listRuntimeInvocations: invocationCatalog.listInvocations,
-        listLiveSkills,
+        listLiveSkills: listRuntimeLiveSkills,
         runLiveSkill: runRuntimeLiveSkill,
       });
       const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [

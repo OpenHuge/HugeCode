@@ -10,7 +10,18 @@ import type {
   RuntimeExtensionContributionDescriptor,
 } from "../kernel/runtimeExtensionActivation";
 
-const INVOCABLE_CONTRIBUTION_KINDS = new Set(["invocation", "skill", "route", "host_binding"]);
+const INVOCABLE_CONTRIBUTION_KINDS = new Set<RuntimeInvocationDescriptor["kind"]>([
+  "invocation",
+  "skill",
+  "route",
+  "host_binding",
+]);
+
+function isRuntimeInvocationKind(
+  kind: RuntimeExtensionContributionDescriptor["kind"]
+): kind is RuntimeInvocationDescriptor["kind"] {
+  return INVOCABLE_CONTRIBUTION_KINDS.has(kind as RuntimeInvocationDescriptor["kind"]);
+}
 
 export type RuntimeInvocationCatalogFacade = {
   readSnapshot: (input?: {
@@ -32,7 +43,7 @@ function isInvocableContribution(
 ): contribution is RuntimeExtensionContributionDescriptor & {
   kind: RuntimeInvocationDescriptor["kind"];
 } {
-  return INVOCABLE_CONTRIBUTION_KINDS.has(contribution.kind);
+  return isRuntimeInvocationKind(contribution.kind);
 }
 
 function normalizeInvocationDiagnostics(
@@ -43,7 +54,9 @@ function normalizeInvocationDiagnostics(
 
 function toInvocationDescriptor(input: {
   record: RuntimeExtensionActivationRecord;
-  contribution: RuntimeExtensionContributionDescriptor;
+  contribution: RuntimeExtensionContributionDescriptor & {
+    kind: RuntimeInvocationDescriptor["kind"];
+  };
   live: boolean;
 }): RuntimeInvocationDescriptor {
   const { record, contribution, live } = input;
