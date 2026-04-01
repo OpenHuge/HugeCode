@@ -491,4 +491,104 @@ describe("runtimeInvocationExecute", () => {
       ok: false,
     });
   });
+
+  it("normalizes downstream execution failures into blocked results", async () => {
+    const facade = createRuntimeInvocationExecuteFacade({
+      workspaceId: "ws-1",
+      invocationCatalog: {
+        getInvocationDescriptor: vi
+          .fn()
+          .mockResolvedValueOnce(createInvocationDescriptor({}))
+          .mockResolvedValueOnce(
+            createInvocationDescriptor({
+              id: "tool:ext.review.search",
+              title: "ext.review.search",
+              runtimeTool: {
+                toolName: "ext.review.search",
+                scope: "runtime",
+                inputSchema: null,
+                description: "Search extension data.",
+                promptDescription: null,
+              },
+              source: {
+                kind: "runtime_extension",
+                contributionType: "extension_contributed",
+                authority: "runtime",
+                label: "Runtime extension tools",
+                sourceId: "ext.review",
+                workspaceId: "ws-1",
+                provenance: null,
+              },
+              metadata: {
+                extensionId: "ext.review",
+              },
+            })
+          ),
+      },
+      sessionCommands: {
+        sendMessage: vi.fn(),
+        respondToApproval: vi.fn(),
+      } as never,
+      startRuntimeRun: vi.fn(async () => {
+        throw new Error("runtime unavailable");
+      }),
+      runRuntimeLiveSkill: vi.fn(),
+      invokeRuntimeExtensionTool: vi.fn(async () => {
+        throw { message: "extension bridge offline" };
+      }),
+      listRuntimePrompts: vi.fn(async () => []),
+    });
+
+    await expect(
+      facade.invoke({
+        invocationId: "tool:start-runtime-run",
+      })
+    ).resolves.toMatchObject({
+      invocationId: "tool:start-runtime-run",
+      kind: "blocked",
+      ok: false,
+      message: "Invocation `tool:start-runtime-run` failed: runtime unavailable",
+    });
+
+    await expect(
+      facade.invoke({
+        invocationId: "tool:ext.review.search",
+      })
+    ).resolves.toMatchObject({
+      invocationId: "tool:ext.review.search",
+      kind: "blocked",
+      ok: false,
+      message: "Invocation `tool:ext.review.search` failed: extension bridge offline",
+    });
+  });
+
+  it("normalizes catalog lookup failures into blocked results", async () => {
+    const facade = createRuntimeInvocationExecuteFacade({
+      workspaceId: "ws-1",
+      invocationCatalog: {
+        getInvocationDescriptor: vi.fn(async () => {
+          throw new Error("catalog unavailable");
+        }),
+      },
+      sessionCommands: {
+        sendMessage: vi.fn(),
+        respondToApproval: vi.fn(),
+      } as never,
+      startRuntimeRun: vi.fn(),
+      runRuntimeLiveSkill: vi.fn(),
+      invokeRuntimeExtensionTool: vi.fn(),
+      listRuntimePrompts: vi.fn(async () => []),
+    });
+
+    await expect(
+      facade.invoke({
+        invocationId: "tool:start-runtime-run",
+      })
+    ).resolves.toMatchObject({
+      invocationId: "tool:start-runtime-run",
+      kind: "blocked",
+      ok: false,
+      message: "Invocation `tool:start-runtime-run` failed: catalog unavailable",
+    });
+  });
 });

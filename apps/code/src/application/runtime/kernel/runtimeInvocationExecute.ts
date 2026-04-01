@@ -146,6 +146,23 @@ function readString(record: Record<string, unknown>, key: string): string | null
   return typeof value === "string" && value.trim().length > 0 ? value : null;
 }
 
+function describeExecutionFailure(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message.trim();
+  }
+  if (typeof error === "string" && error.trim().length > 0) {
+    return error.trim();
+  }
+  const record = asRecord(error);
+  if (record) {
+    const message = readString(record, "message") ?? readString(record, "reason");
+    if (message) {
+      return message;
+    }
+  }
+  return "Unexpected runtime invocation failure.";
+}
+
 function promptArgumentNames(content: string): string[] {
   const names: string[] = [];
   const seen = new Set<string>();
@@ -265,151 +282,162 @@ export function createRuntimeInvocationExecuteFacade(
       context,
       caller = "operator",
     }) => {
-      const descriptor = await input.invocationCatalog.getInvocationDescriptor(invocationId);
-      if (!descriptor) {
-        return buildUnsupported(invocationId, `Invocation \`${invocationId}\` is not registered.`);
-      }
-      if (!isVisibleToCaller(descriptor, caller)) {
-        return buildBlocked(
-          invocationId,
-          `Invocation \`${invocationId}\` is not visible to ${caller} callers.`
-        );
-      }
-      if (descriptor.exposure.requiresReadiness && !descriptor.readiness.available) {
-        return buildBlocked(
-          invocationId,
-          descriptor.readiness.reason ?? `Invocation \`${invocationId}\` is not ready.`
-        );
-      }
-
-      const args = asArgumentsRecord(invocationArguments);
-
-      if (descriptor.kind === "plugin") {
-        return buildUnsupported(
-          invocationId,
-          `Invocation \`${invocationId}\` does not expose a direct execute binding yet.`
-        );
-      }
-
-      if (descriptor.kind === "runtime_tool" && descriptor.source.kind === "runtime_extension") {
-        const toolName = descriptor.runtimeTool?.toolName ?? descriptor.title;
-        const extensionId =
-          readString(asRecord(descriptor.metadata) ?? {}, "extensionId") ??
-          descriptor.source.sourceId;
-        const payload = await input.invokeRuntimeExtensionTool({
-          workspaceId: input.workspaceId,
-          extensionId,
-          toolName,
-          input: args,
-        });
-        return buildSuccess(invocationId, "extension_tool_executed", payload);
-      }
-
-      if (
-        descriptor.kind === "runtime_tool" &&
-        descriptor.runtimeTool?.toolName === "start-runtime-run"
-      ) {
-        const payload = await input.startRuntimeRun({
-          ...(args as RuntimeRunStartRequest),
-          workspaceId: input.workspaceId,
-          ...(context?.threadId && !("threadId" in args) ? { threadId: context.threadId } : {}),
-        });
-        return buildSuccess(invocationId, "runtime_run_started", payload);
-      }
-
-      if (
-        descriptor.kind === "runtime_tool" &&
-        descriptor.runtimeTool?.toolName === "run-runtime-live-skill"
-      ) {
-        const skillId = readString(args, "skillId");
-        const liveSkillInput = readString(args, "input");
-        if (!skillId || !liveSkillInput) {
-          return buildBlocked(
+      try {
+        const descriptor = await input.invocationCatalog.getInvocationDescriptor(invocationId);
+        if (!descriptor) {
+          return buildUnsupported(
             invocationId,
-            "Runtime live skill execution requires `skillId` and `input`."
+            `Invocation \`${invocationId}\` is not registered.`
           );
         }
-        const options = {
-          ...(asRecord(args.options) ?? {}),
-          workspaceId: input.workspaceId,
-        };
-        const payload = await input.runRuntimeLiveSkill({
-          skillId,
-          input: liveSkillInput,
-          ...(Object.keys(options).length > 0 ? { options } : {}),
-        });
-        return buildSuccess(invocationId, "live_skill_executed", payload);
+        if (!isVisibleToCaller(descriptor, caller)) {
+          return buildBlocked(
+            invocationId,
+            `Invocation \`${invocationId}\` is not visible to ${caller} callers.`
+          );
+        }
+        if (descriptor.exposure.requiresReadiness && !descriptor.readiness.available) {
+          return buildBlocked(
+            invocationId,
+            descriptor.readiness.reason ?? `Invocation \`${invocationId}\` is not ready.`
+          );
+        }
+
+        const args = asArgumentsRecord(invocationArguments);
+
+        if (descriptor.kind === "plugin") {
+          return buildUnsupported(
+            invocationId,
+            `Invocation \`${invocationId}\` does not expose a direct execute binding yet.`
+          );
+        }
+
+        if (descriptor.kind === "runtime_tool" && descriptor.source.kind === "runtime_extension") {
+          const toolName = descriptor.runtimeTool?.toolName ?? descriptor.title;
+          const extensionId =
+            readString(asRecord(descriptor.metadata) ?? {}, "extensionId") ??
+            descriptor.source.sourceId;
+          const payload = await input.invokeRuntimeExtensionTool({
+            workspaceId: input.workspaceId,
+            extensionId,
+            toolName,
+            input: args,
+          });
+          return buildSuccess(invocationId, "extension_tool_executed", payload);
+        }
+
+        if (
+          descriptor.kind === "runtime_tool" &&
+          descriptor.runtimeTool?.toolName === "start-runtime-run"
+        ) {
+          const payload = await input.startRuntimeRun({
+            ...(args as RuntimeRunStartRequest),
+            workspaceId: input.workspaceId,
+            ...(context?.threadId && !("threadId" in args) ? { threadId: context.threadId } : {}),
+          });
+          return buildSuccess(invocationId, "runtime_run_started", payload);
+        }
+
+        if (
+          descriptor.kind === "runtime_tool" &&
+          descriptor.runtimeTool?.toolName === "run-runtime-live-skill"
+        ) {
+          const skillId = readString(args, "skillId");
+          const liveSkillInput = readString(args, "input");
+          if (!skillId || !liveSkillInput) {
+            return buildBlocked(
+              invocationId,
+              "Runtime live skill execution requires `skillId` and `input`."
+            );
+          }
+          const options = {
+            ...(asRecord(args.options) ?? {}),
+            workspaceId: input.workspaceId,
+          };
+          const payload = await input.runRuntimeLiveSkill({
+            skillId,
+            input: liveSkillInput,
+            ...(Object.keys(options).length > 0 ? { options } : {}),
+          });
+          return buildSuccess(invocationId, "live_skill_executed", payload);
+        }
+
+        if (descriptor.kind === "session_command") {
+          const promptOverlay = readPromptOverlayMetadata(descriptor);
+          if (promptOverlay) {
+            const prompts = await input.listRuntimePrompts(input.workspaceId);
+            const prompt = prompts.find((entry) => entry.id === promptOverlay.promptId);
+            if (!prompt) {
+              return buildBlocked(
+                invocationId,
+                `Prompt overlay \`${promptOverlay.promptId}\` is no longer available.`
+              );
+            }
+            const resolved = resolvePromptOverlayText({
+              prompt,
+              args,
+            });
+            if ("error" in resolved) {
+              return buildBlocked(invocationId, resolved.error);
+            }
+            return buildSuccess(invocationId, "compose_patch_resolved", {
+              text: resolved.text,
+              cursorOffset: promptOverlay.cursorOffset,
+              promptId: promptOverlay.promptId,
+              scope: promptOverlay.scope,
+            });
+          }
+
+          if (invocationId === "session:send-message") {
+            const threadId = readString(args, "threadId") ?? context?.threadId ?? null;
+            const text = readString(args, "text");
+            if (!threadId || !text) {
+              return buildBlocked(
+                invocationId,
+                "Session message execution requires `threadId` and `text`."
+              );
+            }
+            const payload = await input.sessionCommands.sendMessage({
+              threadId,
+              text,
+              options: {
+                telemetrySource: context?.telemetrySource ?? "runtime_invocation_execute",
+              },
+            });
+            return buildSuccess(invocationId, "session_message_sent", payload);
+          }
+
+          if (invocationId === "session:respond-to-approval") {
+            const requestId = args.requestId;
+            const decision = args.decision;
+            if (
+              (typeof requestId !== "string" && typeof requestId !== "number") ||
+              (decision !== "accept" && decision !== "decline")
+            ) {
+              return buildBlocked(
+                invocationId,
+                "Approval resolution requires `requestId` and `decision`."
+              );
+            }
+            const payload = await input.sessionCommands.respondToApproval({
+              requestId,
+              decision,
+            });
+            return buildSuccess(invocationId, "approval_resolved", payload);
+          }
+        }
+
+        return buildUnsupported(
+          invocationId,
+          `Invocation \`${invocationId}\` does not have a supported execute binding.`
+        );
+      } catch (error) {
+        const message = describeExecutionFailure(error);
+        if (message === "Unexpected runtime invocation failure.") {
+          return buildBlocked(invocationId, `Invocation \`${invocationId}\` failed unexpectedly.`);
+        }
+        return buildBlocked(invocationId, `Invocation \`${invocationId}\` failed: ${message}`);
       }
-
-      if (descriptor.kind === "session_command") {
-        const promptOverlay = readPromptOverlayMetadata(descriptor);
-        if (promptOverlay) {
-          const prompts = await input.listRuntimePrompts(input.workspaceId);
-          const prompt = prompts.find((entry) => entry.id === promptOverlay.promptId);
-          if (!prompt) {
-            return buildBlocked(
-              invocationId,
-              `Prompt overlay \`${promptOverlay.promptId}\` is no longer available.`
-            );
-          }
-          const resolved = resolvePromptOverlayText({
-            prompt,
-            args,
-          });
-          if ("error" in resolved) {
-            return buildBlocked(invocationId, resolved.error);
-          }
-          return buildSuccess(invocationId, "compose_patch_resolved", {
-            text: resolved.text,
-            cursorOffset: promptOverlay.cursorOffset,
-            promptId: promptOverlay.promptId,
-            scope: promptOverlay.scope,
-          });
-        }
-
-        if (invocationId === "session:send-message") {
-          const threadId = readString(args, "threadId") ?? context?.threadId ?? null;
-          const text = readString(args, "text");
-          if (!threadId || !text) {
-            return buildBlocked(
-              invocationId,
-              "Session message execution requires `threadId` and `text`."
-            );
-          }
-          const payload = await input.sessionCommands.sendMessage({
-            threadId,
-            text,
-            options: {
-              telemetrySource: context?.telemetrySource ?? "runtime_invocation_execute",
-            },
-          });
-          return buildSuccess(invocationId, "session_message_sent", payload);
-        }
-
-        if (invocationId === "session:respond-to-approval") {
-          const requestId = args.requestId;
-          const decision = args.decision;
-          if (
-            (typeof requestId !== "string" && typeof requestId !== "number") ||
-            (decision !== "accept" && decision !== "decline")
-          ) {
-            return buildBlocked(
-              invocationId,
-              "Approval resolution requires `requestId` and `decision`."
-            );
-          }
-          const payload = await input.sessionCommands.respondToApproval({
-            requestId,
-            decision,
-          });
-          return buildSuccess(invocationId, "approval_resolved", payload);
-        }
-      }
-
-      return buildUnsupported(
-        invocationId,
-        `Invocation \`${invocationId}\` does not have a supported execute binding.`
-      );
     },
   };
 }

@@ -398,6 +398,46 @@ async fn extension_tool_invoke_rejects_disabled_extensions_and_unknown_tools() {
                 }],
             })),
         });
+        store.upsert_record(extensions_runtime::RuntimeExtensionRecordInput {
+            extension_id: "ext.lifecycle.blocked".to_string(),
+            version: Some("1.0.0".to_string()),
+            display_name: Some("Lifecycle Blocked Extension".to_string()),
+            publisher: Some("HugeCode".to_string()),
+            summary: Some("Blocked runtime extension".to_string()),
+            kind: Some("host".to_string()),
+            distribution: Some("workspace".to_string()),
+            transport: "host-native".to_string(),
+            lifecycle_state: Some("blocked".to_string()),
+            enabled: true,
+            workspace_id: Some("ws-1".to_string()),
+            capabilities: vec!["tools".to_string()],
+            permissions: Vec::new(),
+            ui_apps: Vec::new(),
+            provenance: Some(json!({})),
+            config: Some(json!({
+                "tools": [{
+                    "toolName": "ext.lifecycle.blocked.run",
+                }],
+            })),
+        });
+        store.upsert_record(extensions_runtime::RuntimeExtensionRecordInput {
+            extension_id: "workspace.agents.review".to_string(),
+            version: Some("1.0.0".to_string()),
+            display_name: Some("review".to_string()),
+            publisher: Some("agents".to_string()),
+            summary: Some("Instruction extension".to_string()),
+            kind: Some("instruction".to_string()),
+            distribution: Some("workspace".to_string()),
+            transport: "repo-manifest".to_string(),
+            lifecycle_state: Some("enabled".to_string()),
+            enabled: true,
+            workspace_id: Some("ws-1".to_string()),
+            capabilities: vec!["instructions".to_string()],
+            permissions: Vec::new(),
+            ui_apps: Vec::new(),
+            provenance: Some(json!({})),
+            config: Some(json!({})),
+        });
     }
 
     let disabled_error = handle_extension_tool_invoke_v2(
@@ -425,4 +465,32 @@ async fn extension_tool_invoke_rejects_disabled_extensions_and_unknown_tools() {
     .expect_err("unknown tool should fail");
     assert_eq!(missing_tool_error.code_str(), "INVALID_PARAMS");
     assert!(missing_tool_error.message.contains("does not expose tool"));
+
+    let blocked_error = handle_extension_tool_invoke_v2(
+        &ctx,
+        &json!({
+            "workspaceId": "ws-1",
+            "extensionId": "ext.lifecycle.blocked",
+            "toolName": "ext.lifecycle.blocked.run",
+        }),
+    )
+    .await
+    .expect_err("blocked extension should fail");
+    assert_eq!(blocked_error.code_str(), "INVALID_PARAMS");
+    assert!(blocked_error.message.contains("blocked"));
+
+    let instruction_error = handle_extension_tool_invoke_v2(
+        &ctx,
+        &json!({
+            "workspaceId": "ws-1",
+            "extensionId": "workspace.agents.review",
+            "toolName": "workspace.agents.review.run",
+        }),
+    )
+    .await
+    .expect_err("instruction extension should fail");
+    assert_eq!(instruction_error.code_str(), "INVALID_PARAMS");
+    assert!(instruction_error
+        .message
+        .contains("does not expose executable tools"));
 }
