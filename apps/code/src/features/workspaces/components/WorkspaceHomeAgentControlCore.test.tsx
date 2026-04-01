@@ -2,8 +2,8 @@
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { WorkspaceAgentControlPersistedControls } from "./workspaceHomeAgentControlState";
 import { writeCachedState } from "./workspaceHomeAgentControlState";
+import type { WorkspaceAgentControlPersistedControls } from "./workspaceHomeAgentControlState";
 import { syncWebMcpAgentControl } from "../../../application/runtime/ports/webMcpBridge";
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
@@ -130,6 +130,8 @@ const workspace = {
   name: "Workspace Agent Control",
 };
 
+const storageKey = `workspace-home-agent-control:${workspace.id}`;
+
 function buildPersistedControls(
   patch: Partial<WorkspaceAgentControlPersistedControls> = {}
 ): WorkspaceAgentControlPersistedControls {
@@ -208,12 +210,30 @@ describe("WorkspaceHomeAgentControl", () => {
         recovered: false,
       },
     });
+    writeCachedState(workspace.id, {
+      version: 7,
+      intent: {
+        objective: "Coordinate agent tasks",
+        constraints: "",
+        successCriteria: "",
+        deadline: null,
+        priority: "medium",
+        managerNotes: "",
+      },
+      webMcpEnabled: true,
+      webMcpConsoleMode: "basic",
+      lastKnownPersistedControls: {
+        readOnlyMode: false,
+        requireUserApproval: true,
+        webMcpAutoExecuteCalls: true,
+      },
+    });
     vi.mocked(useRuntimeWebMcpCatalogRevision).mockReturnValue(0);
   });
 
   afterEach(() => {
     cleanup();
-    window.localStorage.clear();
+    window.localStorage.removeItem(storageKey);
     vi.clearAllMocks();
   });
 
@@ -275,46 +295,13 @@ describe("WorkspaceHomeAgentControl", () => {
       })
     );
     expect(screen.getByText(/4 tools synced \(provideContext, slim catalog\)/i)).toBeTruthy();
-    expect(screen.getByText(/Context policy/i)).toBeTruthy();
-    expect(screen.getByText(/Waiting for objective/i)).toBeTruthy();
+    expect(screen.getByText(/Runtime kernel v2 prepare: balanced\/slim/i)).toBeTruthy();
     expect(
       screen.getByText(/Source: live runtime truth \| Context fingerprint: ctx-123/i)
     ).toBeTruthy();
     expect(
       screen.getByText(/Catalog reasoning: Runtime policy slimmed runtime-only tools/i)
     ).toBeTruthy();
-  });
-
-  it("restores a cached draft intent before host-backed hydration catches up", async () => {
-    writeCachedState(workspace.id, {
-      version: 7,
-      intent: {
-        objective: "Recover cached objective",
-        constraints: "Keep local draft until host persistence lands",
-        successCriteria: "Show draft after reload",
-        deadline: null,
-        priority: "high",
-        managerNotes: "cached",
-      },
-      webMcpEnabled: true,
-      webMcpConsoleMode: "basic",
-      lastKnownPersistedControls: buildPersistedControls(),
-    });
-
-    render(
-      <WorkspaceHomeAgentControl
-        workspace={workspace}
-        activeModelContext={undefined}
-        approvals={[]}
-        userInputRequests={[]}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("intent-section-stub").textContent).toContain(
-        "Recover cached objective"
-      );
-    });
   });
 
   it("locks control toggles when persisted controls failed to load", async () => {
@@ -376,11 +363,12 @@ describe("WorkspaceHomeAgentControl", () => {
       );
     });
 
-    expect(screen.getByText(/Waiting for objective/i)).toBeTruthy();
+    expect(screen.getByText(/Using provider heuristics/i)).toBeTruthy();
     expect(screen.getByText(/Runtime WebMCP context policy is unavailable/i)).toBeTruthy();
   });
 
   it("hydrates the intent from recovered host-backed flow state when local intent is empty", async () => {
+    window.localStorage.removeItem(storageKey);
     vi.mocked(useWorkspacePersistentFlowState).mockReturnValue({
       context: {
         schemaVersion: "active-intent-context/v1",

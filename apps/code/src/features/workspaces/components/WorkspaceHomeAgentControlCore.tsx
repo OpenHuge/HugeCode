@@ -131,6 +131,8 @@ export function WorkspaceHomeAgentControl({
   userInputRequests,
 }: WorkspaceHomeAgentControlProps) {
   const [intent, setIntent] = useState<AgentIntentState>(DEFAULT_INTENT);
+  const [legacyCachedIntent, setLegacyCachedIntent] = useState<AgentIntentState | null>(null);
+  const [legacyCacheCorrupted, setLegacyCacheCorrupted] = useState(false);
   const [webMcpEnabled, setWebMcpEnabled] = useState(true);
   const [webMcpConsoleMode, setWebMcpConsoleMode] = useState<"basic" | "advanced">("basic");
   const [runtimeSectionOpen, setRuntimeSectionOpen] = useState(false);
@@ -151,9 +153,21 @@ export function WorkspaceHomeAgentControl({
 
   useEffect(() => {
     const restored = readCachedStateWithStatus(workspace.id);
-    setIntent(restored.state?.intent ?? DEFAULT_INTENT);
-    setWebMcpEnabled(restored.state?.webMcpEnabled ?? true);
-    setWebMcpConsoleMode(restored.state?.webMcpConsoleMode ?? "basic");
+    setLegacyCachedIntent(restored.state?.intent ?? null);
+    setLegacyCacheCorrupted(restored.corrupted);
+    if (!restored.state) {
+      setIntent(DEFAULT_INTENT);
+      setWebMcpEnabled(true);
+      setWebMcpConsoleMode("basic");
+      setRuntimeSectionOpen(false);
+      setWebMcpConsoleOpen(false);
+      setHydratedWorkspaceControlStateId(workspace.id);
+      return;
+    }
+
+    setIntent(restored.state.intent);
+    setWebMcpEnabled(restored.state.webMcpEnabled);
+    setWebMcpConsoleMode(restored.state.webMcpConsoleMode);
     setRuntimeSectionOpen(false);
     setWebMcpConsoleOpen(false);
     setHydratedWorkspaceControlStateId(workspace.id);
@@ -235,6 +249,8 @@ export function WorkspaceHomeAgentControl({
     workspaceId: workspace.id,
     intent,
     runs: [],
+    legacyCachedIntent,
+    legacyCacheCorrupted,
   });
   const runtimeWebMcpContextPolicy = useRuntimeWebMcpContextPolicy({
     workspaceId: workspace.id,
@@ -547,7 +563,12 @@ export function WorkspaceHomeAgentControl({
         testId="workspace-home-runtime-section"
       >
         <Suspense fallback={null}>
-          <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} intent={intent} />
+          <LazyWorkspaceHomeAgentRuntimeOrchestration
+            workspaceId={workspace.id}
+            intent={intent}
+            legacyCachedIntent={legacyCachedIntent}
+            legacyCacheCorrupted={legacyCacheCorrupted}
+          />
         </Suspense>
       </WorkspaceHomeAgentLazySection>
       <WorkspaceHomeAgentLazySection
