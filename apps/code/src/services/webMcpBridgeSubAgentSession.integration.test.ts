@@ -862,7 +862,7 @@ describe("webMcpBridge sub-agent session integration", () => {
       )
     ).rejects.toThrow(/unknown allowedSkillIds/i);
     expect(spawnSubAgentSession).not.toHaveBeenCalled();
-    expect(listLiveSkills).toHaveBeenCalledTimes(2);
+    expect(listLiveSkills).toHaveBeenCalledTimes(3);
   });
 
   it("uses catalogSessionId to resolve delegated allowedSkillIds from activation truth", async () => {

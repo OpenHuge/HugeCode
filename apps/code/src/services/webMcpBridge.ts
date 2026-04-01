@@ -23,6 +23,7 @@ import {
 import { buildReadTools } from "@ku0/code-runtime-webmcp-client/webMcpBridgeReadTools";
 import { buildRuntimeTools } from "./webMcpBridgeRuntimeTools";
 import { invalidateCachedRuntimeLiveSkills } from "./webMcpBridgeRuntimeWorkspaceTools";
+import { readRuntimeSkillBackedToolPublicationDecision } from "./webMcpBridgeRuntimeSkillPublication";
 import {
   AGENT_CONTROL_TOOL_NAMES,
   AGENT_RUNTIME_CONTROL_TOOL_NAMES,
@@ -39,6 +40,12 @@ import type {
   WebMcpToolDescriptor,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 let activeRuntimeLiveSkillCatalogUnsubscribe: (() => void) | null = null;
+
+type AppWebMcpSyncOptions = WebMcpSyncOptions & {
+  runtimeSkillBackedToolPublicationDecision?: Awaited<
+    ReturnType<typeof readRuntimeSkillBackedToolPublicationDecision>
+  >;
+};
 
 function teardownRuntimeLiveSkillCatalogInvalidation(): void {
   activeRuntimeLiveSkillCatalogUnsubscribe?.();
@@ -64,7 +71,7 @@ function syncRuntimeLiveSkillCatalogInvalidation(options: WebMcpSyncOptions): vo
   );
 }
 
-function buildRuntimeControlTools(options: WebMcpSyncOptions): WebMcpToolDescriptor[] {
+function buildRuntimeControlTools(options: AppWebMcpSyncOptions): WebMcpToolDescriptor[] {
   if (!options.runtimeControl) {
     return [];
   }
@@ -92,10 +99,22 @@ function buildRuntimeControlTools(options: WebMcpSyncOptions): WebMcpToolDescrip
   const canonicalRuntimeTools = runtimeTools.filter((tool) =>
     allowedRuntimeToolNames.has(tool.name)
   );
+  const activationPublishedToolNames = new Set(
+    options.runtimeSkillBackedToolPublicationDecision?.publishedToolNames ?? []
+  );
+  const activationHiddenToolNames = new Set(
+    options.runtimeSkillBackedToolPublicationDecision?.hiddenToolNames ?? []
+  );
+  const activationAwareRuntimeTools = canonicalRuntimeTools.filter((tool) => {
+    if (!activationHiddenToolNames.has(tool.name)) {
+      return true;
+    }
+    return activationPublishedToolNames.has(tool.name);
+  });
 
   return options.readOnlyMode
-    ? canonicalRuntimeTools.filter((tool) => tool.annotations?.readOnlyHint === true)
-    : canonicalRuntimeTools;
+    ? activationAwareRuntimeTools.filter((tool) => tool.annotations?.readOnlyHint === true)
+    : activationAwareRuntimeTools;
 }
 
 function toContextDescriptorOptions(options?: {
@@ -135,6 +154,8 @@ function toContextDescriptorOptions(options?: {
 export async function syncWebMcpAgentControl(
   options: WebMcpSyncOptions
 ): Promise<WebMcpSyncResult> {
+  const runtimeSkillBackedToolPublicationDecision =
+    await readRuntimeSkillBackedToolPublicationDecision(options.runtimeControl ?? null);
   syncRuntimeLiveSkillCatalogInvalidation(options);
   return syncWebMcpAgentControlShared({
     ...options,
@@ -160,6 +181,7 @@ export async function syncWebMcpAgentControl(
     }) =>
       buildRuntimeControlTools({
         ...options,
+        runtimeSkillBackedToolPublicationDecision,
         snapshot,
         runtimeControl,
         requireUserApproval,
