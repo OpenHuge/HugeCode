@@ -293,7 +293,8 @@ export function createRuntimeInvocationExecuteFacade(
         if (!isVisibleToCaller(descriptor, caller)) {
           return buildBlocked(
             invocationId,
-            `Invocation \`${invocationId}\` is not visible to ${caller} callers.`
+            descriptor.exposure.hiddenReason ??
+              `Invocation \`${invocationId}\` is not visible to ${caller} callers.`
           );
         }
         if (descriptor.exposure.requiresReadiness && !descriptor.readiness.available) {

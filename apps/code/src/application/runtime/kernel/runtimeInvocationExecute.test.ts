@@ -480,6 +480,7 @@ describe("runtimeInvocationExecute", () => {
     ).resolves.toMatchObject({
       kind: "blocked",
       ok: false,
+      message: "operator only",
     });
 
     await expect(
