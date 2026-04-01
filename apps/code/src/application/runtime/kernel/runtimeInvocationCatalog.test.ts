@@ -244,6 +244,15 @@ describe("runtimeInvocationCatalog", () => {
         modelVisible: false,
       },
     });
+    await expect(
+      facade.getInvocationDescriptor("session:send-message", { audience: "model" })
+    ).resolves.toBeNull();
+    await expect(facade.searchActiveCatalog("send", { audience: "model" })).resolves.toEqual([]);
+    await expect(facade.resolveInvocationDescriptor("session:send-message")).resolves.toMatchObject(
+      {
+        id: "session:send-message",
+      }
+    );
 
     const modelCatalog = await facade.publishActiveCatalog({
       audience: "model",

@@ -55,7 +55,7 @@ export type RuntimeInvocationExecuteFacade = {
 
 type RuntimeInvocationExecuteFacadeInput = {
   workspaceId: string;
-  invocationCatalog: Pick<RuntimeInvocationCatalogFacade, "getInvocationDescriptor">;
+  invocationCatalog: Pick<RuntimeInvocationCatalogFacade, "resolveInvocationDescriptor">;
   sessionCommands: Pick<RuntimeSessionCommandFacade, "sendMessage" | "respondToApproval">;
   startRuntimeRun: (request: RuntimeRunStartRequest) => Promise<RuntimeRunStartV2Response>;
   runRuntimeLiveSkill: (request: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
@@ -283,7 +283,7 @@ export function createRuntimeInvocationExecuteFacade(
       caller = "operator",
     }) => {
       try {
-        const descriptor = await input.invocationCatalog.getInvocationDescriptor(invocationId);
+        const descriptor = await input.invocationCatalog.resolveInvocationDescriptor(invocationId);
         if (!descriptor) {
           return buildUnsupported(
             invocationId,

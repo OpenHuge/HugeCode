@@ -21,8 +21,19 @@ export type RuntimeInvocationCatalogFacade = {
   publishActiveCatalog: (input?: {
     audience?: InvocationAudience;
   }) => Promise<ActiveInvocationCatalog>;
-  searchActiveCatalog: (query: string) => Promise<InvocationDescriptor[]>;
-  getInvocationDescriptor: (id: string) => Promise<InvocationDescriptor | null>;
+  searchActiveCatalog: (
+    query: string,
+    input?: {
+      audience?: InvocationAudience;
+    }
+  ) => Promise<InvocationDescriptor[]>;
+  getInvocationDescriptor: (
+    id: string,
+    input?: {
+      audience?: InvocationAudience;
+    }
+  ) => Promise<InvocationDescriptor | null>;
+  resolveInvocationDescriptor: (id: string) => Promise<InvocationDescriptor | null>;
 };
 
 type RuntimeInvocationCatalogInput = {
@@ -833,12 +844,12 @@ export function createRuntimeInvocationCatalogFacade(
     readActiveCatalog: buildCatalog,
     publishActiveCatalog: async ({ audience = "operator" } = {}) =>
       applyAudienceFilter(await buildCatalog(), audience),
-    searchActiveCatalog: async (query) => {
+    searchActiveCatalog: async (query, { audience = "operator" } = {}) => {
       const normalizedQuery = query.trim().toLowerCase();
       if (!normalizedQuery) {
         return [];
       }
-      const catalog = await buildCatalog();
+      const catalog = await applyAudienceFilter(await buildCatalog(), audience);
       return catalog.items.filter((item) => {
         const haystacks = [
           item.id,
@@ -851,7 +862,11 @@ export function createRuntimeInvocationCatalogFacade(
         return haystacks.some((value) => value.toLowerCase().includes(normalizedQuery));
       });
     },
-    getInvocationDescriptor: async (id) => {
+    getInvocationDescriptor: async (id, { audience = "operator" } = {}) => {
+      const catalog = await applyAudienceFilter(await buildCatalog(), audience);
+      return catalog.items.find((item) => item.id === id) ?? null;
+    },
+    resolveInvocationDescriptor: async (id) => {
       const catalog = await buildCatalog();
       return catalog.items.find((item) => item.id === id) ?? null;
     },

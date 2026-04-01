@@ -101,7 +101,7 @@ describe("runtimeInvocationExecute", () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
-        getInvocationDescriptor: vi.fn(async () => createInvocationDescriptor({})),
+        resolveInvocationDescriptor: vi.fn(async () => createInvocationDescriptor({})),
       },
       sessionCommands: {
         sendMessage: vi.fn(),
@@ -149,7 +149,7 @@ describe("runtimeInvocationExecute", () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
-        getInvocationDescriptor: vi.fn(async () =>
+        resolveInvocationDescriptor: vi.fn(async () =>
           createInvocationDescriptor({
             id: "tool:run-runtime-live-skill",
             title: "Run Runtime Live Skill",
@@ -215,7 +215,7 @@ describe("runtimeInvocationExecute", () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
-        getInvocationDescriptor: vi.fn(async () =>
+        resolveInvocationDescriptor: vi.fn(async () =>
           createInvocationDescriptor({
             id: "session:send-message",
             title: "Send Session Message",
@@ -283,7 +283,7 @@ describe("runtimeInvocationExecute", () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
-        getInvocationDescriptor: vi.fn(async () =>
+        resolveInvocationDescriptor: vi.fn(async () =>
           createInvocationDescriptor({
             id: "tool:ext.review.search",
             title: "ext.review.search",
@@ -350,7 +350,7 @@ describe("runtimeInvocationExecute", () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
-        getInvocationDescriptor: vi.fn(async () =>
+        resolveInvocationDescriptor: vi.fn(async () =>
           createInvocationDescriptor({
             id: "session:prompt:prompt.summarize",
             title: "summarize",
@@ -421,7 +421,7 @@ describe("runtimeInvocationExecute", () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
-        getInvocationDescriptor: vi
+        resolveInvocationDescriptor: vi
           .fn()
           .mockResolvedValueOnce(
             createInvocationDescriptor({
@@ -497,7 +497,7 @@ describe("runtimeInvocationExecute", () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
-        getInvocationDescriptor: vi
+        resolveInvocationDescriptor: vi
           .fn()
           .mockResolvedValueOnce(createInvocationDescriptor({}))
           .mockResolvedValueOnce(
@@ -567,7 +567,7 @@ describe("runtimeInvocationExecute", () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
-        getInvocationDescriptor: vi.fn(async () => {
+        resolveInvocationDescriptor: vi.fn(async () => {
           throw new Error("catalog unavailable");
         }),
       },
