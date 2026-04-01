@@ -137,6 +137,9 @@ export function WorkspaceHomeAgentControl({
   const [webMcpConsoleMode, setWebMcpConsoleMode] = useState<"basic" | "advanced">("basic");
   const [runtimeSectionOpen, setRuntimeSectionOpen] = useState(false);
   const [webMcpConsoleOpen, setWebMcpConsoleOpen] = useState(false);
+  const [hydratedWorkspaceControlStateId, setHydratedWorkspaceControlStateId] = useState<
+    string | null
+  >(null);
   const [bridgeStatus, setBridgeStatus] = useState<string>("Checking WebMCP support...");
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [bridgeToolExposureReasonCodes, setBridgeToolExposureReasonCodes] = useState<string[]>([]);
@@ -158,6 +161,7 @@ export function WorkspaceHomeAgentControl({
       setWebMcpConsoleMode("basic");
       setRuntimeSectionOpen(false);
       setWebMcpConsoleOpen(false);
+      setHydratedWorkspaceControlStateId(workspace.id);
       return;
     }
 
@@ -166,7 +170,10 @@ export function WorkspaceHomeAgentControl({
     setWebMcpConsoleMode(restored.state.webMcpConsoleMode);
     setRuntimeSectionOpen(false);
     setWebMcpConsoleOpen(false);
+    setHydratedWorkspaceControlStateId(workspace.id);
   }, [workspace.id]);
+
+  const workspaceControlStateHydrated = hydratedWorkspaceControlStateId === workspace.id;
 
   const setIntentPatch = useCallback((patch: Partial<AgentIntentState>) => {
     let nextIntent = DEFAULT_INTENT;
@@ -325,6 +332,15 @@ export function WorkspaceHomeAgentControl({
   useEffect(() => {
     let disposed = false;
 
+    if (!workspaceControlStateHydrated) {
+      setBridgeStatus("Loading workspace bridge state...");
+      setBridgeError(null);
+      setBridgeToolExposureReasonCodes([]);
+      return () => {
+        disposed = true;
+      };
+    }
+
     if (!controlPreferencesReady) {
       setBridgeStatus(
         controlPreferences.status === "saving"
@@ -410,6 +426,8 @@ export function WorkspaceHomeAgentControl({
     runtimeControl,
     snapshot,
     webMcpEnabled,
+    workspace.id,
+    workspaceControlStateHydrated,
   ]);
 
   useEffect(

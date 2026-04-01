@@ -504,4 +504,56 @@ describe("WorkspaceHomeAgentControl", () => {
       expect(screen.getByText(/runtime catalog read failed/i)).toBeTruthy();
     });
   });
+
+  it("hydrates cached workspace bridge state before the first sync", async () => {
+    writeCachedState(workspace.id, {
+      version: 7,
+      intent: {
+        objective: "Hydrated bridge state",
+        constraints: "",
+        successCriteria: "",
+        deadline: null,
+        priority: "medium",
+        managerNotes: "",
+      },
+      webMcpEnabled: false,
+      webMcpConsoleMode: "basic",
+      lastKnownPersistedControls: {
+        readOnlyMode: false,
+        requireUserApproval: true,
+        webMcpAutoExecuteCalls: true,
+      },
+    });
+    vi.mocked(syncWebMcpAgentControl).mockImplementation(async ({ enabled }) => ({
+      supported: true,
+      enabled,
+      mode: "provideContext",
+      registeredTools: enabled ? 4 : 0,
+      registeredResources: 2,
+      registeredPrompts: 1,
+      toolExposureMode: "slim",
+      toolExposureReasonCodes: ["runtime-prefers-slim-tool-catalog"],
+      capabilities: {
+        modelContext: true,
+        supported: true,
+        missingRequired: [],
+      },
+      error: null,
+    }));
+
+    render(
+      <WorkspaceHomeAgentControl workspace={workspace} approvals={[]} userInputRequests={[]} />
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(syncWebMcpAgentControl)).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("WebMCP disabled")).toBeTruthy();
+    });
+
+    expect(vi.mocked(syncWebMcpAgentControl)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: false,
+      })
+    );
+  });
 });
