@@ -1,5 +1,9 @@
 import { applyRuntimeContextBudgetToToolOutput } from "./runtimeContextBudget";
 import { createRuntimeExecutableSkillFacade } from "../application/runtime/facades/runtimeExecutableSkillFacade";
+import type {
+  LiveSkillExecuteRequest,
+  LiveSkillExecutionResult,
+} from "@ku0/code-runtime-host-contract";
 import {
   canonicalizeLiveSkillId,
   listAcceptedLiveSkillIds,
@@ -217,6 +221,20 @@ export function requireRuntimeLiveSkillControlMethod<
     throw methodUnavailableError(toolName, String(methodName));
   }
   return candidate as NonNullable<RuntimeAgentControl[MethodName]>;
+}
+
+export function requireRuntimeExecutableSkillRunner(
+  control: RuntimeAgentControl,
+  toolName: string
+): (input: {
+  request: LiveSkillExecuteRequest;
+  sessionId?: string | null;
+}) => Promise<LiveSkillExecutionResult> {
+  if (typeof control.runRuntimeExecutableSkill === "function") {
+    return control.runRuntimeExecutableSkill;
+  }
+  const runLiveSkill = requireRuntimeLiveSkillControlMethod(control, "runLiveSkill", toolName);
+  return async (input) => runLiveSkill(input.request);
 }
 
 export function resolveWorkspaceId<Helper extends WorkspaceIdHelper>(

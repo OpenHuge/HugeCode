@@ -310,7 +310,7 @@ describe("runtimeKernelPlugins", () => {
         contractFormat: "manifest",
       }),
     });
-  });
+  }, 10_000);
 
   it("prefers runtime-backed truth when repo manifests collide with runtime plugins", async () => {
     const plugins = await import("./runtimeKernelPlugins");

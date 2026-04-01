@@ -5,6 +5,7 @@
 - Internal runtime skill execution no longer treats `runLiveSkill()` as live truth.
 - The canonical execution-readiness source is now the activation-backed executable skill facade, which derives from `invocations.catalog` and only falls back to `listLiveSkills()` when invocation readers are unavailable.
 - WebMCP delegated skill resolution, AutoDrive validation/research, and kernel live-skill plugin execution now share the same alias, readiness, and non-live explanation path.
+- WebMCP workspace and direct live-skill execution tools now also prefer `runRuntimeExecutableSkill` for actual execution, not only activation-backed preflight checks.
 
 ## What remains transport-only
 
