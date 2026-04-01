@@ -73,6 +73,7 @@ use extensions_dispatch::{
     handle_extension_permissions_evaluate_v2, handle_extension_registry_search_v2,
     handle_extension_registry_sources_v2, handle_extension_remove_v2,
     handle_extension_resource_read_v2, handle_extension_set_state_v2,
+    handle_extension_tool_invoke_v2,
     handle_extension_tools_list_v2, handle_extension_update_v2,
 };
 use kernel_dispatch::{
@@ -636,6 +637,7 @@ pub(crate) async fn handle_rpc(
         }
         "code_extension_health_read_v2" => handle_extension_health_read_v2(ctx, params).await,
         "code_extension_tools_list_v2" => handle_extension_tools_list_v2(ctx, params).await,
+        "code_extension_tool_invoke_v2" => handle_extension_tool_invoke_v2(ctx, params).await,
         "code_extension_resource_read_v2" => handle_extension_resource_read_v2(ctx, params).await,
         "code_session_export_v1" => handle_session_export_v1(ctx, params).await,
         "code_session_import_v1" => handle_session_import_v1(ctx, params).await,

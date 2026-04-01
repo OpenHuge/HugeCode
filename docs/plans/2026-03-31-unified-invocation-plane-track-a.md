@@ -53,3 +53,14 @@ Any new invocable surface should publish an `InvocationDescriptor` into the kern
 Track B should treat `invocations.catalog` as the publish target for active extension contributions and keep execution binding in app/runtime facades, not in view code.
 
 Projection-backed activation truth now wins over fallback plugin-catalog rows for the same stable invocation ID. New source integrations should follow the same rule: normalize first, then publish through the catalog’s dedupe/precedence seam instead of exposing parallel read models.
+
+## Follow-on Execution Slice
+
+The next execution slice keeps the frozen descriptor/catalog contract unchanged and binds execution through a separate runtime capability, `invocations.execute`.
+
+That slice now includes:
+
+- catalog-first resolution before dispatch
+- operator/model visibility and readiness guards
+- runtime extension tool execution over the typed `code_extension_tool_invoke_v2` RPC path
+- prompt overlays as resolve-only compose patches rather than implicit send behavior
