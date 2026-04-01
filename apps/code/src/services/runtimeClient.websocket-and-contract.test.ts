@@ -9,33 +9,39 @@ import { CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES } from "@ku0/code-runtime-host-co
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.fn();
-const isDesktopHostRuntimeMock = vi.fn();
+let bridgeAvailable = false;
 const REQUIRED_CONTRACT_FROZEN_FEATURE = `contract_frozen_${CODE_RUNTIME_RPC_FREEZE_EFFECTIVE_AT.replaceAll("-", "_")}`;
 const CANONICAL_WORKSPACES_METHOD = "code_workspaces_list";
 const CANONICAL_WORKSPACES_METHOD_SET_HASH = computeCodeRuntimeRpcMethodSetHash([
   CANONICAL_WORKSPACES_METHOD,
 ]);
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: invokeMock,
-  isDesktopHostRuntime: isDesktopHostRuntimeMock,
-}));
+function syncElectronBridge() {
+  const desktopHostWindow = window as Window & {
+    hugeCodeDesktopHost?: unknown;
+  };
+  desktopHostWindow.hugeCodeDesktopHost = {
+    kind: "electron",
+    core: {
+      invoke: invokeMock,
+    },
+  };
+}
 
 async function importRuntimeClientModule() {
   vi.resetModules();
+  if (bridgeAvailable) {
+    syncElectronBridge();
+  }
   return import("./runtimeClient");
 }
 
 function clearDesktopHostMarkers() {
   const desktopHostWindow = window as Window & {
-    __HUGE_CODE_DESKTOP_HOST__?: unknown;
-    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
-    __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
+    hugeCodeDesktopHost?: unknown;
   };
 
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
+  delete desktopHostWindow.hugeCodeDesktopHost;
 }
 
 function clearAgentRuntimeMarkers() {
@@ -90,7 +96,7 @@ function createFrozenCapabilitiesPayload(
 describe("runtimeClient mode detection", () => {
   beforeEach(() => {
     invokeMock.mockReset();
-    isDesktopHostRuntimeMock.mockReset();
+    bridgeAvailable = false;
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     clearDesktopHostMarkers();
@@ -106,7 +112,7 @@ describe("runtimeClient mode detection", () => {
 
   it("prefers websocket rpc transport when capabilities expose ws endpoint", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -240,7 +246,7 @@ describe("runtimeClient mode detection", () => {
   it("injects runtime auth token into web rpc headers and websocket query", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_AUTH_TOKEN", "runtime-auth-123");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -329,7 +335,7 @@ describe("runtimeClient mode detection", () => {
 
   it("resolves relative websocket rpc endpoint against current origin for worker deployments", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -420,7 +426,7 @@ describe("runtimeClient mode detection", () => {
 
   it("reuses websocket rpc connection across sequential web runtime calls", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -536,7 +542,7 @@ describe("runtimeClient mode detection", () => {
 
   it("multiplexes concurrent websocket rpc requests by request id", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -664,7 +670,7 @@ describe("runtimeClient mode detection", () => {
 
   it("does not reuse in-flight read requests when cache-key serialization fails", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {
@@ -766,7 +772,7 @@ describe("runtimeClient mode detection", () => {
 
   it("falls back to http rpc when websocket transport setup fails", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -842,7 +848,7 @@ describe("runtimeClient mode detection", () => {
 
   it("applies websocket cooldown after an established transport closes unexpectedly", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -980,7 +986,7 @@ describe("runtimeClient mode detection", () => {
 
   it("applies websocket cooldown after transport setup failure", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -1073,7 +1079,7 @@ describe("runtimeClient mode detection", () => {
 
   it("rejects web runtime when rpc contract version is below minimum", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -1120,7 +1126,7 @@ describe("runtimeClient mode detection", () => {
 
   it("rejects web runtime when rpc contract version format is invalid", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -1165,7 +1171,7 @@ describe("runtimeClient mode detection", () => {
 
   it("rejects web runtime when capabilities methodSetHash does not match methods", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -1211,7 +1217,7 @@ describe("runtimeClient mode detection", () => {
 
   it("rejects web runtime when required rpc contract features are missing", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -1259,7 +1265,7 @@ describe("runtimeClient mode detection", () => {
     vi.useFakeTimers();
     try {
       vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "http://127.0.0.1:8788/rpc");
-      isDesktopHostRuntimeMock.mockReturnValue(false);
+      bridgeAvailable = false;
 
       const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
         const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };

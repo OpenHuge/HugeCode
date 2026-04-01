@@ -38,7 +38,7 @@ import {
   setThreadName,
   startThread,
   upsertOAuthAccount,
-} from "./desktopHost";
+} from "../test/shims/desktopHostServices";
 
 vi.mock("../application/runtime/ports/desktopHostCore", () => {
   const invokeMock = vi.fn();
@@ -58,7 +58,7 @@ vi.mock("../application/runtime/ports/desktopHostDialogs", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -83,9 +83,9 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -840,7 +840,7 @@ describe("desktop host invoke wrappers", () => {
 
   it("auto-assembles paged git diffs when runtime advertises paging capability", async () => {
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: ["git_diff_paging_v1"],
       wsEndpointPath: null,

@@ -58,7 +58,7 @@ export type RuntimeBrowserVerificationTelemetryContext = {
 };
 
 const EMPTY_HISTORY_MESSAGE =
-  "No browser extraction result has been recorded by the desktop host yet.";
+  "No browser extraction result has been recorded by the Electron bridge yet.";
 
 function readTrimmedValue(value: string): string | null {
   const trimmed = value.trim();

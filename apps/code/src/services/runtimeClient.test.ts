@@ -9,25 +9,24 @@ import { CODE_RUNTIME_RPC_COMPAT_FIELD_ALIASES } from "@ku0/code-runtime-host-co
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.fn();
-const isDesktopHostRuntimeMock = vi.fn();
+let bridgeAvailable = false;
 const CANONICAL_WORKSPACES_METHOD = "code_workspaces_list";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: invokeMock,
-  isDesktopHostRuntime: isDesktopHostRuntimeMock,
-}));
+function syncElectronBridge() {
+  const desktopHostWindow = window as Window & {
+    hugeCodeDesktopHost?: unknown;
+  };
+  desktopHostWindow.hugeCodeDesktopHost = {
+    kind: "electron",
+    core: {
+      invoke: invokeMock,
+    },
+  };
+}
 
 function syncDesktopHostBridgeWithMockState() {
-  const desktopHostWindow = window as Window & {
-    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
-    __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
-  };
-  const implementation = isDesktopHostRuntimeMock.getMockImplementation();
-  if (implementation && implementation() === true) {
-    desktopHostWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__ = "desktop-host";
-    desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
-      invoke: invokeMock,
-    };
+  if (bridgeAvailable) {
+    syncElectronBridge();
   }
 }
 
@@ -39,16 +38,10 @@ async function importRuntimeClientModule() {
 
 function clearDesktopHostMarkers() {
   const desktopHostWindow = window as Window & {
-    __HUGE_CODE_DESKTOP_HOST__?: unknown;
-    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
-    __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
-    __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
+    hugeCodeDesktopHost?: unknown;
   };
 
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
-  delete desktopHostWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
+  delete desktopHostWindow.hugeCodeDesktopHost;
 }
 
 function clearAgentRuntimeMarkers() {
@@ -103,7 +96,7 @@ function createFrozenCapabilitiesPayload(
 describe("runtimeClient mode detection", () => {
   beforeEach(() => {
     invokeMock.mockReset();
-    isDesktopHostRuntimeMock.mockReset();
+    bridgeAvailable = false;
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     clearDesktopHostMarkers();
@@ -117,14 +110,14 @@ describe("runtimeClient mode detection", () => {
     clearAgentRuntimeMarkers();
   });
 
-  it("routes to the desktop compatibility client when the desktop host bridge is available", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+  it("routes to the electron bridge client when the Electron bridge is available", async () => {
+    bridgeAvailable = true;
     invokeMock.mockResolvedValue([]);
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
 
-    expect(runtime.detectRuntimeMode()).toBe("desktop-compat");
+    expect(runtime.detectRuntimeMode()).toBe("electron-bridge");
     await client.workspaces();
     expect(invokeMock).toHaveBeenCalledWith("code_workspaces_list", {});
     await client.workspacePickDirectory();
@@ -835,7 +828,7 @@ describe("runtimeClient mode detection", () => {
   }, 15_000);
 
   it("reads runtime capabilities summary for capability gating", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -849,14 +842,14 @@ describe("runtimeClient mode detection", () => {
     const runtime = await importRuntimeClientModule();
     const summary = await runtime.readRuntimeCapabilitiesSummary();
 
-    expect(summary.mode).toBe("desktop-compat");
+    expect(summary.mode).toBe("electron-bridge");
     expect(summary.features).toContain("multi_backend_pool_v1");
     expect(summary.methods).toContain("code_runtime_backends_list");
     expect(summary.error).toBeNull();
   });
 
   it("routes oauth account pool calls through unified rpc contract", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1042,7 +1035,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("keeps legacy workspace selector aliases when only workspaceId is provided", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1103,7 +1096,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("prefers explicit chatgptWorkspaceId over legacy workspaceId for oauth rpc calls", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1173,7 +1166,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("routes backend pool and distributed graph calls through unified rpc contract", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1307,7 +1300,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("invokes kernel v2 rpc methods through the runtime client boundary", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1403,7 +1396,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("routes oauth pool mutations and rate-limit reports through unified rpc contract", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1648,7 +1641,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("bootstraps runtime snapshot through unified rpc contract", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1707,7 +1700,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects oversized network live-skill query before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -1726,7 +1719,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("allows long non-network live-skill input through runtime rpc", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1769,7 +1762,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects oversized core-bash command before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -1788,7 +1781,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("allows bounded core-bash command through runtime rpc", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1831,7 +1824,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes core-js-repl aliases before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1887,7 +1880,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes core-js-repl-reset aliases before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1931,7 +1924,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes research live-skill aliases before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -1974,7 +1967,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("passes typed live-skill context fields through runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2029,7 +2022,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes core-tree aliases before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2072,7 +2065,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes core-grep aliases before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2115,7 +2108,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects core-grep request without pattern before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -2131,7 +2124,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects invalid core-grep mode before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -2150,7 +2143,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes network live-skill aliases before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2193,7 +2186,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes diagnostics live-skill aliases before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2236,7 +2229,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("canonicalizes computer-observe aliases before runtime rpc invocation", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2279,7 +2272,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("does not enable legacy runtime bridge markers outside supported runtimes", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
     const legacyRpcBridge = vi.fn();
     (
       window as Window & {
@@ -2298,7 +2291,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("uses explicit unavailable mode by default outside desktop-host", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
@@ -2325,7 +2318,7 @@ describe("runtimeClient mode detection", () => {
   it("ignores legacy demo env when web runtime gateway endpoint is configured", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_DEMO", "1");
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const runtime = await importRuntimeClientModule();
 
@@ -2334,46 +2327,40 @@ describe("runtimeClient mode detection", () => {
 
   it("supports runtime gateway env key for web mode detection", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc_gateway");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const runtime = await importRuntimeClientModule();
 
     expect(runtime.detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("does not mis-detect the desktop host when __HUGE_CODE_DESKTOP_HOST_INTERNALS__ exists without invoke", async () => {
+  it("does not mis-detect the Electron bridge when hugeCodeDesktopHost exists without core.invoke", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
     (
       window as Window & {
-        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
+        hugeCodeDesktopHost?: unknown;
       }
-    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {};
-
-    const runtime = await importRuntimeClientModule();
-
-    expect(runtime.detectRuntimeMode()).toBe("runtime-gateway-web");
-  });
-
-  it("detects desktop compatibility when __HUGE_CODE_DESKTOP_HOST_INTERNALS__.invoke is available", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(false);
-    (
-      window as Window & {
-        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
-      }
-    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
-      invoke: vi.fn(),
+    ).hugeCodeDesktopHost = {
+      kind: "electron",
     };
 
     const runtime = await importRuntimeClientModule();
 
-    expect(runtime.detectRuntimeMode()).toBe("desktop-compat");
+    expect(runtime.detectRuntimeMode()).toBe("runtime-gateway-web");
+  });
+
+  it("detects electron bridge mode when hugeCodeDesktopHost.core.invoke is available", async () => {
+    bridgeAvailable = true;
+
+    const runtime = await importRuntimeClientModule();
+
+    expect(runtime.detectRuntimeMode()).toBe("electron-bridge");
   });
 
   it("ignores legacy demo env when no supported runtime transport is configured", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_DEMO", "1");
     vi.stubEnv("NODE_ENV", "production");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const runtime = await importRuntimeClientModule();
 
@@ -2382,7 +2369,7 @@ describe("runtimeClient mode detection", () => {
 
   it("routes to web runtime when endpoint is configured", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as {
@@ -2426,7 +2413,7 @@ describe("runtimeClient mode detection", () => {
 
   it("routes to web runtime when runtime gateway endpoint env is configured", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc_gateway");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -2467,7 +2454,7 @@ describe("runtimeClient mode detection", () => {
 
   it("returns explicit method_not_found code when web runtime lacks metrics rpc methods", async () => {
     vi.stubEnv("VITE_CODE_RUNTIME_GATEWAY_WEB_ENDPOINT", "/__code_runtime_rpc");
-    isDesktopHostRuntimeMock.mockReturnValue(false);
+    bridgeAvailable = false;
 
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
@@ -2496,7 +2483,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("invokes canonical codex oauth login start and cancel rpc methods", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2553,7 +2540,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects terminalStatus when runtime returns an invalid state payload", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({
@@ -2579,7 +2566,7 @@ describe("runtimeClient mode detection", () => {
   });
 
   it("rejects terminalOpen when runtime returns an invalid session state payload", async () => {
-    isDesktopHostRuntimeMock.mockReturnValue(true);
+    bridgeAvailable = true;
     invokeMock.mockImplementation(async (method: string) => {
       if (method === "code_rpc_capabilities") {
         return createFrozenCapabilitiesPayload({

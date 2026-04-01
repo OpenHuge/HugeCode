@@ -236,7 +236,7 @@ export function createRuntimeSessionCommandFacade(
       deps.respondToUserInputRequest(workspaceId, requestId, answers),
     respondToToolCall: ({ requestId, response }) =>
       deps.respondToToolCallRequest(workspaceId, requestId, response),
-    canStartReviewInCurrentHost: () => deps.detectRuntimeMode() === "desktop-compat",
+    canStartReviewInCurrentHost: () => deps.detectRuntimeMode() === "electron-bridge",
     reviewStartDesktopOnlyMessage: deps.reviewStartDesktopOnlyMessage,
   };
 }

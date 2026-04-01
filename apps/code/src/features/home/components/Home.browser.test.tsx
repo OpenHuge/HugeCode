@@ -10,7 +10,7 @@ vi.mock("../../workspaces/components/WorkspaceHomeAgentControl", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
 }));
 
 vi.mock("../../../application/runtime/ports/toasts", () => ({

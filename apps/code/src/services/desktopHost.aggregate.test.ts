@@ -24,7 +24,7 @@ import {
   renameWorktreeUpstream,
   updateWorkspaceCodexBin,
   updateWorkspaceSettings,
-} from "./desktopHost";
+} from "../test/shims/desktopHostServices";
 
 vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock("@desktop-host/notifications", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -71,9 +71,9 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: [],
       wsEndpointPath: null,

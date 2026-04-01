@@ -14,7 +14,7 @@ const getRuntimeCapabilitiesSummaryMock = vi.mocked(getRuntimeCapabilitiesSummar
 describe("useDebugRuntimeCapabilities", () => {
   beforeEach(() => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -28,7 +28,7 @@ describe("useDebugRuntimeCapabilities", () => {
 
   it("exposes diagnostics export and observability capability state", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: ["code_runtime_diagnostics_export_v1"],
       features: ["backend_placement_observability_v1"],
       wsEndpointPath: null,
@@ -47,7 +47,7 @@ describe("useDebugRuntimeCapabilities", () => {
 
   it("supports diagnostics export when feature flag is present", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: ["runtime_diagnostics_export_v1"],
       wsEndpointPath: null,

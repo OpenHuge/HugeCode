@@ -174,7 +174,7 @@ import type {
   RuntimeExtensionUpdateRequest,
 } from "@ku0/code-runtime-host-contract";
 
-export type RuntimeClientMode = "desktop-compat" | "runtime-gateway-web" | "unavailable";
+export type RuntimeClientMode = "electron-bridge" | "runtime-gateway-web" | "unavailable";
 
 export type RuntimeCapabilitiesSummary = {
   mode: RuntimeClientMode;

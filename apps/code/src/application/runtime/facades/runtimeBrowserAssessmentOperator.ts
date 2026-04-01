@@ -51,7 +51,7 @@ export type RuntimeBrowserAssessmentOperatorState = {
 };
 
 const EMPTY_HISTORY_MESSAGE =
-  "No browser assessment result has been recorded by the desktop host yet.";
+  "No browser assessment result has been recorded by the Electron bridge yet.";
 const TOOL_NAME = "assess-runtime-browser-surface";
 
 function readTrimmedValue(value: string): string | null {

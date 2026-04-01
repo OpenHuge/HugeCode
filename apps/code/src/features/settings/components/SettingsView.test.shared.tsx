@@ -332,7 +332,7 @@ beforeEach(() => {
   getAppSettingsMock.mockResolvedValue(baseSettings);
   getModelListMock.mockResolvedValue({ result: { data: [] } });
   getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-    mode: "desktop-compat",
+    mode: "electron-bridge",
     methods: [],
     features: [],
     wsEndpointPath: null,

@@ -229,7 +229,6 @@ const LEGACY_IDENTIFIER_GUARDS = [
   "@ku0/agent-runtime",
   "packages/agent-runtime",
   "apps/desktop",
-  "desktop-host",
   "agent-runtime-",
 ];
 const LOCAL_EPHEMERAL_PATH_PREFIXES = [

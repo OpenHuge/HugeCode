@@ -4,6 +4,8 @@ import {
   type LiveSkillSummary,
 } from "./runtimeClient";
 
+export type { LiveSkillSummary } from "./runtimeClient";
+
 export async function listRuntimeLiveSkills(): Promise<LiveSkillSummary[]> {
   return getRuntimeClient().liveSkills();
 }

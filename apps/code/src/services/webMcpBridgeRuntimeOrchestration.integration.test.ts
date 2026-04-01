@@ -817,7 +817,7 @@ describe("webMcpBridge runtime orchestration integration", () => {
     const removeRuntimeExtension = vi.fn(async () => true);
     const getRuntimeRemoteStatus = vi.fn(async () => ({
       connected: true,
-      transport: "desktop-compat",
+      transport: "electron-bridge",
     }));
     const getRuntimeSettings = vi.fn(async () => ({
       mode: "balanced",

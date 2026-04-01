@@ -15,7 +15,7 @@ import {
   runtimeToolGuardrailEvaluate,
   runtimeToolGuardrailRecordOutcome,
   runtimeToolMetricsRecord,
-} from "./desktopHost";
+} from "./runtimeControlBridge";
 
 type RuntimeToolMetricsRecordFn = (events: RuntimeToolExecutionEvent[]) => Promise<unknown>;
 type RuntimeToolGuardrailEvaluateFn = (

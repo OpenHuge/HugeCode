@@ -9,7 +9,7 @@ import {
   readOAuthSubscriptionPersistenceCapability,
   runCodexLogin,
   upsertOAuthAccount,
-} from "./desktopHost";
+} from "../test/shims/desktopHostServices";
 
 vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("@desktop-host/core", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
   getRuntimeClient: vi.fn(),
 }));
 

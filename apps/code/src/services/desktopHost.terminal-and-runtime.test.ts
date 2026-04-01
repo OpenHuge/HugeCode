@@ -76,7 +76,7 @@ import {
   writeRuntimeTerminalSession,
   writeTerminalSession,
   writeTerminalSessionRaw,
-} from "./desktopHost";
+} from "../test/shims/desktopHostServices";
 import {
   cancelRuntimeRun,
   getRuntimeRunV2,
@@ -102,7 +102,7 @@ vi.mock("../application/runtime/ports/desktopHostDialogs", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -127,9 +127,9 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -1492,7 +1492,7 @@ describe("desktop host invoke wrappers", () => {
   });
 
   it("rethrows distributed wrapper connection errors outside web runtime mode", async () => {
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     const connectionError = new Error("Failed to fetch (127.0.0.1:8788)");
     vi.mocked(getRuntimeClient).mockReturnValue({
       runtimeBackendsList: vi.fn().mockRejectedValue(connectionError),
@@ -1936,7 +1936,7 @@ describe("desktop host invoke wrappers", () => {
 
   it("reads runtime capability summary through runtime client helper", async () => {
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: ["code_runtime_backends_list"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,
@@ -1944,7 +1944,7 @@ describe("desktop host invoke wrappers", () => {
     });
 
     await expect(getRuntimeCapabilitiesSummary()).resolves.toEqual({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: ["code_runtime_backends_list"],
       features: ["multi_backend_pool_v1"],
       wsEndpointPath: null,

@@ -545,7 +545,7 @@ beforeEach(() => {
     reviewPack: null,
   });
   vi.mocked(getRuntimeCapabilitiesSummary).mockResolvedValue({
-    mode: "desktop-compat",
+    mode: "electron-bridge",
     methods: ["code_health"],
     features: [],
     wsEndpointPath: "/ws",
