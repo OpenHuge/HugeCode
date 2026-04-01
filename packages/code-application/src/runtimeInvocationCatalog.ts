@@ -1,14 +1,11 @@
 import type {
+  RuntimeExtensionActivationSnapshot,
+  RuntimeExtensionContributionDescriptor,
+} from "@ku0/code-runtime-host-contract";
+import type {
   RuntimeInvocationCatalogSnapshot,
   RuntimeInvocationDescriptor,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
-import type {
-  RuntimeExtensionActivationDiagnostic,
-  RuntimeExtensionActivationRecord,
-  RuntimeExtensionActivationService,
-  RuntimeExtensionActivationSnapshot,
-  RuntimeExtensionContributionDescriptor,
-} from "../kernel/runtimeExtensionActivation";
 
 const INVOCABLE_CONTRIBUTION_KINDS = new Set<RuntimeInvocationDescriptor["kind"]>([
   "invocation",
@@ -23,21 +20,6 @@ function isRuntimeInvocationKind(
   return INVOCABLE_CONTRIBUTION_KINDS.has(kind as RuntimeInvocationDescriptor["kind"]);
 }
 
-export type RuntimeInvocationCatalogFacade = {
-  readSnapshot: (input?: {
-    sessionId?: string | null;
-  }) => Promise<RuntimeInvocationCatalogSnapshot>;
-  listInvocations: (input?: {
-    sessionId?: string | null;
-    activeOnly?: boolean | null;
-    kind?: RuntimeInvocationDescriptor["kind"] | null;
-  }) => Promise<RuntimeInvocationDescriptor[]>;
-  resolveInvocation: (input: {
-    invocationId: string;
-    sessionId?: string | null;
-  }) => Promise<RuntimeInvocationDescriptor | null>;
-};
-
 function isInvocableContribution(
   contribution: RuntimeExtensionContributionDescriptor
 ): contribution is RuntimeExtensionContributionDescriptor & {
@@ -47,19 +29,19 @@ function isInvocableContribution(
 }
 
 function normalizeInvocationDiagnostics(
-  diagnostics: RuntimeExtensionActivationDiagnostic[]
+  diagnostics: RuntimeExtensionActivationSnapshot["records"][number]["diagnostics"]
 ): RuntimeInvocationDescriptor["diagnostics"] {
   return diagnostics.map((diagnostic) => ({ ...diagnostic }));
 }
 
 function toInvocationDescriptor(input: {
-  record: RuntimeExtensionActivationRecord;
+  record: RuntimeExtensionActivationSnapshot["records"][number];
   contribution: RuntimeExtensionContributionDescriptor & {
     kind: RuntimeInvocationDescriptor["kind"];
   };
   live: boolean;
 }): RuntimeInvocationDescriptor {
-  const { record, contribution, live } = input;
+  const { contribution, live, record } = input;
   return {
     id: contribution.id,
     title: contribution.title,
@@ -121,7 +103,7 @@ function buildSummary(
   );
 }
 
-function normalizeInvocationCatalogSnapshot(
+export function normalizeRuntimeInvocationCatalogSnapshot(
   snapshot: RuntimeExtensionActivationSnapshot
 ): RuntimeInvocationCatalogSnapshot {
   const liveContributionIds = new Set(
@@ -137,6 +119,7 @@ function normalizeInvocationCatalogSnapshot(
     )
   );
   const activeEntries = entries.filter((entry) => entry.live);
+
   return {
     workspaceId: snapshot.workspaceId,
     sessionId: snapshot.sessionId,
@@ -147,30 +130,23 @@ function normalizeInvocationCatalogSnapshot(
   };
 }
 
-export function createRuntimeInvocationCatalogFacade(input: {
-  activation: RuntimeExtensionActivationService;
-}): RuntimeInvocationCatalogFacade {
-  async function readSnapshot(inputOptions?: {
-    sessionId?: string | null;
-  }): Promise<RuntimeInvocationCatalogSnapshot> {
-    return normalizeInvocationCatalogSnapshot(await input.activation.readSnapshot(inputOptions));
+export function listRuntimeInvocationDescriptors(
+  snapshot: RuntimeInvocationCatalogSnapshot,
+  input?: {
+    activeOnly?: boolean | null;
+    kind?: RuntimeInvocationDescriptor["kind"] | null;
   }
+): RuntimeInvocationDescriptor[] {
+  return (input?.activeOnly ? snapshot.activeEntries : snapshot.entries).filter(
+    (entry) => !input?.kind || entry.kind === input.kind
+  );
+}
 
-  return {
-    readSnapshot,
-    listInvocations: async (inputOptions) => {
-      const snapshot = await readSnapshot({
-        sessionId: inputOptions?.sessionId ?? null,
-      });
-      return (inputOptions?.activeOnly ? snapshot.activeEntries : snapshot.entries).filter(
-        (entry) => !inputOptions?.kind || entry.kind === inputOptions.kind
-      );
-    },
-    resolveInvocation: async (inputOptions) => {
-      const snapshot = await readSnapshot({
-        sessionId: inputOptions.sessionId ?? null,
-      });
-      return snapshot.entries.find((entry) => entry.id === inputOptions.invocationId) ?? null;
-    },
-  };
+export function resolveRuntimeInvocationDescriptor(
+  snapshot: RuntimeInvocationCatalogSnapshot,
+  input: {
+    invocationId: string;
+  }
+): RuntimeInvocationDescriptor | null {
+  return snapshot.entries.find((entry) => entry.id === input.invocationId) ?? null;
 }

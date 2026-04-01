@@ -8,6 +8,7 @@ import type {
   RuntimeExtensionResourceReadResponse,
   RuntimeExtensionRecord,
 } from "@ku0/code-runtime-host-contract";
+import type { RuntimeExecutableSkillFacade } from "@ku0/code-application/runtimeExecutableSkillFacade";
 import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import { runRuntimeLiveSkill } from "../ports/runtime";
 import {
@@ -18,7 +19,6 @@ import {
 } from "../ports/runtimeExtensions";
 import { listRuntimeKernelCapabilities } from "../ports/runtimeKernelCapabilities";
 import { getProvidersCatalog, listOAuthAccounts, listOAuthPools } from "../ports/oauth";
-import type { RuntimeExecutableSkillFacade } from "../facades/runtimeExecutableSkillFacade";
 import type { RuntimeWorkspaceSkillManifest } from "./runtimeWorkspaceSkillManifests";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
 import {

@@ -3,12 +3,12 @@ import type {
   LiveSkillExecutionResult,
   LiveSkillSummary,
 } from "@ku0/code-runtime-host-contract";
+import type { RuntimeInvocationDescriptor } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 import { describe, expect, it, vi } from "vitest";
 import {
   RuntimeSkillExecutionGateError,
   createRuntimeExecutableSkillFacade,
 } from "./runtimeExecutableSkillFacade";
-import type { RuntimeInvocationDescriptor } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
 function createSkillInvocation(
   overrides: Partial<RuntimeInvocationDescriptor> = {}
@@ -46,6 +46,39 @@ function createSkillInvocation(
   };
 }
 
+function createLiveSkillSummary(overrides: Partial<LiveSkillSummary> = {}): LiveSkillSummary {
+  return {
+    id: "session.review",
+    name: "Session Review",
+    description: "Review the current session state.",
+    kind: "file_search",
+    source: "builtin",
+    version: "1.0.0",
+    enabled: true,
+    supportsNetwork: false,
+    permissions: [],
+    tags: ["review"],
+    aliases: ["review-skill"],
+    ...overrides,
+  };
+}
+
+function createLiveSkillExecutionResult(
+  overrides: Partial<LiveSkillExecutionResult> = {}
+): LiveSkillExecutionResult {
+  return {
+    runId: "run-1",
+    skillId: "session.review",
+    status: "completed",
+    message: "ok",
+    output: "done",
+    network: null,
+    artifacts: [],
+    metadata: {},
+    ...overrides,
+  };
+}
+
 describe("runtimeExecutableSkillFacade", () => {
   it("prefers activation-backed invocation catalog over legacy live skills", async () => {
     const listInvocations = vi.fn(async () => [
@@ -58,10 +91,10 @@ describe("runtimeExecutableSkillFacade", () => {
       }),
     ]);
     const listLiveSkills = vi.fn(async () => [
-      {
+      createLiveSkillSummary({
         id: "legacy-review",
         aliases: ["review-skill"],
-      } satisfies LiveSkillSummary,
+      }),
     ]);
 
     const facade = createRuntimeExecutableSkillFacade({
@@ -93,10 +126,10 @@ describe("runtimeExecutableSkillFacade", () => {
 
   it("falls back to legacy live skill transport when invocation catalog readers are unavailable", async () => {
     const listLiveSkills = vi.fn(async () => [
-      {
+      createLiveSkillSummary({
         id: "core-grep",
         aliases: ["grep", "search"],
-      } satisfies LiveSkillSummary,
+      }),
     ]);
     const facade = createRuntimeExecutableSkillFacade({
       listLiveSkills,
@@ -131,15 +164,11 @@ describe("runtimeExecutableSkillFacade", () => {
           },
         }),
       ]),
-      runLiveSkill: vi.fn(async () => ({
-        runId: "run-1",
-        skillId: "session.review",
-        status: "completed",
-        message: "ok",
-        output: "done",
-        artifacts: [],
-        metadata: {},
-      })),
+      runLiveSkill: vi.fn(async () =>
+        createLiveSkillExecutionResult({
+          skillId: "session.review",
+        })
+      ),
     });
 
     const resolution = await facade.resolveSkill({
@@ -224,15 +253,10 @@ describe("runtimeExecutableSkillFacade", () => {
 
   it("passes the resolved canonical skill id to the legacy execution transport", async () => {
     const runLiveSkill = vi.fn(
-      async (request: LiveSkillExecuteRequest): Promise<LiveSkillExecutionResult> => ({
-        runId: "run-1",
-        skillId: request.skillId,
-        status: "completed",
-        message: "ok",
-        output: "done",
-        artifacts: [],
-        metadata: {},
-      })
+      async (request: LiveSkillExecuteRequest): Promise<LiveSkillExecutionResult> =>
+        createLiveSkillExecutionResult({
+          skillId: request.skillId,
+        })
     );
     const facade = createRuntimeExecutableSkillFacade({
       listRuntimeInvocations: vi.fn(async () => [

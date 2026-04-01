@@ -43,11 +43,13 @@ import type {
   KernelProjectionDelta,
   KernelPolicyDecision,
   LiveSkillExecutionResult,
+  RuntimeExtensionActivationSnapshot,
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
   RuntimeExecutionGraphSummary,
   SubAgentSpawnRequest,
 } from "./codeRuntimeRpc";
+import type { RuntimeExtensionActivationSnapshot as RuntimeExtensionActivationSnapshotModule } from "./runtimeActivationPlane";
 import type { RuntimeCompositionProfile as RuntimeCompositionProfileModule } from "./runtimeCompositionProfiles";
 import type { RuntimeCompositionResolution as RuntimeCompositionResolutionModule } from "./runtimeCompositionPlane";
 
@@ -171,6 +173,10 @@ describe("code runtime rpc compatibility helpers", () => {
   it("keeps runtime composition types available through dedicated modules and rpc exports", () => {
     expectTypeOf<RuntimeCompositionProfileModule>().toEqualTypeOf<RuntimeCompositionProfile>();
     expectTypeOf<RuntimeCompositionResolutionModule>().toEqualTypeOf<RuntimeCompositionResolution>();
+  });
+
+  it("keeps runtime activation snapshot types available through dedicated modules and rpc exports", () => {
+    expectTypeOf<RuntimeExtensionActivationSnapshotModule>().toEqualTypeOf<RuntimeExtensionActivationSnapshot>();
   });
 
   it("re-exports runtime composition config layer sources through the rpc surface", () => {

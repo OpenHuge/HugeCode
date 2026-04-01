@@ -5,6 +5,7 @@ import {
   CODE_RUNTIME_RPC_INVOCATION_COMPLETION_MODES,
   HUGECODE_INTERVENTION_ACTIONS,
   HUGECODE_RUN_STATES,
+  type RuntimeExtensionActivationSnapshot,
   RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER,
   RUNTIME_COMPOSITION_PROFILE_SCOPES,
   type HugeCodeExecutionGraphSummary,
@@ -16,6 +17,7 @@ import {
   parseCodeRuntimeHostEventEnvelope,
   validateCodeRuntimeHostEventEnvelope,
 } from "./index";
+import type { RuntimeExtensionActivationSnapshot as RuntimeExtensionActivationSnapshotModule } from "./runtimeActivationPlane";
 import type { RuntimeCompositionProfile as RuntimeCompositionProfileModule } from "./runtimeCompositionProfiles";
 import type { RuntimeCompositionResolution as RuntimeCompositionResolutionModule } from "./runtimeCompositionPlane";
 
@@ -23,6 +25,10 @@ describe("code runtime host event envelope", () => {
   it("re-exports runtime composition profile and resolution types from dedicated modules", () => {
     expectTypeOf<RuntimeCompositionProfileModule>().toEqualTypeOf<RuntimeCompositionProfile>();
     expectTypeOf<RuntimeCompositionResolutionModule>().toEqualTypeOf<RuntimeCompositionResolution>();
+  });
+
+  it("re-exports activation snapshot types from the dedicated activation module", () => {
+    expectTypeOf<RuntimeExtensionActivationSnapshotModule>().toEqualTypeOf<RuntimeExtensionActivationSnapshot>();
   });
 
   it("re-exports runtime composition profile scopes from the dedicated composition module", () => {

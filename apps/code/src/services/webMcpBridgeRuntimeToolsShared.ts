@@ -1,14 +1,14 @@
 import { applyRuntimeContextBudgetToToolOutput } from "./runtimeContextBudget";
-import { createRuntimeExecutableSkillFacade } from "../application/runtime/facades/runtimeExecutableSkillFacade";
-import type {
-  LiveSkillExecuteRequest,
-  LiveSkillExecutionResult,
-} from "@ku0/code-runtime-host-contract";
+import { createRuntimeExecutableSkillFacade } from "@ku0/code-application/runtimeExecutableSkillFacade";
 import {
   canonicalizeLiveSkillId,
   listAcceptedLiveSkillIds,
   normalizeLiveSkillLookupId,
-} from "../application/runtime/facades/runtimeLiveSkillAliases";
+} from "@ku0/code-application/runtimeLiveSkillAliases";
+import type {
+  LiveSkillExecuteRequest,
+  LiveSkillExecutionResult,
+} from "@ku0/code-runtime-host-contract";
 import {
   invalidInputError,
   methodUnavailableError,

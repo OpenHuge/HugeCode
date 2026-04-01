@@ -10,6 +10,8 @@ import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
 import { createRuntimeAgentControlDependencies } from "./createRuntimeAgentControlDependencies";
 import { createWorkspaceClientRuntimeBindings } from "./createWorkspaceClientRuntimeBindings";
 import type { RuntimeKernel } from "./runtimeKernelTypes";
+import { createRuntimeExecutableSkillFacade } from "@ku0/code-application/runtimeExecutableSkillFacade";
+import { createRuntimeInvocationCatalogFacade } from "@ku0/code-application/runtimeInvocationCatalogFacade";
 import type { WorkspaceClientRuntimeMode } from "@ku0/code-workspace-client";
 import { subscribeConfiguredWebRuntimeGatewayProfile } from "../../../services/runtimeWebGatewayConfig";
 import {
@@ -27,8 +29,6 @@ import {
 import { createRuntimeKernelPluginRegistryFacade } from "./runtimeKernelPluginRegistry";
 import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
 import { createRuntimeExtensionActivationService } from "./runtimeExtensionActivation";
-import { createRuntimeInvocationCatalogFacade } from "../facades/runtimeInvocationCatalogFacade";
-import { createRuntimeExecutableSkillFacade } from "../facades/runtimeExecutableSkillFacade";
 import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import { runRuntimeLiveSkill } from "../ports/runtime";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";

@@ -8,7 +8,9 @@
       "@ku0/code-runtime-client": ["../code-runtime-client/src/index.ts"],
       "@ku0/code-runtime-client/*": ["../code-runtime-client/src/*"],
       "@ku0/code-runtime-host-contract": ["../code-runtime-host-contract/src/index.ts"],
-      "@ku0/code-runtime-host-contract/*": ["../code-runtime-host-contract/src/*"]
+      "@ku0/code-runtime-host-contract/*": ["../code-runtime-host-contract/src/*"],
+      "@ku0/code-runtime-webmcp-client": ["../code-runtime-webmcp-client/src/index.ts"],
+      "@ku0/code-runtime-webmcp-client/*": ["../code-runtime-webmcp-client/src/*"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
