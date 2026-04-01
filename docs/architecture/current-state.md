@@ -114,7 +114,7 @@ Client-side storage and fallback state also still exist:
 ## Compatibility Layers Still Active
 
 - `packages/code-runtime-host-contract/src/codeRuntimeRpcCompat.ts`
-- app runtime and desktop-host compatibility ports/tests explicitly guard against deprecated compat ports, which confirms the repo is still actively unwinding older surfaces
+- app runtime and Electron bridge compatibility ports/tests explicitly guard against deprecated compat ports, which confirms the repo is still actively unwinding older surfaces
 
 ## Domain Logic Outside Runtime
 

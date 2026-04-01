@@ -18,11 +18,11 @@ Interpret this carefully:
   layer consumed by both the web and desktop shells.
 - `packages/code-application` is the shared application-layer package for
   orchestration, shared workspace host rendering, host binding composition,
-  and host-agnostic desktop/web use cases. Keep it free of direct desktop-host
+  and host-agnostic desktop/web use cases. Keep it free of direct Electron bridge
   implementation imports.
 - `packages/code-platform-interfaces` is the shared capability-contract layer
   for desktop and web host adapters. Keep it free of concrete Electron runtime
-  imports and legacy desktop host compatibility details.
+  imports and legacy shell compatibility details.
 - `apps/code` remains the desktop-first host shell and runtime bootstrap layer
   around that shared workspace client.
 - `apps/code-electron` is the canonical desktop shell around the same

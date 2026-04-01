@@ -177,7 +177,7 @@ export function useRemoteThreadRefreshOnFocus({
           // Ignore: DOM listeners still handle visibility changes when available.
         });
     } catch {
-      // In non-desktop-host environments, getCurrentWindow can throw.
+      // In environments without the Electron bridge, getCurrentWindow can throw.
     }
 
     updatePolling();
