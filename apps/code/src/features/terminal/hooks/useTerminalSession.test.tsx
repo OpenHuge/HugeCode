@@ -218,7 +218,7 @@ describe("useTerminalSession", () => {
     });
 
     await waitFor(() => {
-      expect(readTerminalSession.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(vi.mocked(readTerminalSession).mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
     expect(terminalMock.write).toHaveBeenCalledWith("web runtime marker\n");

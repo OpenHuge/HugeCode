@@ -46,7 +46,13 @@ function installNotificationApiMock(config: {
   permission: NotificationPermission;
   requestPermissionResult?: NotificationPermission;
 }) {
-  const instances: Array<{ close: ReturnType<typeof vi.fn>; onshow: (() => void) | null }> = [];
+  type NotificationInstance = {
+    title: string;
+    options?: NotificationOptions;
+    close: ReturnType<typeof vi.fn>;
+    onshow: (() => void) | null;
+  };
+  const instances: NotificationInstance[] = [];
   const requestPermission = vi.fn(async () => config.requestPermissionResult ?? config.permission);
 
   class MockNotification {

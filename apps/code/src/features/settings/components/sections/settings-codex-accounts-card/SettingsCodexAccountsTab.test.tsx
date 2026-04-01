@@ -91,6 +91,7 @@ function renderTab(
       onRefreshUsage={noop}
       onToggleAccountStatus={noop}
       onUpdateDefaultChatgptWorkspace={onUpdateDefaultChatgptWorkspace}
+      onReviewDeactivatedChatgptWorkspaces={noop}
       onReauthenticateAccount={noop}
       onRemoveAccount={noop}
       subscriptionPersistenceCapability={{

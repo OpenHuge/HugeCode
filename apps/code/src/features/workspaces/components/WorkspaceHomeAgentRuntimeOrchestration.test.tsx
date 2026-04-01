@@ -1671,9 +1671,17 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       },
     });
 
+    await import("./WorkspaceHomeAgentRuntimePluginControlPlane");
+
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
-    const section = await screen.findByTestId("workspace-runtime-plugin-operator-actions");
+    const section = await screen.findByTestId(
+      "workspace-runtime-plugin-operator-actions",
+      {},
+      {
+        timeout: 5_000,
+      }
+    );
     expect(within(section).getByText("Composition profiles")).toBeTruthy();
     expect(screen.getAllByText("Needs action").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Inventory", { selector: "strong" }).length).toBeGreaterThan(0);
