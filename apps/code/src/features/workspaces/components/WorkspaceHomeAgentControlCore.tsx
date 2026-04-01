@@ -147,7 +147,7 @@ export function WorkspaceHomeAgentControl({
 
   useEffect(() => {
     const restored = readCachedStateWithStatus(workspace.id);
-    setIntent(DEFAULT_INTENT);
+    setIntent(restored.state?.intent ?? DEFAULT_INTENT);
     setWebMcpEnabled(restored.state?.webMcpEnabled ?? true);
     setWebMcpConsoleMode(restored.state?.webMcpConsoleMode ?? "basic");
     setRuntimeSectionOpen(false);
@@ -193,6 +193,7 @@ export function WorkspaceHomeAgentControl({
         : controlPreferences.controls;
     writeCachedState(workspace.id, {
       version: 7,
+      intent,
       webMcpEnabled,
       webMcpConsoleMode,
       lastKnownPersistedControls,

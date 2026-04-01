@@ -6,6 +6,7 @@ import type { WorkspaceAgentControlPersistedState } from "../../../types";
 
 type LegacyStoredAgentControlState = {
   version?: number;
+  intent?: unknown;
   lastKnownPersistedControls?: unknown;
   webMcpEnabled?: unknown;
   readOnlyMode?: unknown;
@@ -24,6 +25,7 @@ export type WorkspaceAgentControlPersistedControls = {
 
 export type CachedAgentControlState = {
   version: 7;
+  intent: AgentIntentState;
   webMcpEnabled: boolean;
   webMcpConsoleMode: WebMcpConsoleMode;
   lastKnownPersistedControls: WorkspaceAgentControlPersistedControls;
@@ -69,6 +71,27 @@ function normalizeWebMcpConsoleMode(value: unknown): WebMcpConsoleMode {
   return value === "advanced" ? "advanced" : "basic";
 }
 
+function parseIntent(value: unknown): AgentIntentState | null {
+  const record = toRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  return {
+    objective: String(record.objective ?? ""),
+    constraints: String(record.constraints ?? ""),
+    successCriteria: String(record.successCriteria ?? ""),
+    deadline:
+      typeof record.deadline === "string" && record.deadline.trim().length > 0
+        ? record.deadline
+        : null,
+    priority: ["low", "medium", "high", "critical"].includes(String(record.priority))
+      ? (record.priority as AgentIntentPriority)
+      : "medium",
+    managerNotes: String(record.managerNotes ?? ""),
+  };
+}
+
 function normalizePersistedControls(value: unknown): WorkspaceAgentControlPersistedControls | null {
   const record = toRecord(value);
   if (!record) {
@@ -110,12 +133,14 @@ export function resolvePersistedAgentControls(
 }
 
 function buildCachedState(
+  intent: AgentIntentState,
   webMcpEnabled: boolean,
   webMcpConsoleMode: WebMcpConsoleMode,
   lastKnownPersistedControls: WorkspaceAgentControlPersistedControls
 ): CachedAgentControlState {
   return {
     version: 7,
+    intent,
     webMcpEnabled,
     webMcpConsoleMode,
     lastKnownPersistedControls,
@@ -164,6 +189,7 @@ export function readCachedStateWithStatus(workspaceId: string): ReadCachedAgentC
       };
     }
 
+    const intent = parseIntent(parsed.intent) ?? DEFAULT_INTENT;
     const lastKnownPersistedControls = normalizePersistedControls(
       (parsed as Record<string, unknown>).lastKnownPersistedControls
     ) ?? {
@@ -174,6 +200,7 @@ export function readCachedStateWithStatus(workspaceId: string): ReadCachedAgentC
 
     return {
       state: buildCachedState(
+        intent,
         parsed.webMcpEnabled !== false,
         normalizeWebMcpConsoleMode(parsed.webMcpConsoleMode),
         lastKnownPersistedControls

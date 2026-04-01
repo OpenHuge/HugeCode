@@ -38,6 +38,14 @@ describe("workspaceHomeAgentControlState", () => {
       webMcpAutoExecuteCalls: true,
     });
     expect(restored.webMcpConsoleMode).toBe("basic");
+    expect(restored.intent).toEqual({
+      objective: "",
+      constraints: "",
+      successCriteria: "",
+      deadline: null,
+      priority: "medium",
+      managerNotes: "",
+    });
     expect(restored).not.toHaveProperty("tasks");
     expect(restored).not.toHaveProperty("governancePolicy");
     expect(restored).not.toHaveProperty("lastSupervisionCycle");
@@ -83,6 +91,14 @@ describe("workspaceHomeAgentControlState", () => {
   it("restores and persists the cache-backed v7 state", () => {
     writeCachedState(workspaceId, {
       version: 7,
+      intent: {
+        objective: "Recover cached draft",
+        constraints: "Stay within runtime truth",
+        successCriteria: "Restore after reload",
+        deadline: null,
+        priority: "high",
+        managerNotes: "Local draft fallback",
+      },
       webMcpEnabled: true,
       webMcpConsoleMode: "advanced",
       lastKnownPersistedControls: {
@@ -103,6 +119,7 @@ describe("workspaceHomeAgentControlState", () => {
       webMcpAutoExecuteCalls: false,
     });
     expect(restored.webMcpConsoleMode).toBe("advanced");
+    expect(restored.intent.objective).toBe("Recover cached draft");
   });
 
   it("falls back to basic mode when stored value is invalid", () => {
@@ -124,6 +141,34 @@ describe("workspaceHomeAgentControlState", () => {
       throw new Error("expected restored state");
     }
     expect(restored.webMcpConsoleMode).toBe("basic");
+  });
+
+  it("treats cache payloads without intent as a recoverable older shape", () => {
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        version: 7,
+        webMcpEnabled: true,
+        webMcpConsoleMode: "advanced",
+        lastKnownPersistedControls: {
+          readOnlyMode: false,
+          requireUserApproval: true,
+          webMcpAutoExecuteCalls: true,
+        },
+      })
+    );
+
+    const restored = readCachedStateWithStatus(workspaceId);
+
+    expect(restored.corrupted).toBe(false);
+    expect(restored.state?.intent).toEqual({
+      objective: "",
+      constraints: "",
+      successCriteria: "",
+      deadline: null,
+      priority: "medium",
+      managerNotes: "",
+    });
   });
 
   it("marks malformed cache payloads as corrupted so host-backed flow can recover safely", () => {

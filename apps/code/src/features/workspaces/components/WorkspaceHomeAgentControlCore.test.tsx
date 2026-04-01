@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceAgentControlPersistedControls } from "./workspaceHomeAgentControlState";
+import { writeCachedState } from "./workspaceHomeAgentControlState";
 import { syncWebMcpAgentControl } from "../../../application/runtime/ports/webMcpBridge";
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
@@ -206,6 +207,7 @@ describe("WorkspaceHomeAgentControl", () => {
 
   afterEach(() => {
     cleanup();
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -275,6 +277,38 @@ describe("WorkspaceHomeAgentControl", () => {
     expect(
       screen.getByText(/Catalog reasoning: Runtime policy slimmed runtime-only tools/i)
     ).toBeTruthy();
+  });
+
+  it("restores a cached draft intent before host-backed hydration catches up", async () => {
+    writeCachedState(workspace.id, {
+      version: 7,
+      intent: {
+        objective: "Recover cached objective",
+        constraints: "Keep local draft until host persistence lands",
+        successCriteria: "Show draft after reload",
+        deadline: null,
+        priority: "high",
+        managerNotes: "cached",
+      },
+      webMcpEnabled: true,
+      webMcpConsoleMode: "basic",
+      lastKnownPersistedControls: buildPersistedControls(),
+    });
+
+    render(
+      <WorkspaceHomeAgentControl
+        workspace={workspace}
+        activeModelContext={undefined}
+        approvals={[]}
+        userInputRequests={[]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("intent-section-stub").textContent).toContain(
+        "Recover cached objective"
+      );
+    });
   });
 
   it("locks control toggles when persisted controls failed to load", async () => {
