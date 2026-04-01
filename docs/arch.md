@@ -104,6 +104,22 @@ The app may keep consuming compatibility projections while migration is in
 flight, but new meaning must not be implemented by expanding UI-side heuristics
 or by continuing to grow legacy v1 run payloads.
 
+### 4.8 Activation, Invocation, And Composition Must Stay Split
+
+HugeCode's extension and capability platform now has three different ownership planes:
+
+- `activation` owns lifecycle truth such as active, degraded, failed, refresh-pending, and deactivated state
+- `invocation` owns discoverable operator-facing IDs, visibility, shadowing, and execute routing
+- `composition` owns profile-based assembly of sources, routes, backend preference, trust policy, and publication rules
+
+These planes may share data, but they are not interchangeable.
+New architecture work must not collapse:
+
+- plugin installation into activation truth
+- activation truth into invocation visibility
+- publication or catalog presence into executability
+- UI-side settings merges into composition truth
+
 ---
 
 ## 5. System Context
@@ -206,6 +222,25 @@ Within `apps/code`, all runtime-facing access should enter through:
 ---
 
 ## 8. High-Level Component Model
+
+### 8.0 Composition Planes
+
+The runtime-first control plane now depends on four explicit composition concepts:
+
+1. source plane
+   - runtime extensions
+   - workspace skills
+   - prompt overlays
+   - session commands
+   - future rpc or wasi host binders
+2. activation plane
+   - canonical lifecycle and readiness truth for contributed capabilities
+3. invocation plane
+   - stable discoverable identities and execute dispatch keyed by invocation id
+4. composition profile plane
+   - layered policy and assembly over built-in, user, workspace, and launch override inputs
+
+`apps/code` and shared workspace-client layers may render these planes, but they must not redefine them.
 
 ### 8.1 Define Layer
 

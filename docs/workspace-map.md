@@ -88,6 +88,14 @@ Treat the `apps/code` runtime boundary as a layered API, not a grab-bag of direc
 - `src/services/*`
   Internal transport, bridge, fallback, and protocol implementation details.
 
+Inside this boundary, keep runtime capability composition split into explicit layers:
+
+- activation layer for lifecycle truth
+- invocation layer for discoverable and executable identities
+- composition/profile layer for policy, route, and source assembly
+
+Feature code must not infer these layers from transport-local live lists, host-specific publication state, or page-local settings merges.
+
 Feature and UI code should not import runtime internals from `src/services/*` directly. Use the application runtime surface instead.
 
 ## Style-System Governance

@@ -35,6 +35,12 @@ export {
   createDesktopWorkspaceBootstrap,
   createDesktopWorkspaceBootstrap as createDesktopWorkspaceBootstrapBindings,
 } from "./desktopWorkspaceBootstrap";
+export {
+  applyRuntimeCompositionProfileUpdates,
+  buildDefaultRuntimeCompositionProfiles,
+  cloneRuntimeCompositionProfile,
+  mergeRuntimeCompositionProfiles,
+} from "./runtimeCompositionProfiles";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,
@@ -63,3 +69,7 @@ export type {
   WorkspaceHostEffect,
   WorkspaceHostProvider,
 } from "./workspaceHostRenderer";
+export type {
+  RuntimeCompositionProfileLaunchOverride,
+  RuntimeCompositionProfileUpdates,
+} from "./runtimeCompositionProfiles";

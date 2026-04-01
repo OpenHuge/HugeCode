@@ -19,6 +19,24 @@ import type {
   RuntimeToolExecutionScope,
   RuntimeToolGuardrailStateSnapshot,
 } from "./runtimeLiveSkillsAndTooling.js";
+import type {
+  RuntimeCompositionBackendCandidate,
+  RuntimeCompositionBlockedPlugin,
+  RuntimeCompositionPluginSelection,
+  RuntimeCompositionResolution,
+  RuntimeCompositionResolutionProvenance,
+  RuntimeCompositionRouteCandidate,
+} from "../runtimeCompositionPlane.js";
+import type {
+  RuntimeCompositionBackendPolicy,
+  RuntimeCompositionConfigLayer,
+  RuntimeCompositionObservabilityPolicy,
+  RuntimeCompositionPluginSelector,
+  RuntimeCompositionProfile,
+  RuntimeCompositionProfileScope,
+  RuntimeCompositionRoutePolicy,
+  RuntimeCompositionTrustPolicy,
+} from "../runtimeCompositionProfiles.js";
 export type KernelCapabilityKind =
   | "terminal"
   | "job"
@@ -216,101 +234,25 @@ export type RuntimeRegistryPackageDescriptor = {
   trust: RuntimePluginTrustDecision;
 };
 
-export type RuntimeCompositionPluginSelectorAction = "include" | "exclude" | "prefer";
-
-export type RuntimeCompositionPluginSelector = {
-  matchBy: "pluginId" | "packageRef" | "source" | "transport" | "routeKind";
-  matchValue: string;
-  action: RuntimeCompositionPluginSelectorAction;
-  reason?: string | null;
-};
-
-export type RuntimeCompositionRoutePolicy = {
-  preferredRoutePluginIds?: string[] | null;
-  providerPreference?: string[] | null;
-  allowRuntimeFallback?: boolean | null;
-};
-
-export type RuntimeCompositionBackendPolicy = {
-  preferredBackendIds?: string[] | null;
-  resolvedBackendId?: string | null;
-};
-
-export type RuntimeCompositionTrustPolicy = {
-  requireVerifiedSignatures: boolean;
-  allowDevOverrides: boolean;
-  blockedPublishers?: string[] | null;
-};
-
-export type RuntimeCompositionObservabilityPolicy = {
-  emitStableEvents: boolean;
-  emitOtelAlignedTelemetry: boolean;
-};
-
-export type RuntimeCompositionConfigLayer = {
-  id: string;
-  source: "built_in" | "user" | "workspace" | "launch_override";
-  summary?: string | null;
-};
-
-export type RuntimeCompositionProfileScope = "built_in" | "user" | "workspace";
-
-export type RuntimeCompositionProfile = {
-  id: string;
-  name: string;
-  scope: RuntimeCompositionProfileScope;
-  enabled: boolean;
-  pluginSelectors: RuntimeCompositionPluginSelector[];
-  routePolicy: RuntimeCompositionRoutePolicy;
-  backendPolicy: RuntimeCompositionBackendPolicy;
-  trustPolicy: RuntimeCompositionTrustPolicy;
-  executionPolicyRefs: string[];
-  observabilityPolicy: RuntimeCompositionObservabilityPolicy;
-  configLayers: RuntimeCompositionConfigLayer[];
-};
-
-export type RuntimeCompositionBlockedPlugin = {
-  pluginId: string;
-  packageRef?: string | null;
-  reason: string;
-  stage: "selector" | "trust" | "compatibility" | "dependency";
-};
-
-export type RuntimeCompositionPluginSelection = {
-  pluginId: string;
-  packageRef?: string | null;
-  source: string;
-  reason?: string | null;
-};
-
-export type RuntimeCompositionRouteCandidate = {
-  pluginId: string;
-  routeKind?: RuntimeRoutingPluginKind | null;
-  providerId?: ModelProvider | null;
-  preferredBackendIds?: string[] | null;
-  resolvedBackendId?: string | null;
-};
-
-export type RuntimeCompositionBackendCandidate = {
-  backendId: string;
-  sourcePluginId?: string | null;
-};
-
-export type RuntimeCompositionResolutionProvenance = {
-  activeProfileId: string | null;
-  activeProfileName?: string | null;
-  appliedLayerOrder: RuntimeCompositionConfigLayer["source"][];
-  selectorDecisions: Record<string, string>;
-};
-
-export type RuntimeCompositionResolution = {
-  selectedPlugins: RuntimeCompositionPluginSelection[];
-  selectedRouteCandidates: RuntimeCompositionRouteCandidate[];
-  selectedBackendCandidates: RuntimeCompositionBackendCandidate[];
-  blockedPlugins: RuntimeCompositionBlockedPlugin[];
-  trustDecisions: RuntimePluginTrustDecision[];
-  provenance: RuntimeCompositionResolutionProvenance;
-};
+export type {
+  RuntimeCompositionBackendCandidate,
+  RuntimeCompositionBlockedPlugin,
+  RuntimeCompositionPluginSelection,
+  RuntimeCompositionResolution,
+  RuntimeCompositionResolutionProvenance,
+  RuntimeCompositionRouteCandidate,
+} from "../runtimeCompositionPlane.js";
+export type {
+  RuntimeCompositionBackendPolicy,
+  RuntimeCompositionConfigLayer,
+  RuntimeCompositionObservabilityPolicy,
+  RuntimeCompositionPluginSelectorAction,
+  RuntimeCompositionPluginSelector,
+  RuntimeCompositionProfile,
+  RuntimeCompositionProfileScope,
+  RuntimeCompositionRoutePolicy,
+  RuntimeCompositionTrustPolicy,
+} from "../runtimeCompositionProfiles.js";
 
 export type KernelCapabilityDescriptor = {
   id: string;

@@ -1,18 +1,43 @@
 import { describe, expect, it } from "vitest";
+import { expectTypeOf } from "vitest";
 
 import {
   CODE_RUNTIME_RPC_INVOCATION_COMPLETION_MODES,
   HUGECODE_INTERVENTION_ACTIONS,
   HUGECODE_RUN_STATES,
+  RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER,
+  RUNTIME_COMPOSITION_PROFILE_SCOPES,
   type HugeCodeExecutionGraphSummary,
   type HugeCodeReviewPackSummary,
   type HugeCodeRunPlacementEvidence,
   type HugeCodeTaskSummary,
+  type RuntimeCompositionProfile,
+  type RuntimeCompositionResolution,
   parseCodeRuntimeHostEventEnvelope,
   validateCodeRuntimeHostEventEnvelope,
 } from "./index";
+import type { RuntimeCompositionProfile as RuntimeCompositionProfileModule } from "./runtimeCompositionProfiles";
+import type { RuntimeCompositionResolution as RuntimeCompositionResolutionModule } from "./runtimeCompositionPlane";
 
 describe("code runtime host event envelope", () => {
+  it("re-exports runtime composition profile and resolution types from dedicated modules", () => {
+    expectTypeOf<RuntimeCompositionProfileModule>().toEqualTypeOf<RuntimeCompositionProfile>();
+    expectTypeOf<RuntimeCompositionResolutionModule>().toEqualTypeOf<RuntimeCompositionResolution>();
+  });
+
+  it("re-exports runtime composition profile scopes from the dedicated composition module", () => {
+    expect(RUNTIME_COMPOSITION_PROFILE_SCOPES).toEqual(["built_in", "user", "workspace"]);
+  });
+
+  it("re-exports the canonical runtime composition applied layer order", () => {
+    expect(RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER).toEqual([
+      "built_in",
+      "user",
+      "workspace",
+      "launch_override",
+    ]);
+  });
+
   it("re-exports rpc invocation completion modes from the public contract entrypoint", () => {
     expect(CODE_RUNTIME_RPC_INVOCATION_COMPLETION_MODES).toEqual({
       RPC: "rpc",

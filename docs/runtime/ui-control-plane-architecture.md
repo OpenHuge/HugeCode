@@ -20,6 +20,13 @@
 
 ## Control-plane boundaries
 
+### Runtime composition boundary
+
+- Shared UI and shell adapters consume runtime-backed activation, invocation, and composition outputs.
+- Shared UI must not assemble capability truth directly from raw extension lists, live-skill listings, or host publication side effects.
+- Desktop, web, and WebMCP host adapters may expose transport state, but transport state is not composition truth.
+- Publication and bridge registration are adapter concerns; discoverability and executability remain invocation-plane concerns.
+
 ### Shared client
 
 - Reads route selection from `WorkspaceNavigationAdapter`.

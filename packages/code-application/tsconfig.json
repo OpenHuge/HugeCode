@@ -2,7 +2,14 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ku0/code-runtime-client": ["../code-runtime-client/src/index.ts"],
+      "@ku0/code-runtime-client/*": ["../code-runtime-client/src/*"],
+      "@ku0/code-runtime-host-contract": ["../code-runtime-host-contract/src/index.ts"],
+      "@ku0/code-runtime-host-contract/*": ["../code-runtime-host-contract/src/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

@@ -7,6 +7,8 @@
     "declarationMap": false,
     "noEmit": true,
     "paths": {
+      "@ku0/code-runtime-host-contract": ["../../packages/code-runtime-host-contract/src/index.ts"],
+      "@ku0/code-runtime-host-contract/*": ["../../packages/code-runtime-host-contract/src/*"],
       "@ku0/code-runtime-client": ["../../packages/code-runtime-client/src/index.ts"],
       "@ku0/code-runtime-client/*": ["../../packages/code-runtime-client/src/*"]
     }
