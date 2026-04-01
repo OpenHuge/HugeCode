@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPluginTypes";
+import type { RuntimeExtensionActivationRecord } from "../kernel/runtimeExtensionActivation";
 import {
   buildRuntimeKernelPluginReadinessEntries,
   buildRuntimeKernelPluginReadinessSections,
@@ -306,6 +307,98 @@ describe("runtimeKernelPluginReadiness", () => {
       expect.objectContaining({
         id: "needs_action",
         entries: [expect.objectContaining({ id: "ext.blocked" })],
+      })
+    );
+  });
+
+  it("promotes repository declarations to ready when activation truth says the behavior asset is active", () => {
+    const activationRecords: RuntimeExtensionActivationRecord[] = [
+      {
+        activationId: "behavior:workspace:repo.skill",
+        sourceType: "behavior_asset",
+        sourceScope: "workspace",
+        sourceRef: "repo.skill",
+        pluginId: "repo.skill",
+        packageRef: null,
+        overlayId: null,
+        sessionId: null,
+        name: "Repository Skill",
+        version: "1.0.0",
+        state: "active",
+        readiness: {
+          state: "ready",
+          summary: "Behavior asset is active.",
+          detail: "Compiled behavior asset published live runtime contributions.",
+        },
+        diagnostics: [],
+        contributions: [],
+        transitionHistory: [],
+        metadata: null,
+      },
+    ];
+
+    const entries = buildRuntimeKernelPluginReadinessEntries(
+      [
+        buildPlugin({
+          id: "repo.skill",
+          name: "Repository Skill",
+          source: "repo_manifest",
+          transport: "repo_manifest",
+          runtimeBacked: false,
+          binding: {
+            state: "declaration_only",
+            contractFormat: "manifest",
+            contractBoundary: "repository",
+            interfaceId: "repo.skill",
+            surfaces: [],
+          },
+          operations: {
+            execution: {
+              executable: false,
+              mode: "none",
+              reason: "Repository declaration only.",
+            },
+            resources: {
+              readable: false,
+              mode: "none",
+              reason: "Repository declaration only.",
+            },
+            permissions: {
+              evaluable: false,
+              mode: "none",
+              reason: "Repository declaration only.",
+            },
+          },
+          permissionDecision: "unsupported",
+          health: {
+            state: "unknown",
+            checkedAt: null,
+            warnings: [],
+          },
+        }),
+      ],
+      activationRecords
+    );
+
+    expect(entries).toEqual([
+      expect.objectContaining({
+        id: "repo.skill",
+        readiness: expect.objectContaining({
+          state: "ready",
+          detail: "Compiled behavior asset published live runtime contributions.",
+        }),
+        activationState: expect.objectContaining({
+          lifecycle: "active",
+          label: "Active",
+          state: "ready",
+        }),
+        remediationSummary: "No operator action required.",
+      }),
+    ]);
+    expect(buildRuntimeKernelPluginReadinessSections(entries)[2]).toEqual(
+      expect.objectContaining({
+        id: "inventory",
+        entries: [expect.objectContaining({ id: "repo.skill" })],
       })
     );
   });

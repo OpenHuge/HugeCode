@@ -129,7 +129,7 @@ function createDeps(): AutoDriveControllerDeps {
     getSubAgentSessionStatus: vi.fn(),
     interruptSubAgentSession: vi.fn(),
     closeSubAgentSession: vi.fn(),
-    runLiveSkill: vi.fn(),
+    runRuntimeExecutableSkill: vi.fn(),
     now: () => 1_700_000_003_000,
     createRunId: () => "run-test",
     delay: async () => undefined,
@@ -352,7 +352,7 @@ describe("synthesizeAutoDriveContext", () => {
       previousSummary: null,
     });
 
-    expect(deps.runLiveSkill).not.toHaveBeenCalled();
+    expect(deps.runRuntimeExecutableSkill).not.toHaveBeenCalled();
     expect(context.externalResearch).toEqual([]);
     expect(context.researchPolicy?.enabled).toBe(false);
     expect(context.researchPolicy?.reasonCodes).toContain("network-disabled-by-risk-policy");
@@ -360,7 +360,7 @@ describe("synthesizeAutoDriveContext", () => {
 
   it("uses provider-aware search-only research when external freshness signals exist", async () => {
     const deps = createDeps();
-    vi.mocked(deps.runLiveSkill).mockResolvedValue({
+    vi.mocked(deps.runRuntimeExecutableSkill).mockResolvedValue({
       runId: "research-run-1",
       skillId: "network-analysis",
       status: "completed",
@@ -403,19 +403,21 @@ describe("synthesizeAutoDriveContext", () => {
       previousSummary: null,
     });
 
-    expect(deps.runLiveSkill).toHaveBeenCalledWith({
-      skillId: "network-analysis",
-      input:
-        "Update SDK integration to latest upstream guidance relevant framework or API guidance",
-      context: {
-        provider: "anthropic",
-        modelId: "claude-3-7-sonnet",
-      },
-      options: {
-        workspaceId: "workspace-1",
-        allowNetwork: true,
-        fetchPageContent: false,
-        recencyDays: 30,
+    expect(deps.runRuntimeExecutableSkill).toHaveBeenCalledWith({
+      request: {
+        skillId: "network-analysis",
+        input:
+          "Update SDK integration to latest upstream guidance relevant framework or API guidance",
+        context: {
+          provider: "anthropic",
+          modelId: "claude-3-7-sonnet",
+        },
+        options: {
+          workspaceId: "workspace-1",
+          allowNetwork: true,
+          fetchPageContent: false,
+          recencyDays: 30,
+        },
       },
     });
     expect(context.externalResearch[0]?.summary).toContain("Latest SDK guidance");
@@ -427,6 +429,35 @@ describe("synthesizeAutoDriveContext", () => {
     expect(
       context.opportunities.candidates.some((candidate) => candidate.id === "use_fresh_research")
     ).toBe(true);
+  });
+
+  it("degrades external research to empty results when executable skill availability blocks execution", async () => {
+    const deps = createDeps();
+    vi.mocked(deps.runRuntimeExecutableSkill).mockRejectedValue(
+      new Error("network-analysis is refresh_pending: Skill refresh is pending.")
+    );
+    const run = {
+      ...createRun(),
+      riskPolicy: {
+        ...createRun().riskPolicy,
+        allowNetworkAnalysis: true,
+      },
+      destination: {
+        ...createRun().destination,
+        title: "Check latest upstream guidance before editing the API integration",
+      },
+    };
+
+    const context = await synthesizeAutoDriveContext({
+      deps,
+      run,
+      iteration: 2,
+      previousSummary: null,
+    });
+
+    expect(deps.runRuntimeExecutableSkill).toHaveBeenCalledTimes(1);
+    expect(context.externalResearch).toEqual([]);
+    expect(context.researchPolicy?.enabled).toBe(true);
   });
 
   it("derives tighter execution tuning after validation failure", async () => {

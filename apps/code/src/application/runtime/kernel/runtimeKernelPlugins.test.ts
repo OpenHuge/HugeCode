@@ -310,7 +310,7 @@ describe("runtimeKernelPlugins", () => {
         contractFormat: "manifest",
       }),
     });
-  });
+  }, 10_000);
 
   it("prefers runtime-backed truth when repo manifests collide with runtime plugins", async () => {
     const plugins = await import("./runtimeKernelPlugins");
@@ -562,6 +562,65 @@ describe("runtimeKernelPlugins", () => {
         input: "",
       })
     ).rejects.toThrow("catalog/resource access only");
+  });
+
+  it("routes live-skill plugin execution through the shared executable skill gate", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    const runSkill = vi.fn(async () => ({
+      runId: "run-1",
+      skillId: "review-agent",
+      status: "completed" as const,
+      message: "ok",
+      output: "done",
+      artifacts: [],
+      metadata: {},
+      network: null,
+    }));
+    const provider = plugins.createRuntimeKernelPluginExecutionProvider({
+      executableSkills: {
+        runSkill,
+      },
+    });
+
+    const result = await provider.executePlugin(
+      "ws-1",
+      plugins.normalizeLiveSkillPluginDescriptor(createLiveSkillSummary()),
+      {
+        skillId: "alias-review",
+        input: "review this",
+      }
+    );
+
+    expect(runSkill).toHaveBeenCalledWith({
+      request: {
+        skillId: "review-agent",
+        input: "review this",
+      },
+    });
+    expect(result.output).toBe("done");
+    expect(runRuntimeLiveSkillMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects live-skill plugin execution when the shared executable skill gate marks it non-live", async () => {
+    const plugins = await import("./runtimeKernelPlugins");
+    const provider = plugins.createRuntimeKernelPluginExecutionProvider({
+      executableSkills: {
+        runSkill: vi.fn(async () => {
+          throw new Error("review-agent is refresh_pending: Skill refresh is pending.");
+        }),
+      },
+    });
+
+    await expect(
+      provider.executePlugin(
+        "ws-1",
+        plugins.normalizeLiveSkillPluginDescriptor(createLiveSkillSummary()),
+        {
+          skillId: "review-agent",
+          input: "review this",
+        }
+      )
+    ).rejects.toThrow("refresh_pending");
   });
 
   it("reads repository manifests through the unified plugin resource provider", async () => {

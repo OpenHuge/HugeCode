@@ -1,10 +1,14 @@
 import { applyRuntimeContextBudgetToToolOutput } from "./runtimeContextBudget";
+import { createRuntimeExecutableSkillFacade } from "../application/runtime/facades/runtimeExecutableSkillFacade";
+import type {
+  LiveSkillExecuteRequest,
+  LiveSkillExecutionResult,
+} from "@ku0/code-runtime-host-contract";
 import {
   canonicalizeLiveSkillId,
   listAcceptedLiveSkillIds,
-  listAcceptedLiveSkillIdsFromCatalogSkill,
   normalizeLiveSkillLookupId,
-} from "./runtimeClientLiveSkills";
+} from "../application/runtime/facades/runtimeLiveSkillAliases";
 import {
   invalidInputError,
   methodUnavailableError,
@@ -82,9 +86,11 @@ export type BuildRuntimeToolsOptions = {
 type WorkspaceIdHelper = Pick<RuntimeToolHelpers, "toNonEmptyString">;
 
 export type RuntimeLiveSkillCatalogIndex = {
+  catalogSessionId: string | null;
   knownSkillIds: Set<string>;
   canonicalSkillIdByAcceptedId: Map<string, string>;
   acceptedSkillIdsByCanonicalId: Map<string, string[]>;
+  entriesByCanonicalSkillId: Map<string, NonNullable<RuntimeSkillIdResolution["availability"]>>;
 };
 
 export type SubAgentSpawnInputHelpers = Pick<
@@ -217,6 +223,20 @@ export function requireRuntimeLiveSkillControlMethod<
   return candidate as NonNullable<RuntimeAgentControl[MethodName]>;
 }
 
+export function requireRuntimeExecutableSkillRunner(
+  control: RuntimeAgentControl,
+  toolName: string
+): (input: {
+  request: LiveSkillExecuteRequest;
+  sessionId?: string | null;
+}) => Promise<LiveSkillExecutionResult> {
+  if (typeof control.runRuntimeExecutableSkill === "function") {
+    return control.runRuntimeExecutableSkill;
+  }
+  const runLiveSkill = requireRuntimeLiveSkillControlMethod(control, "runLiveSkill", toolName);
+  return async (input) => runLiveSkill(input.request);
+}
+
 export function resolveWorkspaceId<Helper extends WorkspaceIdHelper>(
   input: JsonRecord,
   snapshot: AgentCommandCenterSnapshot,
@@ -327,6 +347,13 @@ function resolveRuntimeSkillId(
   );
 }
 
+function resolveRuntimeSkillAvailability(
+  resolvedSkillId: string,
+  liveSkillCatalogIndex?: RuntimeLiveSkillCatalogIndex | null
+): RuntimeSkillIdResolution["availability"] {
+  return liveSkillCatalogIndex?.entriesByCanonicalSkillId.get(resolvedSkillId) ?? null;
+}
+
 function resolveAcceptedRuntimeSkillIds(
   requestedSkillId: string,
   resolvedSkillId: string,
@@ -353,6 +380,7 @@ export function buildRuntimeSkillIdResolution(
       resolvedSkillId,
       liveSkillCatalogIndex
     ),
+    availability: resolveRuntimeSkillAvailability(resolvedSkillId, liveSkillCatalogIndex),
   };
 }
 
@@ -369,53 +397,83 @@ export function buildRuntimeAllowedSkillResolution(
     buildRuntimeSkillIdResolution(skillId, liveSkillCatalogIndex)
   );
   return {
+    catalogSessionId: liveSkillCatalogIndex?.catalogSessionId ?? null,
     requestedSkillIds,
     resolvedSkillIds: Array.from(new Set(entries.map((entry) => entry.resolvedSkillId))),
     entries,
   };
 }
 
-function buildRuntimeLiveSkillCatalogIndex(
-  liveSkills: Awaited<ReturnType<NonNullable<RuntimeAgentControl["listLiveSkills"]>>>
-): RuntimeLiveSkillCatalogIndex {
+function buildRuntimeLiveSkillCatalogIndexFromExecutableCatalog(catalog: {
+  catalogSessionId: string | null;
+  entries: Array<{
+    canonicalSkillId: string;
+    acceptedSkillIds: string[];
+    availability: NonNullable<RuntimeSkillIdResolution["availability"]>;
+  }>;
+}): RuntimeLiveSkillCatalogIndex {
   const knownSkillIds = new Set<string>();
   const canonicalSkillIdByAcceptedId = new Map<string, string>();
   const acceptedSkillIdsByCanonicalId = new Map<string, string[]>();
+  const entriesByCanonicalSkillId = new Map<
+    string,
+    NonNullable<RuntimeSkillIdResolution["availability"]>
+  >();
 
-  for (const skill of liveSkills) {
-    const canonicalSkillId = canonicalizeLiveSkillId(skill.id) ?? skill.id.trim();
-    const acceptedSkillIds = listAcceptedLiveSkillIdsFromCatalogSkill(skill);
-    const acceptedSkillEntries = acceptedSkillIdsByCanonicalId.get(canonicalSkillId) ?? [];
+  for (const entry of catalog.entries) {
+    const acceptedSkillEntries = acceptedSkillIdsByCanonicalId.get(entry.canonicalSkillId) ?? [];
     const acceptedSkillEntryLookup = new Set(
-      acceptedSkillEntries.map((entry) => normalizeLiveSkillLookupId(entry))
+      acceptedSkillEntries.map((acceptedSkillId) => normalizeLiveSkillLookupId(acceptedSkillId))
     );
-    for (const acceptedSkillId of acceptedSkillIds) {
+    for (const acceptedSkillId of entry.acceptedSkillIds) {
       const normalizedAcceptedSkillId = normalizeLiveSkillLookupId(acceptedSkillId);
       if (!acceptedSkillEntryLookup.has(normalizedAcceptedSkillId)) {
         acceptedSkillEntries.push(acceptedSkillId);
         acceptedSkillEntryLookup.add(normalizedAcceptedSkillId);
       }
       knownSkillIds.add(normalizedAcceptedSkillId);
-      canonicalSkillIdByAcceptedId.set(normalizedAcceptedSkillId, canonicalSkillId);
+      canonicalSkillIdByAcceptedId.set(normalizedAcceptedSkillId, entry.canonicalSkillId);
     }
-    acceptedSkillIdsByCanonicalId.set(canonicalSkillId, acceptedSkillEntries);
+    acceptedSkillIdsByCanonicalId.set(entry.canonicalSkillId, acceptedSkillEntries);
+    entriesByCanonicalSkillId.set(entry.canonicalSkillId, entry.availability);
   }
 
   return {
+    catalogSessionId: catalog.catalogSessionId,
     knownSkillIds,
     canonicalSkillIdByAcceptedId,
     acceptedSkillIdsByCanonicalId,
+    entriesByCanonicalSkillId,
   };
 }
 
 export async function getRuntimeLiveSkillCatalogIndex(
-  runtimeControl: RuntimeAgentControl
+  runtimeControl: RuntimeAgentControl,
+  input?: {
+    sessionId?: string | null;
+  }
 ): Promise<RuntimeLiveSkillCatalogIndex | null> {
-  if (typeof runtimeControl.listLiveSkills !== "function") {
+  const executableSkills =
+    typeof runtimeControl.readRuntimeExecutableSkills === "function"
+      ? await runtimeControl.readRuntimeExecutableSkills({
+          sessionId: input?.sessionId ?? null,
+        })
+      : await createRuntimeExecutableSkillFacade({
+          listRuntimeInvocations: runtimeControl.listRuntimeInvocations,
+          listLiveSkills: runtimeControl.listLiveSkills,
+          runLiveSkill:
+            typeof runtimeControl.runLiveSkill === "function"
+              ? runtimeControl.runLiveSkill
+              : async () => {
+                  throw methodUnavailableError("runtime-live-skill-catalog", "runLiveSkill");
+                },
+        }).readCatalog({
+          sessionId: input?.sessionId ?? null,
+        });
+  if (executableSkills.entries.length === 0 && !executableSkills.fallbackToLegacyTransport) {
     return null;
   }
-  const liveSkills = await runtimeControl.listLiveSkills();
-  return buildRuntimeLiveSkillCatalogIndex(liveSkills);
+  return buildRuntimeLiveSkillCatalogIndexFromExecutableCatalog(executableSkills);
 }
 
 export async function getKnownRuntimeLiveSkillIds(
@@ -424,23 +482,43 @@ export async function getKnownRuntimeLiveSkillIds(
   return (await getRuntimeLiveSkillCatalogIndex(runtimeControl))?.knownSkillIds ?? null;
 }
 
-export function assertKnownRuntimeLiveSkillIds(
+export function validateAllowedRuntimeSkillIds(
   allowedSkillIds: string[] | null | undefined,
-  knownLiveSkillIds: Set<string> | null,
+  liveSkillCatalogIndex: RuntimeLiveSkillCatalogIndex | null | undefined,
   toolName: string
 ): void {
-  if (!allowedSkillIds || allowedSkillIds.length === 0 || knownLiveSkillIds === null) {
+  if (
+    !allowedSkillIds ||
+    allowedSkillIds.length === 0 ||
+    liveSkillCatalogIndex === null ||
+    liveSkillCatalogIndex === undefined
+  ) {
     return;
   }
   const unknownSkillIds = allowedSkillIds.filter(
-    (skillId) => !knownLiveSkillIds.has(normalizeLiveSkillLookupId(skillId))
+    (skillId) => !liveSkillCatalogIndex.knownSkillIds.has(normalizeLiveSkillLookupId(skillId))
   );
-  if (unknownSkillIds.length === 0) {
-    return;
+  if (unknownSkillIds.length > 0) {
+    throw invalidInputError(
+      `${toolName} received unknown allowedSkillIds: ${unknownSkillIds.join(", ")}.`
+    );
   }
-  throw invalidInputError(
-    `${toolName} received unknown allowedSkillIds: ${unknownSkillIds.join(", ")}.`
-  );
+
+  const unavailableSkillEntries = allowedSkillIds.flatMap((skillId) => {
+    const resolution = buildRuntimeSkillIdResolution(skillId, liveSkillCatalogIndex);
+    const availability = resolution.availability;
+    if (!availability || availability.live) {
+      return [];
+    }
+    return [
+      `${resolution.resolvedSkillId} is ${availability.activationState}: ${availability.readiness.summary}`,
+    ];
+  });
+  if (unavailableSkillEntries.length > 0) {
+    throw invalidInputError(
+      `${toolName} received unavailable allowedSkillIds: ${unavailableSkillEntries.join("; ")}.`
+    );
+  }
 }
 
 export function getRequiredSubAgentSessionId(

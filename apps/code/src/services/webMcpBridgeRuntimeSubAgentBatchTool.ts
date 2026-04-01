@@ -5,12 +5,12 @@ import {
   type RuntimeSubAgentBatchExecutionMode,
 } from "./webMcpBridgeRuntimeSubAgentBatchPlanner";
 import {
-  assertKnownRuntimeLiveSkillIds,
   buildRuntimeAllowedSkillResolution,
   buildRuntimeSubAgentSessionHandle,
   getRuntimeLiveSkillCatalogIndex,
   normalizeSubAgentSpawnInput as normalizeSharedSubAgentSpawnInput,
   resolveProviderModelFromInputAndAgent,
+  validateAllowedRuntimeSkillIds,
   type RuntimeToolHelpers,
 } from "./webMcpBridgeRuntimeToolsShared";
 import type {
@@ -396,6 +396,7 @@ export function buildOrchestrateRuntimeSubAgentBatchTool(
         provider: { type: "string" },
         modelId: { type: "string" },
         scopeProfile: { type: "string", enum: ["general", "research", "review"] },
+        catalogSessionId: { type: "string" },
         allowedSkillIds: {
           oneOf: [{ type: "array", items: { type: "string" } }, { type: "string" }],
         },
@@ -509,8 +510,10 @@ export function buildOrchestrateRuntimeSubAgentBatchTool(
         agent,
         helpers
       );
-      const liveSkillCatalogIndex = await getRuntimeLiveSkillCatalogIndex(runtimeControl);
-      const knownLiveSkillIds = liveSkillCatalogIndex?.knownSkillIds ?? null;
+      const catalogSessionId = helpers.toNonEmptyString(input.catalogSessionId);
+      const liveSkillCatalogIndex = await getRuntimeLiveSkillCatalogIndex(runtimeControl, {
+        sessionId: catalogSessionId,
+      });
 
       const normalizedTasks: NormalizedBatchTaskInput[] = taskInputs.map((taskInput, index) => {
         const taskKey = getRequiredTaskKey(taskInput, helpers);
@@ -630,9 +633,9 @@ export function buildOrchestrateRuntimeSubAgentBatchTool(
             liveSkillCatalogIndex,
             agent
           );
-          assertKnownRuntimeLiveSkillIds(
+          validateAllowedRuntimeSkillIds(
             normalizedSpawnInput.allowedSkillIds,
-            knownLiveSkillIds,
+            liveSkillCatalogIndex,
             "orchestrate-runtime-sub-agent-batch"
           );
           const session = await spawnSubAgentSession(normalizedSpawnInput);

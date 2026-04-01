@@ -51,6 +51,8 @@ import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import { runtimeToolGuardrailRead, runtimeToolMetricsRead } from "../ports/runtimeDiagnostics";
 import { buildRuntimeDiscoveryControl } from "../facades/runtimeDiscoveryControl";
 import { startRuntimeRunWithRemoteSelection } from "../facades/runtimeRemoteExecutionFacade";
+import type { RuntimeExecutableSkillFacade } from "../facades/runtimeExecutableSkillFacade";
+import type { RuntimeInvocationCatalogFacade } from "../facades/runtimeInvocationCatalogFacade";
 import type { RuntimeAgentControlDependencies } from "../facades/runtimeAgentControlFacade";
 import type {
   RuntimeAgentTaskInterventionAction,
@@ -340,6 +342,8 @@ type CreateRuntimeAgentControlDependenciesOptions = {
     WorkspaceClientRuntimeBindings,
     "missionControl" | "kernelProjection"
   > | null;
+  invocationCatalog?: RuntimeInvocationCatalogFacade | null;
+  executableSkills?: RuntimeExecutableSkillFacade | null;
 };
 
 export function createRuntimeAgentControlDependencies(
@@ -470,6 +474,44 @@ export function createRuntimeAgentControlDependencies(
       respondToUserInputRequest(targetWorkspaceId, requestId, answers),
     respondToServerRequestResult: async (targetWorkspaceId, requestId, result) =>
       respondToServerRequestResult(targetWorkspaceId, requestId, result),
+    listRuntimeInvocations: async (inputOptions) =>
+      options?.invocationCatalog?.listInvocations({
+        sessionId: inputOptions?.sessionId ?? null,
+        activeOnly: inputOptions?.activeOnly ?? null,
+        kind: inputOptions?.kind ?? null,
+      }) ?? [],
+    getRuntimeInvocation: async (inputOptions) =>
+      options?.invocationCatalog?.resolveInvocation({
+        invocationId: inputOptions.invocationId,
+        sessionId: inputOptions.sessionId ?? null,
+      }) ?? null,
+    readRuntimeExecutableSkills: async (inputOptions) =>
+      options?.executableSkills?.readCatalog({
+        sessionId: inputOptions?.sessionId ?? null,
+      }) ?? {
+        catalogSessionId: inputOptions?.sessionId ?? null,
+        fallbackToLegacyTransport: false,
+        entries: [],
+      },
+    resolveRuntimeExecutableSkill: async (inputOptions) =>
+      options?.executableSkills?.resolveSkill({
+        skillId: inputOptions.skillId,
+        sessionId: inputOptions.sessionId ?? null,
+      }) ?? {
+        requestedSkillId: inputOptions.skillId,
+        resolvedSkillId: inputOptions.skillId,
+        aliasApplied: false,
+        acceptedSkillIds: [inputOptions.skillId],
+        availability: null,
+        runtimeSkillId: inputOptions.skillId,
+        source: null,
+        metadata: null,
+      },
+    runRuntimeExecutableSkill: async (inputOptions) =>
+      options?.executableSkills?.runSkill({
+        request: inputOptions.request,
+        sessionId: inputOptions.sessionId ?? null,
+      }) ?? runRuntimeLiveSkill(inputOptions.request),
     listLiveSkills: async () => listRuntimeLiveSkills(),
     runLiveSkill: async (request) => runRuntimeLiveSkill(request),
     getGitStatus: async (targetWorkspaceId) => getGitStatus(targetWorkspaceId),

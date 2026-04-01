@@ -684,18 +684,20 @@ async function maybeRunExternalResearch(params: {
   }
   const query = researchPolicy.query;
   try {
-    const result = await params.deps.runLiveSkill({
-      skillId: "network-analysis",
-      input: query,
-      context: {
-        provider: researchPolicy.provider,
-        modelId: params.run.execution?.modelId ?? null,
-      },
-      options: {
-        workspaceId: params.run.workspaceId,
-        allowNetwork: true,
-        fetchPageContent: researchPolicy.fetchPageContent,
-        recencyDays: researchPolicy.recencyDays ?? 30,
+    const result = await params.deps.runRuntimeExecutableSkill({
+      request: {
+        skillId: "network-analysis",
+        input: query,
+        context: {
+          provider: researchPolicy.provider,
+          modelId: params.run.execution?.modelId ?? null,
+        },
+        options: {
+          workspaceId: params.run.workspaceId,
+          allowNetwork: true,
+          fetchPageContent: researchPolicy.fetchPageContent,
+          recencyDays: researchPolicy.recencyDays ?? 30,
+        },
       },
     });
     return {

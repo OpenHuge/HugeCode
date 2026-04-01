@@ -106,6 +106,7 @@ describe("@ku0/code-runtime-webmcp-client context descriptors", () => {
 
     expect(discoveryResource?.uri).toBe("hugecode://workspace/ws-1/runtime-tool-discovery");
     expect(readResult?.contents[0]?.text).toContain('"catalogMode": "minimal"');
+    expect(readResult?.contents[0]?.text).toContain("activation-backed runtime availability");
     expect(messages?.messages[0]?.role).toBe("user");
   });
 });

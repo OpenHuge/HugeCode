@@ -7,6 +7,7 @@ import { writeCachedState } from "./workspaceHomeAgentControlState";
 import { syncWebMcpAgentControl } from "../../../application/runtime/ports/webMcpBridge";
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
+import { useRuntimeWebMcpCatalogRevision } from "../../app/hooks/useRuntimeWebMcpCatalogRevision";
 
 vi.mock("../../../application/runtime/ports/webMcpBridge", () => ({
   supportsWebMcp: vi.fn(() => true),
@@ -86,6 +87,10 @@ vi.mock("../../../application/runtime/facades/runtimePersistentFlowState", () =>
       recovered: false,
     },
   })),
+}));
+
+vi.mock("../../app/hooks/useRuntimeWebMcpCatalogRevision", () => ({
+  useRuntimeWebMcpCatalogRevision: vi.fn(() => 0),
 }));
 
 vi.mock("./WorkspaceHomeAgentIntentSection", () => ({
@@ -203,6 +208,7 @@ describe("WorkspaceHomeAgentControl", () => {
         recovered: false,
       },
     });
+    vi.mocked(useRuntimeWebMcpCatalogRevision).mockReturnValue(0);
   });
 
   afterEach(() => {
@@ -425,5 +431,141 @@ describe("WorkspaceHomeAgentControl", () => {
     });
 
     expect(screen.getByText("Recovered flow state")).toBeTruthy();
+  });
+
+  it("re-syncs WebMCP when the runtime catalog revision changes", async () => {
+    let runtimeCatalogRevision = 0;
+    vi.mocked(useRuntimeWebMcpCatalogRevision).mockImplementation(() => runtimeCatalogRevision);
+    vi.mocked(syncWebMcpAgentControl).mockImplementation(async () => ({
+      supported: true,
+      enabled: true,
+      mode: "provideContext",
+      registeredTools: runtimeCatalogRevision === 0 ? 4 : 5,
+      registeredResources: 2,
+      registeredPrompts: 1,
+      toolExposureMode: "slim",
+      toolExposureReasonCodes: ["runtime-prefers-slim-tool-catalog"],
+      capabilities: {
+        modelContext: true,
+        supported: true,
+        missingRequired: [],
+      },
+      error: null,
+    }));
+
+    const { rerender } = render(
+      <WorkspaceHomeAgentControl workspace={workspace} approvals={[]} userInputRequests={[]} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/4 tools synced \(provideContext, slim catalog\)/i)).toBeTruthy();
+    });
+    const initialCallCount = vi.mocked(syncWebMcpAgentControl).mock.calls.length;
+
+    runtimeCatalogRevision = 1;
+    rerender(
+      <WorkspaceHomeAgentControl workspace={workspace} approvals={[]} userInputRequests={[]} />
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(syncWebMcpAgentControl).mock.calls.length).toBeGreaterThan(initialCallCount);
+      expect(screen.getByText(/5 tools synced \(provideContext, slim catalog\)/i)).toBeTruthy();
+    });
+  });
+
+  it("surfaces sync errors without tearing the bridge down", async () => {
+    let runtimeCatalogRevision = 0;
+    vi.mocked(useRuntimeWebMcpCatalogRevision).mockImplementation(() => runtimeCatalogRevision);
+    vi.mocked(syncWebMcpAgentControl).mockImplementation(async () => {
+      if (runtimeCatalogRevision > 0) {
+        throw new Error("runtime catalog read failed");
+      }
+      return {
+        supported: true,
+        enabled: true,
+        mode: "provideContext",
+        registeredTools: 4,
+        registeredResources: 2,
+        registeredPrompts: 1,
+        toolExposureMode: "slim",
+        toolExposureReasonCodes: ["runtime-prefers-slim-tool-catalog"],
+        capabilities: {
+          modelContext: true,
+          supported: true,
+          missingRequired: [],
+        },
+        error: null,
+      };
+    });
+
+    const { rerender } = render(
+      <WorkspaceHomeAgentControl workspace={workspace} approvals={[]} userInputRequests={[]} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/4 tools synced \(provideContext, slim catalog\)/i)).toBeTruthy();
+    });
+
+    runtimeCatalogRevision = 1;
+    rerender(
+      <WorkspaceHomeAgentControl workspace={workspace} approvals={[]} userInputRequests={[]} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("WebMCP sync failed")).toBeTruthy();
+      expect(screen.getByText(/runtime catalog read failed/i)).toBeTruthy();
+    });
+  });
+
+  it("hydrates cached workspace bridge state before the first sync", async () => {
+    writeCachedState(workspace.id, {
+      version: 7,
+      intent: {
+        objective: "Hydrated bridge state",
+        constraints: "",
+        successCriteria: "",
+        deadline: null,
+        priority: "medium",
+        managerNotes: "",
+      },
+      webMcpEnabled: false,
+      webMcpConsoleMode: "basic",
+      lastKnownPersistedControls: {
+        readOnlyMode: false,
+        requireUserApproval: true,
+        webMcpAutoExecuteCalls: true,
+      },
+    });
+    vi.mocked(syncWebMcpAgentControl).mockImplementation(async ({ enabled }) => ({
+      supported: true,
+      enabled,
+      mode: "provideContext",
+      registeredTools: enabled ? 4 : 0,
+      registeredResources: 2,
+      registeredPrompts: 1,
+      toolExposureMode: "slim",
+      toolExposureReasonCodes: ["runtime-prefers-slim-tool-catalog"],
+      capabilities: {
+        modelContext: true,
+        supported: true,
+        missingRequired: [],
+      },
+      error: null,
+    }));
+
+    render(
+      <WorkspaceHomeAgentControl workspace={workspace} approvals={[]} userInputRequests={[]} />
+    );
+
+    await waitFor(() => {
+      expect(vi.mocked(syncWebMcpAgentControl)).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("WebMCP disabled")).toBeTruthy();
+    });
+
+    expect(vi.mocked(syncWebMcpAgentControl)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: false,
+      })
+    );
   });
 });

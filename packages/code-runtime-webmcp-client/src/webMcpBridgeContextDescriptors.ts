@@ -157,7 +157,7 @@ function buildRuntimeToolDiscoveryContext(
     ),
     guidance: [
       "Prefer search, tree, and read tools before any write-capable workspace tool.",
-      "Use get-runtime-capabilities-summary and list-runtime-live-skills to discover supported runtime actions before escalating.",
+      "Use get-runtime-capabilities-summary and list-runtime-live-skills to inspect activation-backed runtime availability; skill-backed runtime tools may already be omitted when activation truth reports they are not live.",
       "Use run-runtime-live-skill for bounded operations and start-runtime-run or sub-agent sessions for multi-step execution.",
       "Treat deferred runtime tools as unavailable in the current session unless the catalog is re-synced with a broader policy.",
     ],
