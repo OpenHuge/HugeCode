@@ -1,3 +1,4 @@
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
 import type { CustomPromptOption } from "../types";
 
 const PROMPTS_CMD_PREFIX = "prompts";
@@ -32,6 +33,21 @@ export type SlashCommandEntry = {
 export type SlashCommandRegistry = {
   entries: SlashCommandEntry[];
 };
+
+type InvocationSlashCommandMetadata = {
+  primaryTrigger: string;
+  legacyAliases?: string[];
+  insertText: string;
+  cursorOffset?: number | null;
+  hint?: string | null;
+  shadowedByBuiltin: boolean;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
 
 type ParsedSlashName = {
   name: string;
@@ -362,6 +378,98 @@ export function buildSlashCommandRegistry(input: {
 
   return {
     entries: [...builtInEntries, ...customEntries],
+  };
+}
+
+function readInvocationSlashCommandMetadata(
+  invocation: InvocationDescriptor
+): InvocationSlashCommandMetadata | null {
+  const metadata = asRecord(invocation.metadata);
+  if (!metadata) {
+    return null;
+  }
+  const slashCommand = asRecord(metadata.slashCommand);
+  if (!slashCommand) {
+    return null;
+  }
+  if (
+    typeof slashCommand.primaryTrigger !== "string" ||
+    typeof slashCommand.insertText !== "string" ||
+    typeof slashCommand.shadowedByBuiltin !== "boolean"
+  ) {
+    return null;
+  }
+  return {
+    primaryTrigger: slashCommand.primaryTrigger,
+    legacyAliases: Array.isArray(slashCommand.legacyAliases)
+      ? slashCommand.legacyAliases.filter((entry): entry is string => typeof entry === "string")
+      : [],
+    insertText: slashCommand.insertText,
+    cursorOffset:
+      typeof slashCommand.cursorOffset === "number" ? slashCommand.cursorOffset : undefined,
+    hint: typeof slashCommand.hint === "string" ? slashCommand.hint : undefined,
+    shadowedByBuiltin: slashCommand.shadowedByBuiltin,
+  };
+}
+
+function readInvocationPromptScope(
+  invocation: InvocationDescriptor
+): CustomPromptOption["scope"] | undefined {
+  const metadata = asRecord(invocation.metadata);
+  if (!metadata) {
+    return undefined;
+  }
+  const promptOverlay = asRecord(metadata.promptOverlay);
+  if (!promptOverlay) {
+    return undefined;
+  }
+  return promptOverlay.scope === "workspace" || promptOverlay.scope === "global"
+    ? promptOverlay.scope
+    : undefined;
+}
+
+export function buildSlashCommandRegistryFromInvocations(input: {
+  invocations: InvocationDescriptor[];
+  prompts: CustomPromptOption[];
+}): SlashCommandRegistry {
+  const builtInEntries = normalizeBuiltInEntries();
+  const catalogEntries: SlashCommandEntry[] = input.invocations
+    .map((invocation): SlashCommandEntry | null => {
+      const slashCommand = readInvocationSlashCommandMetadata(invocation);
+      if (!slashCommand) {
+        return null;
+      }
+      const name = slashCommand.primaryTrigger.replace(/^\//, "");
+      const scope = readInvocationPromptScope(invocation) ?? "global";
+      const descriptionParts = [
+        invocation.description?.trim() || invocation.summary.trim(),
+        formatCustomCommandScope(scope),
+        slashCommand.shadowedByBuiltin ? `use /${LEGACY_PROMPT_ALIAS_PREFIX}${name}` : null,
+      ].filter((value): value is string => Boolean(value));
+      return {
+        id: invocation.id,
+        name,
+        primaryTrigger: slashCommand.primaryTrigger,
+        legacyAliases: slashCommand.legacyAliases ?? [],
+        description: descriptionParts.join(" · "),
+        hint: slashCommand.hint ?? undefined,
+        scope,
+        kind: "custom" as const,
+        source: "prompt-library" as const,
+        insertText: slashCommand.insertText,
+        cursorOffset: slashCommand.cursorOffset ?? undefined,
+        shadowedByBuiltin: slashCommand.shadowedByBuiltin,
+      } satisfies SlashCommandEntry;
+    })
+    .filter((entry): entry is SlashCommandEntry => entry !== null)
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  if (catalogEntries.length === 0) {
+    return buildSlashCommandRegistry({ prompts: input.prompts });
+  }
+
+  return {
+    entries: [...builtInEntries, ...catalogEntries],
   };
 }
 

@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useRuntimeInvocationCatalogResolver } from "../../../application/runtime/facades/runtimeInvocationCatalogFacadeHooks";
 import { useDesktopWorkspaceChromeDomain } from "./useDesktopWorkspaceChromeDomain";
 import { useMainAppLayoutNodesState } from "../hooks/useMainAppLayoutNodesState";
 import { useMainAppShellSurfaceProps } from "../hooks/useMainAppShellSurfaceProps";
@@ -24,6 +26,10 @@ vi.mock("../hooks/useMainAppShellSurfaceProps", () => ({
   useMainAppShellSurfaceProps: vi.fn(),
 }));
 
+vi.mock("../../../application/runtime/facades/runtimeInvocationCatalogFacadeHooks", () => ({
+  useRuntimeInvocationCatalogResolver: vi.fn(),
+}));
+
 const appStyle = { opacity: 1 };
 const layoutNodes = {
   desktopTopbarLeftNode: <div>Left</div>,
@@ -33,6 +39,7 @@ const layoutNodes = {
 const mainAppLayoutProps = { id: "layout" };
 const mainAppModalsProps = { id: "modals" };
 const titlebarControlsNode = <div>titlebar-controls</div>;
+const emptyCatalogItems: InvocationDescriptor[] = [];
 
 function createInput() {
   const handleStartTaskFromGitHubPullRequestReviewCommentCommand = vi.fn();
@@ -292,7 +299,24 @@ describe("useDesktopWorkspaceChromeDomain", () => {
     vi.clearAllMocks();
   });
 
+  function mockInvocationCatalogResolver(items: InvocationDescriptor[] = emptyCatalogItems) {
+    vi.mocked(useRuntimeInvocationCatalogResolver).mockReturnValue(
+      () =>
+        ({
+          publishActiveCatalog: vi.fn(async () => ({
+            catalogId: "workspace:ws-1",
+            workspaceId: "ws-1",
+            revision: 1,
+            generatedAt: 1,
+            items,
+            sources: [],
+          })),
+        }) as never
+    );
+  }
+
   it("assembles chrome, layout, and modal surfaces from domain contracts", () => {
+    mockInvocationCatalogResolver();
     vi.mocked(useMainAppSurfaceStyles).mockReturnValue({
       appClassName: "desktop-shell",
       appStyle,
@@ -351,6 +375,7 @@ describe("useDesktopWorkspaceChromeDomain", () => {
   });
 
   it("routes issue follow-up launches through the governed GitHub issue path", async () => {
+    mockInvocationCatalogResolver();
     vi.mocked(useMainAppSurfaceStyles).mockReturnValue({
       appClassName: "desktop-shell",
       appStyle,
@@ -390,6 +415,7 @@ describe("useDesktopWorkspaceChromeDomain", () => {
   });
 
   it("routes review follow-up launches through the governed GitHub review-comment path", async () => {
+    mockInvocationCatalogResolver();
     vi.mocked(useMainAppSurfaceStyles).mockReturnValue({
       appClassName: "desktop-shell",
       appStyle,
@@ -457,5 +483,89 @@ describe("useDesktopWorkspaceChromeDomain", () => {
       },
     });
     expect(input.domains.mission.handleStartTaskFromGitHubPullRequest).not.toHaveBeenCalled();
+  });
+
+  it("forwards catalog-backed slash invocation items into the conversation bridge state", async () => {
+    const slashItems: InvocationDescriptor[] = [
+      {
+        id: "session:prompt:prompt.summarize",
+        title: "summarize",
+        summary: "Summarize a target",
+        description: "Summarize a target",
+        kind: "session_command",
+        source: {
+          kind: "session_command",
+          contributionType: "session_scoped",
+          authority: "workspace",
+          label: "Runtime prompt library",
+          sourceId: "prompt.summarize",
+          workspaceId: "ws-1",
+          provenance: null,
+        },
+        runtimeTool: null,
+        argumentSchema: null,
+        aliases: [],
+        tags: ["prompt_overlay"],
+        safety: {
+          level: "read",
+          readOnly: true,
+          destructive: false,
+          openWorld: false,
+          idempotent: true,
+        },
+        exposure: {
+          operatorVisible: true,
+          modelVisible: false,
+          requiresReadiness: false,
+          hiddenReason: "Prompt-library overlays stay operator-facing in the invocation plane.",
+        },
+        readiness: {
+          state: "ready",
+          available: true,
+          reason: null,
+          warnings: [],
+          checkedAt: null,
+        },
+        metadata: {
+          slashCommand: {
+            primaryTrigger: "/summarize",
+            insertText: 'summarize TARGET=""',
+            shadowedByBuiltin: false,
+          },
+        },
+      },
+    ];
+    mockInvocationCatalogResolver(slashItems);
+    vi.mocked(useMainAppSurfaceStyles).mockReturnValue({
+      appClassName: "desktop-shell",
+      appStyle,
+    });
+    vi.mocked(resolveCompactCodexUiState).mockReturnValue({
+      showCompactCodexThreadActions: true,
+      showMobilePollingFetchStatus: false,
+    });
+    vi.mocked(useMainAppLayoutNodesState).mockReturnValue(
+      layoutNodes as ReturnType<typeof useMainAppLayoutNodesState>
+    );
+    vi.mocked(useMainAppShellSurfaceProps).mockReturnValue({
+      mainAppLayoutProps: mainAppLayoutProps as never,
+      mainAppModalsProps: mainAppModalsProps as never,
+      titlebarControlsNode,
+    });
+
+    const input = createInput();
+    renderHook(() => useDesktopWorkspaceChromeDomain(input));
+
+    await waitFor(() => {
+      expect(useMainAppLayoutNodesState).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          conversation: expect.objectContaining({
+            state: expect.objectContaining({
+              slashInvocationItems: slashItems,
+            }),
+          }),
+        })
+      );
+    });
   });
 });

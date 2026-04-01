@@ -1,4 +1,5 @@
 import type { AtlasDetailLevel, AtlasLongTermMemoryDigest } from "../../atlas/utils/atlasContext";
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
 import type { useAutoDriveController } from "../../autodrive/hooks/useAutoDriveController";
 import type { useDebugLog } from "../../debug/hooks/useDebugLog";
 import type { ReviewPackSelectionRequest } from "../../review/utils/reviewPackSurfaceModel";
@@ -115,6 +116,7 @@ export type MainAppConversationBridgeParams = {
   autoDriveState: ReturnType<typeof useAutoDriveController>;
   skills: BridgeParams["skills"];
   prompts: BridgeParams["prompts"];
+  slashInvocationItems?: InvocationDescriptor[];
   composerInputRef: BridgeParams["textareaRef"];
   composerEditorSettings: BridgeParams["composerEditorSettings"];
   composerEditorExpanded: BridgeParams["composerEditorExpanded"];
@@ -275,6 +277,7 @@ export type MainAppConversationBridgeContextParams = Pick<
   | "autoDriveState"
   | "skills"
   | "prompts"
+  | "slashInvocationItems"
   | "composerInputRef"
   | "composerEditorSettings"
 >;

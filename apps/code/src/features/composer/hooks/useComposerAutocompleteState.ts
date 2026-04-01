@@ -1,8 +1,12 @@
 import { useCallback, useMemo } from "react";
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
 import type { CustomPromptOption, SkillOption } from "../../../types";
 import { findNextPromptArgCursor, findPromptArgRangeAtCursor } from "../../../utils/customPrompts";
 import { isComposingEvent } from "../../../utils/keys";
-import { buildSlashCommandRegistry } from "../../../utils/slashCommands";
+import {
+  buildSlashCommandRegistry,
+  buildSlashCommandRegistryFromInvocations,
+} from "../../../utils/slashCommands";
 import { buildSkillMetaChips } from "../../skills/utils/skillPresentation";
 import type { ComposerDraftSyncMode } from "./useComposerDraftSync";
 import type { AutocompleteItem } from "./useComposerAutocomplete";
@@ -15,6 +19,7 @@ type UseComposerAutocompleteStateArgs = {
   disabled: boolean;
   skills: Skill[];
   prompts: CustomPromptOption[];
+  slashInvocationItems?: InvocationDescriptor[] | null;
   files: string[];
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   setText: (next: string, syncMode?: ComposerDraftSyncMode) => void;
@@ -71,6 +76,7 @@ export function useComposerAutocompleteState({
   disabled,
   skills,
   prompts,
+  slashInvocationItems,
   files,
   textareaRef,
   setText,
@@ -147,7 +153,13 @@ export function useComposerAutocompleteState({
   );
 
   const slashItems = useMemo<AutocompleteItem[]>(() => {
-    const registry = buildSlashCommandRegistry({ prompts });
+    const registry =
+      slashInvocationItems && slashInvocationItems.length > 0
+        ? buildSlashCommandRegistryFromInvocations({
+            invocations: slashInvocationItems,
+            prompts,
+          })
+        : buildSlashCommandRegistry({ prompts });
     return registry.entries.map((entry) => ({
       id: entry.id,
       label: entry.name,
@@ -157,7 +169,7 @@ export function useComposerAutocompleteState({
       cursorOffset: entry.cursorOffset,
       group: "Slash" as const,
     }));
-  }, [prompts]);
+  }, [prompts, slashInvocationItems]);
 
   const triggers = useMemo(
     () => [
