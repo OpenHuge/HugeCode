@@ -68,16 +68,31 @@ const RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeReviewIntelligenceSummary.ts",
   "/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts",
 ] as const;
+const RUNTIME_WORKSPACE_FLOW_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/runtimePersistentFlowState.ts",
+  "/src/application/runtime/facades/runtimeRunRecordTruth.ts",
+  "/src/application/runtime/facades/runtimeRunTruthStore.ts",
+] as const;
 const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeBrowserExtractionOperator.ts",
   "/src/application/runtime/facades/runtimeContinuityReadiness.ts",
+  "/src/application/runtime/facades/runtimeContinuationTruth.ts",
+  "/src/application/runtime/facades/runtimeKernelControlPlane",
+  "/src/application/runtime/facades/runtimeKernelPluginCatalogFacadeHooks.ts",
+  "/src/application/runtime/facades/runtimeKernelPluginProjection",
   "/src/application/runtime/facades/runtimeExecutionReliability.ts",
   "/src/application/runtime/facades/runtimeKernelPluginReadiness.ts",
   "/src/application/runtime/facades/runtimeLaunchReadiness.ts",
+  "/src/application/runtime/facades/runtimeMissionNavigation",
   "/src/application/runtime/facades/runtimeMissionControl",
+  "/src/application/runtime/facades/runtimeMissionControlProjectionNormalization.ts",
+  "/src/application/runtime/facades/runtimeMissionControlSnapshot.ts",
   "/src/application/runtime/facades/runtimeMissionLaunchPreparation.ts",
+  "/src/application/runtime/facades/runtimeOperatorActionPresentation.ts",
   "/src/application/runtime/facades/runtimeRepositoryExecutionContract.ts",
   "/src/application/runtime/facades/runtimeParallelDispatchManager.ts",
+  "/src/application/runtime/facades/runtimeReviewEvidenceModel.ts",
+  "/src/application/runtime/facades/runtimeRunRecordTruth.ts",
   "/src/application/runtime/facades/runtimeTaskInterventionDraftFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceLaunchDefaultsFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",
@@ -213,6 +228,9 @@ export default defineConfig({
           }
           if (matchesChunkPattern(id, RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS)) {
             return "runtime-governed-context";
+          }
+          if (matchesChunkPattern(id, RUNTIME_WORKSPACE_FLOW_CHUNK_PATTERNS)) {
+            return "runtime-workspace-flow";
           }
           if (matchesChunkPattern(id, RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS)) {
             return "runtime-mission-control";
