@@ -1,12 +1,17 @@
 import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
 import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
-import { canonicalizeLiveSkillId, listAcceptedLiveSkillIds } from "./runtimeClientLiveSkills";
-import type {
+import {
+  buildRuntimeExecutableSkillPublicationReason,
+  buildRuntimeExecutableSkillPublicationStatus,
+} from "@ku0/code-application/runtimeExecutableSkillCatalog";
+import { buildRuntimeSkillBackedToolPublicationReason } from "./webMcpBridgeRuntimeSkillPublication";
+import {
   AgentCommandCenterSnapshot,
   RuntimeAgentControl,
   RuntimeInvocationDescriptor,
   WebMcpAgent,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
+import { canonicalizeLiveSkillId, listAcceptedLiveSkillIds } from "./runtimeClientLiveSkills";
 import type { LiveSkillSummary } from "./runtimeLiveSkillsBridge";
 
 type JsonRecord = Record<string, unknown>;
@@ -48,6 +53,8 @@ type RuntimeListedLiveSkill = LiveSkillSummary & {
   invocationId: string | null;
   activationState: RuntimeInvocationDescriptor["activationState"] | null;
   readiness: RuntimeInvocationDescriptor["readiness"] | null;
+  publicationStatus: "published" | "hidden" | null;
+  publicationReason: string | null;
 };
 
 function toInvocationLiveSkillSummary(skill: RuntimeInvocationDescriptor): RuntimeListedLiveSkill {
@@ -61,6 +68,17 @@ function toInvocationLiveSkillSummary(skill: RuntimeInvocationDescriptor): Runti
   const acceptedSkillIds = Array.from(
     new Set([skill.id, ...aliases, ...listAcceptedLiveSkillIds(skill.id)])
   );
+  const publicationStatus = buildRuntimeExecutableSkillPublicationStatus(skill.live);
+  const publicationReason = buildRuntimeExecutableSkillPublicationReason({
+    canonicalSkillId,
+    availability: {
+      live: skill.live,
+      activationState: skill.activationState,
+      publicationStatus,
+      readiness: skill.readiness,
+    },
+    source: "activation",
+  });
   return {
     id: skill.id,
     name: skill.title,
@@ -89,6 +107,19 @@ function toInvocationLiveSkillSummary(skill: RuntimeInvocationDescriptor): Runti
     invocationId: skill.id,
     activationState: skill.activationState,
     readiness: { ...skill.readiness },
+    publicationStatus,
+    publicationReason: buildRuntimeSkillBackedToolPublicationReason({
+      canonicalSkillId,
+      availability: {
+        invocationId: skill.id,
+        live: skill.live,
+        activationState: skill.activationState,
+        publicationStatus,
+        publicationReason,
+        readiness: skill.readiness,
+      },
+      status: publicationStatus,
+    }),
   };
 }
 
@@ -125,6 +156,8 @@ function buildListedRuntimeLiveSkill(
     invocationId: "invocationId" in skill ? skill.invocationId : null,
     activationState: "activationState" in skill ? skill.activationState : null,
     readiness: "readiness" in skill ? skill.readiness : null,
+    publicationStatus: "publicationStatus" in skill ? skill.publicationStatus : null,
+    publicationReason: "publicationReason" in skill ? skill.publicationReason : null,
   };
 }
 

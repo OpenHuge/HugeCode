@@ -21,6 +21,9 @@ export type RuntimeExecutableSkillAvailability = NonNullable<
   RuntimeSkillIdResolution["availability"]
 >;
 
+export type RuntimeExecutableSkillPublicationStatus =
+  RuntimeExecutableSkillAvailability["publicationStatus"];
+
 export type RuntimeSkillExecutionGateErrorCode =
   | "unknown_skill"
   | "catalog_unavailable"
@@ -73,11 +76,51 @@ function isRuntimeExecutableSkillInvocation(entry: RuntimeInvocationDescriptor):
   );
 }
 
-function buildLegacyReadyAvailability(): RuntimeExecutableSkillAvailability {
+export function buildRuntimeExecutableSkillPublicationStatus(
+  live: boolean
+): RuntimeExecutableSkillPublicationStatus {
+  return live ? "published" : "hidden";
+}
+
+export function buildRuntimeExecutableSkillPublicationReason(input: {
+  canonicalSkillId: string;
+  availability: Pick<
+    RuntimeExecutableSkillAvailability,
+    "activationState" | "live" | "readiness" | "publicationStatus"
+  >;
+  source: "activation" | "legacy_fallback";
+}): string {
+  const { canonicalSkillId, availability, source } = input;
+  if (source === "legacy_fallback") {
+    return `${availability.publicationStatus === "published" ? "Published" : "Hidden"} because legacy runtime skill ${canonicalSkillId} is available via live-skill fallback while activation-backed invocation data is unavailable.`;
+  }
+  return `${availability.publicationStatus === "published" ? "Published" : "Hidden"} because activation-backed runtime skill ${canonicalSkillId} is ${availability.activationState}: ${availability.readiness.summary}`;
+}
+
+function buildLegacyReadyAvailability(
+  canonicalSkillId: string
+): RuntimeExecutableSkillAvailability {
+  const publicationStatus = buildRuntimeExecutableSkillPublicationStatus(true);
   return {
     invocationId: null,
     live: true,
     activationState: "active",
+    publicationStatus,
+    publicationReason: buildRuntimeExecutableSkillPublicationReason({
+      canonicalSkillId,
+      availability: {
+        live: true,
+        activationState: "active",
+        publicationStatus,
+        readiness: {
+          state: "ready",
+          summary: "Legacy live skill listing reports this skill as available.",
+          detail:
+            "Activation-backed invocation data is unavailable, so legacy live skill transport is being used.",
+        },
+      },
+      source: "legacy_fallback",
+    }),
     readiness: {
       state: "ready",
       summary: "Legacy live skill listing reports this skill as available.",
@@ -88,12 +131,27 @@ function buildLegacyReadyAvailability(): RuntimeExecutableSkillAvailability {
 }
 
 function buildInvocationAvailability(
+  canonicalSkillId: string,
   entry: RuntimeInvocationDescriptor
 ): RuntimeExecutableSkillAvailability {
+  const publicationStatus = buildRuntimeExecutableSkillPublicationStatus(entry.live);
   return {
     invocationId: entry.id,
     live: entry.live,
     activationState: entry.activationState,
+    publicationStatus,
+    publicationReason: buildRuntimeExecutableSkillPublicationReason({
+      canonicalSkillId,
+      availability: {
+        live: entry.live,
+        activationState: entry.activationState,
+        publicationStatus,
+        readiness: {
+          ...entry.readiness,
+        },
+      },
+      source: "activation",
+    }),
     readiness: {
       ...entry.readiness,
     },
@@ -156,7 +214,7 @@ function buildLegacyCatalogIndex(
       canonicalSkillId,
       runtimeSkillId: canonicalSkillId,
       acceptedSkillIds: acceptedEntries,
-      availability: buildLegacyReadyAvailability(),
+      availability: buildLegacyReadyAvailability(canonicalSkillId),
       source: null,
       metadata: null,
     });
@@ -216,7 +274,7 @@ function buildActivationCatalogIndex(
         entry.source.pluginId ||
         canonicalSkillId,
       acceptedSkillIds: acceptedEntries,
-      availability: buildInvocationAvailability(entry),
+      availability: buildInvocationAvailability(canonicalSkillId, entry),
       source: {
         ...entry.source,
       },

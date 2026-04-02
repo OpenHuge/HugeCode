@@ -1,3 +1,4 @@
+import { buildRuntimeExecutableSkillPublicationReason } from "@ku0/code-application/runtimeExecutableSkillCatalog";
 import { createRuntimeExecutableSkillFacade } from "@ku0/code-application/runtimeExecutableSkillFacade";
 import type {
   RuntimeAgentControl,
@@ -10,10 +11,19 @@ type RuntimeSkillBackedToolBinding = {
   canonicalSkillId: string;
 };
 
+export type RuntimeSkillBackedToolPublicationEntry = {
+  toolName: string;
+  canonicalSkillId: string;
+  status: "published" | "hidden";
+  reason: string;
+  availability: NonNullable<RuntimeSkillIdResolution["availability"]> | null;
+};
+
 export type RuntimeSkillBackedToolPublicationDecision = {
   hiddenToolNames: string[];
   publishedToolNames: string[];
   requiredSkillIds: string[];
+  entries: RuntimeSkillBackedToolPublicationEntry[];
   availabilityByToolName: Map<string, NonNullable<RuntimeSkillIdResolution["availability"]> | null>;
 };
 
@@ -52,6 +62,30 @@ async function readRuntimeExecutableSkillCatalog(
   }).readCatalog({ sessionId: null });
 }
 
+export function buildRuntimeSkillBackedToolPublicationReason(input: {
+  canonicalSkillId: string;
+  availability: NonNullable<RuntimeSkillIdResolution["availability"]> | null;
+  status: RuntimeSkillBackedToolPublicationEntry["status"];
+}): string {
+  const { canonicalSkillId, availability, status } = input;
+  if (!availability) {
+    return `Hidden because activation-backed runtime skill ${canonicalSkillId} is not present in the current executable skill catalog.`;
+  }
+  if (availability.publicationStatus === status) {
+    return availability.publicationReason;
+  }
+  return buildRuntimeExecutableSkillPublicationReason({
+    canonicalSkillId,
+    availability: {
+      live: availability.live,
+      activationState: availability.activationState,
+      publicationStatus: status,
+      readiness: availability.readiness,
+    },
+    source: "activation",
+  });
+}
+
 export async function readRuntimeSkillBackedToolPublicationDecision(
   runtimeControl: RuntimeAgentControl | null | undefined
 ): Promise<RuntimeSkillBackedToolPublicationDecision | null> {
@@ -74,6 +108,7 @@ export async function readRuntimeSkillBackedToolPublicationDecision(
   );
   const hiddenToolNames: string[] = [];
   const publishedToolNames: string[] = [];
+  const entries: RuntimeSkillBackedToolPublicationEntry[] = [];
   const availabilityByToolName = new Map<
     string,
     NonNullable<RuntimeSkillIdResolution["availability"]> | null
@@ -82,7 +117,19 @@ export async function readRuntimeSkillBackedToolPublicationDecision(
   for (const binding of RUNTIME_SKILL_BACKED_TOOL_BINDINGS) {
     const availability = availabilityBySkillId.get(binding.canonicalSkillId) ?? null;
     availabilityByToolName.set(binding.toolName, availability);
-    if (!availability || !availability.live) {
+    const status = availability && availability.live ? ("published" as const) : ("hidden" as const);
+    entries.push({
+      toolName: binding.toolName,
+      canonicalSkillId: binding.canonicalSkillId,
+      status,
+      reason: buildRuntimeSkillBackedToolPublicationReason({
+        canonicalSkillId: binding.canonicalSkillId,
+        availability,
+        status,
+      }),
+      availability,
+    });
+    if (status === "hidden") {
       hiddenToolNames.push(binding.toolName);
       continue;
     }
@@ -93,6 +140,7 @@ export async function readRuntimeSkillBackedToolPublicationDecision(
     hiddenToolNames,
     publishedToolNames,
     requiredSkillIds: RUNTIME_SKILL_BACKED_TOOL_BINDINGS.map((binding) => binding.canonicalSkillId),
+    entries,
     availabilityByToolName,
   };
 }

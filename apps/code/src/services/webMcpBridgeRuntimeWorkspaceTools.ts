@@ -6,6 +6,10 @@ import {
   normalizeWorkspaceRelativePath,
   toOptionalRecord,
 } from "./webMcpBridgeRuntimeToolGuards";
+import {
+  buildRuntimeExecutableSkillPublicationReason,
+  buildRuntimeExecutableSkillPublicationStatus,
+} from "@ku0/code-application/runtimeExecutableSkillCatalog";
 import { canonicalizeLiveSkillId } from "./runtimeClientLiveSkills";
 import {
   commandRestrictedError,
@@ -91,15 +95,32 @@ export function invalidateCachedRuntimeLiveSkills(
 }
 
 function buildLegacyLiveSkillAvailability(
-  skill: Pick<RuntimeLiveSkillSummary, "id" | "enabled">
+  skill: Pick<RuntimeLiveSkillSummary, "id" | "enabled" | "canonicalSkillId">
 ): NonNullable<RuntimeSkillIdResolution["availability"]> | null {
   if (!skill.enabled) {
     return null;
   }
+  const publicationStatus = buildRuntimeExecutableSkillPublicationStatus(true);
   return {
     invocationId: null,
     live: true,
     activationState: "active",
+    publicationStatus,
+    publicationReason: buildRuntimeExecutableSkillPublicationReason({
+      canonicalSkillId: skill.canonicalSkillId,
+      availability: {
+        live: true,
+        activationState: "active",
+        publicationStatus,
+        readiness: {
+          state: "ready",
+          summary: `Legacy runtime listing reports ${skill.id} as enabled.`,
+          detail:
+            "Activation-backed invocation data is unavailable, so legacy live skill transport is being used.",
+        },
+      },
+      source: "legacy_fallback",
+    }),
     readiness: {
       state: "ready",
       summary: `Legacy runtime listing reports ${skill.id} as enabled.`,
@@ -158,6 +179,7 @@ async function getCachedLiveSkills(
         .map((skill) => {
           if ("live" in skill) {
             const invocation = skill as RuntimeInvocationDescriptor;
+            const publicationStatus = buildRuntimeExecutableSkillPublicationStatus(invocation.live);
             return {
               id: invocation.id,
               canonicalSkillId: canonicalizeLiveSkillId(invocation.id) ?? invocation.id,
@@ -166,6 +188,17 @@ async function getCachedLiveSkills(
                 invocationId: invocation.id,
                 live: invocation.live,
                 activationState: invocation.activationState,
+                publicationStatus,
+                publicationReason: buildRuntimeExecutableSkillPublicationReason({
+                  canonicalSkillId: canonicalizeLiveSkillId(invocation.id) ?? invocation.id,
+                  availability: {
+                    live: invocation.live,
+                    activationState: invocation.activationState,
+                    publicationStatus,
+                    readiness: { ...invocation.readiness },
+                  },
+                  source: "activation",
+                }),
                 readiness: { ...invocation.readiness },
               },
             };

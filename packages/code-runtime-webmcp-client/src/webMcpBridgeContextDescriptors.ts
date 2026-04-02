@@ -50,6 +50,19 @@ export type WebMcpContextDescriptorOptions = {
     reasonCodes: string[];
   } | null;
   runtimeToolNames?: readonly string[];
+  runtimeSkillBackedToolPublication?: {
+    publishedToolNames: string[];
+    hiddenToolNames: string[];
+    entries: Array<{
+      toolName: string;
+      canonicalSkillId: string;
+      status: "published" | "hidden";
+      reason: string;
+      activationState?: string | null;
+      readinessState?: string | null;
+      readinessSummary?: string | null;
+    }>;
+  } | null;
 };
 
 function asJsonText(payload: unknown): string {
@@ -158,10 +171,12 @@ function buildRuntimeToolDiscoveryContext(
     guidance: [
       "Prefer search, tree, and read tools before any write-capable workspace tool.",
       "Use get-runtime-capabilities-summary and list-runtime-live-skills to inspect activation-backed runtime availability; skill-backed runtime tools may already be omitted when activation truth reports they are not live.",
+      "If a skill-backed runtime tool is hidden, inspect the skillBackedRuntimeToolPublication entries to see which canonical skill is missing or not live before retrying.",
       "Use run-runtime-live-skill for bounded operations and start-runtime-run or sub-agent sessions for multi-step execution.",
       "Treat deferred runtime tools as unavailable in the current session unless the catalog is re-synced with a broader policy.",
     ],
     reasonCodes: options.toolExposureDecision.reasonCodes,
+    skillBackedRuntimeToolPublication: options.runtimeSkillBackedToolPublication ?? null,
   };
 }
 
@@ -245,6 +260,12 @@ function buildRuntimeToolDiscoveryPrompt(
                 "Guidance:",
                 ...(Array.isArray(discoveryContext.guidance)
                   ? discoveryContext.guidance.map((entry) => `- ${String(entry)}`)
+                  : []),
+                ...(discoveryContext.skillBackedRuntimeToolPublication
+                  ? [
+                      "Skill-backed runtime tool publication:",
+                      asJsonText(discoveryContext.skillBackedRuntimeToolPublication),
+                    ]
                   : []),
               ].join("\n"),
             },

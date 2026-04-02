@@ -510,9 +510,7 @@ export function validateAllowedRuntimeSkillIds(
     if (!availability || availability.live) {
       return [];
     }
-    return [
-      `${resolution.resolvedSkillId} is ${availability.activationState}: ${availability.readiness.summary}`,
-    ];
+    return [availability.publicationReason];
   });
   if (unavailableSkillEntries.length > 0) {
     throw invalidInputError(

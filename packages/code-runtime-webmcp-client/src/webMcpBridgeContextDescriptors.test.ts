@@ -67,6 +67,31 @@ describe("@ku0/code-runtime-webmcp-client context descriptors", () => {
         "get-runtime-settings",
         "open-runtime-terminal-session",
       ],
+      runtimeSkillBackedToolPublication: {
+        publishedToolNames: ["read-workspace-file"],
+        hiddenToolNames: ["write-workspace-file"],
+        entries: [
+          {
+            toolName: "read-workspace-file",
+            canonicalSkillId: "core-read",
+            status: "published",
+            reason: "Published because activation-backed runtime skill core-read is active: Ready.",
+            activationState: "active",
+            readinessState: "ready",
+            readinessSummary: "Ready.",
+          },
+          {
+            toolName: "write-workspace-file",
+            canonicalSkillId: "core-write",
+            status: "hidden",
+            reason:
+              "Hidden because activation-backed runtime skill core-write is degraded: Awaiting runtime write binding.",
+            activationState: "degraded",
+            readinessState: "attention",
+            readinessSummary: "Awaiting runtime write binding.",
+          },
+        ],
+      },
     });
     const prompts = buildWebMcpPrompts(snapshot, {
       activeModelContext: {
@@ -93,6 +118,31 @@ describe("@ku0/code-runtime-webmcp-client context descriptors", () => {
         "get-runtime-settings",
         "open-runtime-terminal-session",
       ],
+      runtimeSkillBackedToolPublication: {
+        publishedToolNames: ["read-workspace-file"],
+        hiddenToolNames: ["write-workspace-file"],
+        entries: [
+          {
+            toolName: "read-workspace-file",
+            canonicalSkillId: "core-read",
+            status: "published",
+            reason: "Published because activation-backed runtime skill core-read is active: Ready.",
+            activationState: "active",
+            readinessState: "ready",
+            readinessSummary: "Ready.",
+          },
+          {
+            toolName: "write-workspace-file",
+            canonicalSkillId: "core-write",
+            status: "hidden",
+            reason:
+              "Hidden because activation-backed runtime skill core-write is degraded: Awaiting runtime write binding.",
+            activationState: "degraded",
+            readinessState: "attention",
+            readinessSummary: "Awaiting runtime write binding.",
+          },
+        ],
+      },
     });
 
     const discoveryResource = resources.find(
@@ -106,7 +156,15 @@ describe("@ku0/code-runtime-webmcp-client context descriptors", () => {
 
     expect(discoveryResource?.uri).toBe("hugecode://workspace/ws-1/runtime-tool-discovery");
     expect(readResult?.contents[0]?.text).toContain('"catalogMode": "minimal"');
+    expect(readResult?.contents[0]?.text).toContain('"skillBackedRuntimeToolPublication"');
+    expect(readResult?.contents[0]?.text).toContain('"canonicalSkillId": "core-write"');
     expect(readResult?.contents[0]?.text).toContain("activation-backed runtime availability");
     expect(messages?.messages[0]?.role).toBe("user");
+    expect(messages?.messages[0]?.content).toEqual(
+      expect.objectContaining({
+        type: "text",
+        text: expect.stringContaining("Skill-backed runtime tool publication:"),
+      })
+    );
   });
 });

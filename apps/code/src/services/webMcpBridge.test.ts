@@ -1448,6 +1448,9 @@ describe("webMcpBridge", () => {
             id: "core-grep",
             enabled: false,
             activationState: "refresh_pending",
+            publicationStatus: "hidden",
+            publicationReason:
+              "Hidden because activation-backed runtime skill core-grep is refresh_pending: Refresh is rebuilding this skill.",
             readiness: expect.objectContaining({
               state: "attention",
               summary: "Refresh is rebuilding this skill.",

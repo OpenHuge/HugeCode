@@ -537,6 +537,8 @@ export type RuntimeSkillIdResolution = {
     invocationId: string | null;
     live: boolean;
     activationState: RuntimeInvocationActivationState;
+    publicationStatus: "published" | "hidden";
+    publicationReason: string;
     readiness: {
       state: RuntimeInvocationReadinessState;
       summary: string;
