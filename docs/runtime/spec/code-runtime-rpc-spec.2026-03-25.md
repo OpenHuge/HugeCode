@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-03-29T12:55:14.973Z`
+- Generated at: `2026-04-02T01:03:40.026Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
-- Method-set hash: `2e75df2ab1c38c67`
+- Method-set hash: `eb4ada171d570c6c`
 
 ## Features
 
@@ -219,6 +219,7 @@
 - `code_extension_permissions_evaluate_v2`
 - `code_extension_health_read_v2`
 - `code_extension_tools_list_v2`
+- `code_extension_tool_invoke_v2`
 - `code_extension_resource_read_v2`
 - `code_session_export_v1`
 - `code_session_import_v1`
@@ -260,6 +261,7 @@
 - `code_extension_remove_v2`
 - `code_extension_resource_read_v2`
 - `code_extension_set_state_v2`
+- `code_extension_tool_invoke_v2`
 - `code_extension_tools_list_v2`
 - `code_extension_update_v2`
 - `code_git_branch_checkout`
