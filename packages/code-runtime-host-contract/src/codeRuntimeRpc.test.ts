@@ -43,9 +43,16 @@ import type {
   KernelProjectionDelta,
   KernelPolicyDecision,
   LiveSkillExecutionResult,
+  RuntimeCompositionPluginEntryV2,
   RuntimeExtensionActivationSnapshot,
+  RuntimeHostBindingDescriptor,
+  RuntimeHostBindingDiagnostic,
+  RuntimeHostBindingState,
+  RuntimeHostPublicationState,
   RuntimeCompositionProfile,
+  RuntimeCompositionProfileSummaryV2,
   RuntimeCompositionResolution,
+  RuntimeCompositionResolveV2Response,
   RuntimeExecutionGraphSummary,
   SubAgentSpawnRequest,
 } from "./codeRuntimeRpc";
@@ -106,6 +113,9 @@ describe("code runtime rpc method consistency", () => {
         CODE_RUNTIME_RPC_METHODS.REVIEW_GET_V2,
         CODE_RUNTIME_RPC_METHODS.RUN_RESUME_V2,
         CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
+        CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2,
+        CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2,
+        CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2,
       ])
     );
   });
@@ -173,6 +183,21 @@ describe("code runtime rpc compatibility helpers", () => {
   it("keeps runtime composition types available through dedicated modules and rpc exports", () => {
     expectTypeOf<RuntimeCompositionProfileModule>().toEqualTypeOf<RuntimeCompositionProfile>();
     expectTypeOf<RuntimeCompositionResolutionModule>().toEqualTypeOf<RuntimeCompositionResolution>();
+    expectTypeOf<RuntimeCompositionProfileSummaryV2>().toExtend<{
+      id: string;
+      scope: RuntimeCompositionProfile["scope"];
+      active: boolean;
+    }>();
+    expectTypeOf<RuntimeCompositionResolveV2Response>().toExtend<{
+      activeProfile: RuntimeCompositionProfile | null;
+      pluginEntries: RuntimeCompositionPluginEntryV2[];
+    }>();
+    expectTypeOf<RuntimeCompositionPluginEntryV2>().toExtend<{
+      bindingState: RuntimeHostBindingState;
+      publicationState: RuntimeHostPublicationState;
+      bindingDescriptor: RuntimeHostBindingDescriptor | null;
+      bindingDiagnostics: RuntimeHostBindingDiagnostic[];
+    }>();
   });
 
   it("keeps runtime activation snapshot types available through dedicated modules and rpc exports", () => {

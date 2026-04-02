@@ -2,8 +2,11 @@ import type { ModelProvider } from "./code-runtime-rpc/foundation.js";
 import type {
   KernelCapabilityContractSurface,
   RuntimePluginCompatibility,
+  RuntimePluginCompatibilityStatus,
   RuntimePluginTrustDecision,
+  RuntimePluginTrustDecisionStatus,
   RuntimeRoutingPluginKind,
+  RuntimeRegistryPackageDescriptor,
 } from "./code-runtime-rpc/runtimeKernelAndExtensions.js";
 
 export type RuntimeCompositionSourceKind =
@@ -103,6 +106,74 @@ export type RuntimeCompositionResolution = {
   blockedPlugins: RuntimeCompositionBlockedPlugin[];
   trustDecisions: RuntimePluginTrustDecision[];
   provenance: RuntimeCompositionResolutionProvenance;
+};
+
+export type RuntimeHostBindingState = "unbound" | "binding" | "bound" | "degraded" | "blocked";
+
+export type RuntimeHostPublicationState = "hidden" | "declaration_only" | "published" | "blocked";
+
+export type RuntimeHostBindingDiagnostic = {
+  code: string;
+  severity: "info" | "warning" | "error";
+  summary: string;
+  detail?: string | null;
+};
+
+export type RuntimeHostBindingDescriptor = {
+  pluginId: string;
+  packageRef?: string | null;
+  source: string;
+  bindingState: RuntimeHostBindingState;
+  publicationState: RuntimeHostPublicationState;
+  contractFormat?: string | null;
+  contractBoundary?: string | null;
+  interfaceId?: string | null;
+  rawBindingState?: "bound" | "declaration_only" | "unbound" | null;
+  executable?: boolean | null;
+  reason?: string | null;
+  diagnostics?: RuntimeHostBindingDiagnostic[] | null;
+  contractSurfaces?: KernelCapabilityContractSurface[] | null;
+};
+
+export type RuntimeCompositionPluginEntryV2 = {
+  pluginId: string;
+  source: string;
+  packageRef?: string | null;
+  installed: boolean;
+  trust: RuntimePluginTrustDecision;
+  trustStatus: RuntimePluginTrustDecisionStatus;
+  compatibility: RuntimePluginCompatibility;
+  compatibilityStatus: RuntimePluginCompatibilityStatus;
+  bindingState: RuntimeHostBindingState;
+  publicationState: RuntimeHostPublicationState;
+  selectedInActiveProfile: boolean;
+  blockedReason?: string | null;
+  selectedReason?: string | null;
+  routeCandidate: boolean;
+  selectedRouteCandidate?: RuntimeCompositionRouteCandidate | null;
+  backendCandidateIds: string[];
+  backendCandidates: RuntimeCompositionBackendCandidate[];
+  bindingDescriptor: RuntimeHostBindingDescriptor | null;
+  bindingDiagnostics: RuntimeHostBindingDiagnostic[];
+  registryPackage?: RuntimeRegistryPackageDescriptor | null;
+};
+
+export type RuntimeCompositionProfileSummaryV2 = {
+  id: string;
+  name: string;
+  scope: "built_in" | "user" | "workspace";
+  enabled: boolean;
+  active: boolean;
+};
+
+export type RuntimeCompositionResolveV2Response = {
+  activeProfile: import("./runtimeCompositionProfiles.js").RuntimeCompositionProfile | null;
+  provenance: RuntimeCompositionResolutionProvenance;
+  pluginEntries: RuntimeCompositionPluginEntryV2[];
+  selectedRouteCandidates: RuntimeCompositionRouteCandidate[];
+  selectedBackendCandidates: RuntimeCompositionBackendCandidate[];
+  blockedPlugins: RuntimeCompositionBlockedPlugin[];
+  trustDecisions: RuntimePluginTrustDecision[];
 };
 
 export type RuntimeCompositionPolicySnapshot = {

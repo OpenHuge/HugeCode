@@ -295,4 +295,46 @@ describe("runtimeKernelControlPlaneOperatorModel", () => {
       "uninstall",
     ]);
   });
+
+  it("distinguishes declaration-only publication from binding", () => {
+    const activeProfile = buildProfile();
+    const model = buildRuntimeControlPlaneOperatorModel({
+      plugins: [
+        buildPlugin({
+          id: "repo.skill",
+          name: "Repo Skill",
+          source: "repo_manifest",
+          transport: "repo_manifest",
+          metadata: {
+            composition: {
+              activeProfileId: activeProfile.id,
+              activeProfileName: activeProfile.name,
+              selectedInActiveProfile: false,
+              blockedInActiveProfile: false,
+              blockedReason: null,
+              selectedRouteCandidate: false,
+              selectedBackendCandidateIds: [],
+              layerOrder: ["built_in", "user", "workspace", "launch_override"],
+              bindingState: "unbound",
+              publicationState: "declaration_only",
+              trustStatus: "runtime_managed",
+              compatibilityStatus: "compatible",
+              bindingDiagnostics: [],
+            },
+          },
+        }),
+      ],
+      profiles: [activeProfile],
+      activeProfile,
+      activeProfileId: activeProfile.id,
+      resolution: buildResolution(),
+    });
+
+    expect(model.inventory[0]).toMatchObject({
+      statusLabel: "Declared",
+      bindingState: "unbound",
+      publicationState: "declaration_only",
+    });
+    expect(model.inventory[0]?.stateSummary).toContain("Publish declaration_only");
+  });
 });

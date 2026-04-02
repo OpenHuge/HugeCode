@@ -129,6 +129,7 @@ export function createDebugPanelBodyProps(
         activeProfileId: null,
         activeProfile: null,
         resolution: null,
+        snapshot: null,
         error: null,
       },
     },

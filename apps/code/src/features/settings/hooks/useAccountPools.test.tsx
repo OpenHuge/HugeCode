@@ -4,7 +4,7 @@ import { act } from "react";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { openUrl } from "@desktop-host/opener";
+import { openUrl } from "../../../application/runtime/facades/desktopHostFacade";
 import { subscribeAppServerEvents } from "../../../application/runtime/ports/events";
 import {
   subscribeScopedRuntimeUpdatedEvents,
@@ -22,7 +22,7 @@ import {
 import { listWorkspaces } from "../../../application/runtime/ports/workspaceCatalog";
 import { useAccountPools } from "./useAccountPools";
 
-vi.mock("@desktop-host/opener", () => ({
+vi.mock("../../../application/runtime/facades/desktopHostFacade", () => ({
   openUrl: vi.fn(),
 }));
 
@@ -119,7 +119,7 @@ beforeEach(() => {
     authUrl: "",
     immediateSuccess: true,
   });
-  vi.mocked(openUrl).mockResolvedValue(undefined);
+  vi.mocked(openUrl).mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -208,22 +208,18 @@ describe("useAccountPools", () => {
     });
   });
 
-  it("refreshes on account login completed success", async () => {
+  it("refreshes on runtime-updated oauth login success", async () => {
     const { root } = await mount();
 
     expect(listOAuthAccounts).toHaveBeenCalledTimes(1);
     expect(listOAuthPools).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      appServerListener?.({
-        workspace_id: "workspace-1",
-        message: {
-          method: "account/login/completed",
-          params: {
-            loginId: "login-1",
-            success: true,
-          },
-        },
+      emitRuntimeUpdatedOauth({
+        revision: "13",
+        scope: ["oauth"],
+        reason: "code_oauth_login_completed",
+        oauthLoginSuccess: true,
       });
     });
 

@@ -69,6 +69,11 @@ const RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts",
 ] as const;
 const RUNTIME_WORKSPACE_FLOW_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/runtimeControlPlaneRouting.ts",
+  "/src/application/runtime/facades/runtimeKernelControlPlaneFacadeHooks.ts",
+  "/src/application/runtime/facades/runtimeKernelControlPlaneOperatorModel.ts",
+  "/src/application/runtime/facades/runtimeKernelControlPlaneOperatorPresentation.ts",
+  "/src/application/runtime/facades/runtimeKernelPluginProjectionHooks.ts",
   "/src/application/runtime/facades/runtimePersistentFlowState.ts",
   "/src/application/runtime/facades/runtimeRunRecordTruth.ts",
   "/src/application/runtime/facades/runtimeRunTruthStore.ts",

@@ -216,6 +216,15 @@ pub(crate) async fn handle_rpc(
         "code_kernel_projection_bootstrap_v3" => {
             handle_kernel_projection_bootstrap_v3(ctx, params).await
         }
+        "code_runtime_composition_profile_list_v2" => {
+            handle_runtime_composition_profile_list_v2(params).await
+        }
+        "code_runtime_composition_profile_get_v2" => {
+            handle_runtime_composition_profile_get_v2(params).await
+        }
+        "code_runtime_composition_profile_resolve_v2" => {
+            handle_runtime_composition_profile_resolve_v2(params).await
+        }
         "code_runtime_backends_list" => handle_runtime_backends_list(ctx).await,
         "code_runtime_backend_upsert" => handle_runtime_backend_upsert(ctx, params).await,
         "code_runtime_backend_remove" => handle_runtime_backend_remove(ctx, params).await,
@@ -654,6 +663,39 @@ pub(crate) async fn handle_rpc(
             }
         }
     }
+}
+
+async fn handle_runtime_composition_profile_list_v2(params: &Value) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let _workspace_id = read_required_string(params, "workspaceId")?;
+    Ok(json!([]))
+}
+
+async fn handle_runtime_composition_profile_get_v2(params: &Value) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let _workspace_id = read_required_string(params, "workspaceId")?;
+    let _profile_id = read_required_string(params, "profileId")?;
+    Ok(Value::Null)
+}
+
+async fn handle_runtime_composition_profile_resolve_v2(
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let _workspace_id = read_required_string(params, "workspaceId")?;
+    Ok(json!({
+        "activeProfile": Value::Null,
+        "provenance": {
+            "activeProfileId": Value::Null,
+            "appliedLayerOrder": [],
+            "selectorDecisions": {},
+        },
+        "pluginEntries": [],
+        "selectedRouteCandidates": [],
+        "selectedBackendCandidates": [],
+        "blockedPlugins": [],
+        "trustDecisions": [],
+    }))
 }
 
 pub(crate) async fn invoke_workspace_diagnostics_list_v1(

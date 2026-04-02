@@ -65,6 +65,9 @@ import type {
   KernelProjectionBootstrapRequest,
   KernelSessionsListRequest,
   LiveSkillExecuteRequest,
+  RuntimeCompositionProfileGetV2Request,
+  RuntimeCompositionProfileListV2Request,
+  RuntimeCompositionProfileResolveV2Request,
   RuntimeBrowserDebugRunRequest,
   RuntimeBrowserDebugStatusRequest,
   RuntimeCodexCloudTasksListRequest,
@@ -379,6 +382,18 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     mutation_kind?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.KERNEL_PROJECTION_BOOTSTRAP_V3]: KernelProjectionBootstrapRequest;
+  [CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2]: RuntimeCompositionProfileListV2Request & {
+    workspace_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2]: RuntimeCompositionProfileGetV2Request & {
+    workspace_id?: string;
+    profile_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2]: RuntimeCompositionProfileResolveV2Request & {
+    workspace_id?: string;
+    profile_id?: string | null;
+    launch_override?: RuntimeCompositionProfileResolveV2Request["launchOverride"];
+  };
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_UPSERT]: RuntimeBackendUpsertInput & {
     backend_id?: string;

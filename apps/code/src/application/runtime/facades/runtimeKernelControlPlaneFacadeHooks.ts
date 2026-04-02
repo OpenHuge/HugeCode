@@ -1,5 +1,8 @@
 import { useCallback, useState } from "react";
-import type { RuntimeCompositionResolution } from "@ku0/code-runtime-host-contract";
+import type {
+  RuntimeCompositionResolution,
+  RuntimeCompositionResolveV2Response,
+} from "@ku0/code-runtime-host-contract";
 import type { RuntimeKernelCompositionFacade } from "../kernel/runtimeKernelComposition";
 import type { RuntimeKernelPluginRegistryFacade } from "../kernel/runtimeKernelPluginRegistry";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
@@ -15,9 +18,30 @@ export type RuntimeControlPlaneOperatorState = {
   info: string | null;
   previewProfileId: string | null;
   previewResolution: RuntimeCompositionResolution | null;
+  previewSnapshot: RuntimeCompositionResolveV2Response | null;
   clearPreview: () => void;
   runAction: (action: RuntimeControlPlaneOperatorAction) => Promise<void>;
 };
+
+function convertCompositionSnapshotToResolution(
+  snapshot: RuntimeCompositionResolveV2Response
+): RuntimeCompositionResolution {
+  return {
+    selectedPlugins: snapshot.pluginEntries
+      .filter((entry) => entry.selectedInActiveProfile)
+      .map((entry) => ({
+        pluginId: entry.pluginId,
+        packageRef: entry.packageRef ?? null,
+        source: entry.source,
+        reason: entry.selectedReason ?? null,
+      })),
+    selectedRouteCandidates: snapshot.selectedRouteCandidates,
+    selectedBackendCandidates: snapshot.selectedBackendCandidates,
+    blockedPlugins: snapshot.blockedPlugins,
+    trustDecisions: snapshot.trustDecisions,
+    provenance: snapshot.provenance,
+  };
+}
 
 export function useWorkspaceRuntimePluginRegistry(
   workspaceId: string | null
@@ -59,10 +83,13 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
   const [previewResolution, setPreviewResolution] = useState<RuntimeCompositionResolution | null>(
     null
   );
+  const [previewSnapshot, setPreviewSnapshot] =
+    useState<RuntimeCompositionResolveV2Response | null>(null);
 
   const clearPreview = useCallback(() => {
     setPreviewProfileId(null);
     setPreviewResolution(null);
+    setPreviewSnapshot(null);
   }, []);
 
   const runAction = useCallback(
@@ -144,11 +171,12 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (!compositionRuntime || !action.profileId) {
               throw new Error("Runtime composition control plane is unavailable.");
             }
-            const result = await compositionRuntime.previewResolution({
+            const result = await compositionRuntime.previewResolutionV2({
               profileId: action.profileId,
             });
             setPreviewProfileId(action.profileId);
-            setPreviewResolution(result);
+            setPreviewSnapshot(result);
+            setPreviewResolution(convertCompositionSnapshotToResolution(result));
             setInfo(`Previewed runtime composition profile ${action.profileId}.`);
             break;
           }
@@ -156,11 +184,12 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (!compositionRuntime || !action.profileId) {
               throw new Error("Runtime composition control plane is unavailable.");
             }
-            const result = await compositionRuntime.applyProfile({
+            const result = await compositionRuntime.applyProfileV2({
               profileId: action.profileId,
             });
             setPreviewProfileId(action.profileId);
-            setPreviewResolution(result);
+            setPreviewSnapshot(result);
+            setPreviewResolution(convertCompositionSnapshotToResolution(result));
             await refresh();
             setInfo(`Applied runtime composition profile ${action.profileId}.`);
             break;
@@ -184,6 +213,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
     info,
     previewProfileId,
     previewResolution,
+    previewSnapshot,
     clearPreview,
     runAction,
   };

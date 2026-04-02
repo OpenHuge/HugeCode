@@ -160,6 +160,49 @@ describe("runtimeKernelComposition", () => {
     );
   });
 
+  it("publishes a composition snapshot with canonical binding and publication truth", async () => {
+    const pluginCatalog = createRuntimePluginCatalog();
+    const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
+      workspaceId: "workspace-1",
+      pluginCatalog,
+    });
+    await pluginRegistry.installPackage({ packageRef: "hugecode.mcp.search@1.0.0" });
+    const composition = createRuntimeKernelCompositionFacade({
+      workspaceId: "workspace-1",
+      pluginCatalog,
+      pluginRegistry,
+    });
+
+    const snapshot = await composition.getActiveResolutionV2();
+    const runtimeExtension = snapshot.pluginEntries.find(
+      (entry) => entry.pluginId === "ext.runtime"
+    );
+    const installedRemote = snapshot.pluginEntries.find(
+      (entry) => entry.pluginId === "pkg.search.remote"
+    );
+
+    expect(snapshot.activeProfile?.id).toBe("workspace-default");
+    expect(snapshot.provenance.appliedLayerOrder).toEqual([
+      "built_in",
+      "user",
+      "workspace",
+      "launch_override",
+    ]);
+    expect(runtimeExtension).toMatchObject({
+      bindingState: "bound",
+      publicationState: "hidden",
+      selectedInActiveProfile: true,
+      routeCandidate: false,
+    });
+    expect(installedRemote).toMatchObject({
+      installed: true,
+      bindingState: "unbound",
+      publicationState: "declaration_only",
+      selectedInActiveProfile: true,
+      blockedReason: null,
+    });
+  });
+
   it("uses first-match selector resolution and does not mutate stored profiles during preview", async () => {
     const pluginCatalog = createRuntimePluginCatalog();
     const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
@@ -203,6 +246,83 @@ describe("runtimeKernelComposition", () => {
     expect(storedProfile?.pluginSelectors).toEqual([]);
   });
 
+  it("keeps declaration-only publication distinct from binding state", async () => {
+    const pluginCatalog = {
+      listPlugins: vi.fn(
+        async () =>
+          [
+            {
+              id: "repo.skill",
+              name: "Repo Skill",
+              version: "1.0.0",
+              summary: null,
+              source: "repo_manifest",
+              transport: "repo_manifest",
+              hostProfile: {
+                kind: "repository",
+                executionBoundaries: ["workspace"],
+              },
+              workspaceId: "workspace-1",
+              enabled: true,
+              runtimeBacked: false,
+              capabilities: [],
+              permissions: [],
+              resources: [],
+              executionBoundaries: ["workspace"],
+              binding: {
+                state: "declaration_only",
+                contractFormat: "manifest",
+                contractBoundary: "repo-manifest",
+                interfaceId: "repo.skill",
+                surfaces: [],
+              },
+              operations: {
+                execution: {
+                  executable: false,
+                  mode: "none",
+                  reason: "Declaration-only manifest.",
+                },
+                resources: {
+                  readable: true,
+                  mode: "repo_manifest_resource",
+                  reason: null,
+                },
+                permissions: {
+                  evaluable: true,
+                  mode: "repo_manifest_permissions",
+                  reason: null,
+                },
+              },
+              metadata: null,
+              permissionDecision: null,
+              health: null,
+            },
+          ] satisfies RuntimeKernelPluginDescriptor[]
+      ),
+    };
+    const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
+      workspaceId: "workspace-1",
+      pluginCatalog,
+    });
+    const composition = createRuntimeKernelCompositionFacade({
+      workspaceId: "workspace-1",
+      pluginCatalog,
+      pluginRegistry,
+    });
+
+    const snapshot = await composition.getActiveResolutionV2();
+
+    expect(snapshot.pluginEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pluginId: "repo.skill",
+          bindingState: "unbound",
+          publicationState: "declaration_only",
+        }),
+      ])
+    );
+  });
+
   it("can exclude verified packages through trust policy", async () => {
     const pluginCatalog = createRuntimePluginCatalog();
     const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
@@ -232,6 +352,44 @@ describe("runtimeKernelComposition", () => {
         expect.objectContaining({
           pluginId: "pkg.search.remote",
           stage: "trust",
+        }),
+      ])
+    );
+  });
+
+  it("marks trust-blocked packages as blocked in the v2 snapshot while preserving active profile provenance", async () => {
+    const pluginCatalog = createRuntimePluginCatalog();
+    const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
+      workspaceId: "workspace-1",
+      pluginCatalog,
+    });
+    await pluginRegistry.installPackage({ packageRef: "hugecode.mcp.search@1.0.0" });
+    const composition = createRuntimeKernelCompositionFacade({
+      workspaceId: "workspace-1",
+      pluginCatalog,
+      pluginRegistry,
+    });
+
+    await composition.applyProfile({
+      profileId: "workspace-default",
+      updates: {
+        trustPolicy: {
+          requireVerifiedSignatures: true,
+          allowDevOverrides: false,
+          blockedPublishers: ["HugeCode Labs"],
+        },
+      },
+    });
+    const snapshot = await composition.getActiveResolutionV2();
+
+    expect(snapshot.provenance.activeProfileId).toBe("workspace-default");
+    expect(snapshot.pluginEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          pluginId: "pkg.search.remote",
+          bindingState: "blocked",
+          publicationState: "blocked",
+          blockedReason: "Publisher HugeCode Labs is blocked by trust policy.",
         }),
       ])
     );

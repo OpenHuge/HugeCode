@@ -37,6 +37,46 @@ function createRuntimeKernelValue() {
       selectorDecisions: {},
     },
   }));
+  const previewResolutionV2 = vi.fn(async () => ({
+    activeProfile: {
+      id: "workspace-default",
+      name: "Workspace Default",
+      scope: "workspace",
+      enabled: true,
+      pluginSelectors: [],
+      routePolicy: {
+        preferredRoutePluginIds: [],
+        providerPreference: [],
+        allowRuntimeFallback: true,
+      },
+      backendPolicy: {
+        preferredBackendIds: ["backend-primary"],
+        resolvedBackendId: null,
+      },
+      trustPolicy: {
+        requireVerifiedSignatures: true,
+        allowDevOverrides: false,
+        blockedPublishers: [],
+      },
+      executionPolicyRefs: [],
+      observabilityPolicy: {
+        emitStableEvents: true,
+        emitOtelAlignedTelemetry: true,
+      },
+      configLayers: [],
+    },
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+    pluginEntries: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+  }));
   const applyProfile = vi.fn(async () => ({
     selectedPlugins: [],
     selectedRouteCandidates: [],
@@ -49,6 +89,46 @@ function createRuntimeKernelValue() {
       appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
       selectorDecisions: {},
     },
+  }));
+  const applyProfileV2 = vi.fn(async () => ({
+    activeProfile: {
+      id: "workspace-default",
+      name: "Workspace Default",
+      scope: "workspace",
+      enabled: true,
+      pluginSelectors: [],
+      routePolicy: {
+        preferredRoutePluginIds: [],
+        providerPreference: [],
+        allowRuntimeFallback: true,
+      },
+      backendPolicy: {
+        preferredBackendIds: ["backend-primary"],
+        resolvedBackendId: null,
+      },
+      trustPolicy: {
+        requireVerifiedSignatures: true,
+        allowDevOverrides: false,
+        blockedPublishers: [],
+      },
+      executionPolicyRefs: [],
+      observabilityPolicy: {
+        emitStableEvents: true,
+        emitOtelAlignedTelemetry: true,
+      },
+      configLayers: [],
+    },
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+    pluginEntries: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
   }));
 
   const workspaceScope = {
@@ -65,7 +145,9 @@ function createRuntimeKernelValue() {
       if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime) {
         return {
           previewResolution,
+          previewResolutionV2,
           applyProfile,
+          applyProfileV2,
         };
       }
       throw new Error(`Unsupported capability: ${key}`);
@@ -89,7 +171,9 @@ function createRuntimeKernelValue() {
     updatePackage,
     uninstallPackage,
     previewResolution,
+    previewResolutionV2,
     applyProfile,
+    applyProfileV2,
   };
 }
 
@@ -193,7 +277,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
 
     await waitFor(() => {
       expect(result.current.previewProfileId).toBe("workspace-default");
-      expect(result.current.previewResolution?.selectedBackendCandidates).toHaveLength(1);
+      expect(result.current.previewSnapshot?.selectedBackendCandidates).toHaveLength(1);
     });
 
     const applyAction = {
@@ -208,7 +292,8 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
       await result.current.runAction(applyAction);
     });
 
-    expect(kernelValue.applyProfile).toHaveBeenCalledWith({
+    expect(kernelValue.applyProfile).not.toHaveBeenCalled();
+    expect(kernelValue.applyProfileV2).toHaveBeenCalledWith({
       profileId: "workspace-default",
     });
     expect(refresh).toHaveBeenCalledTimes(2);
@@ -281,7 +366,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
     });
 
     expect(result.current.previewProfileId).toBe("workspace-default");
-    expect(result.current.previewResolution).not.toBeNull();
+    expect(result.current.previewSnapshot).not.toBeNull();
 
     await act(async () => {
       await result.current.runAction(devOverrideAction);
@@ -298,6 +383,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
     expect(refresh).toHaveBeenCalledTimes(3);
     expect(result.current.previewProfileId).toBeNull();
     expect(result.current.previewResolution).toBeNull();
+    expect(result.current.previewSnapshot).toBeNull();
     expect(result.current.info).toContain("Uninstalled runtime plugin package");
   });
 });
