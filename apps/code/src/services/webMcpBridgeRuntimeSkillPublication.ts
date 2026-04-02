@@ -1,6 +1,4 @@
-import {
-  buildRuntimeExecutableSkillPublicationReason,
-} from "@ku0/code-application/runtimeExecutableSkillCatalog";
+import { buildRuntimeExecutableSkillPublicationReason } from "@ku0/code-application/runtimeExecutableSkillCatalog";
 import { createRuntimeExecutableSkillFacade } from "@ku0/code-application/runtimeExecutableSkillFacade";
 import type {
   RuntimeAgentControl,
