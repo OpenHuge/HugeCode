@@ -20,7 +20,7 @@ import {
   sendNotification,
   startReview,
   steerTurn,
-} from "./desktopHost";
+} from "../test/shims/desktopHostServices";
 import { respondToServerRequestResult, respondToToolCallRequest } from "./desktopHostReview";
 
 vi.mock("@desktop-host/core", () => ({
@@ -37,7 +37,7 @@ vi.mock("@desktop-host/dialogs", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -46,7 +46,13 @@ function installNotificationApiMock(config: {
   permission: NotificationPermission;
   requestPermissionResult?: NotificationPermission;
 }) {
-  const instances: Array<{ close: ReturnType<typeof vi.fn>; onshow: (() => void) | null }> = [];
+  type NotificationInstance = {
+    title: string;
+    options?: NotificationOptions;
+    close: ReturnType<typeof vi.fn>;
+    onshow: (() => void) | null;
+  };
+  const instances: NotificationInstance[] = [];
   const requestPermission = vi.fn(async () => config.requestPermissionResult ?? config.permission);
 
   class MockNotification {
@@ -87,9 +93,9 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: [],
       wsEndpointPath: null,

@@ -18,11 +18,11 @@ Interpret this carefully:
   layer consumed by both the web and desktop shells.
 - `packages/code-application` is the shared application-layer package for
   orchestration, shared workspace host rendering, host binding composition,
-  and host-agnostic desktop/web use cases. Keep it free of direct desktop-host
+  and host-agnostic desktop/web use cases. Keep it free of direct Electron bridge
   implementation imports.
 - `packages/code-platform-interfaces` is the shared capability-contract layer
   for desktop and web host adapters. Keep it free of concrete Electron runtime
-  imports and legacy desktop host compatibility details.
+  imports and legacy shell compatibility details.
 - `apps/code` remains the desktop-first host shell and runtime bootstrap layer
   around that shared workspace client.
 - `apps/code-electron` is the canonical desktop shell around the same
@@ -87,6 +87,14 @@ Treat the `apps/code` runtime boundary as a layered API, not a grab-bag of direc
   Narrow convenience imports used by current feature code and runtime port composition.
 - `src/services/*`
   Internal transport, bridge, fallback, and protocol implementation details.
+
+Inside this boundary, keep runtime capability composition split into explicit layers:
+
+- activation layer for lifecycle truth
+- invocation layer for discoverable and executable identities
+- composition/profile layer for policy, route, and source assembly
+
+Feature code must not infer these layers from transport-local live lists, host-specific publication state, or page-local settings merges.
 
 Feature and UI code should not import runtime internals from `src/services/*` directly. Use the application runtime surface instead.
 

@@ -1,5 +1,9 @@
-import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
-import { listen } from "@desktop-host/event";
+import {
+  invoke,
+  invokeDesktopCommand,
+  isDesktopHostRuntime,
+} from "../application/runtime/ports/desktopHostCore";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   detectRuntimeMode,
@@ -34,29 +38,27 @@ import {
   setThreadName,
   startThread,
   upsertOAuthAccount,
-} from "./desktopHost";
+} from "../test/shims/desktopHostServices";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: vi.fn(),
-  isDesktopHostRuntime: vi.fn(() => true),
-}));
+vi.mock("../application/runtime/ports/desktopHostCore", () => {
+  const invokeMock = vi.fn();
+  return {
+    invoke: invokeMock,
+    invokeDesktopCommand: invokeMock,
+    isDesktopHostRuntime: vi.fn(() => true),
+  };
+});
 
-vi.mock("@desktop-host/event", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@desktop-host/dialogs", () => ({
+vi.mock("../application/runtime/ports/desktopHostDialogs", () => ({
   open: vi.fn(),
 }));
 
-vi.mock("@desktop-host/notifications", () => ({
-  isPermissionGranted: vi.fn(),
-  requestPermission: vi.fn(),
-  sendNotification: vi.fn(),
-}));
-
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -81,14 +83,15 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: [],
       wsEndpointPath: null,
       error: null,
     });
+    expect(vi.mocked(invokeDesktopCommand)).toBe(invokeMock);
   });
 
   it("invalidates web oauth account in-flight cache after account upsert", async () => {
@@ -440,7 +443,7 @@ describe("desktop host invoke wrappers", () => {
     );
   });
 
-  it("normalizes codex auth URL from desktop-host runtime oauth payload", async () => {
+  it("normalizes codex auth URL from desktop host runtime oauth payload", async () => {
     vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthCodexLoginStart: vi.fn(async () => ({
@@ -837,7 +840,7 @@ describe("desktop host invoke wrappers", () => {
 
   it("auto-assembles paged git diffs when runtime advertises paging capability", async () => {
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: ["git_diff_paging_v1"],
       wsEndpointPath: null,

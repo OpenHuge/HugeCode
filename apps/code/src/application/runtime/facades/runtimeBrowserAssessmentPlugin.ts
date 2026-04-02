@@ -74,7 +74,7 @@ export function buildRuntimeBrowserAssessmentPluginDescriptor(input: {
           id: "browser.assessment",
           kind: "procedure_set",
           direction: "export",
-          summary: "Runs a localized browser assessment through the desktop host bridge.",
+          summary: "Runs a localized browser assessment through the Electron bridge.",
         },
       ],
     },
@@ -82,7 +82,7 @@ export function buildRuntimeBrowserAssessmentPluginDescriptor(input: {
       execution: {
         executable: false,
         mode: "none",
-        reason: "Browser assessment is executed through the desktop host bridge operator path.",
+        reason: "Browser assessment is executed through the Electron bridge operator path.",
       },
       resources: {
         readable: false,

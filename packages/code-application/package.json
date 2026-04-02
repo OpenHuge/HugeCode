@@ -8,6 +8,26 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./runtimeExecutableSkillCatalog": {
+      "types": "./src/runtimeExecutableSkillCatalog.ts",
+      "default": "./src/runtimeExecutableSkillCatalog.ts"
+    },
+    "./runtimeExecutableSkillFacade": {
+      "types": "./src/runtimeExecutableSkillFacade.ts",
+      "default": "./src/runtimeExecutableSkillFacade.ts"
+    },
+    "./runtimeInvocationCatalog": {
+      "types": "./src/runtimeInvocationCatalog.ts",
+      "default": "./src/runtimeInvocationCatalog.ts"
+    },
+    "./runtimeInvocationCatalogFacade": {
+      "types": "./src/runtimeInvocationCatalogFacade.ts",
+      "default": "./src/runtimeInvocationCatalogFacade.ts"
+    },
+    "./runtimeLiveSkillAliases": {
+      "types": "./src/runtimeLiveSkillAliases.ts",
+      "default": "./src/runtimeLiveSkillAliases.ts"
     }
   },
   "scripts": {
@@ -19,6 +39,8 @@
   },
   "dependencies": {
     "@ku0/code-platform-interfaces": "workspace:*",
+    "@ku0/code-runtime-host-contract": "workspace:*",
+    "@ku0/code-runtime-webmcp-client": "workspace:*",
     "@ku0/code-workspace-client": "workspace:*",
     "@ku0/shared": "workspace:*"
   },

@@ -42,7 +42,7 @@ export function useWindowFocusState() {
           // Ignore; fallback listeners below cover focus changes.
         });
     } catch {
-      // In non-desktop-host environments, getCurrentWindow can throw.
+      // In environments without the Electron bridge, getCurrentWindow can throw.
       // The DOM listeners below still provide focus state.
     }
 

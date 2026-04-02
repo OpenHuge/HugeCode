@@ -36,6 +36,14 @@ export type * from "./code-runtime-rpc/workspaceAndGit.js";
 export type * from "./code-runtime-rpc/providersAndAuth.js";
 
 export type * from "./code-runtime-rpc/runtimeFeatures.js";
+export type * from "./runtimeActivationPlane.js";
+export type * from "./runtimeCompositionPlane.js";
+export type * from "./runtimeCompositionProfiles.js";
+export {
+  RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER,
+  RUNTIME_COMPOSITION_CONFIG_LAYER_SOURCES,
+  RUNTIME_COMPOSITION_PROFILE_SCOPES,
+} from "./runtimeCompositionProfiles.js";
 
 export type * from "./code-runtime-rpc/payloadMaps.js";
 

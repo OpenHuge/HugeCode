@@ -1,4 +1,4 @@
-import { invoke } from "@desktop-host/core";
+import { invokeDesktopCommand } from "../application/runtime/ports/desktopHostCore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRuntimeClient } from "./runtimeClient";
 import {
@@ -19,8 +19,8 @@ import {
   setThreadName,
 } from "./desktopHostRpc";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: vi.fn(),
+vi.mock("../application/runtime/ports/desktopHostCore", () => ({
+  invokeDesktopCommand: vi.fn(),
 }));
 
 vi.mock("./runtimeClient", () => ({
@@ -33,7 +33,7 @@ vi.mock("./runtimeClientCodex", () => ({
   listMcpServerStatusWithFallback: vi.fn(),
 }));
 
-const invokeMock = vi.mocked(invoke);
+const invokeMock = vi.mocked(invokeDesktopCommand);
 const getRuntimeClientMock = vi.mocked(getRuntimeClient);
 const getCodexConfigPathWithFallbackMock = vi.mocked(getCodexConfigPathWithFallback);
 const listCollaborationModesWithFallbackMock = vi.mocked(listCollaborationModesWithFallback);

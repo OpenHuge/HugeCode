@@ -5,7 +5,7 @@ import {
   listAcceptedLiveSkillIdsFromCatalogSkill,
   normalizeLiveSkillLookupId,
   type RuntimeLiveSkillAliasSource,
-} from "../application/runtime/facades/runtimeLiveSkillAliases";
+} from "@ku0/code-application/runtimeLiveSkillAliases";
 export {
   canonicalizeLiveSkillId,
   listAcceptedLiveSkillIds,

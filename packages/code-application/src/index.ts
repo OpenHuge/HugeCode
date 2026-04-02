@@ -35,6 +35,31 @@ export {
   createDesktopWorkspaceBootstrap,
   createDesktopWorkspaceBootstrap as createDesktopWorkspaceBootstrapBindings,
 } from "./desktopWorkspaceBootstrap";
+export {
+  canonicalizeLiveSkillId,
+  listAcceptedLiveSkillIds,
+  listAcceptedLiveSkillIdsFromCatalogSkill,
+  normalizeLiveSkillLookupId,
+} from "./runtimeLiveSkillAliases";
+export { createRuntimeExecutableSkillFacade } from "./runtimeExecutableSkillFacade";
+export { createRuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalogFacade";
+export {
+  applyRuntimeCompositionProfileUpdates,
+  buildDefaultRuntimeCompositionProfiles,
+  cloneRuntimeCompositionProfile,
+  mergeRuntimeCompositionProfiles,
+} from "./runtimeCompositionProfiles";
+export {
+  RuntimeSkillExecutionGateError,
+  readRuntimeExecutableSkillCatalog,
+  resolveRuntimeExecutableSkill,
+  runRuntimeExecutableSkill,
+} from "./runtimeExecutableSkillCatalog";
+export {
+  listRuntimeInvocationDescriptors,
+  normalizeRuntimeInvocationCatalogSnapshot,
+  resolveRuntimeInvocationDescriptor,
+} from "./runtimeInvocationCatalog";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,
@@ -63,3 +88,10 @@ export type {
   WorkspaceHostEffect,
   WorkspaceHostProvider,
 } from "./workspaceHostRenderer";
+export type * from "./runtimeExecutableSkillFacade";
+export type * from "./runtimeInvocationCatalogFacade";
+export type * from "./runtimeLiveSkillAliases";
+export type {
+  RuntimeCompositionProfileLaunchOverride,
+  RuntimeCompositionProfileUpdates,
+} from "./runtimeCompositionProfiles";

@@ -7,6 +7,8 @@ export const CODE_RUNTIME_HOST_REQUEST_KINDS = [
   "approvalDecision",
 ] as const;
 
+export { RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER } from "./runtimeCompositionProfiles.js";
+
 export type CodeRuntimeHostRequestKind = (typeof CODE_RUNTIME_HOST_REQUEST_KINDS)[number];
 
 export const CODE_RUNTIME_HOST_EVENT_KINDS = [
@@ -1066,6 +1068,8 @@ export function parseCodeRuntimeHostEventEnvelope(
 }
 
 export type * from "./codeRuntimeRpc.js";
+export type * from "./runtimeCompositionPlane.js";
+export type * from "./runtimeCompositionProfiles.js";
 export type * from "./codeRuntimeRpcCompat.js";
 export type * from "./hugeCodeMissionControl.js";
 export type * from "./runtimeTaskSourceShared.js";
@@ -1084,6 +1088,10 @@ export {
   computeCodeRuntimeRpcMethodSetHash,
   isCodeRuntimeRpcMethod,
 } from "./codeRuntimeRpc.js";
+export {
+  RUNTIME_COMPOSITION_CONFIG_LAYER_SOURCES,
+  RUNTIME_COMPOSITION_PROFILE_SCOPES,
+} from "./runtimeCompositionProfiles.js";
 export {
   buildCodeRuntimeRpcCompatFields,
   cloneWithCodeRuntimeRpcCompatAliases,

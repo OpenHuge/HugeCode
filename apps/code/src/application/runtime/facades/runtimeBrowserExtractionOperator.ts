@@ -58,7 +58,7 @@ export type RuntimeBrowserVerificationTelemetryContext = {
 };
 
 const EMPTY_HISTORY_MESSAGE =
-  "No browser extraction result has been recorded by the desktop host yet.";
+  "No browser extraction result has been recorded by the Electron bridge yet.";
 
 function readTrimmedValue(value: string): string | null {
   const trimmed = value.trim();
@@ -324,7 +324,7 @@ export function useRuntimeBrowserExtractionOperator(
         setNotice({
           tone: "warning",
           message:
-            "Desktop host did not return a browser extraction result. Retry once the host bridge is stable.",
+            "Electron bridge did not return a browser extraction result. Retry once the bridge is stable.",
         });
         return;
       }

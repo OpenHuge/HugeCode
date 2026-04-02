@@ -331,4 +331,39 @@ describe("runtime port contract", () => {
 
     expect(source).not.toMatch(/from\s+["']\.\/(?:compat|legacy)[A-Za-z0-9]*["']/);
   });
+
+  it("deletes app-local shared runtime shim files once the shared package owns them", () => {
+    const deletedServiceShims = [
+      "../../../services/runtimeClientRpcHelpers.ts",
+      "../../../services/runtimeClientRpcPayloads.ts",
+      "../../../services/runtimeEventStateMachine.ts",
+      "../../../services/webMcpBridgeModelContextApi.ts",
+    ] as const;
+
+    for (const relativePath of deletedServiceShims) {
+      expect(() => readFileSync(path.resolve(import.meta.dirname, relativePath), "utf8")).toThrow();
+    }
+  });
+
+  it("keeps runtime bridge entrypoints free of retired desktop globals and the deleted desktopHost barrel", () => {
+    const sourcePaths = [
+      "../ports/desktopHostCore.ts",
+      "../ports/desktopHostEvent.ts",
+      "../../../services/runtimeClientMode.ts",
+      "../../../services/runtimeToolExecutionMetricsReporter.ts",
+      "../../../services/webMcpBridgeRuntimeLiveSkillTools.ts",
+    ] as const;
+
+    for (const relativePath of sourcePaths) {
+      const source = readFileSync(path.resolve(import.meta.dirname, relativePath), "utf8");
+
+      expect(source, `${relativePath} should not read retired desktop globals`).not.toMatch(
+        /__HUGE_CODE_DESKTOP_HOST|__HUGE_CODE_RUNTIME_CLIENT_MODE__/
+      );
+      expect(
+        source,
+        `${relativePath} should not import the deleted desktopHost barrel`
+      ).not.toMatch(/from\s+["'][^"']*services\/desktopHost["']|from\s+["']\.\/desktopHost["']/);
+    }
+  });
 });

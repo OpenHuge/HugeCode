@@ -1,13 +1,22 @@
-import type {
-  RuntimeCompositionBackendCandidate,
-  RuntimeCompositionBlockedPlugin,
-  RuntimeCompositionConfigLayer,
-  RuntimeCompositionProfile,
-  RuntimeCompositionResolution,
-  RuntimeCompositionTrustPolicy,
-  RuntimePluginTrustDecision,
-  RuntimeRegistryPackageDescriptor,
+import {
+  RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER,
+  type RuntimeCompositionBackendCandidate,
+  type RuntimeCompositionBlockedPlugin,
+  type RuntimeCompositionConfigLayer,
+  type RuntimeCompositionProfile,
+  type RuntimeCompositionResolution,
+  type RuntimeCompositionTrustPolicy,
+  type RuntimePluginTrustDecision,
+  type RuntimeRegistryPackageDescriptor,
 } from "@ku0/code-runtime-host-contract";
+import {
+  applyRuntimeCompositionProfileUpdates,
+  buildDefaultRuntimeCompositionProfiles,
+  cloneRuntimeCompositionProfile,
+  mergeRuntimeCompositionProfiles,
+  type RuntimeCompositionProfileLaunchOverride,
+  type RuntimeCompositionProfileUpdates,
+} from "@ku0/code-application";
 import { readRuntimeKernelRoutingPluginMetadata } from "./runtimeKernelPlugins";
 import type { RuntimeKernelPluginDescriptor } from "./runtimeKernelPlugins";
 import {
@@ -20,23 +29,12 @@ const RUNTIME_KERNEL_PLUGIN_COMPOSITION_METADATA_KEY = "composition";
 
 export type RuntimeKernelCompositionPreviewInput = {
   profileId?: string | null;
-  launchOverride?: Partial<
-    Pick<
-      RuntimeCompositionProfile,
-      | "pluginSelectors"
-      | "routePolicy"
-      | "backendPolicy"
-      | "trustPolicy"
-      | "executionPolicyRefs"
-      | "observabilityPolicy"
-      | "configLayers"
-    >
-  > | null;
+  launchOverride?: RuntimeCompositionProfileLaunchOverride | null;
 };
 
 export type RuntimeKernelCompositionApplyInput = {
   profileId: string;
-  updates?: Partial<Omit<RuntimeCompositionProfile, "id" | "scope">>;
+  updates?: RuntimeCompositionProfileUpdates;
 };
 
 export type RuntimeKernelPluginCompositionMetadata = {
@@ -61,197 +59,6 @@ export type RuntimeKernelCompositionFacade = {
   ) => Promise<RuntimeCompositionResolution>;
   getActiveResolution: () => Promise<RuntimeCompositionResolution>;
 };
-
-function cloneProfile(profile: RuntimeCompositionProfile): RuntimeCompositionProfile {
-  return {
-    ...profile,
-    pluginSelectors: [...profile.pluginSelectors],
-    routePolicy: { ...profile.routePolicy },
-    backendPolicy: { ...profile.backendPolicy },
-    trustPolicy: {
-      ...profile.trustPolicy,
-      blockedPublishers: [...(profile.trustPolicy.blockedPublishers ?? [])],
-    },
-    executionPolicyRefs: [...profile.executionPolicyRefs],
-    observabilityPolicy: { ...profile.observabilityPolicy },
-    configLayers: profile.configLayers.map((layer) => ({ ...layer })),
-  };
-}
-
-function buildDefaultProfiles(): RuntimeCompositionProfile[] {
-  return [
-    {
-      id: "built-in-default",
-      name: "Built-in Default",
-      scope: "built_in",
-      enabled: true,
-      pluginSelectors: [],
-      routePolicy: {
-        preferredRoutePluginIds: [],
-        providerPreference: [],
-        allowRuntimeFallback: true,
-      },
-      backendPolicy: {
-        preferredBackendIds: [],
-        resolvedBackendId: null,
-      },
-      trustPolicy: {
-        requireVerifiedSignatures: true,
-        allowDevOverrides: false,
-        blockedPublishers: [],
-      },
-      executionPolicyRefs: ["built-in/runtime-default"],
-      observabilityPolicy: {
-        emitStableEvents: true,
-        emitOtelAlignedTelemetry: true,
-      },
-      configLayers: [
-        {
-          id: "built-in-default",
-          source: "built_in",
-          summary: "Default control-plane baseline for all workspaces.",
-        },
-      ],
-    },
-    {
-      id: "user-default",
-      name: "User Default",
-      scope: "user",
-      enabled: true,
-      pluginSelectors: [],
-      routePolicy: {
-        preferredRoutePluginIds: [],
-        providerPreference: ["openai", "anthropic"],
-        allowRuntimeFallback: true,
-      },
-      backendPolicy: {
-        preferredBackendIds: ["backend-default"],
-        resolvedBackendId: null,
-      },
-      trustPolicy: {
-        requireVerifiedSignatures: true,
-        allowDevOverrides: false,
-        blockedPublishers: [],
-      },
-      executionPolicyRefs: ["user/default"],
-      observabilityPolicy: {
-        emitStableEvents: true,
-        emitOtelAlignedTelemetry: true,
-      },
-      configLayers: [
-        {
-          id: "user-default",
-          source: "user",
-          summary: "User-level route and backend preference defaults.",
-        },
-      ],
-    },
-    {
-      id: "workspace-default",
-      name: "Workspace Default",
-      scope: "workspace",
-      enabled: true,
-      pluginSelectors: [],
-      routePolicy: {
-        preferredRoutePluginIds: [],
-        providerPreference: [],
-        allowRuntimeFallback: true,
-      },
-      backendPolicy: {
-        preferredBackendIds: ["backend-primary", "backend-fallback"],
-        resolvedBackendId: null,
-      },
-      trustPolicy: {
-        requireVerifiedSignatures: true,
-        allowDevOverrides: false,
-        blockedPublishers: [],
-      },
-      executionPolicyRefs: ["workspace/default"],
-      observabilityPolicy: {
-        emitStableEvents: true,
-        emitOtelAlignedTelemetry: true,
-      },
-      configLayers: [
-        {
-          id: "workspace-default",
-          source: "workspace",
-          summary: "Workspace-level backend preference and trust defaults.",
-        },
-      ],
-    },
-  ];
-}
-
-function mergeProfiles(
-  profiles: RuntimeCompositionProfile[],
-  activeProfileId: string,
-  launchOverride?: RuntimeKernelCompositionPreviewInput["launchOverride"]
-): RuntimeCompositionProfile {
-  const builtIn =
-    profiles.find((profile) => profile.scope === "built_in") ?? buildDefaultProfiles()[0];
-  const user = profiles.find((profile) => profile.scope === "user") ?? buildDefaultProfiles()[1];
-  const active =
-    profiles.find((profile) => profile.id === activeProfileId) ??
-    profiles.find((profile) => profile.scope === "workspace") ??
-    buildDefaultProfiles()[2];
-
-  const launchLayers = launchOverride?.configLayers ?? [];
-  return {
-    ...cloneProfile(builtIn),
-    id: active.id,
-    name: active.name,
-    scope: active.scope,
-    enabled: active.enabled,
-    pluginSelectors: [
-      ...builtIn.pluginSelectors,
-      ...user.pluginSelectors,
-      ...active.pluginSelectors,
-      ...(launchOverride?.pluginSelectors ?? []),
-    ],
-    routePolicy: {
-      ...builtIn.routePolicy,
-      ...user.routePolicy,
-      ...active.routePolicy,
-      ...(launchOverride?.routePolicy ?? {}),
-    },
-    backendPolicy: {
-      ...builtIn.backendPolicy,
-      ...user.backendPolicy,
-      ...active.backendPolicy,
-      ...(launchOverride?.backendPolicy ?? {}),
-    },
-    trustPolicy: {
-      ...builtIn.trustPolicy,
-      ...user.trustPolicy,
-      ...active.trustPolicy,
-      ...(launchOverride?.trustPolicy ?? {}),
-      blockedPublishers: [
-        ...(builtIn.trustPolicy.blockedPublishers ?? []),
-        ...(user.trustPolicy.blockedPublishers ?? []),
-        ...(active.trustPolicy.blockedPublishers ?? []),
-        ...(launchOverride?.trustPolicy?.blockedPublishers ?? []),
-      ],
-    },
-    executionPolicyRefs: [
-      ...builtIn.executionPolicyRefs,
-      ...user.executionPolicyRefs,
-      ...active.executionPolicyRefs,
-      ...(launchOverride?.executionPolicyRefs ?? []),
-    ],
-    observabilityPolicy: {
-      ...builtIn.observabilityPolicy,
-      ...user.observabilityPolicy,
-      ...active.observabilityPolicy,
-      ...(launchOverride?.observabilityPolicy ?? {}),
-    },
-    configLayers: [
-      ...builtIn.configLayers,
-      ...user.configLayers,
-      ...active.configLayers,
-      ...launchLayers.map((layer) => ({ ...layer, source: "launch_override" as const })),
-    ],
-  };
-}
 
 function matchesSelector(input: {
   plugin: RuntimeKernelPluginDescriptor;
@@ -378,8 +185,8 @@ export function createRuntimeKernelCompositionFacade(input: {
   seedProfiles?: RuntimeCompositionProfile[];
 }): RuntimeKernelCompositionFacade {
   const profiles = new Map(
-    (input.seedProfiles ?? buildDefaultProfiles()).map(
-      (profile) => [profile.id, cloneProfile(profile)] as const
+    (input.seedProfiles ?? buildDefaultRuntimeCompositionProfiles()).map(
+      (profile) => [profile.id, cloneRuntimeCompositionProfile(profile)] as const
     )
   );
   let activeProfileId =
@@ -401,7 +208,7 @@ export function createRuntimeKernelCompositionFacade(input: {
       }
       plugins.push(registryPlugin);
     }
-    const effectiveProfile = mergeProfiles(
+    const effectiveProfile = mergeRuntimeCompositionProfiles(
       [...profiles.values()],
       previewInput?.profileId ?? activeProfileId,
       previewInput?.launchOverride ?? null
@@ -416,12 +223,13 @@ export function createRuntimeKernelCompositionFacade(input: {
         plugin,
         registryPackages,
       });
-      const selector = effectiveProfile.pluginSelectors.find((candidate) =>
-        matchesSelector({
-          plugin,
-          packageDescriptor,
-          selector: candidate,
-        })
+      const selector = effectiveProfile.pluginSelectors.find(
+        (candidate: RuntimeCompositionProfile["pluginSelectors"][number]) =>
+          matchesSelector({
+            plugin,
+            packageDescriptor,
+            selector: candidate,
+          })
       );
       if (selector) {
         selectorDecisions[plugin.id] = selector.action;
@@ -550,17 +358,18 @@ export function createRuntimeKernelCompositionFacade(input: {
       provenance: {
         activeProfileId: effectiveProfile.id,
         activeProfileName: effectiveProfile.name,
-        appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+        appliedLayerOrder: [...RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER],
         selectorDecisions,
       },
     };
   }
 
   return {
-    listProfiles: async () => [...profiles.values()].map((profile) => cloneProfile(profile)),
+    listProfiles: async () =>
+      [...profiles.values()].map((profile) => cloneRuntimeCompositionProfile(profile)),
     getProfile: async (profileId) => {
       const profile = profiles.get(profileId);
-      return profile ? cloneProfile(profile) : null;
+      return profile ? cloneRuntimeCompositionProfile(profile) : null;
     },
     previewResolution: (previewInput) => resolveComposition(previewInput),
     applyProfile: async (applyInput) => {
@@ -568,29 +377,10 @@ export function createRuntimeKernelCompositionFacade(input: {
       if (!current) {
         throw new Error(`Unknown runtime composition profile \`${applyInput.profileId}\`.`);
       }
-      profiles.set(applyInput.profileId, {
-        ...cloneProfile(current),
-        ...applyInput.updates,
-        pluginSelectors: applyInput.updates?.pluginSelectors ?? current.pluginSelectors,
-        routePolicy: {
-          ...current.routePolicy,
-          ...(applyInput.updates?.routePolicy ?? {}),
-        },
-        backendPolicy: {
-          ...current.backendPolicy,
-          ...(applyInput.updates?.backendPolicy ?? {}),
-        },
-        trustPolicy: {
-          ...current.trustPolicy,
-          ...(applyInput.updates?.trustPolicy ?? {}),
-        },
-        executionPolicyRefs: applyInput.updates?.executionPolicyRefs ?? current.executionPolicyRefs,
-        observabilityPolicy: {
-          ...current.observabilityPolicy,
-          ...(applyInput.updates?.observabilityPolicy ?? {}),
-        },
-        configLayers: applyInput.updates?.configLayers ?? current.configLayers,
-      });
+      profiles.set(
+        applyInput.profileId,
+        applyRuntimeCompositionProfileUpdates(current, applyInput.updates)
+      );
       activeProfileId = applyInput.profileId;
       return resolveComposition();
     },

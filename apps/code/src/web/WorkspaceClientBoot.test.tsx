@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,8 +9,11 @@ import type {
 } from "@ku0/code-workspace-client";
 import { WorkspaceClientBoot } from "@ku0/code-workspace-client";
 
-const workspaceClientEntrySource = readFileSync(
-  resolve(import.meta.dirname, "./WorkspaceClientEntry.css.ts"),
+const sharedWorkspaceClientEntrySource = readFileSync(
+  resolve(
+    import.meta.dirname,
+    "../../../../packages/code-workspace-client/src/workspace/WorkspaceClientEntry.css.ts"
+  ),
   "utf8"
 );
 
@@ -209,6 +212,11 @@ describe("WorkspaceClientBoot", () => {
   });
 
   it("keeps the boot shell background neutral", () => {
-    expect(workspaceClientEntrySource).not.toContain("radial-gradient(circle at top");
+    expect(sharedWorkspaceClientEntrySource).not.toContain("radial-gradient(circle at top");
+  });
+
+  it("does not keep app-local copies of shared unavailable workspace UI", () => {
+    expect(existsSync(resolve(import.meta.dirname, "./WorkspaceWebUnavailable.tsx"))).toBe(false);
+    expect(existsSync(resolve(import.meta.dirname, "./WorkspaceClientEntry.css.ts"))).toBe(false);
   });
 });

@@ -7,6 +7,7 @@ import type { WorkspaceAgentControlPersistedState } from "../../../types";
 type LegacyStoredAgentControlState = {
   version?: number;
   intent?: unknown;
+  lastKnownPersistedControls?: unknown;
   webMcpEnabled?: unknown;
   readOnlyMode?: unknown;
   requireUserApproval?: unknown;
@@ -188,14 +189,7 @@ export function readCachedStateWithStatus(workspaceId: string): ReadCachedAgentC
       };
     }
 
-    const intent = parseIntent(parsed.intent);
-    if (!intent) {
-      return {
-        state: null,
-        corrupted: true,
-      };
-    }
-
+    const intent = parseIntent(parsed.intent) ?? DEFAULT_INTENT;
     const lastKnownPersistedControls = normalizePersistedControls(
       (parsed as Record<string, unknown>).lastKnownPersistedControls
     ) ?? {

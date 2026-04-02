@@ -63,7 +63,7 @@ vi.mock("../../../application/runtime/ports/terminal", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
 }));
 
 vi.mock("../../../application/runtime/ports/runtime", () => ({
@@ -87,7 +87,7 @@ describe("useTerminalSession", () => {
     vi.clearAllMocks();
     terminalMock.cols = 120;
     terminalMock.rows = 40;
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     vi.mocked(getRuntimeTerminalStatus).mockResolvedValue({
       state: "ready",
       message: "Terminal runtime ready.",
@@ -218,7 +218,7 @@ describe("useTerminalSession", () => {
     });
 
     await waitFor(() => {
-      expect(readTerminalSession.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(vi.mocked(readTerminalSession).mock.calls.length).toBeGreaterThanOrEqual(2);
     });
 
     expect(terminalMock.write).toHaveBeenCalledWith("web runtime marker\n");

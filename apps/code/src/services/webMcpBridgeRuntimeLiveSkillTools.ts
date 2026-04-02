@@ -1,13 +1,13 @@
 import { RUNTIME_MESSAGE_CODES } from "@ku0/code-runtime-client/runtimeMessageCodes";
 import { createRuntimeError } from "@ku0/code-runtime-client/runtimeMessageEnvelope";
 import { canonicalizeLiveSkillId, listAcceptedLiveSkillIds } from "./runtimeClientLiveSkills";
-import type { LiveSkillSummary } from "./desktopHost";
 import type {
   AgentCommandCenterSnapshot,
   RuntimeAgentControl,
   RuntimeInvocationDescriptor,
   WebMcpAgent,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
+import type { LiveSkillSummary } from "./runtimeLiveSkillsBridge";
 
 type JsonRecord = Record<string, unknown>;
 

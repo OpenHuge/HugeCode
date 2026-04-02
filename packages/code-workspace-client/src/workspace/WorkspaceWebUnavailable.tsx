@@ -109,8 +109,8 @@ export function WorkspaceWebUnavailable({
             </strong>
             <span className={unavailableDetailBody}>
               The desktop path keeps filesystem access, native window controls, and local repo
-              workflows inside the desktop host. This is the path for writable execution and durable
-              local state.
+              workflows inside the Electron desktop host. This is the path for writable execution
+              and durable local state.
             </span>
           </article>
 
@@ -121,9 +121,9 @@ export function WorkspaceWebUnavailable({
             </strong>
             <span className={unavailableDetailBody}>
               Configure the web runtime gateway when you want the same workspace shell in a browser
-              session without attaching the desktop runtime. Gateway-backed sessions may expose a
-              narrower capability set than desktop and should explain degraded or read-only states
-              explicitly.
+              session without attaching the Electron desktop runtime. Gateway-backed sessions may
+              expose a narrower capability set than desktop and should explain degraded or read-only
+              states explicitly.
             </span>
           </article>
 

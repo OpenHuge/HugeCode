@@ -23,7 +23,7 @@ export async function renameWorktreeUpstream(
   newBranch: string
 ): Promise<void> {
   if (!isDesktopHostRuntime()) {
-    throw new Error("Upstream worktree rename is unavailable outside the desktop host.");
+    throw new Error("Upstream worktree rename is unavailable outside the Electron desktop host.");
   }
   return invokeDesktopCommand("rename_worktree_upstream", { id, oldBranch, newBranch });
 }
@@ -50,13 +50,13 @@ export async function openWorkspaceIn(
         path,
       })) ?? false;
     if (!opened) {
-      throw new Error("Open in is unavailable in the current desktop host.");
+      throw new Error("Open in is unavailable in the current Electron desktop host.");
     }
     return;
   }
 
   if (!isDesktopHostRuntime()) {
-    throw new Error("Open in is unavailable outside the desktop host.");
+    throw new Error("Open in is unavailable outside the Electron desktop host.");
   }
 
   return invokeDesktopCommand("open_workspace_in", {

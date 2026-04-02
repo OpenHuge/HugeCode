@@ -181,7 +181,7 @@ export function OpenAppMenu({
   const openLabel = selectedCanOpen
     ? `Open in ${selectedOpenTarget.label}`
     : !desktopOpenSupported
-      ? "Open in is unavailable outside desktop host runtime"
+      ? "Open in is unavailable outside the Electron desktop host"
       : selectedOpenTarget.target.kind === "command"
         ? "Set command in Settings"
         : "Set app name in Settings";

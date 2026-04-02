@@ -120,7 +120,7 @@ vi.mock("../../../application/runtime/ports/threadSnapshots", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
 }));
 
 vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({

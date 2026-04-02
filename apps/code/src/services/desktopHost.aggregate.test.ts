@@ -24,7 +24,7 @@ import {
   renameWorktreeUpstream,
   updateWorkspaceCodexBin,
   updateWorkspaceSettings,
-} from "./desktopHost";
+} from "../test/shims/desktopHostServices";
 
 vi.mock("@desktop-host/core", () => ({
   invoke: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock("@desktop-host/notifications", () => ({
 }));
 
 vi.mock("./runtimeClient", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
   getRuntimeClient: vi.fn(),
   readRuntimeCapabilitiesSummary: vi.fn(),
 }));
@@ -71,9 +71,9 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     vi.mocked(readRuntimeCapabilitiesSummary).mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -229,7 +229,7 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(addClone("ws-source", "/tmp/copies", "copy-a")).rejects.toThrow(
-      "Workspace cloning is only available in Desktop host runtime."
+      "Workspace cloning is only available through the Electron bridge."
     );
   });
 
@@ -238,7 +238,7 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(addWorktree("ws-parent", "feature/new", null)).rejects.toThrow(
-      "Worktree creation is only available in Desktop host runtime."
+      "Worktree creation is only available through the Electron bridge."
     );
   });
 
@@ -247,7 +247,7 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(removeWorktree("wt-remove")).rejects.toThrow(
-      "Worktree removal is only available in Desktop host runtime."
+      "Worktree removal is only available through the Electron bridge."
     );
   });
 
@@ -256,7 +256,7 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(renameWorktree("wt-rename", "feature/new-name")).rejects.toThrow(
-      "Worktree rename is only available in Desktop host runtime."
+      "Worktree rename is only available through the Electron bridge."
     );
   });
 
@@ -266,7 +266,7 @@ describe("desktop host invoke wrappers", () => {
 
     await expect(
       renameWorktreeUpstream("wt-upstream", "feature/old", "feature/new")
-    ).rejects.toThrow("Upstream worktree rename is unavailable outside the desktop host.");
+    ).rejects.toThrow("Upstream worktree rename is unavailable outside the Electron desktop host.");
   });
 
   it("does not use workspace settings fallback in runtime-gateway-web mode", async () => {
@@ -285,7 +285,7 @@ describe("desktop host invoke wrappers", () => {
         launchScripts: null,
         worktreeSetupScript: null,
       })
-    ).rejects.toThrow("Workspace settings update is only available in Desktop host runtime.");
+    ).rejects.toThrow("Workspace settings update is only available through the Electron bridge.");
   });
 
   it("does not use workspace codex bin fallback in runtime-gateway-web mode", async () => {
@@ -293,7 +293,7 @@ describe("desktop host invoke wrappers", () => {
     vi.mocked(detectRuntimeMode).mockReturnValue("runtime-gateway-web");
 
     await expect(updateWorkspaceCodexBin("ws-codex-web", "codex-cli")).rejects.toThrow(
-      "Workspace codex bin update is only available in Desktop host runtime."
+      "Workspace codex bin update is only available through the Electron bridge."
     );
   });
 
@@ -303,7 +303,7 @@ describe("desktop host invoke wrappers", () => {
     const invokeMock = vi.mocked(invoke);
 
     await expect(isWorkspacePathDir("/tmp/workspace")).rejects.toThrow(
-      "Workspace path validation is only available in Desktop host runtime."
+      "Workspace path validation is only available through the Electron bridge."
     );
     expect(invokeMock).not.toHaveBeenCalledWith("is_workspace_path_dir", expect.anything());
   });

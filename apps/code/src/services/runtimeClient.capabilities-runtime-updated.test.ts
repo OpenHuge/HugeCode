@@ -8,7 +8,6 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invokeMock = vi.hoisted(() => vi.fn());
-const isDesktopHostRuntimeMock = vi.hoisted(() => vi.fn());
 const { runtimeUpdatedListeners, subscribeScopedRuntimeUpdatedEventsMock } = vi.hoisted(() => {
   const listeners = new Set<(event: Record<string, unknown>) => void>();
   return {
@@ -23,11 +22,6 @@ const { runtimeUpdatedListeners, subscribeScopedRuntimeUpdatedEventsMock } = vi.
     ),
   };
 });
-
-vi.mock("@desktop-host/core", () => ({
-  invoke: invokeMock,
-  isDesktopHostRuntime: isDesktopHostRuntimeMock,
-}));
 
 vi.mock("./runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: subscribeScopedRuntimeUpdatedEventsMock,
@@ -55,39 +49,33 @@ function createFrozenCapabilitiesPayload(
 
 function clearDesktopHostMarkers() {
   const desktopHostWindow = window as Window & {
-    __HUGE_CODE_DESKTOP_HOST__?: unknown;
-    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
-    __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
+    hugeCodeDesktopHost?: unknown;
   };
 
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
-  delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
+  delete desktopHostWindow.hugeCodeDesktopHost;
 }
 
-function syncDesktopHostBridgeWithMockState() {
+function syncDesktopHostBridge() {
   const desktopHostWindow = window as Window & {
-    __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
+    hugeCodeDesktopHost?: unknown;
   };
-  const implementation = isDesktopHostRuntimeMock.getMockImplementation();
-  if (implementation && implementation() === true) {
-    desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
+  desktopHostWindow.hugeCodeDesktopHost = {
+    kind: "electron",
+    core: {
       invoke: invokeMock,
-    };
-  }
+    },
+  };
 }
 
 async function importRuntimeClientModule() {
   vi.resetModules();
-  syncDesktopHostBridgeWithMockState();
+  syncDesktopHostBridge();
   return import("./runtimeClient");
 }
 
 describe("runtime capability cache invalidation", () => {
   beforeEach(() => {
     invokeMock.mockReset();
-    isDesktopHostRuntimeMock.mockReset();
-    isDesktopHostRuntimeMock.mockReturnValue(true);
     subscribeScopedRuntimeUpdatedEventsMock.mockClear();
     runtimeUpdatedListeners.clear();
     clearDesktopHostMarkers();

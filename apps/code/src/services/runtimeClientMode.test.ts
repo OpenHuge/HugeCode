@@ -1,28 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@desktop-host/core", () => ({
-  isDesktopHostRuntime: vi.fn(),
-}));
-
 describe("detectRuntimeMode", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
     window.localStorage.clear();
-
-    const desktopHostWindow = window as Window & {
-      __HUGE_CODE_DESKTOP_HOST__?: unknown;
-      __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
-      __HUGE_CODE_DESKTOP_HOST_IPC__?: unknown;
-      __HUGE_CODE_RUNTIME_CLIENT_MODE__?: unknown;
-    };
-    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST__;
-    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_INTERNALS__;
-    delete desktopHostWindow.__HUGE_CODE_DESKTOP_HOST_IPC__;
-    delete desktopHostWindow.__HUGE_CODE_RUNTIME_CLIENT_MODE__;
+    delete (window as Window & { hugeCodeDesktopHost?: unknown }).hugeCodeDesktopHost;
   });
 
-  it("does not detect desktop compatibility until a callable bridge is injected", async () => {
+  it("does not detect an Electron bridge runtime until a callable bridge is injected", async () => {
     const { detectRuntimeMode } = await import("./runtimeClientMode");
 
     expect(detectRuntimeMode()).toBe("unavailable");
@@ -65,17 +51,20 @@ describe("detectRuntimeMode", () => {
     expect(detectRuntimeMode()).toBe("runtime-gateway-web");
   });
 
-  it("detects desktop compatibility when a callable legacy bridge is injected", async () => {
+  it("detects the Electron bridge runtime when a callable bridge is injected", async () => {
     (
       window as Window & {
-        __HUGE_CODE_DESKTOP_HOST_INTERNALS__?: unknown;
+        hugeCodeDesktopHost?: unknown;
       }
-    ).__HUGE_CODE_DESKTOP_HOST_INTERNALS__ = {
-      invoke: vi.fn(),
+    ).hugeCodeDesktopHost = {
+      kind: "electron",
+      core: {
+        invoke: vi.fn(),
+      },
     };
 
     const { detectRuntimeMode } = await import("./runtimeClientMode");
 
-    expect(detectRuntimeMode()).toBe("desktop-compat");
+    expect(detectRuntimeMode()).toBe("electron-bridge");
   });
 });

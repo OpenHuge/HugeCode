@@ -122,14 +122,14 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       state: "ready",
       headline: "Browser readiness confirmed",
       detail: hasBrowserAssessmentCapability
-        ? "Desktop host bridge publishes the canonical browser assessment and extraction contracts."
-        : "Desktop host bridge publishes the browser extraction contract, so extraction can move through the canonical capability boundary.",
+        ? "Electron bridge publishes the canonical browser assessment and extraction contracts."
+        : "Electron bridge publishes the browser extraction contract, so extraction can move through the canonical capability boundary.",
       recommendedAction: hasBrowserAssessmentCapability
         ? "Use the published browser assessment and extraction contracts as the canonical source for future browser feedback loops."
-        : "Use the desktop-host browser extraction contract as the canonical source for future browser reads.",
+        : "Use the Electron bridge browser extraction contract as the canonical source for future browser reads.",
       runtimeHost,
       source: "desktop_host_bridge",
-      sourceLabel: "Desktop host bridge",
+      sourceLabel: "Electron bridge",
       assessmentAvailable: hasBrowserAssessmentCapability,
       assessmentHistoryAvailable: hasBrowserAssessmentHistoryCapability,
       extractionAvailable: true,
@@ -153,12 +153,12 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       state: "attention",
       headline: "Browser readiness is partially published",
       detail:
-        "Desktop host bridge publishes browser assessment capability, but browser extraction is not fully wired yet.",
+        "Electron bridge publishes browser assessment capability, but browser extraction is not fully wired yet.",
       recommendedAction:
         "Keep using the published browser assessment loop and add the extraction contract before treating browser readiness as fully complete.",
       runtimeHost,
       source: "partial_host_bridge",
-      sourceLabel: "Partial desktop host bridge",
+      sourceLabel: "Partial Electron bridge",
       assessmentAvailable: hasBrowserAssessmentCapability,
       assessmentHistoryAvailable: hasBrowserAssessmentHistoryCapability,
       extractionAvailable: false,
@@ -182,12 +182,12 @@ export function readBrowserReadiness(): RuntimeBrowserReadinessSummary {
       state: "attention",
       headline: "Browser readiness is partially published",
       detail:
-        "Desktop host bridge can read the last browser extraction result, but it does not publish the canonical extract entrypoint yet.",
+        "Electron bridge can read the last browser extraction result, but it does not publish the canonical extract entrypoint yet.",
       recommendedAction:
         "Publish the full browser extraction contract before treating browser extraction as runtime-ready.",
       runtimeHost,
       source: "partial_host_bridge",
-      sourceLabel: "Partial desktop host bridge",
+      sourceLabel: "Partial Electron bridge",
       assessmentAvailable: hasBrowserAssessmentCapability,
       assessmentHistoryAvailable: hasBrowserAssessmentHistoryCapability,
       extractionAvailable: false,

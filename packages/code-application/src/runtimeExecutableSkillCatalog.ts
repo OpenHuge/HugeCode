@@ -64,30 +64,6 @@ type RuntimeExecutableSkillCatalogIndex = {
   entriesByCanonicalSkillId: Map<string, RuntimeExecutableSkillCatalogEntry>;
 };
 
-type CreateRuntimeExecutableSkillFacadeInput = {
-  listRuntimeInvocations?:
-    | ((input?: {
-        sessionId?: string | null;
-        activeOnly?: boolean | null;
-        kind?: RuntimeInvocationDescriptor["kind"] | null;
-      }) => Promise<RuntimeInvocationDescriptor[]>)
-    | null;
-  listLiveSkills?: (() => Promise<LiveSkillSummary[]>) | null;
-  runLiveSkill: (request: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
-};
-
-export type RuntimeExecutableSkillFacade = {
-  readCatalog: (input?: { sessionId?: string | null }) => Promise<RuntimeExecutableSkillCatalog>;
-  resolveSkill: (input: {
-    skillId: string;
-    sessionId?: string | null;
-  }) => Promise<RuntimeExecutableSkillResolution>;
-  runSkill: (input: {
-    request: LiveSkillExecuteRequest;
-    sessionId?: string | null;
-  }) => Promise<LiveSkillExecutionResult>;
-};
-
 function isRuntimeExecutableSkillInvocation(entry: RuntimeInvocationDescriptor): boolean {
   return (
     entry.kind === "skill" &&
@@ -258,140 +234,149 @@ function buildActivationCatalogIndex(
   };
 }
 
-async function readCatalogIndex(
-  input: CreateRuntimeExecutableSkillFacadeInput,
-  sessionId: string | null
-): Promise<RuntimeExecutableSkillCatalogIndex | null> {
-  if (typeof input.listRuntimeInvocations === "function") {
+function buildCatalogFromIndex(
+  index: RuntimeExecutableSkillCatalogIndex
+): RuntimeExecutableSkillCatalog {
+  const entries = [...index.entriesByCanonicalSkillId.values()].sort((left, right) =>
+    left.canonicalSkillId.localeCompare(right.canonicalSkillId)
+  );
+  return {
+    catalogSessionId: index.catalogSessionId,
+    fallbackToLegacyTransport: index.fallbackToLegacyTransport,
+    entries,
+  };
+}
+
+export async function readRuntimeExecutableSkillCatalog(input: {
+  sessionId?: string | null;
+  listRuntimeInvocations?:
+    | ((input?: {
+        sessionId?: string | null;
+        activeOnly?: boolean | null;
+        kind?: RuntimeInvocationDescriptor["kind"] | null;
+      }) => Promise<RuntimeInvocationDescriptor[]>)
+    | null;
+  listLiveSkills?: (() => Promise<LiveSkillSummary[]>) | null;
+}): Promise<RuntimeExecutableSkillCatalog> {
+  const sessionId = input.sessionId ?? null;
+  if (!input.listRuntimeInvocations && !input.listLiveSkills) {
+    return {
+      catalogSessionId: sessionId,
+      fallbackToLegacyTransport: false,
+      entries: [],
+    };
+  }
+  if (input.listRuntimeInvocations) {
     const skillInvocations = (
       await input.listRuntimeInvocations({
         sessionId,
         kind: "skill",
       })
     ).filter(isRuntimeExecutableSkillInvocation);
-    return buildActivationCatalogIndex(skillInvocations, sessionId);
+    return buildCatalogFromIndex(buildActivationCatalogIndex(skillInvocations, sessionId));
   }
-  if (typeof input.listLiveSkills !== "function") {
-    return null;
-  }
-  return buildLegacyCatalogIndex(await input.listLiveSkills());
+
+  const liveSkills = input.listLiveSkills ? await input.listLiveSkills() : [];
+  return buildCatalogFromIndex(buildLegacyCatalogIndex(liveSkills));
 }
 
-function toCatalog(index: RuntimeExecutableSkillCatalogIndex): RuntimeExecutableSkillCatalog {
-  return {
-    catalogSessionId: index.catalogSessionId,
-    fallbackToLegacyTransport: index.fallbackToLegacyTransport,
-    entries: [...index.entriesByCanonicalSkillId.values()],
-  };
-}
-
-function resolveSkillFromIndex(
-  skillId: string,
-  index: RuntimeExecutableSkillCatalogIndex | null
+export function resolveRuntimeExecutableSkill(
+  catalog: RuntimeExecutableSkillCatalog,
+  input: {
+    skillId: string;
+  }
 ): RuntimeExecutableSkillResolution {
-  const requestedSkillId = skillId.trim();
-  const lookupId = normalizeLiveSkillLookupId(requestedSkillId);
+  const requestedSkillId = input.skillId.trim();
+  const acceptedSkillIds = listAcceptedLiveSkillIds(requestedSkillId);
+  const matchedEntry =
+    catalog.entries.find((entry) =>
+      acceptedSkillIds.some(
+        (acceptedSkillId) =>
+          entry.acceptedSkillIds.some(
+            (candidate) =>
+              normalizeLiveSkillLookupId(candidate) === normalizeLiveSkillLookupId(acceptedSkillId)
+          ) ||
+          normalizeLiveSkillLookupId(entry.canonicalSkillId) ===
+            normalizeLiveSkillLookupId(acceptedSkillId)
+      )
+    ) ?? null;
   const resolvedSkillId =
-    index?.canonicalSkillIdByAcceptedId.get(lookupId) ??
-    canonicalizeLiveSkillId(requestedSkillId) ??
-    requestedSkillId;
-  const entry = index?.entriesByCanonicalSkillId.get(resolvedSkillId) ?? null;
+    matchedEntry?.canonicalSkillId ?? canonicalizeLiveSkillId(requestedSkillId) ?? requestedSkillId;
+
   return {
     requestedSkillId,
     resolvedSkillId,
-    aliasApplied: requestedSkillId !== resolvedSkillId,
-    acceptedSkillIds:
-      entry?.acceptedSkillIds ??
-      index?.acceptedSkillIdsByCanonicalId.get(resolvedSkillId) ??
-      listAcceptedLiveSkillIds(requestedSkillId),
-    availability: entry?.availability ?? null,
-    runtimeSkillId: entry?.runtimeSkillId ?? resolvedSkillId,
-    source: entry?.source ?? null,
-    metadata: entry?.metadata ?? null,
+    aliasApplied:
+      normalizeLiveSkillLookupId(resolvedSkillId) !== normalizeLiveSkillLookupId(requestedSkillId),
+    acceptedSkillIds: matchedEntry?.acceptedSkillIds ?? acceptedSkillIds,
+    availability: matchedEntry?.availability ?? null,
+    runtimeSkillId: matchedEntry?.runtimeSkillId ?? resolvedSkillId,
+    source: matchedEntry?.source ?? null,
+    metadata: matchedEntry?.metadata ?? null,
   };
 }
 
-function toNonLiveErrorCode(
-  activationState: RuntimeExecutableSkillAvailability["activationState"]
-): RuntimeSkillExecutionGateErrorCode {
-  if (activationState === "deactivated") {
-    return "deactivated";
-  }
-  if (activationState === "failed") {
-    return "failed";
-  }
-  if (activationState === "refresh_pending") {
-    return "refresh_pending";
-  }
-  return "not_live";
-}
-
-function assertRunnableResolution(resolution: RuntimeExecutableSkillResolution): void {
-  if (!resolution.availability) {
-    throw new RuntimeSkillExecutionGateError({
+function buildGateError(input: {
+  resolution: RuntimeExecutableSkillResolution;
+  requestedSkillId: string;
+}): RuntimeSkillExecutionGateError {
+  const availability = input.resolution.availability;
+  if (!availability) {
+    return new RuntimeSkillExecutionGateError({
       code: "unknown_skill",
-      requestedSkillId: resolution.requestedSkillId,
-      resolvedSkillId: resolution.resolvedSkillId,
-      message: `Unknown runtime skill \`${resolution.requestedSkillId}\`.`,
+      requestedSkillId: input.requestedSkillId,
+      resolvedSkillId: input.resolution.resolvedSkillId,
+      availability: null,
+      message: `Runtime executable skill \`${input.requestedSkillId}\` is not available.`,
     });
   }
-  if (resolution.availability.live) {
-    return;
+  if (!availability.live) {
+    const code =
+      availability.activationState === "deactivated"
+        ? "deactivated"
+        : availability.activationState === "failed"
+          ? "failed"
+          : availability.activationState === "refresh_pending"
+            ? "refresh_pending"
+            : "not_live";
+    return new RuntimeSkillExecutionGateError({
+      code,
+      requestedSkillId: input.requestedSkillId,
+      resolvedSkillId: input.resolution.resolvedSkillId,
+      availability,
+      message:
+        availability.readiness.detail ||
+        `Runtime executable skill \`${input.requestedSkillId}\` is not currently live.`,
+    });
   }
-  throw new RuntimeSkillExecutionGateError({
-    code: toNonLiveErrorCode(resolution.availability.activationState),
-    requestedSkillId: resolution.requestedSkillId,
-    resolvedSkillId: resolution.resolvedSkillId,
-    availability: resolution.availability,
-    message: `Runtime skill \`${resolution.resolvedSkillId}\` is ${resolution.availability.activationState}: ${resolution.availability.readiness.summary}`,
+  return new RuntimeSkillExecutionGateError({
+    code: "catalog_unavailable",
+    requestedSkillId: input.requestedSkillId,
+    resolvedSkillId: input.resolution.resolvedSkillId,
+    availability,
+    message: `Runtime executable skill catalog could not resolve \`${input.requestedSkillId}\`.`,
   });
 }
 
-export function createRuntimeExecutableSkillFacade(
-  input: CreateRuntimeExecutableSkillFacadeInput
-): RuntimeExecutableSkillFacade {
-  return {
-    readCatalog: async (options) => {
-      const index = await readCatalogIndex(input, options?.sessionId ?? null);
-      if (!index) {
-        return {
-          catalogSessionId: options?.sessionId ?? null,
-          fallbackToLegacyTransport: false,
-          entries: [],
-        };
-      }
-      return toCatalog(index);
-    },
-    resolveSkill: async (options) => {
-      const index = await readCatalogIndex(input, options.sessionId ?? null);
-      if (!index && typeof input.listLiveSkills !== "function") {
-        throw new RuntimeSkillExecutionGateError({
-          code: "catalog_unavailable",
-          requestedSkillId: options.skillId,
-          message:
-            "Runtime executable skill catalog is unavailable because neither activation-backed invocation readers nor legacy live-skill listing are exposed.",
-        });
-      }
-      return resolveSkillFromIndex(options.skillId, index);
-    },
-    runSkill: async (options) => {
-      const resolution = await (async () => {
-        const index = await readCatalogIndex(input, options.sessionId ?? null);
-        if (!index && typeof input.listLiveSkills !== "function") {
-          throw new RuntimeSkillExecutionGateError({
-            code: "catalog_unavailable",
-            requestedSkillId: options.request.skillId,
-            message:
-              "Runtime executable skill catalog is unavailable because neither activation-backed invocation readers nor legacy live-skill listing are exposed.",
-          });
-        }
-        return resolveSkillFromIndex(options.request.skillId, index);
-      })();
-      assertRunnableResolution(resolution);
-      return input.runLiveSkill({
-        ...options.request,
-        skillId: resolution.runtimeSkillId,
-      });
-    },
-  };
+export async function runRuntimeExecutableSkill(input: {
+  catalog: RuntimeExecutableSkillCatalog;
+  request: LiveSkillExecuteRequest;
+  runLiveSkill: (request: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
+}): Promise<LiveSkillExecutionResult> {
+  const resolution = resolveRuntimeExecutableSkill(input.catalog, {
+    skillId: input.request.skillId,
+  });
+  const availability = resolution.availability;
+
+  if (!resolution.runtimeSkillId || !availability?.live) {
+    throw buildGateError({
+      resolution,
+      requestedSkillId: input.request.skillId,
+    });
+  }
+
+  return input.runLiveSkill({
+    ...input.request,
+    skillId: resolution.runtimeSkillId,
+  });
 }

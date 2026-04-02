@@ -35,7 +35,7 @@ import {
   readManualWebRuntimeGatewayProfile,
 } from "./runtimeWebGatewayConfig";
 
-const desktopCompatRuntimeCapabilitiesProbeCache = createRuntimeRpcCapabilitiesProbeCache();
+const electronBridgeRuntimeCapabilitiesProbeCache = createRuntimeRpcCapabilitiesProbeCache();
 const webRuntimeCapabilitiesProbeCache = createRuntimeRpcCapabilitiesProbeCache();
 
 let webRuntimeCapabilitiesProbeCacheKey: string | null = null;
@@ -90,7 +90,7 @@ function shouldInvalidateRuntimeCapabilitiesCache(reason: unknown): boolean {
 }
 
 export function invalidateRuntimeCapabilitiesProbeCaches(): void {
-  resetRuntimeRpcCapabilitiesProbeCache(desktopCompatRuntimeCapabilitiesProbeCache);
+  resetRuntimeRpcCapabilitiesProbeCache(electronBridgeRuntimeCapabilitiesProbeCache);
   resetRuntimeRpcCapabilitiesProbeCache(webRuntimeCapabilitiesProbeCache);
   webRuntimeCapabilitiesProbeCacheKey = null;
 }
@@ -112,9 +112,9 @@ function ensureRuntimeCapabilitiesProbeCacheInvalidationSubscription(): void {
   );
 }
 
-export async function resolveDesktopCompatRpcCapabilitiesSnapshot(): Promise<RuntimeRpcCapabilitiesSnapshot | null> {
+export async function resolveElectronBridgeRpcCapabilitiesSnapshot(): Promise<RuntimeRpcCapabilitiesSnapshot | null> {
   ensureRuntimeCapabilitiesProbeCacheInvalidationSubscription();
-  return resolveRuntimeRpcCapabilitiesWithCache(desktopCompatRuntimeCapabilitiesProbeCache, () =>
+  return resolveRuntimeRpcCapabilitiesWithCache(electronBridgeRuntimeCapabilitiesProbeCache, () =>
     resolveRuntimeRpcCapabilitiesSnapshotShared(
       <Result>(candidate: string, capabilityParams: RuntimeRpcParams) =>
         invoke<Result>(candidate, capabilityParams)
@@ -162,11 +162,11 @@ export function readCachedWebRuntimeCapabilitiesSnapshot(): RuntimeRpcCapabiliti
   return readCachedRuntimeCapabilitiesSnapshot(webRuntimeCapabilitiesProbeCache);
 }
 
-export async function resolveDesktopCompatRuntimeRpcMethodCandidates(
+export async function resolveElectronBridgeRuntimeRpcMethodCandidates(
   method: CodeRuntimeRpcMethod
 ): Promise<readonly string[]> {
   if (method !== CODE_RUNTIME_RPC_METHODS.RPC_CAPABILITIES) {
-    const snapshot = await resolveDesktopCompatRpcCapabilitiesSnapshot();
+    const snapshot = await resolveElectronBridgeRpcCapabilitiesSnapshot();
     assertRuntimeRpcMethodSupportedByCapabilities(method, snapshot);
   }
   return [method];
@@ -219,8 +219,8 @@ export async function resolveWebRuntimeWsRpcEndpoint(
 export async function resolveCapabilitiesSnapshotByMode(
   mode: RuntimeClientMode
 ): Promise<RuntimeRpcCapabilitiesSnapshot | null> {
-  if (mode === "desktop-compat") {
-    return resolveDesktopCompatRpcCapabilitiesSnapshot();
+  if (mode === "electron-bridge") {
+    return resolveElectronBridgeRpcCapabilitiesSnapshot();
   }
   if (mode === "runtime-gateway-web") {
     return resolveWebRuntimeCapabilitiesSnapshot();

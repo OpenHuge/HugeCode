@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createRuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalogFacade";
-import type { RuntimeExtensionActivationSnapshot } from "../kernel/runtimeExtensionActivation";
+import type { RuntimeExtensionActivationSnapshot } from "@ku0/code-runtime-host-contract";
 
 function createActivationSnapshot(
   overrides: Partial<RuntimeExtensionActivationSnapshot> = {}
@@ -164,7 +164,7 @@ describe("runtimeInvocationCatalogFacade", () => {
     };
 
     const facade = createRuntimeInvocationCatalogFacade({
-      activation: activation as never,
+      activation,
     });
 
     const snapshot = await facade.readSnapshot();
@@ -213,7 +213,7 @@ describe("runtimeInvocationCatalogFacade", () => {
     };
 
     const facade = createRuntimeInvocationCatalogFacade({
-      activation: activation as never,
+      activation,
     });
 
     await facade.listInvocations({

@@ -10,7 +10,7 @@ vi.mock("../../workspaces/components/WorkspaceHomeAgentControl", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
 }));
 
 vi.mock("../../../application/runtime/ports/toasts", () => ({
@@ -119,12 +119,12 @@ async function flushAsyncEffects() {
 }
 
 async function renderAndFlush(element: Parameters<typeof render>[0]) {
-  let view: ReturnType<typeof render> | null = null;
+  let view!: ReturnType<typeof render>;
   await act(async () => {
     view = render(element);
     await flushAsyncEffects();
   });
-  return view as ReturnType<typeof render>;
+  return view;
 }
 
 afterEach(() => {

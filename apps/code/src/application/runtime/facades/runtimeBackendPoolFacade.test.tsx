@@ -44,7 +44,7 @@ describe("useRuntimeBackendPoolFacade", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       features: ["multi_backend_pool_v1"],
       methods: [
         "code_runtime_backends_list",

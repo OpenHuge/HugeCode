@@ -1,4 +1,4 @@
-import { createRuntimeExecutableSkillFacade } from "../application/runtime/facades/runtimeExecutableSkillFacade";
+import { createRuntimeExecutableSkillFacade } from "@ku0/code-application/runtimeExecutableSkillFacade";
 import type {
   RuntimeAgentControl,
   RuntimeExecutableSkillCatalog,

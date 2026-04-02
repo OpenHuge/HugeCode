@@ -5,7 +5,17 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "declaration": false,
     "declarationMap": false,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "@ku0/code-runtime-webmcp-client": ["../../packages/code-runtime-webmcp-client/src/index.ts"],
+      "@ku0/code-runtime-webmcp-client/*": ["../../packages/code-runtime-webmcp-client/src/*"],
+      "@ku0/code-application": ["../../packages/code-application/src/index.ts"],
+      "@ku0/code-application/*": ["../../packages/code-application/src/*"],
+      "@ku0/code-runtime-host-contract": ["../../packages/code-runtime-host-contract/src/index.ts"],
+      "@ku0/code-runtime-host-contract/*": ["../../packages/code-runtime-host-contract/src/*"],
+      "@ku0/code-runtime-client": ["../../packages/code-runtime-client/src/index.ts"],
+      "@ku0/code-runtime-client/*": ["../../packages/code-runtime-client/src/*"]
+    }
   },
   "include": ["src", "vite.config.ts"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]

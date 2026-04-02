@@ -11,7 +11,7 @@ function buildCapabilitiesSummary(
   overrides: Partial<RuntimeCapabilitiesSummary> = {}
 ): RuntimeCapabilitiesSummary {
   return {
-    mode: "desktop-compat",
+    mode: "electron-bridge",
     methods: ["code_health"],
     features: ["distributed_subtask_graph"],
     wsEndpointPath: "/ws",

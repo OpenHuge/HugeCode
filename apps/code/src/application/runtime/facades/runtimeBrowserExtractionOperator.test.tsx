@@ -164,7 +164,7 @@ describe("runtimeBrowserExtractionOperator", () => {
     expect(result.current.result).toBeNull();
     expect(result.current.notice).toEqual({
       tone: "neutral",
-      message: "No browser extraction result has been recorded by the desktop host yet.",
+      message: "No browser extraction result has been recorded by the Electron bridge yet.",
     });
   });
 

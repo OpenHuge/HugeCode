@@ -26,10 +26,19 @@ describe("preload desktop host bridge", () => {
     exposeInMainWorldMock.mockReset();
   });
 
-  it("publishes browser assessment and extraction through the preload bridge", async () => {
+  it("publishes core/event plus browser assessment and extraction through the preload bridge", async () => {
     await import("./preload.js");
 
     const desktopHostBridge = exposeInMainWorldMock.mock.calls[0]?.[1] as {
+      core: {
+        invoke(input: string, payload?: unknown): Promise<unknown>;
+      };
+      event: {
+        listen(
+          eventName: string,
+          listener: (event: { payload: unknown }) => void
+        ): Promise<() => void>;
+      };
       browserAssessment: {
         assess(input: unknown): Promise<unknown>;
         getLastResult(): Promise<unknown>;
@@ -55,27 +64,36 @@ describe("preload desktop host bridge", () => {
       sourceUrl: "https://example.com/browser-readiness",
     };
 
+    const detach = await desktopHostBridge.event.listen(
+      "fastcode://runtime/event",
+      () => undefined
+    );
+    await desktopHostBridge.core.invoke("get_config_model", { workspaceId: "ws-1" });
     await desktopHostBridge.browserAssessment.assess(assessmentInput);
     await desktopHostBridge.browserAssessment.getLastResult();
     await desktopHostBridge.browserExtraction.extract(extractionInput);
     await desktopHostBridge.browserExtraction.getLastResult();
+    detach();
 
+    expect(invokeMock).toHaveBeenNthCalledWith(1, "get_config_model", { workspaceId: "ws-1" });
+    expect(onMock).toHaveBeenCalledWith("fastcode://runtime/event", expect.any(Function));
+    expect(offMock).toHaveBeenCalledWith("fastcode://runtime/event", expect.any(Function));
     expect(invokeMock).toHaveBeenNthCalledWith(
-      1,
+      2,
       DESKTOP_HOST_IPC_CHANNELS.assessBrowserSurface,
       assessmentInput
     );
     expect(invokeMock).toHaveBeenNthCalledWith(
-      2,
+      3,
       DESKTOP_HOST_IPC_CHANNELS.getLastBrowserAssessmentResult
     );
     expect(invokeMock).toHaveBeenNthCalledWith(
-      3,
+      4,
       DESKTOP_HOST_IPC_CHANNELS.extractBrowserContent,
       extractionInput
     );
     expect(invokeMock).toHaveBeenNthCalledWith(
-      4,
+      5,
       DESKTOP_HOST_IPC_CHANNELS.getLastBrowserExtractionResult
     );
   });

@@ -1,4 +1,4 @@
-import { invoke } from "@desktop-host/core";
+import { invokeDesktopCommand } from "../application/runtime/ports/desktopHostCore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRuntimeClient } from "./runtimeClient";
 import { runCodexDoctorWithFallback, runCodexUpdateWithFallback } from "./runtimeClientCodex";
@@ -27,8 +27,8 @@ import {
   tailscaleStatus,
 } from "./desktopHostRuntimeOps";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: vi.fn(),
+vi.mock("../application/runtime/ports/desktopHostCore", () => ({
+  invokeDesktopCommand: vi.fn(),
 }));
 
 vi.mock("./runtimeClient", () => ({
@@ -40,7 +40,7 @@ vi.mock("./runtimeClientCodex", () => ({
   runCodexUpdateWithFallback: vi.fn(),
 }));
 
-const invokeMock = vi.mocked(invoke);
+const invokeMock = vi.mocked(invokeDesktopCommand);
 const getRuntimeClientMock = vi.mocked(getRuntimeClient);
 const runCodexDoctorWithFallbackMock = vi.mocked(runCodexDoctorWithFallback);
 const runCodexUpdateWithFallbackMock = vi.mocked(runCodexUpdateWithFallback);

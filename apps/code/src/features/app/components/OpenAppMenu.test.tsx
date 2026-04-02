@@ -64,6 +64,30 @@ describe("OpenAppMenu", () => {
     expect(screen.getByRole("button", { name: "Open in Antigravity" })).toBeTruthy();
   });
 
+  it("shows Electron desktop host guidance when desktop open is unavailable", () => {
+    render(
+      <OpenAppMenu
+        path="/workspace"
+        openTargets={[
+          {
+            id: "vscode",
+            label: "VS Code",
+            kind: "command",
+            command: "code",
+            args: [],
+          },
+        ]}
+        selectedOpenAppId="vscode"
+        onSelectOpenAppId={vi.fn()}
+      />
+    );
+
+    const openButton = screen.getByRole("button", { name: "Open in VS Code" });
+    expect(openButton.getAttribute("title")).toBe(
+      "Open in is unavailable outside the Electron desktop host"
+    );
+  });
+
   it("uses the folder icon for finder targets even when the id is custom", () => {
     const { container } = render(
       <OpenAppMenu

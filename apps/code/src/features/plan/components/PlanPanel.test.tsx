@@ -70,7 +70,7 @@ describe("PlanPanel", () => {
 
   beforeEach(() => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [],
       features: [],
       wsEndpointPath: null,
@@ -149,7 +149,7 @@ describe("PlanPanel", () => {
 
   it("shows distributed graph slot when capability is enabled", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: ["code_distributed_task_graph"],
       features: ["distributed_subtask_graph_v1"],
       wsEndpointPath: null,
@@ -185,7 +185,7 @@ describe("PlanPanel", () => {
 
   it("refreshes graph from rpc when graph id is available", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: ["code_distributed_task_graph"],
       features: ["distributed_subtask_graph_v1"],
       wsEndpointPath: null,
@@ -236,7 +236,7 @@ describe("PlanPanel", () => {
 
   it("enables interrupt controls and routes interrupt action to runtime rpc", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [
         CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH,
         CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2,
@@ -277,7 +277,7 @@ describe("PlanPanel", () => {
 
   it("exposes retry capability to the graph surface when runtime intervention is available", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: [
         CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH,
         CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
@@ -310,7 +310,7 @@ describe("PlanPanel", () => {
 
   it("renders remote-first diagnostics warning when graph summary includes distributed context", async () => {
     getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "desktop-compat",
+      mode: "electron-bridge",
       methods: ["code_distributed_task_graph"],
       features: ["distributed_subtask_graph_v1"],
       wsEndpointPath: null,

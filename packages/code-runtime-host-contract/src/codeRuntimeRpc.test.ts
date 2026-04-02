@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import {
   buildCodeRuntimeRpcSpec,
   CODE_RUNTIME_CANONICAL_RUN_LIFECYCLE_METHODS,
+  RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER,
+  RUNTIME_COMPOSITION_CONFIG_LAYER_SOURCES,
   CODE_RUNTIME_RPC_CONTRACT_VERSION,
   CODE_RUNTIME_COMPAT_THREAD_TURN_METHODS,
   CODE_RUNTIME_RPC_ERROR_CODES,
@@ -41,9 +43,15 @@ import type {
   KernelProjectionDelta,
   KernelPolicyDecision,
   LiveSkillExecutionResult,
+  RuntimeExtensionActivationSnapshot,
+  RuntimeCompositionProfile,
+  RuntimeCompositionResolution,
   RuntimeExecutionGraphSummary,
   SubAgentSpawnRequest,
 } from "./codeRuntimeRpc";
+import type { RuntimeExtensionActivationSnapshot as RuntimeExtensionActivationSnapshotModule } from "./runtimeActivationPlane";
+import type { RuntimeCompositionProfile as RuntimeCompositionProfileModule } from "./runtimeCompositionProfiles";
+import type { RuntimeCompositionResolution as RuntimeCompositionResolutionModule } from "./runtimeCompositionPlane";
 
 type AssertFalse<T extends false> = T;
 type HotTurnSendPayload =
@@ -162,6 +170,33 @@ describe("code runtime rpc method consistency", () => {
 });
 
 describe("code runtime rpc compatibility helpers", () => {
+  it("keeps runtime composition types available through dedicated modules and rpc exports", () => {
+    expectTypeOf<RuntimeCompositionProfileModule>().toEqualTypeOf<RuntimeCompositionProfile>();
+    expectTypeOf<RuntimeCompositionResolutionModule>().toEqualTypeOf<RuntimeCompositionResolution>();
+  });
+
+  it("keeps runtime activation snapshot types available through dedicated modules and rpc exports", () => {
+    expectTypeOf<RuntimeExtensionActivationSnapshotModule>().toEqualTypeOf<RuntimeExtensionActivationSnapshot>();
+  });
+
+  it("re-exports runtime composition config layer sources through the rpc surface", () => {
+    expect(RUNTIME_COMPOSITION_CONFIG_LAYER_SOURCES).toEqual([
+      "built_in",
+      "user",
+      "workspace",
+      "launch_override",
+    ]);
+  });
+
+  it("re-exports the canonical runtime composition applied layer order through the rpc surface", () => {
+    expect(RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER).toEqual([
+      "built_in",
+      "user",
+      "workspace",
+      "launch_override",
+    ]);
+  });
+
   it("keeps hot rpc request payload types canonical-only", () => {
     expectTypeOf(HOT_TURN_SEND_WORKSPACE_IS_CANONICAL).toEqualTypeOf<false>();
     expectTypeOf(HOT_TURN_SEND_CONTEXT_IS_CANONICAL).toEqualTypeOf<false>();

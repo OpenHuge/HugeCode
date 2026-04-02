@@ -167,7 +167,7 @@ describe("createRuntimeSessionCommandFacade", () => {
 
     expect(facade.canStartReviewInCurrentHost()).toBe(false);
 
-    vi.mocked(deps.detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(deps.detectRuntimeMode).mockReturnValue("electron-bridge");
 
     expect(facade.canStartReviewInCurrentHost()).toBe(true);
   });

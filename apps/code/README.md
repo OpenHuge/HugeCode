@@ -7,7 +7,7 @@
 - Static/CSR shell for the coding assistant workspace.
 - Composer/threads/model-pool placeholder surfaces.
 - Desktop renderer entrypoint for Electron bridge and runtime-gateway integration.
-- Desktop host composition around the shared workspace client in
+- Electron desktop host composition around the shared workspace client in
   `packages/code-workspace-client`.
 - Runtime-bound desktop bootstrap and host bindings that the web shell does not
   own.

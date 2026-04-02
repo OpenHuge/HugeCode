@@ -199,6 +199,20 @@ export type DesktopDialogCapability = {
   ) => Promise<DesktopOpenDialogResult | undefined> | DesktopOpenDialogResult | undefined;
 };
 
+export type DesktopHostCoreCapability = {
+  invoke?: <Result>(
+    command: string,
+    payload?: Record<string, unknown>
+  ) => Promise<Result | undefined> | Result | undefined;
+};
+
+export type DesktopHostEventCapability = {
+  listen?: <TPayload>(
+    eventName: string,
+    listener: (event: { payload: TPayload }) => void
+  ) => Promise<(() => void) | void> | (() => void) | void;
+};
+
 export type DesktopDiagnosticsCapability = {
   copySupportSnapshot?: () => Promise<boolean | void> | boolean | void;
   getInfo?: () =>
@@ -568,6 +582,8 @@ export type DesktopHostCapabilities = {
   browserAssessment?: DesktopBrowserAssessmentCapability;
   browserDebug?: DesktopBrowserDebugCapability;
   browserExtraction?: DesktopBrowserExtractionCapability;
+  core?: DesktopHostCoreCapability;
+  event?: DesktopHostEventCapability;
   launch?: DesktopLaunchCapability;
   updater?: DesktopUpdaterCapability;
   session?: DesktopSessionCapability;
@@ -586,6 +602,15 @@ export type DesktopHostBridge = {
 
 export type DesktopHostBridgeApi = {
   kind: DesktopHostKind;
+  core: {
+    invoke<Result>(command: string, payload?: Record<string, unknown>): Promise<Result>;
+  };
+  event: {
+    listen<TPayload>(
+      eventName: string,
+      listener: (event: { payload: TPayload }) => void
+    ): Promise<() => void>;
+  };
   app: {
     getInfo(): Promise<DesktopAppInfo | null>;
     getVersion(): Promise<string | null>;

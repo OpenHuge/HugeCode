@@ -393,7 +393,9 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
     workspaceCatalog: {
       listWorkspaces: async () =>
         (await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.WORKSPACES_LIST, {})).map(
-          (workspace) => ({
+          (
+            workspace: CodeRuntimeRpcResponsePayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.WORKSPACES_LIST][number]
+          ) => ({
             id: workspace.id,
             name: workspace.displayName,
             connected: workspace.connected,

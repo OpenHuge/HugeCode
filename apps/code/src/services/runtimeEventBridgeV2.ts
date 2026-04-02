@@ -28,7 +28,7 @@ import {
   type RuntimeEventReplayCursor,
   type Unsubscribe,
 } from "./runtimeEventBridgeTransportShared";
-import { createRuntimeEventStateMachine } from "./runtimeEventStateMachine";
+import { createRuntimeEventStateMachine } from "@ku0/code-runtime-client/runtimeEventStateMachine";
 import type {
   AgentEnvelopeAck,
   AgentEnvelopeFailure,
@@ -609,7 +609,7 @@ export async function startAppServerBridgeV2(
   const bridgeState = createRuntimeEventStateMachine({
     id: APP_SERVER_BRIDGE_CHANNEL_ID,
     label: "App server bridge",
-    defaultTransport: isDesktopHostRuntimeRuntime() ? "desktop-compat" : "bridge",
+    defaultTransport: isDesktopHostRuntimeRuntime() ? "electron-bridge" : "bridge",
   });
 
   bridgeState.transition("connecting", {
@@ -633,8 +633,8 @@ export async function startAppServerBridgeV2(
       if (runtimeUnsubscribe) {
         unsubscribers.push(runtimeUnsubscribe);
         bridgeState.transition("open", {
-          reason: "desktop-compat-listener-open",
-          transport: "desktop-compat",
+          reason: "electron-bridge-listener-open",
+          transport: "electron-bridge",
           retryAttempt: 0,
           retryDelayMs: null,
           consecutiveFailures: 0,

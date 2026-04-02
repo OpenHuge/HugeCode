@@ -91,10 +91,11 @@ function renderTab(
       onRefreshUsage={noop}
       onToggleAccountStatus={noop}
       onUpdateDefaultChatgptWorkspace={onUpdateDefaultChatgptWorkspace}
+      onReviewDeactivatedChatgptWorkspaces={noop}
       onReauthenticateAccount={noop}
       onRemoveAccount={noop}
       subscriptionPersistenceCapability={{
-        hostMode: "desktop-compat",
+        hostMode: "electron-bridge",
         persistenceKind: "runtime-backed",
         runtimeBacked: true,
         durableStorage: true,

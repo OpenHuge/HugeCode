@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
-import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
   readPersistedActiveWorkspaceId,
   writePersistedActiveWorkspaceId,
 } from "../../../application/runtime/ports/threadSnapshots";
+import { detectRuntimeMode } from "../../../application/runtime/ports/runtimeClientMode";
 import {
   addClone as addCloneService,
   addWorkspace as addWorkspaceService,
@@ -88,7 +88,6 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     appSettingsLoading = false,
     onUpdateAppSettings,
   } = options;
-  const runtimeMode = detectRuntimeMode();
   const {
     workspaceGroups,
     workspaceGroupById,
@@ -107,8 +106,6 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   const persistedActiveWorkspaceIdRef = useRef<string | null>(
     appSettings?.lastActiveWorkspaceId ?? null
   );
-  const supportsLegacyAppSettingsMirrorRef = useRef(false);
-  supportsLegacyAppSettingsMirrorRef.current = runtimeMode === "desktop-compat";
   const routeSelection = useWorkspaceRouteSelection();
   const showMissionHomeRoute = useDesktopMissionHomeRoute();
   const hasWorkspaceRouteSelection = routeSelection.kind === "workspace";
@@ -236,28 +233,11 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         payload: error instanceof Error ? error.message : String(error),
       });
     });
-    if (!appSettings || !onUpdateAppSettings || !supportsLegacyAppSettingsMirrorRef.current) {
-      return;
-    }
-    void onUpdateAppSettings({
-      ...appSettings,
-      lastActiveWorkspaceId: nextActiveWorkspaceId,
-    }).catch((error) => {
-      onDebug?.({
-        id: `${Date.now()}-client-persist-active-workspace-error`,
-        timestamp: Date.now(),
-        source: "error",
-        label: "workspace/active/persist error",
-        payload: error instanceof Error ? error.message : String(error),
-      });
-    });
   }, [
     activeWorkspaceId,
-    appSettings,
     appSettingsLoading,
     hasLoaded,
     onDebug,
-    onUpdateAppSettings,
     persistedActiveWorkspaceReady,
     routeSelection.kind,
   ]);

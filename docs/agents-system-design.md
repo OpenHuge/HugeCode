@@ -103,6 +103,22 @@ It must not become:
 - a page-local backend scheduler
 - a generic diagnostics dashboard that competes with runtime truth
 
+### 4.7 Activation, Invocation, And Composition Are Separate Runtime Concerns
+
+When runtime-agent work touches extension, skill, WebMCP, host-binding, or route-plugin behavior, keep these concerns separate:
+
+- `activation` answers whether a contribution is active and why
+- `invocation` answers what the operator can discover or execute by stable id
+- `composition` answers which sources, policies, routes, and profile layers apply now
+
+Do not let frontend or bridge code infer one plane from another.
+In particular:
+
+- active plugin package does not imply executable invocation
+- published WebMCP tool does not imply canonical invocation truth
+- installed package metadata does not imply activation state
+- page-local launch overrides do not become durable composition truth unless runtime publishes them
+
 ---
 
 ## 5. Canonical System Model

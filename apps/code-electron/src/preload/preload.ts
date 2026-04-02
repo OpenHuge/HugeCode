@@ -4,6 +4,24 @@ import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
 
 const desktopHostBridge: DesktopHostBridgeApi = {
   kind: "electron",
+  core: {
+    invoke: <Result>(command: string, payload?: Record<string, unknown>) =>
+      ipcRenderer.invoke(command, payload) as Promise<Result>,
+  },
+  event: {
+    listen: async <TPayload>(
+      eventName: string,
+      listener: (event: { payload: TPayload }) => void
+    ) => {
+      const wrappedListener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+        listener({ payload: payload as TPayload });
+      };
+      ipcRenderer.on(eventName, wrappedListener);
+      return () => {
+        ipcRenderer.off(eventName, wrappedListener);
+      };
+    },
+  },
   app: {
     getInfo: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getAppInfo),
     getVersion: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getAppVersion),

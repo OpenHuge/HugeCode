@@ -131,8 +131,6 @@ export function WorkspaceHomeAgentControl({
   userInputRequests,
 }: WorkspaceHomeAgentControlProps) {
   const [intent, setIntent] = useState<AgentIntentState>(DEFAULT_INTENT);
-  const [legacyCachedIntent, setLegacyCachedIntent] = useState<AgentIntentState | null>(null);
-  const [legacyCacheCorrupted, setLegacyCacheCorrupted] = useState(false);
   const [webMcpEnabled, setWebMcpEnabled] = useState(true);
   const [webMcpConsoleMode, setWebMcpConsoleMode] = useState<"basic" | "advanced">("basic");
   const [runtimeSectionOpen, setRuntimeSectionOpen] = useState(false);
@@ -153,8 +151,6 @@ export function WorkspaceHomeAgentControl({
 
   useEffect(() => {
     const restored = readCachedStateWithStatus(workspace.id);
-    setLegacyCachedIntent(restored.state?.intent ?? null);
-    setLegacyCacheCorrupted(restored.corrupted);
     if (!restored.state) {
       setIntent(DEFAULT_INTENT);
       setWebMcpEnabled(true);
@@ -249,8 +245,6 @@ export function WorkspaceHomeAgentControl({
     workspaceId: workspace.id,
     intent,
     runs: [],
-    legacyCachedIntent,
-    legacyCacheCorrupted,
   });
   const runtimeWebMcpContextPolicy = useRuntimeWebMcpContextPolicy({
     workspaceId: workspace.id,
@@ -563,12 +557,7 @@ export function WorkspaceHomeAgentControl({
         testId="workspace-home-runtime-section"
       >
         <Suspense fallback={null}>
-          <LazyWorkspaceHomeAgentRuntimeOrchestration
-            workspaceId={workspace.id}
-            intent={intent}
-            legacyCachedIntent={legacyCachedIntent}
-            legacyCacheCorrupted={legacyCacheCorrupted}
-          />
+          <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} intent={intent} />
         </Suspense>
       </WorkspaceHomeAgentLazySection>
       <WorkspaceHomeAgentLazySection

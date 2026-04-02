@@ -28,20 +28,24 @@ function mapMissionStateToThreadVisualState(state: MissionOverviewState): Thread
 }
 
 function buildMissionSubline(item: MissionOverviewEntry) {
-  const parts = [
-    item.operatorActionLabel,
-    item.routeDetail,
-    item.governanceSummary,
-    item.operatorSignal,
-    item.attentionSignals[0] ?? null,
-  ].filter((value): value is string => Boolean(value?.trim()));
+  const parts = Array.from(
+    new Set(
+      [
+        item.operatorActionLabel,
+        item.routeDetail,
+        item.governanceSummary,
+        item.operatorSignal,
+        item.attentionSignals[0] ?? null,
+      ].filter((value): value is string => Boolean(value?.trim()))
+    )
+  );
 
   if (parts.length === 0) {
     return null;
   }
 
   return parts.map((part, index) => (
-    <span key={`${item.threadId}-${part}`}>
+    <span key={`${item.threadId}-${index}-${part}`}>
       {index > 0 ? (
         <span className="thread-secondary-separator" aria-hidden>
           {" "}

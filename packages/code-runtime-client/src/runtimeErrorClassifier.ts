@@ -104,8 +104,8 @@ export function isMissingDesktopHostInvokeError(error: unknown): boolean {
     message.includes("reading 'invoke'") ||
     message.includes('reading "invoke"') ||
     message.includes(".invoke is not a function") ||
-    message.includes("__HUGE_CODE_DESKTOP_HOST_INTERNALS__") ||
-    message.includes("__HUGE_CODE_DESKTOP_HOST_IPC__")
+    message.includes("Electron bridge command") ||
+    message.includes("hugeCodeDesktopHost")
   );
 }
 
