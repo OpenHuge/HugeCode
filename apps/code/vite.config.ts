@@ -98,6 +98,20 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",
   "/src/application/runtime/ports/runtimeDiagnostics.ts",
 ] as const;
+const RUNTIME_AUTODRIVE_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/runtimeAutoDrive",
+  "/src/application/runtime/facades/chatgptWorkspaceAutomation.ts",
+  "/src/application/runtime/facades/runtimeReviewPackDetailPresentation.ts",
+  "/src/application/runtime/facades/runtimeReviewPackDecisionActionsFacade.ts",
+] as const;
+const RUNTIME_EXTENSION_KERNEL_CHUNK_PATTERNS = [
+  "/src/application/runtime/kernel/runtimeExtensionActivation.ts",
+  "/src/application/runtime/kernel/runtimeKernelPlugins.ts",
+  "/src/application/runtime/kernel/runtimeKernelPluginRegistry.ts",
+  "/src/application/runtime/kernel/runtimeKernelRoutingPlugins.ts",
+  "/src/application/runtime/kernel/runtimeKernelComposition.ts",
+  "/src/application/runtime/kernel/runtimeWorkspaceSkillManifests.ts",
+] as const;
 const RUNTIME_BROWSER_ASSESSMENT_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeBrowserAssessment",
   "/src/application/runtime/facades/runtimeBrowserExtractionOperator.ts",
@@ -108,6 +122,23 @@ const RUNTIME_BROWSER_ASSESSMENT_CHUNK_PATTERNS = [
   "/src/application/runtime/kernel/createRuntimeAgentControlDependencies.ts",
   "/src/application/runtime/ports/browserCapability.ts",
   "/src/application/runtime/ports/runtimeDiscoveryControl.ts",
+] as const;
+const RUNTIME_INVOCATION_PLANE_CHUNK_PATTERNS = [
+  "/src/application/runtime/facades/runtimeInvocation",
+  "/src/application/runtime/hooks/useRuntimeInvocation",
+  "/src/application/runtime/hooks/useWorkspaceRuntimeInvocation",
+  "/src/application/runtime/kernel/runtimeInvocation",
+  "/src/application/runtime/ports/runtimeInvocation",
+  "/packages/code-application/src/runtimeInvocation",
+  "/packages/code-runtime-host-contract/src/runtimeInvocationPlane.ts",
+  "/packages/code-runtime-host-contract/src/code-runtime-rpc/runtimeKernelAndExtensions.ts",
+] as const;
+const RUNTIME_KERNEL_FOUNDATION_CHUNK_PATTERNS = [
+  "/src/application/runtime/kernel/",
+  "/packages/code-application/src/runtime",
+  "/packages/code-runtime-host-contract/src/runtimeActivationPlane.ts",
+  "/packages/code-runtime-host-contract/src/runtimeCompositionPlane.ts",
+  "/packages/code-runtime-host-contract/src/runtimeCompositionProfiles.ts",
 ] as const;
 const RUNTIME_APPLICATION_CHUNK_PATTERNS = ["/src/application/runtime/"] as const;
 const DESKTOP_SERVICES_CHUNK_PATTERNS = ["/src/services/"] as const;
@@ -235,8 +266,20 @@ export default defineConfig({
           if (matchesChunkPattern(id, RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS)) {
             return "runtime-mission-control";
           }
+          if (matchesChunkPattern(id, RUNTIME_AUTODRIVE_CHUNK_PATTERNS)) {
+            return "runtime-auto-drive";
+          }
+          if (matchesChunkPattern(id, RUNTIME_EXTENSION_KERNEL_CHUNK_PATTERNS)) {
+            return "runtime-extension-kernel";
+          }
           if (matchesChunkPattern(id, RUNTIME_BROWSER_ASSESSMENT_CHUNK_PATTERNS)) {
             return "runtime-browser-assessment";
+          }
+          if (matchesChunkPattern(id, RUNTIME_INVOCATION_PLANE_CHUNK_PATTERNS)) {
+            return "runtime-invocation-plane";
+          }
+          if (matchesChunkPattern(id, RUNTIME_KERNEL_FOUNDATION_CHUNK_PATTERNS)) {
+            return "runtime-kernel-foundation";
           }
           if (matchesChunkPattern(id, RUNTIME_APPLICATION_CHUNK_PATTERNS)) {
             return "runtime-application";
