@@ -29,6 +29,10 @@
       "types": "./src/runtimeBackendPreferences.ts",
       "default": "./src/runtimeBackendPreferences.ts"
     },
+    "./runtimeCompositionProfiles": {
+      "types": "./src/runtimeCompositionProfiles.ts",
+      "default": "./src/runtimeCompositionProfiles.ts"
+    },
     "./runtimeConfigHooks": {
       "types": "./src/runtimeConfigHooks.ts",
       "default": "./src/runtimeConfigHooks.ts"
@@ -36,6 +40,14 @@
     "./runtimeExtensionExplainability": {
       "types": "./src/runtimeExtensionExplainability.ts",
       "default": "./src/runtimeExtensionExplainability.ts"
+    },
+    "./runtimeControlPlaneOperatorModel": {
+      "types": "./src/runtimeControlPlaneOperatorModel.ts",
+      "default": "./src/runtimeControlPlaneOperatorModel.ts"
+    },
+    "./runtimeControlPlaneOperatorPresentation": {
+      "types": "./src/runtimeControlPlaneOperatorPresentation.ts",
+      "default": "./src/runtimeControlPlaneOperatorPresentation.ts"
     },
     "./runtimeLiveSkillAliases": {
       "types": "./src/runtimeLiveSkillAliases.ts",

@@ -439,7 +439,7 @@ export function createRuntimeKernelCompositionFacade(input: {
   pluginRegistry: RuntimeKernelPluginRegistryFacade;
   authority: RuntimeKernelCompositionAuthorityFacade;
   seedProfiles?: RuntimeCompositionProfile[];
-  configHooks?: readonly import("@ku0/code-application").RuntimeConfigHook[];
+  configHooks?: readonly RuntimeConfigHook<RuntimeCompositionProfile>[];
 }): RuntimeKernelCompositionFacade {
   const profiles = new Map(
     (input.seedProfiles ?? buildDefaultRuntimeCompositionProfiles()).map(

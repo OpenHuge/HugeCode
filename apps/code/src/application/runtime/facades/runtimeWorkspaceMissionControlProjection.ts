@@ -11,7 +11,7 @@ import type {
 import {
   readRuntimeCompositionPreferredBackendIds,
   readRuntimeCompositionResolvedBackendId,
-} from "@ku0/code-application";
+} from "@ku0/code-application/runtimeBackendPreferences";
 import {
   resolveRuntimeControlPlaneRouteSelection,
   type RuntimeControlPlaneRouteOption,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { RuntimeCompositionProfile } from "@ku0/code-runtime-host-contract";
 import { buildDefaultRuntimeCompositionProfiles } from "./runtimeCompositionProfiles";
 import {
   applyRuntimeConfigHooks,
@@ -8,7 +9,32 @@ import {
 
 describe("runtimeConfigHooks", () => {
   it("applies hook pipelines in order and preserves provenance", () => {
+    type LabelValue = {
+      label: string;
+    };
     const calls: string[] = [];
+    const hooks: RuntimeConfigHook<LabelValue>[] = [
+      {
+        name: "label-a",
+        run: ({ value, context }) => {
+          calls.push(`${context.workspaceId}:${context.activeProfileId}:a`);
+          return {
+            ...value,
+            label: `${value.label}-a`,
+          };
+        },
+      },
+      {
+        name: "label-b",
+        run: ({ value }) => {
+          calls.push("b");
+          return {
+            ...value,
+            label: `${value.label}-b`,
+          };
+        },
+      },
+    ];
 
     const result = applyRuntimeConfigHooks({
       stage: "composition.profile",
@@ -19,28 +45,7 @@ describe("runtimeConfigHooks", () => {
         workspaceId: "workspace-alpha",
         activeProfileId: "workspace-default",
       },
-      hooks: [
-        {
-          name: "label-a",
-          run: ({ value, context }) => {
-            calls.push(`${context.workspaceId}:${context.activeProfileId}:a`);
-            return {
-              ...value,
-              label: `${value.label}-a`,
-            };
-          },
-        },
-        {
-          name: "label-b",
-          run: ({ value }) => {
-            calls.push("b");
-            return {
-              ...value,
-              label: `${value.label}-b`,
-            };
-          },
-        },
-      ],
+      hooks,
     });
 
     expect(calls).toEqual(["workspace-alpha:workspace-default:a", "b"]);
@@ -52,7 +57,7 @@ describe("runtimeConfigHooks", () => {
 
   it("resolves runtime composition profiles through hook-aware composition", () => {
     const profiles = buildDefaultRuntimeCompositionProfiles();
-    const hook: RuntimeConfigHook = {
+    const hook: RuntimeConfigHook<RuntimeCompositionProfile> = {
       name: "override-backend",
       run: ({ value }) => ({
         ...value,

@@ -20,9 +20,9 @@ export type RuntimeConfigHookRunInput<TValue> = {
   context: RuntimeConfigHookContext;
 };
 
-export type RuntimeConfigHook = {
+export type RuntimeConfigHook<TValue = unknown> = {
   name: string;
-  run: <TValue>(input: RuntimeConfigHookRunInput<TValue>) => TValue;
+  run: (input: RuntimeConfigHookRunInput<TValue>) => TValue;
 };
 
 export type RuntimeConfigHookResult<TValue> = {
@@ -34,7 +34,7 @@ export function applyRuntimeConfigHooks<TValue>(input: {
   stage: RuntimeConfigHookStage;
   value: TValue;
   context?: RuntimeConfigHookContext;
-  hooks?: readonly RuntimeConfigHook[] | null;
+  hooks?: readonly RuntimeConfigHook<TValue>[] | null;
 }): RuntimeConfigHookResult<TValue> {
   const appliedHooks: string[] = [];
   let current = input.value;
@@ -56,7 +56,7 @@ export function resolveRuntimeCompositionProfile(input: {
   profiles: RuntimeCompositionProfile[];
   activeProfileId: string;
   launchOverride?: RuntimeCompositionProfileLaunchOverride | null;
-  hooks?: readonly RuntimeConfigHook[] | null;
+  hooks?: readonly RuntimeConfigHook<RuntimeCompositionProfile>[] | null;
   context?: RuntimeConfigHookContext;
 }): {
   profile: RuntimeCompositionProfile;
