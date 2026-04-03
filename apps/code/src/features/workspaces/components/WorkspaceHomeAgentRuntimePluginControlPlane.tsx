@@ -3,10 +3,12 @@ import type {
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
 } from "@ku0/code-runtime-host-contract";
+import {
+  buildRuntimeControlPlaneOperatorModel,
+  resolveRuntimeControlPlaneOperatorActionPresentation,
+} from "@ku0/code-application";
 import { ToolCallChip } from "../../../design-system";
 import { useWorkspaceRuntimeControlPlaneOperatorState } from "../../../application/runtime/facades/runtimeKernelControlPlaneFacadeHooks";
-import { buildRuntimeControlPlaneOperatorModel } from "../../../application/runtime/facades/runtimeKernelControlPlaneOperatorModel";
-import { resolveRuntimeControlPlaneOperatorActionPresentation } from "../../../application/runtime/facades/runtimeKernelControlPlaneOperatorPresentation";
 import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPluginTypes";
 import { MissionControlSectionCard } from "./WorkspaceHomeMissionControlSections";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";

@@ -2,6 +2,10 @@
 
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import {
+  resolveRuntimeControlPlaneOperatorActionPresentation,
+  type RuntimeControlPlaneOperatorAction,
+} from "@ku0/code-application";
 import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
 import {
@@ -9,8 +13,6 @@ import {
   useWorkspaceRuntimeControlPlaneOperatorState,
   useWorkspaceRuntimePluginRegistry,
 } from "./runtimeKernelControlPlaneFacadeHooks";
-import { resolveRuntimeControlPlaneOperatorActionPresentation } from "./runtimeKernelControlPlaneOperatorPresentation";
-import type { RuntimeControlPlaneOperatorAction } from "./runtimeKernelControlPlaneOperatorModel";
 
 function createRuntimeKernelValue() {
   const installPackage = vi.fn(async () => ({
