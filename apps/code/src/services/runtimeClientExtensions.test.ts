@@ -3,6 +3,7 @@ import type { RuntimeExtensionRecord } from "@ku0/code-runtime-host-contract";
 import type { RuntimeClient } from "@ku0/code-runtime-client/runtimeClientTypes";
 import {
   evaluateRuntimeExtensionPermissionsWithFallback,
+  invokeRuntimeExtensionToolWithFallback,
   installRuntimeExtensionWithFallback,
   listRuntimeExtensionRegistrySourcesWithFallback,
   listRuntimeExtensionToolsWithFallback,
@@ -138,6 +139,10 @@ describe("runtimeClientExtensions", () => {
         checkedAt: 123,
       })),
       extensionToolsListV2: vi.fn(async () => [tool]),
+      extensionToolInvokeV2: vi.fn(async () => ({
+        ok: true,
+        hits: 2,
+      })),
       extensionResourceReadV2: vi.fn(async () => resource),
     });
 
@@ -183,6 +188,19 @@ describe("runtimeClientExtensions", () => {
         extensionId: "ext-1",
       })
     ).resolves.toEqual([tool]);
+    await expect(
+      invokeRuntimeExtensionToolWithFallback(client, {
+        workspaceId: "ws-1",
+        extensionId: "ext-1",
+        toolName: "tool.one",
+        input: {
+          query: "catalog",
+        },
+      })
+    ).resolves.toEqual({
+      ok: true,
+      hits: 2,
+    });
     await expect(
       readRuntimeExtensionResourceWithFallback(client, {
         workspaceId: "ws-1",

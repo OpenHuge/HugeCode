@@ -174,6 +174,7 @@ export const CODE_RUNTIME_RPC_METHODS = {
   EXTENSION_PERMISSIONS_EVALUATE_V2: "code_extension_permissions_evaluate_v2",
   EXTENSION_HEALTH_READ_V2: "code_extension_health_read_v2",
   EXTENSION_TOOLS_LIST_V2: "code_extension_tools_list_v2",
+  EXTENSION_TOOL_INVOKE_V2: "code_extension_tool_invoke_v2",
   EXTENSION_RESOURCE_READ_V2: "code_extension_resource_read_v2",
   SESSION_EXPORT_V1: "code_session_export_v1",
   SESSION_IMPORT_V1: "code_session_import_v1",

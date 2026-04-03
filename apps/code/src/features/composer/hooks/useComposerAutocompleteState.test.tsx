@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { renderHook } from "@testing-library/react";
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useComposerAutocompleteState } from "./useComposerAutocompleteState";
@@ -143,6 +144,98 @@ describe("useComposerAutocompleteState slash commands", () => {
       insertText: 'summarize TARGET=""',
       group: "Slash",
     });
+  });
+
+  it("prefers catalog-derived slash overlays when invocation items are provided", () => {
+    const text = "/";
+    const selectionStart = text.length;
+    const textareaRef = createRef<HTMLTextAreaElement>();
+    textareaRef.current = {
+      focus: vi.fn(),
+      setSelectionRange: vi.fn(),
+    } as unknown as HTMLTextAreaElement;
+    const slashInvocationItems: InvocationDescriptor[] = [
+      {
+        id: "session:prompt:prompt.summarize",
+        title: "summarize",
+        summary: "Summarize a target",
+        description: "Summarize a target",
+        kind: "session_command",
+        source: {
+          kind: "session_command",
+          contributionType: "session_scoped",
+          authority: "workspace",
+          label: "Runtime prompt library",
+          sourceId: "prompt.summarize",
+          workspaceId: "ws-1",
+          provenance: null,
+        },
+        runtimeTool: null,
+        argumentSchema: null,
+        aliases: [],
+        tags: ["prompt_overlay"],
+        safety: {
+          level: "read",
+          readOnly: true,
+          destructive: false,
+          openWorld: false,
+          idempotent: true,
+        },
+        exposure: {
+          operatorVisible: true,
+          modelVisible: false,
+          requiresReadiness: false,
+          hiddenReason: "Prompt-library overlays stay operator-facing in the invocation plane.",
+        },
+        readiness: {
+          state: "ready",
+          available: true,
+          reason: null,
+          warnings: [],
+          checkedAt: null,
+        },
+        metadata: {
+          promptOverlay: {
+            promptId: "prompt.summarize",
+            scope: "workspace",
+          },
+          slashCommand: {
+            primaryTrigger: "/summarize",
+            legacyAliases: [],
+            insertText: 'summarize TARGET=""',
+            cursorOffset: 18,
+            hint: "TARGET=",
+            shadowedByBuiltin: false,
+          },
+        },
+      },
+    ];
+
+    const { result } = renderHook(() =>
+      useComposerAutocompleteState({
+        text,
+        selectionStart,
+        disabled: false,
+        skills: [],
+        prompts: [],
+        slashInvocationItems,
+        files: [],
+        textareaRef,
+        setText: vi.fn(),
+        setSelectionStart: vi.fn(),
+      })
+    );
+
+    expect(result.current.autocompleteMatches).toContainEqual(
+      expect.objectContaining({
+        id: "session:prompt:prompt.summarize",
+        label: "summarize",
+        description: "Summarize a target · Project command",
+        hint: "TARGET=",
+        insertText: 'summarize TARGET=""',
+        group: "Slash",
+      })
+    );
   });
 });
 

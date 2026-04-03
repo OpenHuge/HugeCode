@@ -143,6 +143,7 @@ export function buildComposerNode(
           autoDrive={input.autoDrive ?? null}
           skills={input.skills}
           prompts={input.prompts}
+          slashInvocationItems={input.slashInvocationItems}
           files={input.files}
           textareaRef={input.textareaRef}
           historyKey={input.activeWorkspace?.id ?? null}

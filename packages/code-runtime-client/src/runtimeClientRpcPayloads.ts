@@ -343,6 +343,19 @@ function toCompatExtensionToolsListPayload(payload: {
   });
 }
 
+function toCompatExtensionToolInvokePayload(payload: {
+  workspaceId?: string | null;
+  extensionId: string;
+  toolName: string;
+  input?: Record<string, unknown> | null;
+}) {
+  return withCanonicalPayload({
+    ...payload,
+    workspaceId: payload.workspaceId ?? null,
+    input: payload.input ?? null,
+  });
+}
+
 function toCompatExtensionResourceReadPayload(payload: RuntimeExtensionResourceReadRequest) {
   return withCanonicalPayload({
     ...payload,
@@ -494,6 +507,7 @@ export const RUNTIME_RPC_PAYLOAD_REGISTRY = Object.freeze({
   extensionSetState: toCompatExtensionSetStatePayload,
   extensionRemove: toCompatExtensionRemovePayload,
   extensionToolsList: toCompatExtensionToolsListPayload,
+  extensionToolInvoke: toCompatExtensionToolInvokePayload,
   extensionResourceRead: toCompatExtensionResourceReadPayload,
   sessionExport: toCompatSessionExportPayload,
   sessionImport: toCompatSessionImportPayload,

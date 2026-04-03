@@ -1,4 +1,6 @@
-import type { ComponentProps } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
+import { useRuntimeInvocationCatalogResolver } from "../../../application/runtime/facades/runtimeInvocationCatalogFacadeHooks";
 import type { WorkspaceDesktopAppHost } from "../components/WorkspaceDesktopAppHost";
 import { useMainAppLayoutNodesState } from "../hooks/useMainAppLayoutNodesState";
 import { useMainAppShellSurfaceProps } from "../hooks/useMainAppShellSurfaceProps";
@@ -22,6 +24,7 @@ export function useDesktopWorkspaceChromeDomain({
   domains,
   shell,
 }: DesktopWorkspaceChromeDomainInput): DesktopWorkspaceChromeDomainOutput {
+  const resolveInvocationCatalog = useRuntimeInvocationCatalogResolver();
   const {
     workspaceState,
     mobileState,
@@ -106,8 +109,37 @@ export function useDesktopWorkspaceChromeDomain({
     workspaceLoadError,
     workspaces,
   } = workspaceState;
+  const [slashInvocationItems, setSlashInvocationItems] = useState<InvocationDescriptor[]>([]);
   const { handleMobileConnectSuccess } = mobileState;
   const { currentBranch, fileStatus } = gitBranchState;
+
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      setSlashInvocationItems([]);
+      return;
+    }
+    let cancelled = false;
+    void resolveInvocationCatalog(activeWorkspaceId)
+      .publishActiveCatalog({ audience: "operator" })
+      .then((catalog) => {
+        if (cancelled) {
+          return;
+        }
+        setSlashInvocationItems(
+          catalog.items.filter(
+            (item) => item.kind === "session_command" && Boolean(item.metadata?.slashCommand)
+          )
+        );
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSlashInvocationItems([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspaceId, resolveInvocationCatalog]);
 
   const { appClassName, appStyle } = useMainAppSurfaceStyles({
     appSettings,
@@ -239,6 +271,7 @@ export function useDesktopWorkspaceChromeDomain({
         },
         skills,
         prompts,
+        slashInvocationItems,
         composerInputRef,
         composerEditorSettings,
         composerEditorExpanded,

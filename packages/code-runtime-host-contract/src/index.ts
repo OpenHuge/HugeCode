@@ -233,6 +233,8 @@ export interface RuntimeUpdatedObservabilityPayload {
   backpressureDroppedTotal?: number;
 }
 
+export type * from "./runtimeInvocationPlane.js";
+
 export interface RuntimeUpdatedEventPayload {
   revision: string;
   scope: string[];

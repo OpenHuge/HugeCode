@@ -343,6 +343,58 @@ fn parse_tools_from_config(
     parsed
 }
 
+fn tool_config_entry<'a>(
+    config: &'a Value,
+    tool_name: &str,
+) -> Option<&'a serde_json::Map<String, Value>> {
+    config
+        .get("tools")
+        .and_then(Value::as_array)
+        .and_then(|tools| {
+            tools.iter().find_map(|tool| {
+                let object = tool.as_object()?;
+                let candidate = object
+                    .get("toolName")
+                    .or_else(|| object.get("name"))
+                    .and_then(Value::as_str)
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())?;
+                if candidate == tool_name {
+                    Some(object)
+                } else {
+                    None
+                }
+            })
+        })
+}
+
+fn configured_tool_output(
+    config: &Value,
+    tool_name: &str,
+    tool_config: Option<&serde_json::Map<String, Value>>,
+) -> Option<Value> {
+    if let Some(tool_config) = tool_config {
+        if let Some(result) = tool_config
+            .get("result")
+            .or_else(|| tool_config.get("output"))
+            .or_else(|| tool_config.get("response"))
+        {
+            return Some(result.clone());
+        }
+    }
+
+    for key in ["toolResults", "tool_results"] {
+        let Some(tool_results) = config.get(key).and_then(Value::as_object) else {
+            continue;
+        };
+        if let Some(result) = tool_results.get(tool_name) {
+            return Some(result.clone());
+        }
+    }
+
+    None
+}
+
 fn parse_resource_from_config(
     extension_id: &str,
     resource_id: &str,
@@ -691,6 +743,67 @@ impl RuntimeExtensionStore {
     ) -> Option<RuntimeExtensionResourceReadResponsePayload> {
         self.record_for_lookup(workspace_id, extension_id)
             .map(|entry| parse_resource_from_config(extension_id, resource_id, &entry.config))
+    }
+
+    pub(crate) fn invoke_tool(
+        &self,
+        workspace_id: Option<&str>,
+        extension_id: &str,
+        tool_name: &str,
+        input: Option<&serde_json::Map<String, Value>>,
+    ) -> Result<Option<Value>, RpcError> {
+        let Some(entry) = self.record_for_lookup(workspace_id, extension_id) else {
+            return Ok(None);
+        };
+        if !entry.enabled {
+            return Err(RpcError::invalid_params(format!(
+                "extension `{extension_id}` is disabled"
+            )));
+        }
+        if matches!(entry.lifecycle_state.as_str(), "blocked") {
+            return Err(RpcError::invalid_params(format!(
+                "extension `{extension_id}` is blocked"
+            )));
+        }
+        if entry.kind == "instruction" {
+            return Err(RpcError::invalid_params(format!(
+                "instruction extension `{extension_id}` does not expose executable tools"
+            )));
+        }
+
+        let tools = parse_tools_from_config(extension_id, &entry.config);
+        let Some(tool) = tools
+            .into_iter()
+            .find(|candidate| candidate.tool_name == tool_name)
+        else {
+            return Err(RpcError::invalid_params(format!(
+                "extension `{extension_id}` does not expose tool `{tool_name}`"
+            )));
+        };
+        let input_payload = Value::Object(input.cloned().unwrap_or_default());
+        let tool_config = tool_config_entry(&entry.config, tool_name);
+        let configured_output = configured_tool_output(&entry.config, tool_name, tool_config);
+        let has_configured_output = configured_output.is_some();
+
+        Ok(Some(json!({
+            "extensionId": extension_id,
+            "toolName": tool.tool_name,
+            "workspaceId": entry.workspace_id,
+            "transport": entry.transport,
+            "readOnly": tool.read_only,
+            "input": input_payload,
+            "output": configured_output.unwrap_or_else(|| json!({
+                "ok": true,
+                "message": "Runtime extension tool executed through the config-backed runtime extension path.",
+            })),
+            "metadata": {
+                "source": "runtime_extension_store",
+                "configuredOutput": has_configured_output,
+                "lifecycleState": entry.lifecycle_state,
+                "kind": entry.kind,
+                "distribution": entry.distribution,
+            },
+        })))
     }
 }
 

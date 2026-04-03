@@ -1,4 +1,5 @@
 import type { ComponentProps, RefObject } from "react";
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
 import type {
   AccessMode,
   ApprovalRequest,
@@ -65,6 +66,7 @@ export type ComposerProps = {
   autoDrive?: ComponentProps<typeof ComposerMetaBar>["autoDrive"];
   skills: SkillOption[];
   prompts: CustomPromptOption[];
+  slashInvocationItems?: InvocationDescriptor[];
   files: string[];
   contextUsage?: ThreadTokenUsage | null;
   queuedMessages?: QueuedMessage[];

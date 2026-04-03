@@ -288,6 +288,9 @@ export function createUnavailableRuntimeClient(
     extensionToolsListV2() {
       return rejectUnavailable("list runtime extension tools");
     },
+    extensionToolInvokeV2() {
+      return rejectUnavailable("invoke runtime extension tool");
+    },
     extensionResourceReadV2() {
       return rejectUnavailable("read runtime extension resource");
     },

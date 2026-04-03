@@ -1,36 +1,45 @@
-import { createDesktopHostAdapter } from "../adapters/DesktopHostAdapter";
-import { createRuntimeGateway } from "../facades/RuntimeGateway";
-import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
-import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
-import { discoverLocalRuntimeGatewayTargets } from "../facades/discoverLocalRuntimeGatewayTargets";
-import { configureManualWebRuntimeGatewayTarget } from "../ports/runtimeWebGatewayConfig";
-import { getMissionControlSnapshot } from "../ports/missionControl";
-import { detectRuntimeMode, readRuntimeCapabilitiesSummary } from "../ports/runtimeClient";
-import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
-import { createRuntimeAgentControlDependencies } from "./createRuntimeAgentControlDependencies";
-import { createWorkspaceClientRuntimeBindings } from "./createWorkspaceClientRuntimeBindings";
-import type { RuntimeKernel } from "./runtimeKernelTypes";
 import { createRuntimeExecutableSkillFacade } from "@ku0/code-application/runtimeExecutableSkillFacade";
-import { createRuntimeInvocationCatalogFacade } from "@ku0/code-application/runtimeInvocationCatalogFacade";
+import { createRuntimeInvocationCatalogFacade as createActivationRuntimeInvocationCatalogFacade } from "@ku0/code-application/runtimeInvocationCatalogFacade";
+import type {
+  KernelCapabilityDescriptor,
+  KernelExtensionBundle,
+} from "@ku0/code-runtime-host-contract";
 import type { WorkspaceClientRuntimeMode } from "@ku0/code-workspace-client";
 import { subscribeConfiguredWebRuntimeGatewayProfile } from "../../../services/runtimeWebGatewayConfig";
 import {
   bootstrapRuntimeKernelProjection,
   subscribeRuntimeKernelProjection,
 } from "../../../services/runtimeKernelProjectionTransport";
-import {
-  createRuntimeKernelPluginCatalogFacade,
-  createRuntimeKernelPluginExecutionProvider,
-} from "./runtimeKernelPlugins";
+import { createDesktopHostAdapter } from "../adapters/DesktopHostAdapter";
+import { discoverLocalRuntimeGatewayTargets } from "../facades/discoverLocalRuntimeGatewayTargets";
+import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
+import { createRuntimeGateway } from "../facades/RuntimeGateway";
+import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
+import { getMissionControlSnapshot } from "../ports/missionControl";
+import { detectRuntimeMode, readRuntimeCapabilitiesSummary } from "../ports/runtimeClient";
+import { invokeRuntimeExtensionTool, listRuntimeExtensionTools } from "../ports/runtimeExtensions";
+import { startRuntimeRunV2 } from "../ports/runtimeJobs";
+import { listRuntimePrompts } from "../ports/runtimePrompts";
+import { runRuntimeLiveSkill } from "../ports/runtime";
+import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
+import { configureManualWebRuntimeGatewayTarget } from "../ports/runtimeWebGatewayConfig";
+import { createRuntimeAgentControlDependencies } from "./createRuntimeAgentControlDependencies";
+import { createWorkspaceClientRuntimeBindings } from "./createWorkspaceClientRuntimeBindings";
+import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
+import { createRuntimeExtensionActivationService } from "./runtimeExtensionActivation";
+import { createRuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalog";
+import { createRuntimeInvocationExecuteFacade } from "./runtimeInvocationExecute";
+import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
 import {
   RUNTIME_KERNEL_CAPABILITY_KEYS,
   type WorkspaceRuntimeCapabilityProvider,
 } from "./runtimeKernelCapabilities";
 import { createRuntimeKernelPluginRegistryFacade } from "./runtimeKernelPluginRegistry";
-import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
-import { createRuntimeExtensionActivationService } from "./runtimeExtensionActivation";
-import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
-import { runRuntimeLiveSkill } from "../ports/runtime";
+import {
+  createRuntimeKernelPluginCatalogFacade,
+  createRuntimeKernelPluginExecutionProvider,
+} from "./runtimeKernelPlugins";
+import type { RuntimeKernel } from "./runtimeKernelTypes";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
 
 function mapWorkspaceClientRuntimeMode(
@@ -84,6 +93,7 @@ export function createRuntimeKernel(): RuntimeKernel {
         workspaceId,
         pluginCatalog,
       });
+      const sessionCommands = createRuntimeSessionCommandFacade(workspaceId);
       const compositionRuntime = createRuntimeKernelCompositionFacade({
         workspaceId,
         pluginCatalog,
@@ -96,13 +106,49 @@ export function createRuntimeKernel(): RuntimeKernel {
         readWorkspaceSkillManifests: readRuntimeWorkspaceSkillManifests,
         listRuntimeLiveSkills,
       });
-      const invocationCatalog = createRuntimeInvocationCatalogFacade({
+      const activationInvocationCatalog = createActivationRuntimeInvocationCatalogFacade({
         activation: extensionActivation,
       });
+      const invocationCatalog = createRuntimeInvocationCatalogFacade({
+        workspaceId,
+        pluginCatalog,
+        readProjection: async () => {
+          if (!workspaceClientRuntime.kernelProjection) {
+            return {
+              projectionBacked: false,
+              extensionBundles: null,
+              capabilities: null,
+            };
+          }
+          const bootstrap = await workspaceClientRuntime.kernelProjection.bootstrap({
+            scopes: ["extensions", "capabilities"],
+          });
+          return {
+            projectionBacked: true,
+            extensionBundles: Array.isArray(bootstrap.slices.extensions)
+              ? (bootstrap.slices.extensions as KernelExtensionBundle[])
+              : null,
+            capabilities: Array.isArray(bootstrap.slices.capabilities)
+              ? (bootstrap.slices.capabilities as KernelCapabilityDescriptor[])
+              : null,
+          };
+        },
+        listRuntimeExtensionTools,
+        listRuntimePrompts,
+      });
       runtimeExecutableSkills = createRuntimeExecutableSkillFacade({
-        listRuntimeInvocations: invocationCatalog.listInvocations,
+        listRuntimeInvocations: activationInvocationCatalog.listInvocations,
         listLiveSkills: listRuntimeLiveSkills,
         runLiveSkill: runRuntimeLiveSkill,
+      });
+      const invocationExecute = createRuntimeInvocationExecuteFacade({
+        workspaceId,
+        invocationCatalog,
+        sessionCommands,
+        startRuntimeRun: startRuntimeRunV2,
+        runRuntimeLiveSkill,
+        invokeRuntimeExtensionTool,
+        listRuntimePrompts,
       });
       const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [
         {
@@ -112,14 +158,22 @@ export function createRuntimeKernel(): RuntimeKernel {
               workspaceId,
               createRuntimeAgentControlDependencies(workspaceId, {
                 workspaceClientRuntime,
-                invocationCatalog,
+                invocationCatalog: activationInvocationCatalog,
                 executableSkills: runtimeExecutableSkills,
               })
             ),
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
-          createCapability: () => createRuntimeSessionCommandFacade(workspaceId),
+          createCapability: () => sessionCommands,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog,
+          createCapability: () => invocationCatalog,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationExecute,
+          createCapability: () => invocationExecute,
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,
@@ -136,10 +190,6 @@ export function createRuntimeKernel(): RuntimeKernel {
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.extensionActivation,
           createCapability: () => extensionActivation,
-        },
-        {
-          key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog,
-          createCapability: () => invocationCatalog,
         },
       ];
       const scope = createWorkspaceRuntimeScope({

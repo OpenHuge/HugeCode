@@ -659,6 +659,35 @@ pub(crate) async fn handle_extension_tools_list_v2(
     Ok(json!(tools))
 }
 
+pub(crate) async fn handle_extension_tool_invoke_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let workspace_id = optional_workspace_id(params);
+    let extension_id = read_required_string(params, "extensionId")?;
+    let tool_name = read_required_string(params, "toolName")?;
+    let input = match params.get("input") {
+        Some(Value::Object(record)) => Some(record),
+        Some(Value::Null) | None => None,
+        Some(_) => {
+            return Err(RpcError::invalid_params(
+                "Field `input` must be a JSON object when provided.",
+            ));
+        }
+    };
+    ensure_extension_seed_records_imported(ctx).await?;
+    let store = ctx.extensions_store.read().await;
+    let Some(result) =
+        store.invoke_tool(workspace_id.as_deref(), extension_id, tool_name, input)?
+    else {
+        return Err(RpcError::invalid_params(format!(
+            "extension `{extension_id}` was not found"
+        )));
+    };
+    Ok(result)
+}
+
 pub(crate) async fn handle_extension_resource_read_v2(
     ctx: &AppContext,
     params: &Value,

@@ -1547,6 +1547,9 @@ describe("agent and oauth rpc methods", () => {
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOLS_LIST_V2)
     ).toEqual(["code_extension_tools_list_v2"]);
     expect(
+      listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_TOOL_INVOKE_V2)
+    ).toEqual(["code_extension_tool_invoke_v2"]);
+    expect(
       listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.EXTENSION_RESOURCE_READ_V2)
     ).toEqual(["code_extension_resource_read_v2"]);
     expect(listCodeRuntimeRpcMethodCandidates(CODE_RUNTIME_RPC_METHODS.SESSION_EXPORT_V1)).toEqual([
