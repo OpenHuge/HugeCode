@@ -52,9 +52,12 @@ struct TurnSendAttachmentRequest {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TurnSendCollaborationModeSettingsRequest {
     id: Option<String>,
-    developer_instructions: Option<String>,
-    model: Option<String>,
-    reasoning_effort: Option<String>,
+    #[serde(rename = "developerInstructions")]
+    _developer_instructions: Option<String>,
+    #[serde(rename = "model")]
+    _model: Option<String>,
+    #[serde(rename = "reasoningEffort")]
+    _reasoning_effort: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
