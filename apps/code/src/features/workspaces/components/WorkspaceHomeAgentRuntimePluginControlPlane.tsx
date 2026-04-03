@@ -1,4 +1,4 @@
-import { memo, useDeferredValue, useMemo } from "react";
+import { memo, useMemo } from "react";
 import type {
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
@@ -38,22 +38,21 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
       workspaceId,
       refresh: refreshRuntimeTasks,
     });
-    const deferredPluginControlPlaneSurface = useDeferredValue(pluginControlPlaneSurface);
     const pluginControlPlane = useMemo(
       () =>
         buildRuntimeControlPlaneOperatorModel({
-          plugins: deferredPluginControlPlaneSurface.plugins,
-          profiles: deferredPluginControlPlaneSurface.profiles,
-          activeProfile: deferredPluginControlPlaneSurface.activeProfile,
-          activeProfileId: deferredPluginControlPlaneSurface.activeProfileId,
-          resolution: deferredPluginControlPlaneSurface.resolution,
+          plugins: pluginControlPlaneSurface.plugins,
+          profiles: pluginControlPlaneSurface.profiles,
+          activeProfile: pluginControlPlaneSurface.activeProfile,
+          activeProfileId: pluginControlPlaneSurface.activeProfileId,
+          resolution: pluginControlPlaneSurface.resolution,
         }),
-      [deferredPluginControlPlaneSurface]
+      [pluginControlPlaneSurface]
     );
     const pluginControlPlaneError =
-      deferredPluginControlPlaneSurface.pluginsError ??
-      deferredPluginControlPlaneSurface.compositionError ??
-      deferredPluginControlPlaneSurface.registryError;
+      pluginControlPlaneSurface.pluginsError ??
+      pluginControlPlaneSurface.compositionError ??
+      pluginControlPlaneSurface.registryError;
     const pluginControlPlaneStatus = pluginControlPlaneError
       ? {
           label: "Attention",

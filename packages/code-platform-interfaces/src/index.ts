@@ -407,6 +407,67 @@ export type DesktopBrowserAssessmentProxyRequestRead =
       message: string;
     };
 
+export type CapabilityDescriptor<
+  TMap extends Record<string, unknown>,
+  TKey extends keyof TMap = keyof TMap,
+> = {
+  key: TKey;
+  capability: TMap[TKey];
+  source?: string | null;
+};
+
+export type CapabilityRegistry<TMap extends Record<string, unknown>> = {
+  list: () => CapabilityDescriptor<TMap>[];
+  has: <TKey extends keyof TMap>(key: TKey) => boolean;
+  get: <TKey extends keyof TMap>(key: TKey) => TMap[TKey] | undefined;
+  require: <TKey extends keyof TMap>(key: TKey) => TMap[TKey];
+};
+
+export type BindingFactoryHelpers<TMap extends Record<string, unknown>> = {
+  has: <TKey extends keyof TMap>(key: TKey) => boolean;
+  get: <TKey extends keyof TMap>(key: TKey) => TMap[TKey] | undefined;
+  optional: <TKey extends keyof TMap>(key: TKey) => TMap[TKey] | undefined;
+  require: <TKey extends keyof TMap>(key: TKey) => TMap[TKey];
+};
+
+export function createCapabilityRegistry<TMap extends Record<string, unknown>>(
+  descriptors: readonly CapabilityDescriptor<TMap>[]
+): CapabilityRegistry<TMap> {
+  const entries = [...descriptors];
+  const capabilities = new Map<keyof TMap, CapabilityDescriptor<TMap>>();
+  for (const descriptor of entries) {
+    capabilities.set(descriptor.key, descriptor);
+  }
+
+  return {
+    list: () => [...entries],
+    has: (key) => capabilities.has(key),
+    get: (key) => capabilities.get(key)?.capability as TMap[typeof key] | undefined,
+    require: (key) => {
+      const descriptor = capabilities.get(key);
+      if (!descriptor) {
+        throw new Error(`Missing required capability \`${String(key)}\`.`);
+      }
+      return descriptor.capability as TMap[typeof key];
+    },
+  };
+}
+
+export function createBindingFactory<TMap extends Record<string, unknown>>(
+  registry: CapabilityRegistry<TMap>
+) {
+  return function buildBindings<TBindings>(
+    factory: (helpers: BindingFactoryHelpers<TMap>) => TBindings
+  ): TBindings {
+    return factory({
+      has: registry.has,
+      get: registry.get,
+      optional: registry.get,
+      require: registry.require,
+    });
+  };
+}
+
 function readNonEmptyString(value: string | null | undefined): string | null {
   if (typeof value !== "string") {
     return null;

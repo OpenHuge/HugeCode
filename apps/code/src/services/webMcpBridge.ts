@@ -20,10 +20,10 @@ import {
   buildWebMcpResources,
   type WebMcpContextDescriptorOptions,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeContextDescriptors";
+import { readRuntimeSkillBackedToolPublicationDecision } from "@ku0/code-application/runtimeExtensionExplainability";
 import { buildReadTools } from "@ku0/code-runtime-webmcp-client/webMcpBridgeReadTools";
 import { buildRuntimeTools } from "./webMcpBridgeRuntimeTools";
 import { invalidateCachedRuntimeLiveSkills } from "./webMcpBridgeRuntimeWorkspaceTools";
-import { readRuntimeSkillBackedToolPublicationDecision } from "./webMcpBridgeRuntimeSkillPublication";
 import {
   AGENT_CONTROL_TOOL_NAMES,
   AGENT_RUNTIME_CONTROL_TOOL_NAMES,

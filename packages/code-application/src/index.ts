@@ -50,11 +50,23 @@ export {
   mergeRuntimeCompositionProfiles,
 } from "./runtimeCompositionProfiles";
 export {
+  normalizeRuntimePreferredBackendIds,
+  readRuntimeCompositionPreferredBackendIds,
+  readRuntimeCompositionResolvedBackendId,
+  resolveRuntimeCompositionSelectedBackendCandidates,
+  resolveRuntimePreferredBackendIdsInput,
+} from "./runtimeBackendPreferences";
+export { applyRuntimeConfigHooks, resolveRuntimeCompositionProfile } from "./runtimeConfigHooks";
+export {
   RuntimeSkillExecutionGateError,
   readRuntimeExecutableSkillCatalog,
   resolveRuntimeExecutableSkill,
   runRuntimeExecutableSkill,
 } from "./runtimeExecutableSkillCatalog";
+export {
+  buildRuntimeSkillBackedToolPublicationReason,
+  readRuntimeSkillBackedToolPublicationDecision,
+} from "./runtimeExtensionExplainability";
 export {
   listRuntimeInvocationDescriptors,
   normalizeRuntimeInvocationCatalogSnapshot,
@@ -95,3 +107,8 @@ export type {
   RuntimeCompositionProfileLaunchOverride,
   RuntimeCompositionProfileUpdates,
 } from "./runtimeCompositionProfiles";
+export type { RuntimeConfigHook, RuntimeConfigHookContext } from "./runtimeConfigHooks";
+export type {
+  RuntimeSkillBackedToolPublicationDecision,
+  RuntimeSkillBackedToolPublicationEntry,
+} from "./runtimeExtensionExplainability";

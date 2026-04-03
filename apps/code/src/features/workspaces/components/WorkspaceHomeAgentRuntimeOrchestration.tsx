@@ -694,10 +694,11 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           <div className="workspace-home-code-runtime-item">
             <div className="workspace-home-code-runtime-item-main">
               <strong>Mission planning</strong>
-              {runtimeLaunchPreparationLoading ? (
-                <span>Preparing runtime-owned launch plan...</span>
-              ) : runtimeLaunchPreparation ? (
+              {runtimeLaunchPreparation ? (
                 <>
+                  {runtimeLaunchPreparationLoading ? (
+                    <span>Refreshing runtime-owned launch plan...</span>
+                  ) : null}
                   {runtimeLaunchPreparationTruthSourceLabel ? (
                     <span>Truth source: {runtimeLaunchPreparationTruthSourceLabel}</span>
                   ) : null}
@@ -789,6 +790,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                     </span>
                   ) : null}
                 </>
+              ) : runtimeLaunchPreparationLoading ? (
+                <span>Preparing runtime-owned launch plan...</span>
               ) : (
                 <span>Runtime launch plan unavailable.</span>
               )}

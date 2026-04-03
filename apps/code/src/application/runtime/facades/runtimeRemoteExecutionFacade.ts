@@ -1,52 +1,14 @@
+import {
+  normalizeRuntimePreferredBackendIds,
+  resolveRuntimePreferredBackendIdsInput,
+} from "@ku0/code-application";
 import type { RuntimeRunStartRequest, RuntimeRunStartV2Response } from "../ports/runtimeClient";
 import { getAppSettings } from "../ports/desktopAppSettings";
 import { prepareRuntimeRunV2, startRuntimeRunV2 } from "../ports/runtimeJobs";
 
 type RuntimeRunStartRequestWithRemoteSelection = RuntimeRunStartRequest;
 
-export function normalizeRuntimePreferredBackendIds(
-  value: string[] | undefined | null
-): string[] | undefined {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  const seen = new Set<string>();
-  const ids: string[] = [];
-  for (const entry of value) {
-    if (typeof entry !== "string") {
-      continue;
-    }
-    const trimmed = entry.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      continue;
-    }
-    seen.add(trimmed);
-    ids.push(trimmed);
-  }
-  return ids.length > 0 ? ids : undefined;
-}
-
-export function resolveRuntimePreferredBackendIdsInput(input: {
-  preferredBackendIds?: string[] | null;
-  defaultBackendId?: string | null;
-  fallbackDefaultBackendId?: string | null;
-}): string[] | undefined {
-  const explicitIds = normalizeRuntimePreferredBackendIds(input.preferredBackendIds);
-  if (explicitIds) {
-    return explicitIds;
-  }
-  const launchDefaultIds = normalizeRuntimePreferredBackendIds(
-    typeof input.defaultBackendId === "string" ? [input.defaultBackendId] : undefined
-  );
-  if (launchDefaultIds) {
-    return launchDefaultIds;
-  }
-  return normalizeRuntimePreferredBackendIds(
-    typeof input.fallbackDefaultBackendId === "string"
-      ? [input.fallbackDefaultBackendId]
-      : undefined
-  );
-}
+export { normalizeRuntimePreferredBackendIds, resolveRuntimePreferredBackendIdsInput };
 
 export async function resolvePreferredBackendIdsForTurnSend(
   preferredBackendIds?: string[] | null,

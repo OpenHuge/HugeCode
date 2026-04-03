@@ -24,10 +24,12 @@ import {
   applyRuntimeCompositionProfileUpdates,
   buildDefaultRuntimeCompositionProfiles,
   cloneRuntimeCompositionProfile,
-  mergeRuntimeCompositionProfiles,
   type RuntimeCompositionProfileLaunchOverride,
   type RuntimeCompositionProfileUpdates,
-} from "@ku0/code-application";
+} from "@ku0/code-application/runtimeCompositionProfiles";
+import { resolveRuntimeCompositionSelectedBackendCandidates } from "@ku0/code-application/runtimeBackendPreferences";
+import { resolveRuntimeCompositionProfile } from "@ku0/code-application/runtimeConfigHooks";
+import type { RuntimeConfigHook } from "@ku0/code-application/runtimeConfigHooks";
 import { readRuntimeKernelRoutingPluginMetadata } from "./runtimeKernelPlugins";
 import type { RuntimeKernelPluginDescriptor } from "./runtimeKernelPlugins";
 import {
@@ -437,6 +439,7 @@ export function createRuntimeKernelCompositionFacade(input: {
   pluginRegistry: RuntimeKernelPluginRegistryFacade;
   authority: RuntimeKernelCompositionAuthorityFacade;
   seedProfiles?: RuntimeCompositionProfile[];
+  configHooks?: readonly import("@ku0/code-application").RuntimeConfigHook[];
 }): RuntimeKernelCompositionFacade {
   const profiles = new Map(
     (input.seedProfiles ?? buildDefaultRuntimeCompositionProfiles()).map(
@@ -472,11 +475,15 @@ export function createRuntimeKernelCompositionFacade(input: {
       }
       plugins.push(registryPlugin);
     }
-    const effectiveProfile = mergeRuntimeCompositionProfiles(
-      [...profiles.values()],
-      previewInput?.profileId ?? activeProfileId,
-      previewInput?.launchOverride ?? null
-    );
+    const { profile: effectiveProfile } = resolveRuntimeCompositionProfile({
+      profiles: [...profiles.values()],
+      activeProfileId: previewInput?.profileId ?? activeProfileId,
+      launchOverride: previewInput?.launchOverride ?? null,
+      hooks: input.configHooks,
+      context: {
+        workspaceId: input.workspaceId,
+      },
+    });
     const selectorDecisions: Record<string, string> = {};
     const selectedPlugins: RuntimeCompositionResolution["selectedPlugins"] = [];
     const blockedPlugins: RuntimeCompositionBlockedPlugin[] = [];
@@ -608,38 +615,13 @@ export function createRuntimeKernelCompositionFacade(input: {
         resolvedBackendId: routingMetadata?.resolvedBackendId ?? null,
       };
     });
-    const backendCandidates = new Map<string, RuntimeCompositionBackendCandidate>();
-    for (const backendId of effectiveProfile.backendPolicy.preferredBackendIds ?? []) {
-      backendCandidates.set(backendId, {
-        backendId,
-        sourcePluginId: null,
-      });
-    }
-    for (const route of selectedRouteCandidates) {
-      for (const backendId of route.preferredBackendIds ?? []) {
-        backendCandidates.set(backendId, {
-          backendId,
-          sourcePluginId: route.pluginId,
-        });
-      }
-      if (route.resolvedBackendId) {
-        backendCandidates.set(route.resolvedBackendId, {
-          backendId: route.resolvedBackendId,
-          sourcePluginId: route.pluginId,
-        });
-      }
-    }
-    if (effectiveProfile.backendPolicy.resolvedBackendId) {
-      backendCandidates.set(effectiveProfile.backendPolicy.resolvedBackendId, {
-        backendId: effectiveProfile.backendPolicy.resolvedBackendId,
-        sourcePluginId: null,
-      });
-    }
-
     const resolution = {
       selectedPlugins,
       selectedRouteCandidates,
-      selectedBackendCandidates: [...backendCandidates.values()],
+      selectedBackendCandidates: resolveRuntimeCompositionSelectedBackendCandidates({
+        effectiveProfile,
+        selectedRouteCandidates,
+      }),
       blockedPlugins,
       trustDecisions,
       provenance: {

@@ -25,6 +25,18 @@
       "types": "./src/runtimeInvocationCatalogFacade.ts",
       "default": "./src/runtimeInvocationCatalogFacade.ts"
     },
+    "./runtimeBackendPreferences": {
+      "types": "./src/runtimeBackendPreferences.ts",
+      "default": "./src/runtimeBackendPreferences.ts"
+    },
+    "./runtimeConfigHooks": {
+      "types": "./src/runtimeConfigHooks.ts",
+      "default": "./src/runtimeConfigHooks.ts"
+    },
+    "./runtimeExtensionExplainability": {
+      "types": "./src/runtimeExtensionExplainability.ts",
+      "default": "./src/runtimeExtensionExplainability.ts"
+    },
     "./runtimeLiveSkillAliases": {
       "types": "./src/runtimeLiveSkillAliases.ts",
       "default": "./src/runtimeLiveSkillAliases.ts"

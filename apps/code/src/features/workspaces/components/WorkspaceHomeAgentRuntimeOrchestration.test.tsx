@@ -1877,7 +1877,6 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {
       target: { value: "Inspect runtime launch path" },
     });
-
     await waitFor(() => {
       expect(prepareRuntimeRunV2Mock).toHaveBeenCalledWith(
         expect.objectContaining({
