@@ -260,11 +260,31 @@ function resolveReviewEvidenceLabel(
   reviewPack: HugeCodeReviewPackSummary,
   task: HugeCodeTaskSummary
 ): string {
+  if (reviewPack.evidenceSummary?.state === "incomplete") {
+    return "Evidence incomplete";
+  }
+  if (reviewPack.evidenceSummary?.state === "ready_for_review") {
+    return "Evidence ready";
+  }
   return formatMissionReviewEvidenceLabel(
     reviewPack.validationOutcome,
     reviewPack.warningCount,
     isRuntimeManagedMissionTaskId(task.id)
   );
+}
+
+function resolveRuntimeLifecycleSummary(input: {
+  reviewPack: HugeCodeReviewPackSummary | null;
+  run: MissionControlProjection["runs"][number] | null;
+}) {
+  return input.reviewPack?.lifecycleSummary ?? input.run?.lifecycleSummary ?? null;
+}
+
+function resolveRuntimeEvidenceSummary(input: {
+  reviewPack: HugeCodeReviewPackSummary | null;
+  run: MissionControlProjection["runs"][number] | null;
+}) {
+  return input.reviewPack?.evidenceSummary ?? input.run?.evidenceSummary ?? null;
 }
 
 function resolveFailureClassLabel(
@@ -358,6 +378,8 @@ function buildMissionOverviewAttentionSignals(input: {
   run: MissionControlProjection["runs"][number] | null;
 }): string[] {
   const signals: string[] = [];
+  const lifecycleSummary = resolveRuntimeLifecycleSummary(input);
+  const evidenceSummary = resolveRuntimeEvidenceSummary(input);
   const approvalPending =
     input.run?.approval?.status === "pending_decision" ||
     input.run?.operatorSnapshot?.recentEvents.some((event) => event.kind === "approval_wait");
@@ -365,10 +387,14 @@ function buildMissionOverviewAttentionSignals(input: {
     signals.push("Approval pending");
   }
   const blocked =
+    lifecycleSummary?.blocked === true ||
     Boolean(input.run?.operatorSnapshot?.blocker) ||
     Boolean(input.run?.state && NEEDS_ACTION_RUN_STATES.has(input.run.state));
   if (blocked) {
     signals.push("Blocked");
+  }
+  if (lifecycleSummary?.rerouted) {
+    signals.push("Rerouted");
   }
   const placement = input.reviewPack?.placement ?? input.run?.placement ?? null;
   if (
@@ -390,7 +416,10 @@ function buildMissionOverviewAttentionSignals(input: {
   ) {
     signals.push("Route needs attention");
   }
-  if (input.reviewPack?.reviewStatus === "incomplete_evidence") {
+  if (
+    input.reviewPack?.reviewStatus === "incomplete_evidence" ||
+    evidenceSummary?.state === "incomplete"
+  ) {
     signals.push("Evidence incomplete");
   }
   const subAgentSignal = resolveSubAgentSignal(input);
@@ -490,9 +519,13 @@ function buildMissionOverviewSummary(input: {
   reviewPack: HugeCodeReviewPackSummary | null;
   run: MissionControlProjection["runs"][number] | null;
 }): string | null {
+  const evidenceSummary = resolveRuntimeEvidenceSummary(input);
+  const lifecycleSummary = resolveRuntimeLifecycleSummary(input);
   return (
     resolvePublishHandoffLabel(input) ||
     resolveCheckpointHandoffLabel(input) ||
+    evidenceSummary?.summary ||
+    lifecycleSummary?.summary ||
     resolveSubAgentSignal(input) ||
     resolveFailureClassLabel(input.reviewPack?.failureClass ?? null) ||
     resolveRelaunchLabel(input.reviewPack) ||

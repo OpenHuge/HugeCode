@@ -1,6 +1,7 @@
 import {
   RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER,
   type RuntimeCompositionBackendCandidate,
+  type RuntimeCompositionAuthorityState,
   type RuntimeCompositionBlockedPlugin,
   type RuntimeCompositionConfigLayer,
   type RuntimeCompositionPluginEntryV2,
@@ -8,6 +9,8 @@ import {
   type RuntimeCompositionProfileSummaryV2,
   type RuntimeCompositionResolution,
   type RuntimeCompositionResolveV2Response,
+  type RuntimeCompositionSnapshotPublishRequest,
+  type RuntimeCompositionSnapshotPublishResponse,
   type RuntimeCompositionTrustPolicy,
   type RuntimeHostBindingDescriptor,
   type RuntimeHostBindingDiagnostic,
@@ -48,6 +51,8 @@ export type RuntimeKernelCompositionApplyInput = {
 export type RuntimeKernelPluginCompositionMetadata = {
   activeProfileId: string | null;
   activeProfileName: string | null;
+  authorityState?: RuntimeCompositionAuthorityState;
+  authorityRevision?: number | null;
   selectedInActiveProfile: boolean;
   blockedInActiveProfile: boolean;
   blockedReason: string | null;
@@ -59,6 +64,26 @@ export type RuntimeKernelPluginCompositionMetadata = {
   trustStatus?: RuntimePluginTrustDecision["status"];
   compatibilityStatus?: RuntimePluginCompatibility["status"];
   bindingDiagnostics?: RuntimeHostBindingDiagnostic[];
+};
+
+export type RuntimeKernelCompositionAuthorityFacade = {
+  listProfilesV2: (
+    request: Pick<RuntimeCompositionSnapshotPublishRequest, "workspaceId">
+  ) => Promise<RuntimeCompositionProfileSummaryV2[]>;
+  getProfileV2: (
+    request: Pick<RuntimeCompositionSnapshotPublishRequest, "workspaceId"> & {
+      profileId: string;
+    }
+  ) => Promise<RuntimeCompositionProfile | null>;
+  resolveV2: (
+    request: Pick<RuntimeCompositionSnapshotPublishRequest, "workspaceId"> & {
+      profileId?: string | null;
+      launchOverride?: RuntimeCompositionProfileLaunchOverride | null;
+    }
+  ) => Promise<RuntimeCompositionResolveV2Response>;
+  publishSnapshotV1: (
+    request: RuntimeCompositionSnapshotPublishRequest
+  ) => Promise<RuntimeCompositionSnapshotPublishResponse>;
 };
 
 export type RuntimeKernelCompositionFacade = {
@@ -81,6 +106,39 @@ export type RuntimeKernelCompositionFacade = {
   getActiveResolution: () => Promise<RuntimeCompositionResolution>;
   getActiveResolutionV2: () => Promise<RuntimeCompositionResolveV2Response>;
 };
+
+function createRuntimeCompositionProfileSummary(input: {
+  profile: RuntimeCompositionProfile;
+  activeProfileId: string | null;
+}): RuntimeCompositionProfileSummaryV2 {
+  return {
+    id: input.profile.id,
+    name: input.profile.name,
+    scope: input.profile.scope,
+    enabled: input.profile.enabled,
+    active: input.profile.id === input.activeProfileId,
+  };
+}
+
+function createRuntimeCompositionSnapshotFingerprint(input: {
+  profiles: RuntimeCompositionProfile[];
+  snapshot: RuntimeCompositionResolveV2Response;
+}) {
+  return JSON.stringify({
+    profiles: input.profiles
+      .map((profile) => cloneRuntimeCompositionProfile(profile))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    snapshot: {
+      activeProfile: input.snapshot.activeProfile,
+      provenance: input.snapshot.provenance,
+      pluginEntries: input.snapshot.pluginEntries,
+      selectedRouteCandidates: input.snapshot.selectedRouteCandidates,
+      selectedBackendCandidates: input.snapshot.selectedBackendCandidates,
+      blockedPlugins: input.snapshot.blockedPlugins,
+      trustDecisions: input.snapshot.trustDecisions,
+    },
+  });
+}
 
 function matchesSelector(input: {
   plugin: RuntimeKernelPluginDescriptor;
@@ -330,6 +388,8 @@ function createCompositionMetadata(input: {
   return {
     activeProfileId: input.resolution.provenance.activeProfileId,
     activeProfileName: input.resolution.provenance.activeProfileName ?? null,
+    authorityState: input.snapshot?.authorityState,
+    authorityRevision: input.snapshot?.authorityRevision ?? null,
     selectedInActiveProfile: selected,
     blockedInActiveProfile: blocked !== null,
     blockedReason: blocked?.reason ?? null,
@@ -375,6 +435,7 @@ export function createRuntimeKernelCompositionFacade(input: {
     listPlugins: () => Promise<RuntimeKernelPluginDescriptor[]>;
   };
   pluginRegistry: RuntimeKernelPluginRegistryFacade;
+  authority: RuntimeKernelCompositionAuthorityFacade;
   seedProfiles?: RuntimeCompositionProfile[];
 }): RuntimeKernelCompositionFacade {
   const profiles = new Map(
@@ -385,10 +446,17 @@ export function createRuntimeKernelCompositionFacade(input: {
   let activeProfileId =
     [...profiles.values()].find((profile) => profile.scope === "workspace")?.id ??
     "workspace-default";
+  let authorityRevision = 0;
+  let lastPublishedFingerprint: string | null = null;
+  let lastPublishedAck: RuntimeCompositionSnapshotPublishResponse | null = null;
+  const publisherSessionId = `composition:${input.workspaceId}:${Date.now().toString(36)}:${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
 
   async function resolveCompositionState(
     previewInput?: RuntimeKernelCompositionPreviewInput
   ): Promise<{
+    profiles: RuntimeCompositionProfile[];
     resolution: RuntimeCompositionResolution;
     snapshot: RuntimeCompositionResolveV2Response;
   }> {
@@ -596,6 +664,10 @@ export function createRuntimeKernelCompositionFacade(input: {
 
     const snapshot: RuntimeCompositionResolveV2Response = {
       activeProfile: cloneRuntimeCompositionProfile(effectiveProfile),
+      authorityState: "unavailable",
+      authorityRevision: null,
+      publishedAt: null,
+      publisherSessionId: null,
       provenance: resolution.provenance,
       pluginEntries: [...pluginEntries.values()]
         .map((entry): RuntimeCompositionPluginEntryV2 => {
@@ -639,38 +711,81 @@ export function createRuntimeKernelCompositionFacade(input: {
     };
 
     return {
+      profiles: [...profiles.values()].map((profile) => cloneRuntimeCompositionProfile(profile)),
       resolution,
       snapshot,
     };
   }
 
+  async function publishResolvedCompositionState(inputState?: {
+    profiles: RuntimeCompositionProfile[];
+    snapshot: RuntimeCompositionResolveV2Response;
+  }) {
+    const resolvedState = inputState ?? (await resolveCompositionState());
+    const fingerprint = createRuntimeCompositionSnapshotFingerprint({
+      profiles: resolvedState.profiles,
+      snapshot: resolvedState.snapshot,
+    });
+    if (fingerprint === lastPublishedFingerprint && lastPublishedAck) {
+      return lastPublishedAck;
+    }
+    authorityRevision += 1;
+    const publishAck = await input.authority.publishSnapshotV1({
+      workspaceId: input.workspaceId,
+      profiles: resolvedState.profiles,
+      snapshot: resolvedState.snapshot,
+      authorityRevision,
+      publishedAt: Date.now(),
+      publisherSessionId,
+    });
+    lastPublishedFingerprint = fingerprint;
+    lastPublishedAck = publishAck;
+    authorityRevision = Math.max(authorityRevision, publishAck.authorityRevision);
+    return publishAck;
+  }
+
+  async function readResolvedCompositionFromAuthority() {
+    return input.authority.resolveV2({
+      workspaceId: input.workspaceId,
+    });
+  }
+
+  async function ensurePublishedActiveComposition() {
+    const resolvedState = await resolveCompositionState();
+    await publishResolvedCompositionState({
+      profiles: resolvedState.profiles,
+      snapshot: resolvedState.snapshot,
+    });
+    return resolvedState;
+  }
+
   return {
     listProfiles: async () =>
       [...profiles.values()].map((profile) => cloneRuntimeCompositionProfile(profile)),
-    listProfilesV2: async () =>
-      [...profiles.values()].map((profile) => ({
-        id: profile.id,
-        name: profile.name,
-        scope: profile.scope,
-        enabled: profile.enabled,
-        active: profile.id === activeProfileId,
-      })),
+    listProfilesV2: async () => {
+      await ensurePublishedActiveComposition();
+      return input.authority.listProfilesV2({
+        workspaceId: input.workspaceId,
+      });
+    },
     getProfile: async (profileId) => {
       const profile = profiles.get(profileId);
       return profile ? cloneRuntimeCompositionProfile(profile) : null;
     },
     getProfileV2: async (profileId) => {
-      const profile = profiles.get(profileId);
+      await ensurePublishedActiveComposition();
+      const profile = await input.authority.getProfileV2({
+        workspaceId: input.workspaceId,
+        profileId,
+      });
       if (!profile) {
         return null;
       }
-      return {
-        id: profile.id,
-        name: profile.name,
-        scope: profile.scope,
-        enabled: profile.enabled,
-        active: profile.id === activeProfileId,
-      };
+      const snapshot = await readResolvedCompositionFromAuthority();
+      return createRuntimeCompositionProfileSummary({
+        profile,
+        activeProfileId: snapshot.provenance.activeProfileId,
+      });
     },
     previewResolution: async (previewInput) =>
       (await resolveCompositionState(previewInput)).resolution,
@@ -698,10 +813,18 @@ export function createRuntimeKernelCompositionFacade(input: {
         applyRuntimeCompositionProfileUpdates(current, applyInput.updates)
       );
       activeProfileId = applyInput.profileId;
-      return (await resolveCompositionState()).snapshot;
+      const resolvedState = await resolveCompositionState();
+      await publishResolvedCompositionState({
+        profiles: resolvedState.profiles,
+        snapshot: resolvedState.snapshot,
+      });
+      return readResolvedCompositionFromAuthority();
     },
     getActiveResolution: async () => (await resolveCompositionState()).resolution,
-    getActiveResolutionV2: async () => (await resolveCompositionState()).snapshot,
+    getActiveResolutionV2: async () => {
+      await ensurePublishedActiveComposition();
+      return readResolvedCompositionFromAuthority();
+    },
   };
 }
 

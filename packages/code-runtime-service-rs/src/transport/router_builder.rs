@@ -1030,6 +1030,7 @@ fn build_runtime_bootstrap_artifacts(
         acp_integrations: Arc::new(RwLock::new(acp_integrations_store)),
         acp_runtime: Arc::new(AsyncMutex::new(acp_runtime::AcpRuntimeStore::default())),
         runtime_backends: Arc::new(RwLock::new(runtime_backends)),
+        runtime_composition_authority: Arc::new(RwLock::new(HashMap::new())),
         runtime_backends_sync_last_hydrated_ms: Arc::new(AtomicU64::new(0)),
         runtime_backends_sync_lock: Arc::new(AsyncMutex::new(())),
         agent_workspace_locks: Arc::new(RwLock::new(HashMap::new())),

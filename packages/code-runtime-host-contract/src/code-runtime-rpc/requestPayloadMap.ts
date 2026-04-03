@@ -68,6 +68,7 @@ import type {
   RuntimeCompositionProfileGetV2Request,
   RuntimeCompositionProfileListV2Request,
   RuntimeCompositionProfileResolveV2Request,
+  RuntimeCompositionSnapshotPublishRequest,
   RuntimeBrowserDebugRunRequest,
   RuntimeBrowserDebugStatusRequest,
   RuntimeCodexCloudTasksListRequest,
@@ -393,6 +394,12 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     workspace_id?: string;
     profile_id?: string | null;
     launch_override?: RuntimeCompositionProfileResolveV2Request["launchOverride"];
+  };
+  [CODE_RUNTIME_RPC_METHODS.COMPOSITION_SNAPSHOT_PUBLISH_V1]: RuntimeCompositionSnapshotPublishRequest & {
+    workspace_id?: string;
+    authority_revision?: number;
+    published_at?: number | null;
+    publisher_session_id?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_UPSERT]: RuntimeBackendUpsertInput & {

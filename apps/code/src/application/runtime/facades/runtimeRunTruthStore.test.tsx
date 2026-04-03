@@ -161,8 +161,30 @@ function createRunRecord(summary: string): RuntimeRunGetV2Response {
       state: "running",
       summary,
       startedAt: 1,
+      finishedAt: null,
       updatedAt: 1,
+      currentStepIndex: null,
       reviewPackId: "review-pack:1",
+      lifecycleSummary: {
+        stage: "tool_started",
+        summary: "Runtime started the current tool step.",
+        blocked: false,
+        rerouted: false,
+        validated: false,
+        readyForReview: false,
+        updatedAt: 1,
+      },
+      evidenceSummary: {
+        state: "confirmed",
+        summary: "Runtime published the current execution evidence.",
+        validationCount: 0,
+        artifactCount: 0,
+        warningCount: 0,
+        changedPathCount: 0,
+        authoritativeTraceId: "trace-1",
+        authoritativeCheckpointId: null,
+        reviewStatus: null,
+      },
     },
     reviewPack: {
       id: "review-pack:1",
@@ -186,6 +208,26 @@ function createRunRecord(summary: string): RuntimeRunGetV2Response {
         label: "Decision pending",
         summary: "Accept or reject this result from the review surface.",
         decidedAt: null,
+      },
+      lifecycleSummary: {
+        stage: "after_execute",
+        summary: "Runtime preserved the finished execution state for review.",
+        blocked: false,
+        rerouted: false,
+        validated: true,
+        readyForReview: true,
+        updatedAt: 1,
+      },
+      evidenceSummary: {
+        state: "ready_for_review",
+        summary: "Runtime evidence is ready for operator review.",
+        validationCount: 0,
+        artifactCount: 0,
+        warningCount: 0,
+        changedPathCount: 0,
+        authoritativeTraceId: "trace-1",
+        authoritativeCheckpointId: "checkpoint-1",
+        reviewStatus: "ready",
       },
       reviewFindings: [],
       skillUsage: [],
@@ -299,5 +341,23 @@ describe("runtimeRunTruthStore", () => {
     );
 
     expect(getRuntimeRunV2Mock).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves runtime-owned lifecycle and evidence summaries", async () => {
+    getRuntimeRunV2Mock.mockResolvedValue(createRunRecord("Summary with runtime evidence"));
+
+    const { result } = renderHook(() =>
+      useRuntimeRunRecordTruth({
+        runId: "run-1",
+        workspaceId: "workspace-1",
+      })
+    );
+
+    await waitFor(() =>
+      expect(result.current.record?.missionRun.lifecycleSummary?.stage).toBe("tool_started")
+    );
+    expect(result.current.record?.missionRun.evidenceSummary?.authoritativeTraceId).toBe("trace-1");
+    expect(result.current.record?.reviewPack?.lifecycleSummary?.readyForReview).toBe(true);
+    expect(result.current.record?.reviewPack?.evidenceSummary?.state).toBe("ready_for_review");
   });
 });

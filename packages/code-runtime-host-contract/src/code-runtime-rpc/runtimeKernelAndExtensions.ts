@@ -21,6 +21,7 @@ import type {
 } from "./runtimeLiveSkillsAndTooling.js";
 import type {
   RuntimeCompositionBackendCandidate,
+  RuntimeCompositionAuthorityState,
   RuntimeCompositionBlockedPlugin,
   RuntimeCompositionPluginEntryV2,
   RuntimeCompositionPluginSelection,
@@ -244,6 +245,7 @@ export type RuntimeRegistryPackageDescriptor = {
 
 export type {
   RuntimeCompositionBackendCandidate,
+  RuntimeCompositionAuthorityState,
   RuntimeCompositionBlockedPlugin,
   RuntimeCompositionPluginEntryV2,
   RuntimeCompositionPluginSelection,
@@ -481,6 +483,22 @@ export type RuntimeCompositionProfileResolveV2Request = {
   workspaceId: string;
   profileId?: string | null;
   launchOverride?: RuntimeCompositionProfileLaunchOverride | null;
+};
+
+export type RuntimeCompositionSnapshotPublishRequest = {
+  workspaceId: string;
+  profiles: RuntimeCompositionProfile[];
+  snapshot: RuntimeCompositionResolveV2Response;
+  authorityRevision: number;
+  publishedAt?: number | null;
+  publisherSessionId?: string | null;
+};
+
+export type RuntimeCompositionSnapshotPublishResponse = {
+  authorityState: RuntimeCompositionAuthorityState;
+  authorityRevision: number;
+  publishedAt: number;
+  publisherSessionId: string | null;
 };
 
 export type RuntimeExtensionCatalogListRequest = {

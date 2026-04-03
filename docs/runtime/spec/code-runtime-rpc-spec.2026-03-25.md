@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-04-03T08:20:43.341Z`
+- Generated at: `2026-04-03T08:26:25.919Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
-- Method-set hash: `e5fee5e155628768`
+- Method-set hash: `e593790e13b79a8f`
 
 ## Features
 
@@ -156,6 +156,7 @@
 - `code_runtime_composition_profile_list_v2`
 - `code_runtime_composition_profile_get_v2`
 - `code_runtime_composition_profile_resolve_v2`
+- `code_runtime_composition_snapshot_publish_v1`
 - `code_runtime_backends_list`
 - `code_runtime_backend_upsert`
 - `code_runtime_backend_remove`
@@ -325,6 +326,7 @@
 - `code_runtime_composition_profile_get_v2`
 - `code_runtime_composition_profile_list_v2`
 - `code_runtime_composition_profile_resolve_v2`
+- `code_runtime_composition_snapshot_publish_v1`
 - `code_runtime_diagnostics_export_v1`
 - `code_runtime_policy_get_v2`
 - `code_runtime_policy_set_v2`

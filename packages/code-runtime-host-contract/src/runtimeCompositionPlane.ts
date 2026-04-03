@@ -112,6 +112,8 @@ export type RuntimeHostBindingState = "unbound" | "binding" | "bound" | "degrade
 
 export type RuntimeHostPublicationState = "hidden" | "declaration_only" | "published" | "blocked";
 
+export type RuntimeCompositionAuthorityState = "published" | "stale" | "unavailable";
+
 export type RuntimeHostBindingDiagnostic = {
   code: string;
   severity: "info" | "warning" | "error";
@@ -168,6 +170,10 @@ export type RuntimeCompositionProfileSummaryV2 = {
 
 export type RuntimeCompositionResolveV2Response = {
   activeProfile: import("./runtimeCompositionProfiles.js").RuntimeCompositionProfile | null;
+  authorityState: RuntimeCompositionAuthorityState;
+  authorityRevision: number | null;
+  publishedAt: number | null;
+  publisherSessionId: string | null;
   provenance: RuntimeCompositionResolutionProvenance;
   pluginEntries: RuntimeCompositionPluginEntryV2[];
   selectedRouteCandidates: RuntimeCompositionRouteCandidate[];

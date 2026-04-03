@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
+import type {
+  RuntimeCompositionSnapshotPublishResponse,
+  RuntimeCompositionProfile,
+  RuntimeCompositionResolveV2Response,
+} from "@ku0/code-runtime-host-contract";
+import {
+  createRuntimeKernelCompositionFacade,
+  type RuntimeKernelCompositionAuthorityFacade,
+} from "./runtimeKernelComposition";
 import { createRuntimeKernelPluginRegistryFacade } from "./runtimeKernelPluginRegistry";
 import type { RuntimeKernelPluginDescriptor } from "./runtimeKernelPlugins";
 
@@ -132,6 +140,86 @@ function createRuntimePluginCatalog() {
   };
 }
 
+function createUnavailableCompositionSnapshot(): RuntimeCompositionResolveV2Response {
+  return {
+    activeProfile: null,
+    authorityState: "unavailable",
+    authorityRevision: null,
+    publishedAt: null,
+    publisherSessionId: null,
+    provenance: {
+      activeProfileId: null,
+      appliedLayerOrder: [],
+      selectorDecisions: {},
+    },
+    pluginEntries: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [],
+    blockedPlugins: [],
+    trustDecisions: [],
+  };
+}
+
+function createRuntimeCompositionAuthority(): RuntimeKernelCompositionAuthorityFacade {
+  let published: {
+    workspaceId: string;
+    profiles: RuntimeCompositionProfile[];
+    snapshot: RuntimeCompositionResolveV2Response;
+  } | null = null;
+
+  return {
+    listProfilesV2: vi.fn(async ({ workspaceId }) => {
+      if (!published || published.workspaceId !== workspaceId) {
+        return [];
+      }
+      const activeProfileId = published.snapshot.provenance.activeProfileId;
+      return published.profiles.map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        scope: profile.scope,
+        enabled: profile.enabled,
+        active: profile.id === activeProfileId,
+      }));
+    }),
+    getProfileV2: vi.fn(async ({ workspaceId, profileId }) => {
+      if (!published || published.workspaceId !== workspaceId) {
+        return null;
+      }
+      return published.profiles.find((profile) => profile.id === profileId) ?? null;
+    }),
+    resolveV2: vi.fn(async ({ workspaceId }) => {
+      if (!published || published.workspaceId !== workspaceId) {
+        return createUnavailableCompositionSnapshot();
+      }
+      return published.snapshot;
+    }),
+    publishSnapshotV1: vi.fn(
+      async (request): Promise<RuntimeCompositionSnapshotPublishResponse> => {
+        const publishedAt = request.publishedAt ?? 1;
+        published = {
+          workspaceId: request.workspaceId,
+          profiles: request.profiles.map((profile: RuntimeCompositionProfile) =>
+            structuredClone(profile)
+          ),
+          snapshot: {
+            ...request.snapshot,
+            authorityState: "published",
+            authorityRevision: request.authorityRevision,
+            publishedAt,
+            publisherSessionId: request.publisherSessionId ?? null,
+          },
+        };
+        return {
+          authorityState: "published",
+          authorityRevision: request.authorityRevision,
+          publishedAt,
+          publisherSessionId: request.publisherSessionId ?? null,
+        };
+      }
+    ),
+  };
+}
+
 describe("runtimeKernelComposition", () => {
   it("applies profile layers deterministically", async () => {
     const pluginCatalog = createRuntimePluginCatalog();
@@ -144,6 +232,7 @@ describe("runtimeKernelComposition", () => {
       workspaceId: "workspace-1",
       pluginCatalog,
       pluginRegistry,
+      authority: createRuntimeCompositionAuthority(),
     });
 
     const resolution = await composition.getActiveResolution();
@@ -171,6 +260,7 @@ describe("runtimeKernelComposition", () => {
       workspaceId: "workspace-1",
       pluginCatalog,
       pluginRegistry,
+      authority: createRuntimeCompositionAuthority(),
     });
 
     const snapshot = await composition.getActiveResolutionV2();
@@ -182,6 +272,8 @@ describe("runtimeKernelComposition", () => {
     );
 
     expect(snapshot.activeProfile?.id).toBe("workspace-default");
+    expect(snapshot.authorityState).toBe("published");
+    expect(snapshot.authorityRevision).toBe(1);
     expect(snapshot.provenance.appliedLayerOrder).toEqual([
       "built_in",
       "user",
@@ -213,6 +305,7 @@ describe("runtimeKernelComposition", () => {
       workspaceId: "workspace-1",
       pluginCatalog,
       pluginRegistry,
+      authority: createRuntimeCompositionAuthority(),
     });
 
     const preview = await composition.previewResolution({
@@ -308,6 +401,7 @@ describe("runtimeKernelComposition", () => {
       workspaceId: "workspace-1",
       pluginCatalog,
       pluginRegistry,
+      authority: createRuntimeCompositionAuthority(),
     });
 
     const snapshot = await composition.getActiveResolutionV2();
@@ -334,6 +428,7 @@ describe("runtimeKernelComposition", () => {
       workspaceId: "workspace-1",
       pluginCatalog,
       pluginRegistry,
+      authority: createRuntimeCompositionAuthority(),
     });
 
     const resolution = await composition.applyProfile({
@@ -368,6 +463,7 @@ describe("runtimeKernelComposition", () => {
       workspaceId: "workspace-1",
       pluginCatalog,
       pluginRegistry,
+      authority: createRuntimeCompositionAuthority(),
     });
 
     await composition.applyProfile({
@@ -393,5 +489,33 @@ describe("runtimeKernelComposition", () => {
         }),
       ])
     );
+  });
+
+  it("keeps preview resolution local-only until a publish-backed active read occurs", async () => {
+    const pluginCatalog = createRuntimePluginCatalog();
+    const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
+      workspaceId: "workspace-1",
+      pluginCatalog,
+    });
+    const authority = createRuntimeCompositionAuthority();
+    const composition = createRuntimeKernelCompositionFacade({
+      workspaceId: "workspace-1",
+      pluginCatalog,
+      pluginRegistry,
+      authority,
+    });
+
+    const preview = await composition.previewResolutionV2({
+      profileId: "workspace-default",
+    });
+
+    expect(preview.authorityState).toBe("unavailable");
+    expect(authority.publishSnapshotV1).not.toHaveBeenCalled();
+
+    const snapshot = await composition.getActiveResolutionV2();
+
+    expect(authority.publishSnapshotV1).toHaveBeenCalledTimes(1);
+    expect(snapshot.authorityState).toBe("published");
+    expect(snapshot.authorityRevision).toBe(1);
   });
 });

@@ -5,6 +5,10 @@ import {
   type GitOperationResult,
   type PromptLibraryEntry,
   type PromptLibraryScope,
+  type RuntimeCompositionProfileGetV2Request,
+  type RuntimeCompositionProfileListV2Request,
+  type RuntimeCompositionProfileResolveV2Request,
+  type RuntimeCompositionSnapshotPublishRequest,
   type RuntimeRunGetV2Request,
   type RuntimeRunPrepareV2Request,
   type RuntimeRunStartRequest,
@@ -294,6 +298,43 @@ export function createBaseRpcRuntimeClient<
         adaptRuntimeRpcPayload("runtimeRunsList", request)
       );
     },
+    runtimeCompositionProfileListV2(request: RuntimeCompositionProfileListV2Request) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2, {
+        ...withCanonicalFields({ workspaceId: request.workspaceId }),
+      });
+    },
+    runtimeCompositionProfileGetV2(request: RuntimeCompositionProfileGetV2Request) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2, {
+        ...withCanonicalFields({
+          workspaceId: request.workspaceId,
+          profileId: request.profileId,
+        }),
+      });
+    },
+    runtimeCompositionProfileResolveV2(request: RuntimeCompositionProfileResolveV2Request) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2, {
+        ...withCanonicalFields({
+          workspaceId: request.workspaceId,
+          profileId: request.profileId ?? null,
+        }),
+        launchOverride: request.launchOverride ?? null,
+      });
+    },
+    runtimeCompositionSnapshotPublishV1(request: RuntimeCompositionSnapshotPublishRequest) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.COMPOSITION_SNAPSHOT_PUBLISH_V1, {
+        ...withCanonicalFields({
+          workspaceId: request.workspaceId,
+        }),
+        profiles: request.profiles,
+        snapshot: request.snapshot,
+        authorityRevision: request.authorityRevision,
+        authority_revision: request.authorityRevision,
+        publishedAt: request.publishedAt ?? null,
+        published_at: request.publishedAt ?? null,
+        publisherSessionId: request.publisherSessionId ?? null,
+        publisher_session_id: request.publisherSessionId ?? null,
+      });
+    },
     runLiveSkill(request) {
       try {
         validateLiveSkillExecuteRequest(request);
@@ -350,6 +391,10 @@ export function createBaseRpcRuntimeClient<
     | "runtimeRunSubscribeV2"
     | "runtimeReviewGetV2"
     | "runtimeRunsList"
+    | "runtimeCompositionProfileListV2"
+    | "runtimeCompositionProfileGetV2"
+    | "runtimeCompositionProfileResolveV2"
+    | "runtimeCompositionSnapshotPublishV1"
     | "runLiveSkill"
   >;
 

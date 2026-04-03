@@ -45,6 +45,7 @@ import type {
   LiveSkillExecutionResult,
   RuntimeCompositionPluginEntryV2,
   RuntimeExtensionActivationSnapshot,
+  RuntimeCompositionAuthorityState,
   RuntimeHostBindingDescriptor,
   RuntimeHostBindingDiagnostic,
   RuntimeHostBindingState,
@@ -116,6 +117,7 @@ describe("code runtime rpc method consistency", () => {
         CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2,
         CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2,
         CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2,
+        CODE_RUNTIME_RPC_METHODS.COMPOSITION_SNAPSHOT_PUBLISH_V1,
       ])
     );
   });
@@ -190,6 +192,8 @@ describe("code runtime rpc compatibility helpers", () => {
     }>();
     expectTypeOf<RuntimeCompositionResolveV2Response>().toExtend<{
       activeProfile: RuntimeCompositionProfile | null;
+      authorityState: RuntimeCompositionAuthorityState;
+      authorityRevision: number | null;
       pluginEntries: RuntimeCompositionPluginEntryV2[];
     }>();
     expectTypeOf<RuntimeCompositionPluginEntryV2>().toExtend<{

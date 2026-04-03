@@ -67,6 +67,14 @@ import type {
   RuntimeBrowserDebugRunResponse,
   RuntimeBrowserDebugStatusRequest,
   RuntimeBrowserDebugStatusResponse,
+  RuntimeCompositionProfile,
+  RuntimeCompositionProfileGetV2Request,
+  RuntimeCompositionProfileListV2Request,
+  RuntimeCompositionProfileResolveV2Request,
+  RuntimeCompositionProfileSummaryV2,
+  RuntimeCompositionResolveV2Response,
+  RuntimeCompositionSnapshotPublishRequest,
+  RuntimeCompositionSnapshotPublishResponse,
   RuntimeCockpitToolsCodexImportResponse,
   RuntimeCodexCloudTasksListRequest,
   RuntimeCodexCloudTasksListResponse,
@@ -327,6 +335,18 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     kernelProjectionBootstrapV3: (
       request?: KernelProjectionBootstrapRequest
     ) => Promise<KernelProjectionBootstrapResponse>;
+    runtimeCompositionProfileListV2: (
+      request: RuntimeCompositionProfileListV2Request
+    ) => Promise<RuntimeCompositionProfileSummaryV2[]>;
+    runtimeCompositionProfileGetV2: (
+      request: RuntimeCompositionProfileGetV2Request
+    ) => Promise<RuntimeCompositionProfile | null>;
+    runtimeCompositionProfileResolveV2: (
+      request: RuntimeCompositionProfileResolveV2Request
+    ) => Promise<RuntimeCompositionResolveV2Response>;
+    runtimeCompositionSnapshotPublishV1: (
+      request: RuntimeCompositionSnapshotPublishRequest
+    ) => Promise<RuntimeCompositionSnapshotPublishResponse>;
     acpIntegrationsList: () => Promise<AcpIntegrationSummary[]>;
     acpIntegrationUpsert: (input: AcpIntegrationUpsertInput) => Promise<AcpIntegrationSummary>;
     acpIntegrationRemove: (integrationId: string) => Promise<boolean>;

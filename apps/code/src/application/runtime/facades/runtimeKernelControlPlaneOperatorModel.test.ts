@@ -337,4 +337,36 @@ describe("runtimeKernelControlPlaneOperatorModel", () => {
     });
     expect(model.inventory[0]?.stateSummary).toContain("Publish declaration_only");
   });
+
+  it("surfaces authority-unavailable composition state as operator attention", () => {
+    const activeProfile = buildProfile();
+    const model = buildRuntimeControlPlaneOperatorModel({
+      plugins: [
+        buildPlugin({
+          metadata: {
+            composition: {
+              activeProfileId: activeProfile.id,
+              activeProfileName: activeProfile.name,
+              authorityState: "unavailable",
+              authorityRevision: null,
+              selectedInActiveProfile: false,
+              blockedInActiveProfile: false,
+              blockedReason: null,
+              selectedRouteCandidate: false,
+              selectedBackendCandidateIds: [],
+              layerOrder: ["built_in", "user", "workspace", "launch_override"],
+            },
+          },
+        }),
+      ],
+      profiles: [activeProfile],
+      activeProfile,
+      activeProfileId: activeProfile.id,
+      resolution: buildResolution(),
+    });
+
+    expect(model.inventory[0]?.statusLabel).toBe("Authority unavailable");
+    expect(model.inventory[0]?.stateSummary).toContain("Authority unavailable");
+    expect(model.inventory[0]?.attentionReason).toContain("has not published");
+  });
 });

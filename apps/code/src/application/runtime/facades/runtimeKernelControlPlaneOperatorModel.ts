@@ -113,6 +113,12 @@ function buildPluginStatusLabel(input: {
   registry: RuntimeKernelPluginRegistryMetadata | null;
   composition: RuntimeKernelPluginCompositionMetadata | null;
 }): string {
+  if (input.composition?.authorityState === "unavailable") {
+    return "Authority unavailable";
+  }
+  if (input.composition?.authorityState === "stale") {
+    return "Authority stale";
+  }
   if (
     input.composition?.publicationState === "blocked" ||
     input.composition?.bindingState === "blocked"
@@ -150,6 +156,7 @@ function buildPluginStateSummary(input: {
   registry: RuntimeKernelPluginRegistryMetadata | null;
   composition: RuntimeKernelPluginCompositionMetadata | null;
 }): string {
+  const authorityState = input.composition?.authorityState ?? "unknown";
   const installState =
     input.registry?.source === "runtime_managed"
       ? "runtime-managed"
@@ -161,7 +168,7 @@ function buildPluginStateSummary(input: {
     input.composition?.compatibilityStatus ?? input.registry?.compatibility.status ?? "unknown";
   const bindingState = input.composition?.bindingState ?? "unknown";
   const publicationState = input.composition?.publicationState ?? "unknown";
-  return `Install ${installState} | Trust ${trustState} | Compatibility ${compatibilityState} | Bind ${bindingState} | Publish ${publicationState}`;
+  return `Authority ${authorityState} | Install ${installState} | Trust ${trustState} | Compatibility ${compatibilityState} | Bind ${bindingState} | Publish ${publicationState}`;
 }
 
 function buildPluginAttentionReason(input: {
@@ -169,6 +176,11 @@ function buildPluginAttentionReason(input: {
   composition: RuntimeKernelPluginCompositionMetadata | null;
 }): string | null {
   return (
+    (input.composition?.authorityState === "unavailable"
+      ? "Runtime composition authority has not published a workspace snapshot yet."
+      : input.composition?.authorityState === "stale"
+        ? "Runtime composition authority rejected the latest local snapshot as stale."
+        : null) ??
     readOptionalText(input.composition?.blockedReason) ??
     readOptionalText(input.registry?.trust.blockedReason) ??
     getCompatibilityBlocker(input.registry)

@@ -406,6 +406,45 @@ describe("runtimeMissionControlSurfaceModel", () => {
     expect(entry?.continuationState).toBe("blocked");
   });
 
+  it("prefers runtime lifecycle and evidence summaries for review triage surfaces", () => {
+    const projection = createProjection();
+    const run = projection.runs[0];
+    const reviewPack = projection.reviewPacks[0];
+    if (!run || !reviewPack) {
+      throw new Error("Expected seeded run and review pack");
+    }
+
+    run.lifecycleSummary = {
+      stage: "rerouted",
+      summary: "Runtime rerouted this run onto a fallback backend.",
+      blocked: false,
+      rerouted: true,
+      validated: false,
+      readyForReview: false,
+      updatedAt: 3_000,
+    };
+    reviewPack.reviewStatus = "incomplete_evidence";
+    reviewPack.evidenceSummary = {
+      state: "incomplete",
+      summary: "Validation evidence is incomplete and needs another pass.",
+      validationCount: 0,
+      artifactCount: 0,
+      warningCount: 1,
+      changedPathCount: 0,
+      authoritativeTraceId: null,
+      authoritativeCheckpointId: null,
+      reviewStatus: "incomplete_evidence",
+    };
+
+    const [entry] = buildMissionReviewEntriesFromProjection(projection, {
+      workspaceId: "ws-1",
+    });
+
+    expect(entry?.summary).toBe("Validation evidence is incomplete and needs another pass.");
+    expect(entry?.attentionSignals).toEqual(expect.arrayContaining(["Rerouted"]));
+    expect(entry?.evidenceLabel).toBe("Evidence incomplete");
+  });
+
   it("prefers canonical continuation and next operator action over stale review-pack text", () => {
     const projection = createProjection();
     const run = projection.runs[0];
