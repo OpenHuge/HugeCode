@@ -17,10 +17,7 @@ import { createRuntimeGateway } from "../facades/RuntimeGateway";
 import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import { getMissionControlSnapshot } from "../ports/missionControl";
 import { detectRuntimeMode, readRuntimeCapabilitiesSummary } from "../ports/runtimeClient";
-import {
-  invokeRuntimeExtensionTool,
-  listRuntimeExtensionTools,
-} from "../ports/runtimeExtensions";
+import { invokeRuntimeExtensionTool, listRuntimeExtensionTools } from "../ports/runtimeExtensions";
 import { startRuntimeRunV2 } from "../ports/runtimeJobs";
 import { listRuntimePrompts } from "../ports/runtimePrompts";
 import { runRuntimeLiveSkill } from "../ports/runtime";
