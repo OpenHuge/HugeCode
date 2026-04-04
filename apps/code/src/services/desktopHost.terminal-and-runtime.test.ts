@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
+import {
+  invoke,
+  invokeDesktopCommand,
+  isDesktopHostRuntime,
+} from "../application/runtime/ports/desktopHostCore";
 import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,

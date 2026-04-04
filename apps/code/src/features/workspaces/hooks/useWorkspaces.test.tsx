@@ -859,13 +859,7 @@ describe("useWorkspaces.active workspace persistence", () => {
       result.current.setActiveWorkspaceId(workspaceTwo.id);
     });
 
-    await waitFor(() => {
-      expect(onUpdateAppSettings).toHaveBeenCalledWith(
-        expect.objectContaining({
-          lastActiveWorkspaceId: workspaceTwo.id,
-        })
-      );
-    });
+    expect(onUpdateAppSettings).not.toHaveBeenCalled();
   });
 
   it("persists active workspace changes through native persistence", async () => {
