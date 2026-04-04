@@ -8,6 +8,7 @@ export const CODE_RUNTIME_HOST_REQUEST_KINDS = [
 ] as const;
 
 export { RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER } from "./runtimeCompositionProfiles.js";
+export { getHugeCodeReviewActionAvailability } from "./hugeCodeOperatorLoop.js";
 
 export type CodeRuntimeHostRequestKind = (typeof CODE_RUNTIME_HOST_REQUEST_KINDS)[number];
 

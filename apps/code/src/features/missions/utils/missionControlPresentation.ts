@@ -1,4 +1,4 @@
-export type * from "../../../application/runtime/facades/runtimeMissionControlSurfaceModel";
+export type * from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 export {
   buildLatestMissionRunsFromProjection,
   buildMissionOverviewCountsFromProjection,
@@ -13,4 +13,4 @@ export {
   mapRunStateToMissionOverviewState,
   mapThreadVisualStateToMissionOverviewState,
   summarizeMissionControlSignals,
-} from "../../../application/runtime/facades/runtimeMissionControlSurfaceModel";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";

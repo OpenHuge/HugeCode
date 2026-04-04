@@ -201,6 +201,14 @@ const VIOLATION_RULES = [
     appliesTo: isUiBoundaryFile,
   },
   {
+    id: "runtime-control-plane-shared-package",
+    description:
+      "UI code must consume Mission Control / Review Pack surface models through `@ku0/code-application`, not the app-local compatibility facades",
+    pattern:
+      /(?:from\s+["'][^"']*\/application\/runtime\/facades\/(?:runtimeMissionControlSurfaceModel|runtimeReviewPackSurfaceFacade)["']|import\(\s*["'][^"']*\/application\/runtime\/facades\/(?:runtimeMissionControlSurfaceModel|runtimeReviewPackSurfaceFacade)["'])/u,
+    appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
+  },
+  {
     id: "runtime-tool-lifecycle-port-only",
     description:
       "UI code must consume runtime tool lifecycle through `application/runtime/ports/runtimeToolLifecycle` or shared hooks, not the facade or raw type re-export layer",
