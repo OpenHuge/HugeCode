@@ -1,10 +1,6 @@
-import {
-  invoke,
-  invokeDesktopCommand,
-  isDesktopHostRuntime,
-} from "../application/runtime/ports/desktopHostCore";
-import { listen } from "../application/runtime/ports/desktopHostEvent";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -51,10 +47,6 @@ vi.mock("../application/runtime/ports/desktopHostCore", () => {
 
 vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
-}));
-
-vi.mock("../application/runtime/ports/desktopHostDialogs", () => ({
-  open: vi.fn(),
 }));
 
 vi.mock("./runtimeClient", () => ({
@@ -443,7 +435,7 @@ describe("desktop host invoke wrappers", () => {
     );
   });
 
-  it("normalizes codex auth URL from desktop host runtime oauth payload", async () => {
+  it("normalizes codex auth URL from desktop runtime oauth payload", async () => {
     vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
     vi.mocked(getRuntimeClient).mockReturnValue({
       oauthCodexLoginStart: vi.fn(async () => ({
@@ -1059,8 +1051,8 @@ describe("desktop host invoke wrappers", () => {
     const runtimeWorkspacesMock = vi.fn().mockResolvedValue([
       {
         id: "ws-windows-device-path",
-        path: "\\\\?\\C:\\Dev\\keep-up",
-        displayName: "\\\\?\\C:\\Dev\\keep-up",
+        path: "\\\\?\\C:\\Dev\\huge-code",
+        displayName: "\\\\?\\C:\\Dev\\huge-code",
         connected: true,
       },
     ]);
@@ -1073,8 +1065,8 @@ describe("desktop host invoke wrappers", () => {
     expect(workspaces).toEqual([
       expect.objectContaining({
         id: "ws-windows-device-path",
-        name: "keep-up",
-        path: "\\\\?\\C:\\Dev\\keep-up",
+        name: "huge-code",
+        path: "\\\\?\\C:\\Dev\\huge-code",
       }),
     ]);
   });

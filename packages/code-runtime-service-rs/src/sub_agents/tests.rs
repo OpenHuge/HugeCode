@@ -47,6 +47,8 @@ fn test_sub_agent_summary() -> SubAgentSessionSummary {
         trace_id: Some("sub-agent:session-1".to_string()),
         recovered: Some(false),
         checkpoint_state: None,
+        context_boundary: None,
+        context_projection: None,
         takeover_bundle: None,
         approval_events: Some(Vec::new()),
         compaction_summary: None,

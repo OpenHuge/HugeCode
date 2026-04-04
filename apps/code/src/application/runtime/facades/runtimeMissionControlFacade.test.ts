@@ -11,6 +11,8 @@ import {
   projectThreadSummaryToTaskSummary,
   projectWorkspaceSummaryToMissionWorkspace,
 } from "./runtimeMissionControlFacade";
+import { normalizeRuntimeTaskForProjection } from "./runtimeMissionControlProjectionNormalization";
+import type { RuntimeAgentTaskSummary, RuntimeMissionRunSummary } from "../types/webMcpBridge";
 
 describe("runtimeMissionControlFacade", () => {
   beforeEach(() => {
@@ -85,6 +87,95 @@ describe("runtimeMissionControlFacade", () => {
     expect(run.executionProfile?.executionMode).toBe("local_interactive");
     expect(run.executionProfile?.id).toBe("operator-review");
     expect(run.executionProfile?.autonomy).toBe("operator_review");
+  });
+
+  it("preserves runtime context boundary and projection truth through normalization and run projection", () => {
+    const runtimeRun: RuntimeMissionRunSummary = {
+      id: "run-context-1",
+      taskId: "run-context-1",
+      workspaceId: "ws-1",
+      state: "running",
+      title: "Context boundary projection",
+      summary: "runtime summary",
+      startedAt: 2,
+      finishedAt: null,
+      updatedAt: 7,
+      currentStepIndex: 1,
+      taskSource: null,
+      reviewPackId: null,
+      contextBoundary: {
+        boundaryId: "boundary-1",
+        trigger: "payload_bytes",
+        phase: "pre_turn",
+        status: "projected",
+        preTokens: 1024,
+        postTokens: 256,
+        preservedRangeIds: ["step-2"],
+        summaryRef: "summary://boundary-1",
+        offloadRefs: ["turn://tool-1/output"],
+        projectionFingerprint: "fingerprint-1",
+        updatedAt: 7,
+      },
+      contextProjection: {
+        projectionId: "projection-1",
+        boundaryId: "boundary-1",
+        sourceTaskId: "run-context-1",
+        sourceRunId: "run-context-1",
+        phase: "pre_turn",
+        status: "active",
+        preservedRangeIds: ["step-2"],
+        summaryRef: "summary://projection-1",
+        offloadRefs: ["turn://tool-1/output"],
+        projectionFingerprint: "fingerprint-1",
+        updatedAt: 7,
+      },
+      compactionSummary: {
+        triggered: true,
+        executed: true,
+        source: "payload_bytes",
+        compressedSteps: 2,
+        bytesReduced: 1024,
+        keepRecentSteps: 3,
+        summaryMaxChars: 240,
+        executionError: null,
+      },
+    } as RuntimeMissionRunSummary;
+    const task = {
+      taskId: "run-context-1",
+      workspaceId: "ws-1",
+      threadId: "thread-context-1",
+      requestId: "request-context-1",
+      title: "Context boundary projection",
+      status: "running",
+      accessMode: "full-access",
+      executionMode: "distributed",
+      provider: "openai",
+      modelId: "gpt-5.3-codex",
+      routedProvider: "openai",
+      routedModelId: "gpt-5.3-codex",
+      routedPool: "codex",
+      routedSource: "workspace-default",
+      currentStep: 1,
+      createdAt: 1,
+      updatedAt: 7,
+      startedAt: 2,
+      completedAt: null,
+      errorCode: null,
+      errorMessage: null,
+      pendingApprovalId: null,
+      runSummary: runtimeRun,
+      steps: [],
+    } satisfies RuntimeAgentTaskSummary;
+
+    const normalized = normalizeRuntimeTaskForProjection(task);
+    const run = projectAgentTaskSummaryToRunSummary(normalized);
+
+    expect(normalized.contextBoundary).toEqual(runtimeRun.contextBoundary);
+    expect(normalized.contextProjection).toEqual(runtimeRun.contextProjection);
+    expect(normalized.compactionSummary).toEqual(runtimeRun.compactionSummary);
+    expect(run.contextBoundary).toEqual(runtimeRun.contextBoundary);
+    expect(run.contextProjection).toEqual(runtimeRun.contextProjection);
+    expect(run.compactionSummary).toEqual(runtimeRun.compactionSummary);
   });
 
   it("projects thread summaries into task summaries", () => {
@@ -2009,6 +2100,39 @@ describe("runtimeMissionControlFacade", () => {
               summary: "Runtime already published workspace evidence.",
               buckets: [],
             },
+            contextBoundary: {
+              boundaryId: "boundary-native-1",
+              trigger: "tool_output",
+              phase: "mid_turn",
+              status: "offloaded",
+              preTokens: 400,
+              postTokens: 120,
+              preservedRangeIds: ["step:3"],
+              summaryRef: "runtime://run-native-1/context-summary",
+              offloadRefs: ["turn://tool-1/output"],
+              projectionFingerprint: "fingerprint-native-1",
+              updatedAt: 40,
+            },
+            contextProjection: {
+              boundaryId: "boundary-native-1",
+              summaryRef: "runtime://run-native-1/context-summary",
+              projectionFingerprint: "fingerprint-native-1",
+              preservedRangeIds: ["step:3"],
+              recentSuffixRangeIds: ["step:3"],
+              offloadRefs: ["turn://tool-1/output"],
+              workingSetSummary: "Preserved the latest step and offloaded tool output.",
+              updatedAt: 40,
+            },
+            compactionSummary: {
+              triggered: true,
+              executed: true,
+              source: "tool_output",
+              compressedSteps: 1,
+              bytesReduced: 280,
+              keepRecentSteps: 1,
+              summaryMaxChars: 240,
+              executionError: null,
+            },
             missionBrief: {
               objective: "Runtime truth wins",
               doneDefinition: ["Review pack is native."],
@@ -2198,6 +2322,18 @@ describe("runtimeMissionControlFacade", () => {
       summary: "Runtime published the canonical review pack.",
       recommendedNextAction: "Accept the runtime-native review pack.",
       reviewProfileId: "review-runtime",
+      contextBoundary: {
+        boundaryId: "boundary-native-1",
+        status: "offloaded",
+      },
+      contextProjection: {
+        boundaryId: "boundary-native-1",
+        offloadRefs: ["turn://tool-1/output"],
+      },
+      compactionSummary: {
+        source: "tool_output",
+        compressedSteps: 1,
+      },
       fileChanges: {
         totalCount: 1,
       },

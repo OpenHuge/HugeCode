@@ -48,6 +48,9 @@ fn build_task_execution_profile_uses_validation_preset_id_when_available() {
         child_task_ids: None,
         distributed_status: None,
         backend_id: None,
+        context_boundary: None,
+        context_projection: None,
+        compaction_summary: None,
         steps: vec![],
     };
 
@@ -109,6 +112,9 @@ fn project_runtime_task_to_run_recovers_linkage_without_thread_id() {
             parent_task_id: None,
             child_task_ids: None,
             distributed_status: None,
+            context_boundary: None,
+            context_projection: None,
+            compaction_summary: None,
             steps: vec![],
         },
         steps_input: Vec::new(),

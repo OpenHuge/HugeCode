@@ -3,6 +3,7 @@ use crate::agent_task_durability::{checkpoint_sub_agent_session_runtime, sub_age
 use crate::runtime_checkpoint::{
     build_runtime_checkpoint_summary, resolve_runtime_checkpoint_resume_ready,
 };
+use crate::runtime_context_compaction::derive_agent_task_context_observability;
 use crate::sub_agents::sync_sub_agent_executor_linkage;
 
 pub(crate) const DEFAULT_SUB_AGENT_PROFILE_MAX_DEPTH: u64 = 1;
@@ -309,12 +310,10 @@ pub(crate) fn update_sub_agent_compaction_summary_from_task(
     summary: &mut SubAgentSessionSummary,
     task_summary: &AgentTaskSummary,
 ) {
-    let compaction_summary = task_summary
-        .steps
-        .iter()
-        .filter_map(|step| step.metadata.get("contextCompression"))
-        .find(|value| value.is_object())
-        .cloned();
+    let (context_boundary, context_projection, compaction_summary) =
+        derive_agent_task_context_observability(task_summary);
+    summary.context_boundary = context_boundary;
+    summary.context_projection = context_projection;
     summary.compaction_summary = compaction_summary;
 }
 

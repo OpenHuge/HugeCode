@@ -7,6 +7,11 @@ import type {
   RuntimeTaskSourceTriggerMode,
 } from "./runtimeTaskSourceShared.js";
 import type {
+  RuntimeCompactionSummary,
+  RuntimeContextBoundarySummary,
+  RuntimeContextProjectionSummary,
+} from "./code-runtime-rpc/runtimeRunsAndSubAgents.js";
+import type {
   RuntimeExecutionEvidenceSummary,
   RuntimeExecutionLifecycleSummary,
 } from "./runtimeExecutionSummaries.js";
@@ -547,7 +552,13 @@ export type HugeCodeSubAgentApprovalState = {
   at?: number | null;
 };
 
-export type HugeCodeSubAgentSummary = {
+type HugeCodeRuntimeContextObservability = {
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
+  compactionSummary?: RuntimeCompactionSummary | null;
+};
+
+export type HugeCodeSubAgentSummary = HugeCodeRuntimeContextObservability & {
   sessionId: string;
   parentRunId?: string | null;
   scopeProfile?: string | null;
@@ -1072,7 +1083,7 @@ export type HugeCodeTask = {
   executionGraph?: HugeCodeExecutionGraphSummary | null;
 };
 
-export type HugeCodeRun = {
+export type HugeCodeRun = HugeCodeRuntimeContextObservability & {
   id: string;
   taskId: string;
   workspaceId: string;
@@ -1226,7 +1237,7 @@ export type HugeCodeSourceCitation = {
   claimSummary: string;
 };
 
-export type HugeCodeReviewPack = {
+export type HugeCodeReviewPack = HugeCodeRuntimeContextObservability & {
   id: string;
   runId: string;
   taskId: string;
@@ -1308,6 +1319,36 @@ export type HugeCodeTaskSummary = Pick<
   | "executionGraph"
 >;
 
+type HugeCodeRunReviewSharedSummaryField =
+  | "lineage"
+  | "ledger"
+  | "checkpoint"
+  | "missionLinkage"
+  | "actionability"
+  | "reviewProfileId"
+  | "reviewGate"
+  | "reviewFindings"
+  | "reviewRunId"
+  | "skillUsage"
+  | "autofixCandidate"
+  | "sessionBoundary"
+  | "contextBoundary"
+  | "contextProjection"
+  | "compactionSummary"
+  | "continuation"
+  | "nextOperatorAction"
+  | "governance"
+  | "placement"
+  | "workspaceEvidence"
+  | "publishHandoff"
+  | "takeoverBundle"
+  | "selectedOpportunityId"
+  | "wakeReason"
+  | "wakeState"
+  | "sourceCitations"
+  | "queuePosition"
+  | "nextEligibleAction";
+
 export type HugeCodeRunSummary = Pick<
   HugeCodeRun,
   | "id"
@@ -1317,7 +1358,6 @@ export type HugeCodeRunSummary = Pick<
   | "state"
   | "title"
   | "summary"
-  | "taskSource"
   | "startedAt"
   | "finishedAt"
   | "updatedAt"
@@ -1339,28 +1379,11 @@ export type HugeCodeRunSummary = Pick<
   | "autoDrive"
   | "completionReason"
   | "reviewPackId"
-  | "lineage"
-  | "ledger"
-  | "checkpoint"
-  | "missionLinkage"
-  | "actionability"
-  | "reviewGate"
-  | "reviewFindings"
-  | "reviewRunId"
-  | "skillUsage"
-  | "autofixCandidate"
-  | "sessionBoundary"
-  | "continuation"
-  | "nextOperatorAction"
-  | "governance"
-  | "placement"
+  | HugeCodeRunReviewSharedSummaryField
   | "operatorSnapshot"
-  | "workspaceEvidence"
   | "missionBrief"
   | "relaunchContext"
   | "subAgents"
-  | "publishHandoff"
-  | "takeoverBundle"
   | "executionGraph"
   | "selectedOpportunityId"
   | "wakeReason"
@@ -1380,7 +1403,6 @@ export type HugeCodeReviewPackSummary = Pick<
   | "workspaceId"
   | "taskSource"
   | "summary"
-  | "taskSource"
   | "reviewStatus"
   | "evidenceState"
   | "validationOutcome"
@@ -1398,23 +1420,7 @@ export type HugeCodeReviewPackSummary = Pick<
   | "backendAudit"
   | "reviewDecision"
   | "createdAt"
-  | "lineage"
-  | "ledger"
-  | "checkpoint"
-  | "missionLinkage"
-  | "actionability"
-  | "reviewProfileId"
-  | "reviewGate"
-  | "reviewFindings"
-  | "reviewRunId"
-  | "skillUsage"
-  | "autofixCandidate"
-  | "sessionBoundary"
-  | "continuation"
-  | "nextOperatorAction"
-  | "governance"
-  | "placement"
-  | "workspaceEvidence"
+  | HugeCodeRunReviewSharedSummaryField
   | "failureClass"
   | "relaunchOptions"
   | "subAgentSummary"

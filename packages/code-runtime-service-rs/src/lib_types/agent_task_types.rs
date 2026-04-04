@@ -1144,6 +1144,12 @@ struct AgentTaskSummary {
     child_task_ids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     distributed_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_boundary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_projection: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    compaction_summary: Option<Value>,
     steps: Vec<AgentTaskStepSummary>,
 }
 

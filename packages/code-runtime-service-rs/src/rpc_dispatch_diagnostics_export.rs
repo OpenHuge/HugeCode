@@ -731,6 +731,9 @@ mod tests {
                 parent_task_id: None,
                 child_task_ids: None,
                 distributed_status: Some("planning".to_string()),
+                context_boundary: None,
+                context_projection: None,
+                compaction_summary: None,
                 steps: vec![AgentTaskStepSummary {
                     index: 0,
                     kind: "read".to_string(),

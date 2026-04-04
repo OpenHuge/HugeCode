@@ -121,6 +121,9 @@ fn sample_agent_task_summary() -> AgentTaskSummary {
         parent_task_id: None,
         child_task_ids: None,
         distributed_status: Some("running".to_string()),
+        context_boundary: None,
+        context_projection: None,
+        compaction_summary: None,
         steps: Vec::new(),
     }
 }

@@ -18,8 +18,7 @@ use crate::repository_execution_contract::RepositoryExecutionResolvedDefaults;
 use crate::runtime_helpers::normalize_agent_task_source_summary;
 use execution_summary::{inject_runtime_execution_summaries, serialize_review_pack_with_runtime_summaries};
 use run_id::parse_run_id;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
 
 fn normalize_execution_mode_v2(value: Option<&str>) -> Result<&'static str, RpcError> {
     let normalized = value
@@ -1310,10 +1309,11 @@ async fn build_run_record_v2(ctx: &AppContext, run_id: &str) -> Result<Value, Rp
     let mut run = handle_agent_task_status(ctx, &json!({ "taskId": run_id })).await?;
     if let Some(run_object) = run.as_object_mut() {
         for redundant_field in [
-            "approvalState", "continuation", "executionGraph", "intervention", "missionLinkage",
-            "nextAction", "nextOperatorAction", "operatorState", "placement",
-            "profileReadiness", "reviewActionability", "reviewPackSummary", "routing",
-            "runSummary", "sessionBoundary", "takeoverBundle",
+            "approvalState", "compactionSummary", "contextBoundary", "contextProjection", "continuation",
+            "executionGraph", "intervention", "missionLinkage", "nextAction", "nextOperatorAction",
+            "operatorState", "placement", "profileReadiness", "reviewActionability", "reviewPackSummary",
+            "routing", "runSummary",
+            "sessionBoundary", "takeoverBundle",
         ] {
             run_object.remove(redundant_field);
         }

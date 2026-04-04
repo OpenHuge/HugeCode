@@ -1,201 +1,14 @@
+#[path = "live_skills_research_support.rs"]
+mod support;
+use support::{
+    aggregate_approval_events, aggregate_compaction_summaries, build_live_skill_checkpoint_state,
+    build_live_skill_eval_tags, build_research_compaction_summary,
+    build_research_provider_diagnostics, insert_live_skill_context_observability,
+    resolve_research_execution_policy, summarize_compaction_summary,
+};
+
 const DEFAULT_RESEARCH_ALLOWED_SKILL_IDS: [&str; 4] =
     ["network-analysis", "core-read", "core-grep", "core-tree"];
-
-fn build_live_skill_eval_tags(skill_id: &str, scope_profile: &str, extra_tags: &[String]) -> Vec<String> {
-    let mut tags = vec![
-        "mode:runtime".to_string(),
-        format!("skill:{skill_id}"),
-        format!("scope:{scope_profile}"),
-    ];
-    for tag in extra_tags {
-        if !tags.contains(tag) {
-            tags.push(tag.clone());
-        }
-    }
-    tags.sort();
-    tags
-}
-
-fn build_live_skill_checkpoint_state(
-    state: &str,
-    lifecycle_state: &str,
-    checkpoint_id: Option<&str>,
-    trace_id: Option<&str>,
-    recovered: bool,
-    updated_at: Option<u64>,
-) -> Value {
-    json!({
-        "state": state,
-        "lifecycleState": lifecycle_state,
-        "checkpointId": checkpoint_id,
-        "traceId": trace_id,
-        "recovered": recovered,
-        "updatedAt": updated_at,
-    })
-}
-
-fn build_research_compaction_summary() -> Value {
-    json!({
-        "triggered": false,
-        "executed": false,
-        "source": Value::Null,
-        "compressedSteps": Value::Null,
-        "bytesReduced": Value::Null,
-        "keepRecentSteps": Value::Null,
-        "summaryMaxChars": Value::Null,
-        "executionError": Value::Null,
-    })
-}
-
-fn summarize_compaction_summary(metadata: &Value) -> Value {
-    let Some(compaction) = metadata.get("contextCompression").and_then(Value::as_object) else {
-        return build_research_compaction_summary();
-    };
-    json!({
-        "triggered": compaction.get("triggered").and_then(Value::as_bool).unwrap_or(false),
-        "executed": compaction.get("executed").and_then(Value::as_bool).unwrap_or(false),
-        "source": compaction.get("triggerSource"),
-        "compressedSteps": compaction.get("compressedSteps"),
-        "bytesReduced": compaction.get("bytesReduced"),
-        "keepRecentSteps": compaction.get("keepRecentSteps"),
-        "summaryMaxChars": compaction.get("summaryMaxChars"),
-        "executionError": compaction.get("executionError"),
-    })
-}
-
-fn aggregate_approval_events(sessions: &[Value]) -> Vec<Value> {
-    let mut events = sessions
-        .iter()
-        .filter_map(|session| session.get("approvalEvents").and_then(Value::as_array))
-        .flatten()
-        .cloned()
-        .collect::<Vec<_>>();
-    events.sort_by(|left, right| {
-        left.get("at")
-            .and_then(Value::as_u64)
-            .cmp(&right.get("at").and_then(Value::as_u64))
-    });
-    events
-}
-
-fn aggregate_compaction_summaries(sessions: &[Value]) -> Value {
-    let summaries = sessions
-        .iter()
-        .filter_map(|session| session.get("compactionSummary"))
-        .filter(|summary| summary.is_object())
-        .collect::<Vec<_>>();
-    if summaries.is_empty() {
-        return build_research_compaction_summary();
-    }
-    let triggered = summaries
-        .iter()
-        .any(|summary| summary.get("triggered").and_then(Value::as_bool).unwrap_or(false));
-    let executed = summaries
-        .iter()
-        .any(|summary| summary.get("executed").and_then(Value::as_bool).unwrap_or(false));
-    let compressed_steps = summaries
-        .iter()
-        .filter_map(|summary| summary.get("compressedSteps").and_then(Value::as_u64))
-        .sum::<u64>();
-    let bytes_reduced = summaries
-        .iter()
-        .filter_map(|summary| summary.get("bytesReduced").and_then(Value::as_u64))
-        .sum::<u64>();
-    json!({
-        "triggered": triggered,
-        "executed": executed,
-        "compressedSteps": compressed_steps,
-        "bytesReduced": bytes_reduced,
-    })
-}
-
-#[derive(Debug, Clone)]
-struct ResearchExecutionPolicy {
-    fetch_page_content: bool,
-    strategy: &'static str,
-    network_provider: String,
-    caller_provider: String,
-    caller_model_id: Option<String>,
-    policy_source: &'static str,
-    requested_max_parallel: usize,
-    effective_max_parallel: usize,
-    reason_codes: Vec<String>,
-}
-
-fn resolve_research_execution_policy(
-    options: &LiveSkillExecuteOptions,
-    context: Option<&LiveSkillExecuteContext>,
-    network_base_url: &str,
-) -> ResearchExecutionPolicy {
-    let fetch_policy =
-        resolve_live_skill_fetch_page_content_policy(context, options.fetch_page_content, true);
-    let fetch_page_content = fetch_policy.fetch_page_content;
-    let requested_max_parallel = normalize_optional_usize(
-        options.max_parallel,
-        DEFAULT_RESEARCH_MAX_PARALLEL,
-        1,
-        MAX_RESEARCH_MAX_PARALLEL,
-    );
-    let strategy = if fetch_page_content {
-        "search+content"
-    } else {
-        "search-only"
-    };
-    let mut reason_codes = build_live_skill_fetch_reason_codes(strategy, &fetch_policy);
-    let effective_max_parallel = if fetch_page_content {
-        let capped_parallelism = requested_max_parallel.min(2);
-        if capped_parallelism < requested_max_parallel {
-            reason_codes.push("content-fetch-capped-parallelism".to_string());
-        }
-        capped_parallelism
-    } else {
-        requested_max_parallel
-    };
-
-    ResearchExecutionPolicy {
-        fetch_page_content,
-        strategy,
-        network_provider: infer_live_skill_network_provider(network_base_url),
-        caller_provider: fetch_policy.caller_provider,
-        caller_model_id: fetch_policy.caller_model_id,
-        policy_source: fetch_policy.policy_source,
-        requested_max_parallel,
-        effective_max_parallel,
-        reason_codes,
-    }
-}
-
-fn build_research_provider_diagnostics(
-    providers: Vec<String>,
-    strategies: Vec<String>,
-    allow_network: bool,
-    policy: &ResearchExecutionPolicy,
-    recency_days: Option<u64>,
-    prefer_domains: &[String],
-    workspace_context_paths: &[String],
-    child_failure_count: Option<usize>,
-) -> Value {
-    let mut diagnostics = json!({
-        "providers": providers,
-        "strategies": strategies,
-        "allowNetwork": allow_network,
-        "maxParallel": policy.effective_max_parallel,
-        "requestedMaxParallel": policy.requested_max_parallel,
-        "effectiveMaxParallel": policy.effective_max_parallel,
-        "reasonCodes": policy.reason_codes.clone(),
-        "recencyDays": recency_days,
-        "fetchPageContent": policy.fetch_page_content,
-        "callerProvider": policy.caller_provider,
-        "callerModelId": policy.caller_model_id,
-        "policySource": policy.policy_source,
-        "preferredDomains": prefer_domains,
-        "workspaceContextPaths": workspace_context_paths,
-    });
-    if let Some(child_failure_count) = child_failure_count {
-        diagnostics["childFailureCount"] = Value::Number((child_failure_count as u64).into());
-    }
-    diagnostics
-}
 
 async fn handle_research_orchestrator_live_skill_execute(
     ctx: &AppContext,
@@ -475,7 +288,7 @@ async fn handle_research_orchestrator_live_skill_execute(
         ],
     );
 
-    let result = LiveSkillExecutionResult {
+    let mut result = LiveSkillExecutionResult {
         run_id: run_id.clone(),
         skill_id: canonical_skill_id.to_string(),
         status: status.to_string(),
@@ -542,6 +355,38 @@ async fn handle_research_orchestrator_live_skill_execute(
             }
         }),
     };
+
+    if let Some(metadata_object) = result.metadata.as_object_mut() {
+        let checkpoint_updated_at = metadata_object
+            .get("checkpointState")
+            .and_then(|value| value.get("updatedAt"))
+            .and_then(Value::as_u64);
+        let compaction_summary = metadata_object
+            .get("compactionSummary")
+            .cloned()
+            .unwrap_or_else(build_research_compaction_summary);
+        insert_live_skill_context_observability(
+            metadata_object,
+            "research-run",
+            run_id.as_str(),
+            checkpoint_updated_at,
+            &compaction_summary,
+            Some(format!("runtime://research-run/{run_id}/context-summary")),
+        );
+        if let Some(research_run) = metadata_object
+            .get_mut("researchRun")
+            .and_then(Value::as_object_mut)
+        {
+            insert_live_skill_context_observability(
+                research_run,
+                "research-run",
+                run_id.as_str(),
+                checkpoint_updated_at,
+                &compaction_summary,
+                Some(format!("runtime://research-run/{run_id}/context-summary")),
+            );
+        }
+    }
 
     Ok(json!(result))
 }
@@ -997,8 +842,28 @@ fn build_research_child_result(
         metadata_object.insert("profileUsed".to_string(), Value::String(profile_used));
         metadata_object.insert("approvalEvents".to_string(), approval_events);
         metadata_object.insert("checkpointState".to_string(), checkpoint_state);
-        metadata_object.insert("compactionSummary".to_string(), compaction_summary);
+        metadata_object.insert("compactionSummary".to_string(), compaction_summary.clone());
         metadata_object.insert("evalTags".to_string(), json!(eval_tags));
+        insert_live_skill_context_observability(
+            metadata_object,
+            "research-session",
+            session
+                .get("sessionId")
+                .and_then(Value::as_str)
+                .unwrap_or(sub_query),
+            metadata_object
+                .get("checkpointState")
+                .and_then(|value| value.get("updatedAt"))
+                .and_then(Value::as_u64),
+            &compaction_summary,
+            Some(format!(
+                "runtime://research-session/{}/context-summary",
+                session
+                    .get("sessionId")
+                    .and_then(Value::as_str)
+                    .unwrap_or(sub_query)
+            )),
+        );
     }
 
     LiveSkillExecutionResult {

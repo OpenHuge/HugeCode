@@ -41,6 +41,7 @@ mod rpc_dispatch_native;
 mod rpc_dispatch_native_schedules;
 mod rpc_params;
 mod runtime_checkpoint;
+mod runtime_context_compaction;
 mod runtime_events;
 mod runtime_execution_graph;
 mod runtime_helpers;

@@ -58,6 +58,7 @@ import type {
   RuntimeAgentTaskInterventionAction,
   RuntimeAgentTaskStatus,
   RuntimeAgentTaskSummary,
+  RuntimeMissionRunSummary,
 } from "../types/webMcpBridge";
 import type { RuntimeWorkspaceId } from "../types/runtimeIds";
 
@@ -111,6 +112,7 @@ function projectMissionControlRunToRuntimeTaskSummary(input: {
   reviewPack: HugeCodeReviewPackSummary | null;
 }): RuntimeAgentTaskSummary {
   const { run, task, reviewPack } = input;
+  const runtimeRun = run as RuntimeMissionRunSummary;
 
   return {
     taskId: run.id,
@@ -140,7 +142,10 @@ function projectMissionControlRunToRuntimeTaskSummary(input: {
     pendingApprovalId: run.approval?.approvalId ?? null,
     reviewPackId: run.reviewPackId ?? null,
     backendId: run.routing?.backendId ?? null,
-    runSummary: run,
+    contextBoundary: runtimeRun.contextBoundary ?? null,
+    contextProjection: runtimeRun.contextProjection ?? null,
+    compactionSummary: runtimeRun.compactionSummary ?? null,
+    runSummary: runtimeRun,
     reviewPackSummary: reviewPack,
     steps: [],
   };
@@ -188,9 +193,13 @@ function projectKernelJobToRuntimeTaskSummary(job: KernelJob): RuntimeAgentTaskS
 function projectRuntimeRunRecordToRuntimeTaskSummary(
   record: RuntimeRunRecordV2
 ): RuntimeAgentTaskSummary {
+  const runtimeRun = record.missionRun as RuntimeMissionRunSummary;
   return {
     ...record.run,
-    runSummary: record.missionRun,
+    contextBoundary: runtimeRun.contextBoundary ?? null,
+    contextProjection: runtimeRun.contextProjection ?? null,
+    compactionSummary: runtimeRun.compactionSummary ?? null,
+    runSummary: runtimeRun,
     reviewPackSummary: record.reviewPack,
   };
 }

@@ -37,7 +37,7 @@ describe("desktopHostCommands", () => {
     });
   });
 
-  it("invokes commit message generation in desktop host mode", async () => {
+  it("invokes commit message generation in desktop runtime mode", async () => {
     invokeMock.mockResolvedValueOnce("feat: update runtime adapter");
 
     await expect(generateCommitMessage("ws-1")).resolves.toBe("feat: update runtime adapter");
@@ -46,7 +46,7 @@ describe("desktopHostCommands", () => {
     });
   });
 
-  it("rejects commit message generation outside desktop host mode", async () => {
+  it("rejects commit message generation outside desktop runtime mode", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(generateCommitMessage("ws-2")).rejects.toThrow(
@@ -55,7 +55,7 @@ describe("desktopHostCommands", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("skips menu accelerator updates outside desktop host mode", async () => {
+  it("skips menu accelerator updates outside desktop runtime mode", async () => {
     isDesktopHostRuntimeMock.mockReturnValue(false);
 
     await expect(

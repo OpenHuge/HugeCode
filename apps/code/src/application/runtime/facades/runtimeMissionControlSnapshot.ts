@@ -20,7 +20,7 @@ import type { RuntimeAgentControlFacade } from "./runtimeAgentControlFacade";
 import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
 import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeErrorClassifier";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
-import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
+import type { RuntimeAgentTaskSummary, RuntimeMissionRunSummary } from "../types/webMcpBridge";
 import { normalizeRuntimeProviderCatalogEntry } from "./runtimeMissionControlProjectionNormalization";
 import { useWorkspaceRuntimePluginProjection } from "./runtimeKernelPluginProjectionHooks";
 import {
@@ -117,6 +117,7 @@ function projectMissionControlRunToRuntimeTaskSummary(input: {
   taskMetadata: MissionTaskMetadata | null;
 }): RuntimeAgentTaskSummary {
   const { run, taskMetadata } = input;
+  const runtimeRun = run as RuntimeMissionRunSummary;
   return {
     taskId: run.id,
     workspaceId: run.workspaceId,
@@ -168,8 +169,11 @@ function projectMissionControlRunToRuntimeTaskSummary(input: {
     missionLinkage: run.missionLinkage ?? null,
     reviewActionability: resolveRunReviewActionability(run),
     takeoverBundle: run.takeoverBundle ?? null,
+    contextBoundary: runtimeRun.contextBoundary ?? null,
+    contextProjection: runtimeRun.contextProjection ?? null,
+    compactionSummary: runtimeRun.compactionSummary ?? null,
     executionGraph: (run.executionGraph ?? null) as RuntimeAgentTaskSummary["executionGraph"],
-    runSummary: run,
+    runSummary: runtimeRun,
     reviewPackSummary: null,
     backendId: run.routing?.backendId ?? run.placement?.resolvedBackendId ?? null,
     preferredBackendIds: normalizePreferredBackendIds(run.placement?.requestedBackendIds) ?? null,

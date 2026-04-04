@@ -6,7 +6,7 @@ import type {
   RuntimeProviderCatalogEntry,
   RuntimeProviderReadinessKind,
 } from "@ku0/code-runtime-host-contract";
-import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
+import type { RuntimeAgentTaskSummary, RuntimeMissionRunSummary } from "../types/webMcpBridge";
 
 const AGENT_TASK_DISTRIBUTED_STATUSES: ReadonlySet<AgentTaskDistributedStatus> = new Set([
   "idle",
@@ -79,7 +79,10 @@ export function normalizeRuntimeProviderCatalogEntry(
   };
 }
 
-export function normalizeRuntimeTaskForProjection(task: RuntimeAgentTaskSummary): AgentTaskSummary {
+export function normalizeRuntimeTaskForProjection(
+  task: RuntimeAgentTaskSummary
+): AgentTaskSummary & RuntimeAgentTaskSummary {
+  const runtimeRun = task.runSummary as RuntimeMissionRunSummary | null | undefined;
   return {
     taskId: task.taskId,
     workspaceId: task.workspaceId,
@@ -129,8 +132,11 @@ export function normalizeRuntimeTaskForProjection(task: RuntimeAgentTaskSummary)
     sessionBoundary: task.sessionBoundary ?? null,
     continuation: task.continuation ?? null,
     nextOperatorAction: task.nextOperatorAction ?? null,
+    contextBoundary: task.contextBoundary ?? runtimeRun?.contextBoundary ?? null,
+    contextProjection: task.contextProjection ?? runtimeRun?.contextProjection ?? null,
+    compactionSummary: task.compactionSummary ?? runtimeRun?.compactionSummary ?? null,
     executionGraph: task.executionGraph ?? null,
-    runSummary: task.runSummary ?? null,
+    runSummary: runtimeRun ?? task.runSummary ?? null,
     reviewPackSummary: task.reviewPackSummary ?? null,
     backendId: task.backendId ?? null,
     preferredBackendIds: task.preferredBackendIds ?? null,

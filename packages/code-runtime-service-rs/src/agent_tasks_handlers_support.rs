@@ -11,6 +11,7 @@ use crate::rpc_dispatch::mission_control_dispatch::{
     project_runtime_task_to_run,
 };
 use crate::runtime_checkpoint::build_agent_task_checkpoint_state_payload;
+use crate::runtime_context_compaction::enrich_agent_task_summary_for_response;
 use crate::{
     build_profile_readiness, build_runtime_execution_graph_summary_with_runtime_truth,
     build_task_execution_profile, build_task_routing,
@@ -214,6 +215,7 @@ pub(crate) fn build_agent_task_response_payload(
     backend: Option<&RuntimeBackendSummary>,
     workspace_root: Option<&str>,
 ) -> Result<Value, RpcError> {
+    let enriched_summary = enrich_agent_task_summary_for_response(summary);
     let execution_profile = build_task_execution_profile(summary);
     let routing = build_task_routing(summary, backend);
     let profile_readiness = build_profile_readiness(&routing);
@@ -225,7 +227,7 @@ pub(crate) fn build_agent_task_response_payload(
         .cloned()
         .map(|backend| HashMap::from([(backend.backend_id.clone(), backend)]))
         .unwrap_or_default();
-    let mut payload = serde_json::to_value(summary)
+    let mut payload = serde_json::to_value(&enriched_summary)
         .map_err(|error| RpcError::internal(format!("Serialize agent task summary: {error}")))?;
     let object = payload
         .as_object_mut()
@@ -402,7 +404,14 @@ pub(crate) fn build_agent_task_runtime_response_payload(
     );
     let run_summary_value = serde_json::to_value(&run_summary)
         .map_err(|error| RpcError::internal(format!("Serialize run summary: {error}")))?;
-    for field in ["sessionBoundary", "continuation", "nextOperatorAction"] {
+    for field in [
+        "sessionBoundary",
+        "contextBoundary",
+        "contextProjection",
+        "compactionSummary",
+        "continuation",
+        "nextOperatorAction",
+    ] {
         if let Some(value) = run_summary_value.get(field).cloned() {
             object.insert(field.to_string(), value);
         }
@@ -617,6 +626,9 @@ mod tests {
                 parent_task_id: None,
                 child_task_ids: None,
                 distributed_status: Some("running".to_string()),
+                context_boundary: None,
+                context_projection: None,
+                compaction_summary: None,
                 steps: Vec::new(),
             },
             steps_input: Vec::new(),
@@ -784,6 +796,81 @@ mod tests {
         assert_eq!(
             payload["executionGraph"]["nodes"][0]["placementLifecycleState"],
             Value::String("confirmed".to_string())
+        );
+    }
+
+    #[test]
+    fn build_agent_task_runtime_response_payload_includes_context_boundary_projection() {
+        let mut runtime = mock_runtime();
+        runtime.summary.steps = vec![
+            AgentTaskStepSummary {
+                index: 0,
+                kind: "read".to_string(),
+                role: "planner".to_string(),
+                status: AgentTaskStatus::Completed.as_str().to_string(),
+                message: "Collected repo context".to_string(),
+                run_id: Some("run-step-0".to_string()),
+                output: Some("Long output that was compacted".to_string()),
+                metadata: json!({
+                    "contextCompression": {
+                        "compressed": true,
+                        "originalBytes": 1200,
+                        "compressedBytes": 300,
+                    }
+                }),
+                started_at: Some(1),
+                updated_at: 2,
+                completed_at: Some(2),
+                error_code: None,
+                error_message: None,
+                approval_id: None,
+            },
+            AgentTaskStepSummary {
+                index: 1,
+                kind: "edit".to_string(),
+                role: "coder".to_string(),
+                status: AgentTaskStatus::Completed.as_str().to_string(),
+                message: "Trimmed provider output".to_string(),
+                run_id: Some("run-step-1".to_string()),
+                output: Some("Preview retained".to_string()),
+                metadata: json!({
+                    "contextCompression": {
+                        "triggered": true,
+                        "triggerSource": "payload_bytes",
+                        "payloadBytes": 2048,
+                        "executed": true,
+                        "compressedSteps": 1,
+                        "bytesReduced": 900,
+                        "keepRecentSteps": 1,
+                        "summaryMaxChars": 240,
+                    },
+                    "compactionApplied": true,
+                    "outputByteCount": 2048,
+                    "outputPreviewByteCount": 512,
+                    "outputCompactionReference": "turn://run-step-1/output",
+                }),
+                started_at: Some(3),
+                updated_at: 4,
+                completed_at: Some(4),
+                error_code: None,
+                error_message: None,
+                approval_id: None,
+            },
+        ];
+
+        let payload = build_agent_task_runtime_response_payload(&runtime, None, None)
+            .expect("task runtime payload");
+
+        assert_eq!(payload["contextBoundary"]["trigger"], json!("tool_output"));
+        assert_eq!(payload["contextBoundary"]["status"], json!("compacted"));
+        assert_eq!(
+            payload["contextProjection"]["offloadRefs"][0],
+            json!("turn://run-step-1/output")
+        );
+        assert_eq!(payload["compactionSummary"]["triggered"], json!(true));
+        assert_eq!(
+            payload["runSummary"]["contextBoundary"]["trigger"],
+            json!("tool_output")
         );
     }
 
