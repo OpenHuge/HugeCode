@@ -672,7 +672,10 @@ fn build_runtime_composition_unavailable_snapshot() -> Value {
     json!({
         "activeProfile": Value::Null,
         "authorityState": "unavailable",
+        "freshnessState": "unavailable",
         "authorityRevision": Value::Null,
+        "lastAcceptedRevision": Value::Null,
+        "lastPublishAttemptAt": Value::Null,
         "publishedAt": Value::Null,
         "publisherSessionId": Value::Null,
         "provenance": {
@@ -692,7 +695,10 @@ fn build_runtime_composition_unavailable_snapshot() -> Value {
 fn normalize_runtime_composition_snapshot_with_authority(
     snapshot: &Value,
     authority_state: &str,
+    freshness_state: &str,
     authority_revision: Option<u64>,
+    last_accepted_revision: Option<u64>,
+    last_publish_attempt_at: Option<u64>,
     published_at: Option<u64>,
     publisher_session_id: Option<&str>,
 ) -> Result<Value, RpcError> {
@@ -703,9 +709,18 @@ fn normalize_runtime_composition_snapshot_with_authority(
     };
     let mut normalized = snapshot_object.clone();
     normalized.insert("authorityState".to_string(), json!(authority_state));
+    normalized.insert("freshnessState".to_string(), json!(freshness_state));
     normalized.insert(
         "authorityRevision".to_string(),
         authority_revision.map_or(Value::Null, Value::from),
+    );
+    normalized.insert(
+        "lastAcceptedRevision".to_string(),
+        last_accepted_revision.map_or(Value::Null, Value::from),
+    );
+    normalized.insert(
+        "lastPublishAttemptAt".to_string(),
+        last_publish_attempt_at.map_or(Value::Null, Value::from),
     );
     normalized.insert(
         "publishedAt".to_string(),
@@ -792,7 +807,23 @@ async fn handle_runtime_composition_profile_resolve_v2(
     let store = ctx.runtime_composition_authority.read().await;
     Ok(store
         .get(workspace_id)
-        .map(|entry| entry.snapshot.clone())
+        .map(|entry| {
+            normalize_runtime_composition_snapshot_with_authority(
+                &entry.snapshot,
+                if entry.freshness_state == "stale" {
+                    "stale"
+                } else {
+                    "published"
+                },
+                entry.freshness_state.as_str(),
+                Some(entry.authority_revision),
+                Some(entry.authority_revision),
+                Some(entry.last_publish_attempt_at),
+                Some(entry.published_at),
+                entry.publisher_session_id.as_deref(),
+            )
+            .unwrap_or_else(|_| entry.snapshot.clone())
+        })
         .unwrap_or_else(build_runtime_composition_unavailable_snapshot))
 }
 
@@ -831,41 +862,90 @@ async fn handle_runtime_composition_snapshot_publish_v1(
     let normalized_snapshot = normalize_runtime_composition_snapshot_with_authority(
         snapshot,
         "published",
+        "current",
         Some(authority_revision),
+        Some(authority_revision),
+        Some(published_at),
         Some(published_at),
         publisher_session_id.as_deref(),
     )?;
 
     let mut store = ctx.runtime_composition_authority.write().await;
-    if let Some(existing) = store.get(workspace_id.as_str()) {
+    if let Some(existing) = store.get(workspace_id.as_str()).cloned() {
         let same_session = existing.publisher_session_id.is_some()
             && existing.publisher_session_id == publisher_session_id;
         if same_session && authority_revision <= existing.authority_revision {
+            let mut stale_entry = existing.clone();
+            stale_entry.freshness_state = "stale".to_string();
+            stale_entry.last_publish_attempt_at = published_at;
+            store.insert(workspace_id.clone(), stale_entry);
+            let stale_publisher_session_id = existing.publisher_session_id.clone();
+            crate::runtime_events::publish_runtime_updated_event(
+                ctx,
+                &["plugins"],
+                "composition_stale",
+                Some(json!({
+                    "workspaceId": workspace_id,
+                    "authorityState": "stale",
+                    "freshnessState": "stale",
+                    "authorityRevision": existing.authority_revision,
+                    "lastAcceptedRevision": existing.authority_revision,
+                    "lastPublishAttemptAt": published_at,
+                    "publishedAt": existing.published_at,
+                    "publisherSessionId": stale_publisher_session_id,
+                })),
+            );
             return Ok(json!({
                 "authorityState": "stale",
+                "freshnessState": "stale",
                 "authorityRevision": existing.authority_revision,
+                "lastAcceptedRevision": existing.authority_revision,
+                "lastPublishAttemptAt": published_at,
                 "publishedAt": existing.published_at,
                 "publisherSessionId": existing.publisher_session_id,
             }));
         }
     }
 
+    let update_workspace_id = workspace_id.clone();
+    let publish_publisher_session_id = publisher_session_id.clone();
     store.insert(
         workspace_id,
         RuntimeCompositionAuthorityRecord {
             authority_revision,
             published_at,
+            last_publish_attempt_at: published_at,
+            freshness_state: "current".to_string(),
             publisher_session_id: publisher_session_id.clone(),
             profiles,
             snapshot: normalized_snapshot,
         },
     );
 
+    crate::runtime_events::publish_runtime_updated_event(
+        ctx,
+        &["plugins"],
+        "composition_published",
+        Some(json!({
+            "workspaceId": update_workspace_id,
+            "authorityState": "published",
+            "freshnessState": "current",
+            "authorityRevision": authority_revision,
+            "lastAcceptedRevision": authority_revision,
+            "lastPublishAttemptAt": published_at,
+            "publishedAt": published_at,
+            "publisherSessionId": publish_publisher_session_id.clone(),
+        })),
+    );
+
     Ok(json!({
         "authorityState": "published",
+        "freshnessState": "current",
         "authorityRevision": authority_revision,
+        "lastAcceptedRevision": authority_revision,
+        "lastPublishAttemptAt": published_at,
         "publishedAt": published_at,
-        "publisherSessionId": publisher_session_id,
+        "publisherSessionId": publish_publisher_session_id,
     }))
 }
 

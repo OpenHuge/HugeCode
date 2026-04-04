@@ -6,6 +6,10 @@ import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
 import { useWorkspaceRuntimePluginProjection } from "./runtimeKernelPluginProjectionHooks";
 
+vi.mock("../ports/runtimeUpdatedEvents", () => ({
+  subscribeScopedRuntimeUpdatedEvents: vi.fn(() => () => undefined),
+}));
+
 function createCatalogPlugins() {
   return [
     {
@@ -224,6 +228,13 @@ function createRuntimeKernelValue(input?: { projectionEnabled?: boolean }) {
         },
         configLayers: [],
       },
+      authorityState: "published",
+      freshnessState: "current",
+      authorityRevision: 1,
+      lastAcceptedRevision: 1,
+      lastPublishAttemptAt: 1,
+      publishedAt: 1,
+      publisherSessionId: "session-1",
       provenance: {
         activeProfileId: "workspace-default",
         activeProfileName: "Workspace Default",

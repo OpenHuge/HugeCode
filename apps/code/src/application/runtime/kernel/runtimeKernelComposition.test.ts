@@ -144,7 +144,10 @@ function createUnavailableCompositionSnapshot(): RuntimeCompositionResolveV2Resp
   return {
     activeProfile: null,
     authorityState: "unavailable",
+    freshnessState: "unavailable",
     authorityRevision: null,
+    lastAcceptedRevision: null,
+    lastPublishAttemptAt: null,
     publishedAt: null,
     publisherSessionId: null,
     provenance: {
@@ -204,14 +207,20 @@ function createRuntimeCompositionAuthority(): RuntimeKernelCompositionAuthorityF
           snapshot: {
             ...request.snapshot,
             authorityState: "published",
+            freshnessState: "current",
             authorityRevision: request.authorityRevision,
+            lastAcceptedRevision: request.authorityRevision,
+            lastPublishAttemptAt: publishedAt,
             publishedAt,
             publisherSessionId: request.publisherSessionId ?? null,
           },
         };
         return {
           authorityState: "published",
+          freshnessState: "current",
           authorityRevision: request.authorityRevision,
+          lastAcceptedRevision: request.authorityRevision,
+          lastPublishAttemptAt: publishedAt,
           publishedAt,
           publisherSessionId: request.publisherSessionId ?? null,
         };
@@ -263,7 +272,7 @@ describe("runtimeKernelComposition", () => {
       authority: createRuntimeCompositionAuthority(),
     });
 
-    const snapshot = await composition.getActiveResolutionV2();
+    const snapshot = await composition.publishActiveResolutionV1();
     const runtimeExtension = snapshot.pluginEntries.find(
       (entry) => entry.pluginId === "ext.runtime"
     );
@@ -273,7 +282,9 @@ describe("runtimeKernelComposition", () => {
 
     expect(snapshot.activeProfile?.id).toBe("workspace-default");
     expect(snapshot.authorityState).toBe("published");
+    expect(snapshot.freshnessState).toBe("current");
     expect(snapshot.authorityRevision).toBe(1);
+    expect(snapshot.lastAcceptedRevision).toBe(1);
     expect(snapshot.provenance.appliedLayerOrder).toEqual([
       "built_in",
       "user",
@@ -404,7 +415,7 @@ describe("runtimeKernelComposition", () => {
       authority: createRuntimeCompositionAuthority(),
     });
 
-    const snapshot = await composition.getActiveResolutionV2();
+    const snapshot = await composition.publishActiveResolutionV1();
 
     expect(snapshot.pluginEntries).toEqual(
       expect.arrayContaining([
@@ -476,7 +487,7 @@ describe("runtimeKernelComposition", () => {
         },
       },
     });
-    const snapshot = await composition.getActiveResolutionV2();
+    const snapshot = await composition.publishActiveResolutionV1();
 
     expect(snapshot.provenance.activeProfileId).toBe("workspace-default");
     expect(snapshot.pluginEntries).toEqual(
@@ -491,7 +502,7 @@ describe("runtimeKernelComposition", () => {
     );
   });
 
-  it("keeps preview resolution local-only until a publish-backed active read occurs", async () => {
+  it("keeps preview resolution local-only and leaves authority reads unavailable until an explicit publish occurs", async () => {
     const pluginCatalog = createRuntimePluginCatalog();
     const pluginRegistry = createRuntimeKernelPluginRegistryFacade({
       workspaceId: "workspace-1",
@@ -510,12 +521,20 @@ describe("runtimeKernelComposition", () => {
     });
 
     expect(preview.authorityState).toBe("unavailable");
+    expect(preview.freshnessState).toBe("unavailable");
     expect(authority.publishSnapshotV1).not.toHaveBeenCalled();
 
     const snapshot = await composition.getActiveResolutionV2();
 
+    expect(authority.publishSnapshotV1).not.toHaveBeenCalled();
+    expect(snapshot.authorityState).toBe("unavailable");
+    expect(snapshot.freshnessState).toBe("unavailable");
+
+    const published = await composition.publishActiveResolutionV1();
+
     expect(authority.publishSnapshotV1).toHaveBeenCalledTimes(1);
-    expect(snapshot.authorityState).toBe("published");
-    expect(snapshot.authorityRevision).toBe(1);
+    expect(published.authorityState).toBe("published");
+    expect(published.freshnessState).toBe("current");
+    expect(published.authorityRevision).toBe(1);
   });
 });

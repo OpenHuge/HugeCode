@@ -308,6 +308,8 @@ struct AppContext {
 struct RuntimeCompositionAuthorityRecord {
     authority_revision: u64,
     published_at: u64,
+    last_publish_attempt_at: u64,
+    freshness_state: String,
     publisher_session_id: Option<String>,
     profiles: Vec<serde_json::Value>,
     snapshot: serde_json::Value,

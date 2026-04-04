@@ -130,6 +130,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       activeProfileId: snapshot.runtimeCompositionActiveProfileId,
       activeProfile: snapshot.runtimeCompositionActiveProfile,
       resolution: snapshot.runtimeCompositionResolution,
+      snapshot: snapshot.runtimeCompositionSnapshot,
       compositionError: snapshot.runtimeCompositionError,
       registryError: snapshot.runtimePluginRegistryError,
     }),
@@ -140,6 +141,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       snapshot.runtimeCompositionActiveProfileId,
       snapshot.runtimeCompositionActiveProfile,
       snapshot.runtimeCompositionResolution,
+      snapshot.runtimeCompositionSnapshot,
       snapshot.runtimeCompositionError,
       snapshot.runtimePluginRegistryError,
     ]

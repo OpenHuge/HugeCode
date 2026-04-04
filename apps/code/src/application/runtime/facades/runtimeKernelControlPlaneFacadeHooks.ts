@@ -128,6 +128,9 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (!result.installed) {
               throw new Error(result.blockedReason ?? `Failed to install ${action.packageRef}.`);
             }
+            if (compositionRuntime) {
+              await compositionRuntime.publishActiveResolutionV1();
+            }
             await refresh();
             setInfo(`Installed runtime plugin package ${action.packageRef}.`);
             break;
@@ -146,6 +149,9 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
                   `Failed to install ${action.packageRef} with a development trust override.`
               );
             }
+            if (compositionRuntime) {
+              await compositionRuntime.publishActiveResolutionV1();
+            }
             await refresh();
             setInfo(`Installed ${action.packageRef} with a development trust override.`);
             break;
@@ -162,6 +168,9 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (result.blockedReason) {
               throw new Error(result.blockedReason);
             }
+            if (compositionRuntime) {
+              await compositionRuntime.publishActiveResolutionV1();
+            }
             await refresh();
             setInfo(
               result.updated
@@ -177,6 +186,9 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             const result = await pluginRegistry.uninstallPackage(action.pluginId);
             if (!result.removed) {
               throw new Error(result.blockedReason ?? `Failed to uninstall ${action.pluginId}.`);
+            }
+            if (compositionRuntime) {
+              await compositionRuntime.publishActiveResolutionV1();
             }
             await refresh();
             clearPreview();

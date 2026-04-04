@@ -20,6 +20,8 @@ import type {
   RuntimeToolGuardrailStateSnapshot,
 } from "./runtimeLiveSkillsAndTooling.js";
 import type {
+  RuntimeAuthorityFreshnessState,
+  RuntimeAuthorityLiveEvent,
   RuntimeCompositionBackendCandidate,
   RuntimeCompositionAuthorityState,
   RuntimeCompositionBlockedPlugin,
@@ -244,6 +246,8 @@ export type RuntimeRegistryPackageDescriptor = {
 };
 
 export type {
+  RuntimeAuthorityFreshnessState,
+  RuntimeAuthorityLiveEvent,
   RuntimeCompositionBackendCandidate,
   RuntimeCompositionAuthorityState,
   RuntimeCompositionBlockedPlugin,
@@ -496,7 +500,10 @@ export type RuntimeCompositionSnapshotPublishRequest = {
 
 export type RuntimeCompositionSnapshotPublishResponse = {
   authorityState: RuntimeCompositionAuthorityState;
+  freshnessState: RuntimeAuthorityFreshnessState;
   authorityRevision: number;
+  lastAcceptedRevision: number | null;
+  lastPublishAttemptAt: number | null;
   publishedAt: number;
   publisherSessionId: string | null;
 };

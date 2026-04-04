@@ -12,6 +12,7 @@ import type {
 } from "@ku0/code-runtime-host-contract";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
 import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPlugins";
+import { subscribeScopedRuntimeUpdatedEvents } from "../ports/runtimeUpdatedEvents";
 import { mergeRuntimeKernelProjectionPlugins } from "./runtimeKernelPluginProjection";
 import { useWorkspaceRuntimePluginCatalog } from "./runtimeKernelPluginCatalogFacadeHooks";
 import {
@@ -241,6 +242,24 @@ export function useWorkspaceRuntimePluginProjection(input: {
       cancelled = true;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (!input.enabled || !input.workspaceId) {
+      return;
+    }
+    const unsubscribe = subscribeScopedRuntimeUpdatedEvents(
+      {
+        workspaceId: input.workspaceId,
+        scopes: ["plugins"],
+      },
+      () => {
+        void refresh();
+      }
+    );
+    return () => {
+      unsubscribe();
+    };
+  }, [input.enabled, input.workspaceId, refresh]);
 
   const activeProfileId = compositionResolution?.provenance.activeProfileId ?? null;
   const activeProfile =

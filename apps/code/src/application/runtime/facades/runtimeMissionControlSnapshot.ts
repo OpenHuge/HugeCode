@@ -622,6 +622,7 @@ export function useRuntimeMissionControlSnapshot(input: {
     runtimeCompositionActiveProfileId: runtimePluginsState.composition.activeProfileId,
     runtimeCompositionActiveProfile: runtimePluginsState.composition.activeProfile,
     runtimeCompositionResolution: runtimePluginsState.composition.resolution,
+    runtimeCompositionSnapshot: runtimePluginsState.composition.snapshot,
     runtimeCompositionError: runtimePluginsState.composition.error,
     runtimeLoading:
       runtimeAuxLoading ||

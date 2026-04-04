@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import type {
   RuntimeCompositionProfile,
+  RuntimeCompositionResolveV2Response,
   RuntimeCompositionResolution,
 } from "@ku0/code-runtime-host-contract";
 import { buildRuntimeControlPlaneOperatorModel } from "@ku0/code-application/runtimeControlPlaneOperatorModel";
@@ -20,6 +21,7 @@ type WorkspaceHomeAgentRuntimePluginControlPlaneProps = {
     activeProfileId: string | null;
     activeProfile: RuntimeCompositionProfile | null;
     resolution: RuntimeCompositionResolution | null;
+    snapshot: RuntimeCompositionResolveV2Response | null;
     compositionError: string | null;
     registryError: string | null;
   };
@@ -53,11 +55,26 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
       pluginControlPlaneSurface.pluginsError ??
       pluginControlPlaneSurface.compositionError ??
       pluginControlPlaneSurface.registryError;
+    const authoritySnapshot = pluginControlPlaneSurface.snapshot;
+    const authorityAttention =
+      authoritySnapshot?.authorityState !== "published" ||
+      authoritySnapshot?.freshnessState === "stale" ||
+      authoritySnapshot?.freshnessState === "pending_publish";
     const pluginControlPlaneStatus = pluginControlPlaneError
       ? {
           label: "Attention",
           tone: "warning" as const,
         }
+      : authorityAttention
+        ? {
+            label:
+              authoritySnapshot?.freshnessState === "stale"
+                ? "Authority stale"
+                : authoritySnapshot?.authorityState === "published"
+                  ? "Publishing"
+                  : "Authority unavailable",
+            tone: "warning" as const,
+          }
       : pluginControlPlane.counts.needsAction > 0
         ? {
             label: "Needs action",
@@ -111,6 +128,23 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
         ) : null}
         {pluginControlPlaneError ? (
           <div className={controlStyles.warning}>{pluginControlPlaneError}</div>
+        ) : null}
+        {authoritySnapshot?.authorityState !== "published" ? (
+          <div className={controlStyles.warning}>
+            Runtime composition authority is unavailable. This workspace has not published an
+            authoritative composition snapshot yet.
+          </div>
+        ) : null}
+        {authoritySnapshot?.freshnessState === "stale" ? (
+          <div className={controlStyles.warning}>
+            Runtime composition authority is stale. The latest publish attempt was rejected and the
+            UI is showing the last accepted snapshot.
+          </div>
+        ) : null}
+        {authoritySnapshot?.freshnessState === "pending_publish" ? (
+          <div className={controlStyles.sectionMeta}>
+            Runtime composition changes are pending authority acknowledgement.
+          </div>
         ) : null}
         <div
           className="workspace-home-code-runtime-item"
@@ -235,6 +269,12 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
                 Backend candidates:{" "}
                 {runtimePluginControlPlane.previewResolution.selectedBackendCandidates.length}
               </span>
+              {runtimePluginControlPlane.previewSnapshot ? (
+                <span>
+                  Authority: {runtimePluginControlPlane.previewSnapshot.authorityState} /{" "}
+                  {runtimePluginControlPlane.previewSnapshot.freshnessState}
+                </span>
+              ) : null}
             </div>
             <div className="workspace-home-code-runtime-item-actions">
               <button type="button" onClick={() => runtimePluginControlPlane.clearPreview()}>

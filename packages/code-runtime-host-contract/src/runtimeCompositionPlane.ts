@@ -114,6 +114,30 @@ export type RuntimeHostPublicationState = "hidden" | "declaration_only" | "publi
 
 export type RuntimeCompositionAuthorityState = "published" | "stale" | "unavailable";
 
+export type RuntimeAuthorityFreshnessState =
+  | "current"
+  | "pending_publish"
+  | "stale"
+  | "unavailable";
+
+export type RuntimeAuthorityLiveEventKind =
+  | "composition_published"
+  | "composition_stale"
+  | "run_summary_changed"
+  | "review_summary_changed";
+
+export type RuntimeAuthorityLiveEvent = {
+  workspaceId: string;
+  kind: RuntimeAuthorityLiveEventKind;
+  authorityState: RuntimeCompositionAuthorityState;
+  freshnessState: RuntimeAuthorityFreshnessState;
+  authorityRevision: number | null;
+  lastAcceptedRevision: number | null;
+  lastPublishAttemptAt: number | null;
+  publishedAt: number | null;
+  publisherSessionId: string | null;
+};
+
 export type RuntimeHostBindingDiagnostic = {
   code: string;
   severity: "info" | "warning" | "error";
@@ -171,7 +195,10 @@ export type RuntimeCompositionProfileSummaryV2 = {
 export type RuntimeCompositionResolveV2Response = {
   activeProfile: import("./runtimeCompositionProfiles.js").RuntimeCompositionProfile | null;
   authorityState: RuntimeCompositionAuthorityState;
+  freshnessState: RuntimeAuthorityFreshnessState;
   authorityRevision: number | null;
+  lastAcceptedRevision: number | null;
+  lastPublishAttemptAt: number | null;
   publishedAt: number | null;
   publisherSessionId: string | null;
   provenance: RuntimeCompositionResolutionProvenance;

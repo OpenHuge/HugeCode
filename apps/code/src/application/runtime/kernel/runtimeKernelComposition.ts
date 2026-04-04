@@ -1,5 +1,6 @@
 import {
   RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER,
+  type RuntimeAuthorityFreshnessState,
   type RuntimeCompositionBackendCandidate,
   type RuntimeCompositionAuthorityState,
   type RuntimeCompositionBlockedPlugin,
@@ -54,7 +55,10 @@ export type RuntimeKernelPluginCompositionMetadata = {
   activeProfileId: string | null;
   activeProfileName: string | null;
   authorityState?: RuntimeCompositionAuthorityState;
+  freshnessState?: RuntimeAuthorityFreshnessState;
   authorityRevision?: number | null;
+  lastAcceptedRevision?: number | null;
+  lastPublishAttemptAt?: number | null;
   selectedInActiveProfile: boolean;
   blockedInActiveProfile: boolean;
   blockedReason: string | null;
@@ -107,6 +111,7 @@ export type RuntimeKernelCompositionFacade = {
   ) => Promise<RuntimeCompositionResolveV2Response>;
   getActiveResolution: () => Promise<RuntimeCompositionResolution>;
   getActiveResolutionV2: () => Promise<RuntimeCompositionResolveV2Response>;
+  publishActiveResolutionV1: () => Promise<RuntimeCompositionResolveV2Response>;
 };
 
 function createRuntimeCompositionProfileSummary(input: {
@@ -391,7 +396,10 @@ function createCompositionMetadata(input: {
     activeProfileId: input.resolution.provenance.activeProfileId,
     activeProfileName: input.resolution.provenance.activeProfileName ?? null,
     authorityState: input.snapshot?.authorityState,
+    freshnessState: input.snapshot?.freshnessState,
     authorityRevision: input.snapshot?.authorityRevision ?? null,
+    lastAcceptedRevision: input.snapshot?.lastAcceptedRevision ?? null,
+    lastPublishAttemptAt: input.snapshot?.lastPublishAttemptAt ?? null,
     selectedInActiveProfile: selected,
     blockedInActiveProfile: blocked !== null,
     blockedReason: blocked?.reason ?? null,
@@ -647,7 +655,10 @@ export function createRuntimeKernelCompositionFacade(input: {
     const snapshot: RuntimeCompositionResolveV2Response = {
       activeProfile: cloneRuntimeCompositionProfile(effectiveProfile),
       authorityState: "unavailable",
+      freshnessState: "unavailable",
       authorityRevision: null,
+      lastAcceptedRevision: null,
+      lastPublishAttemptAt: null,
       publishedAt: null,
       publisherSessionId: null,
       provenance: resolution.provenance,
@@ -732,30 +743,26 @@ export function createRuntimeKernelCompositionFacade(input: {
     });
   }
 
-  async function ensurePublishedActiveComposition() {
-    const resolvedState = await resolveCompositionState();
-    await publishResolvedCompositionState({
-      profiles: resolvedState.profiles,
-      snapshot: resolvedState.snapshot,
-    });
-    return resolvedState;
+  async function publishAndReadResolvedCompositionState(inputState?: {
+    profiles: RuntimeCompositionProfile[];
+    snapshot: RuntimeCompositionResolveV2Response;
+  }) {
+    await publishResolvedCompositionState(inputState);
+    return readResolvedCompositionFromAuthority();
   }
 
   return {
     listProfiles: async () =>
       [...profiles.values()].map((profile) => cloneRuntimeCompositionProfile(profile)),
-    listProfilesV2: async () => {
-      await ensurePublishedActiveComposition();
-      return input.authority.listProfilesV2({
+    listProfilesV2: async () =>
+      input.authority.listProfilesV2({
         workspaceId: input.workspaceId,
-      });
-    },
+      }),
     getProfile: async (profileId) => {
       const profile = profiles.get(profileId);
       return profile ? cloneRuntimeCompositionProfile(profile) : null;
     },
     getProfileV2: async (profileId) => {
-      await ensurePublishedActiveComposition();
       const profile = await input.authority.getProfileV2({
         workspaceId: input.workspaceId,
         profileId,
@@ -796,17 +803,14 @@ export function createRuntimeKernelCompositionFacade(input: {
       );
       activeProfileId = applyInput.profileId;
       const resolvedState = await resolveCompositionState();
-      await publishResolvedCompositionState({
+      return publishAndReadResolvedCompositionState({
         profiles: resolvedState.profiles,
         snapshot: resolvedState.snapshot,
       });
-      return readResolvedCompositionFromAuthority();
     },
     getActiveResolution: async () => (await resolveCompositionState()).resolution,
-    getActiveResolutionV2: async () => {
-      await ensurePublishedActiveComposition();
-      return readResolvedCompositionFromAuthority();
-    },
+    getActiveResolutionV2: async () => readResolvedCompositionFromAuthority(),
+    publishActiveResolutionV1: async () => publishAndReadResolvedCompositionState(),
   };
 }
 

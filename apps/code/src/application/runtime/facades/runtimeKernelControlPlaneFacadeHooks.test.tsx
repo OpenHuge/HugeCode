@@ -71,6 +71,13 @@ function createRuntimeKernelValue() {
       },
       configLayers: [],
     },
+    authorityState: "published",
+    freshnessState: "current",
+    authorityRevision: 1,
+    lastAcceptedRevision: 1,
+    lastPublishAttemptAt: 1,
+    publishedAt: 1,
+    publisherSessionId: "session-1",
     provenance: {
       activeProfileId: "workspace-default",
       activeProfileName: "Workspace Default",
@@ -124,6 +131,34 @@ function createRuntimeKernelValue() {
       },
       configLayers: [],
     },
+    authorityState: "published",
+    freshnessState: "current",
+    authorityRevision: 2,
+    lastAcceptedRevision: 2,
+    lastPublishAttemptAt: 2,
+    publishedAt: 2,
+    publisherSessionId: "session-1",
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+    pluginEntries: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+  }));
+  const publishActiveResolutionV1 = vi.fn(async () => ({
+    activeProfile: null,
+    authorityState: "published",
+    freshnessState: "current",
+    authorityRevision: 3,
+    lastAcceptedRevision: 3,
+    lastPublishAttemptAt: 3,
+    publishedAt: 3,
+    publisherSessionId: "session-1",
     provenance: {
       activeProfileId: "workspace-default",
       activeProfileName: "Workspace Default",
@@ -154,6 +189,7 @@ function createRuntimeKernelValue() {
           previewResolutionV2,
           applyProfile,
           applyProfileV2,
+          publishActiveResolutionV1,
         };
       }
       throw new Error(`Unsupported capability: ${key}`);
@@ -180,6 +216,7 @@ function createRuntimeKernelValue() {
     previewResolutionV2,
     applyProfile,
     applyProfileV2,
+    publishActiveResolutionV1,
   };
 }
 
@@ -262,6 +299,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
     expect(kernelValue.installPackage).toHaveBeenCalledWith({
       packageRef: "hugecode.mcp.search@1.0.0",
     });
+    expect(kernelValue.publishActiveResolutionV1).toHaveBeenCalledTimes(1);
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(result.current.info).toContain("Installed runtime plugin package");
 
@@ -408,6 +446,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
     });
     expect(kernelValue.updatePackage).toHaveBeenCalledWith("hugecode.mcp.search@1.0.0");
     expect(kernelValue.uninstallPackage).toHaveBeenCalledWith("pkg.search.remote");
+    expect(kernelValue.publishActiveResolutionV1).toHaveBeenCalledTimes(3);
     expect(refresh).toHaveBeenCalledTimes(3);
     expect(result.current.previewProfileId).toBeNull();
     expect(result.current.previewResolution).toBeNull();
