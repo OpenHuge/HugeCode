@@ -78,6 +78,10 @@ export {
   normalizeRuntimeInvocationCatalogSnapshot,
   resolveRuntimeInvocationDescriptor,
 } from "./runtimeInvocationCatalog";
+export * from "./runtime-control-plane/missionControlSurfaceModel";
+export * from "./runtime-control-plane/reviewPackSurfaceModel";
+export * from "./runtime-control-plane/runtimeMissionNavigationTarget";
+export * from "./runtime-control-plane/runtimeMissionNavigationTypes";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,

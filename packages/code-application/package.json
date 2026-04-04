@@ -57,6 +57,22 @@
       "types": "./src/runtimeMissionControlReviewPackProjection.ts",
       "default": "./src/runtimeMissionControlReviewPackProjection.ts"
     },
+    "./runtimeMissionControlSurfaceModel": {
+      "types": "./src/runtime-control-plane/missionControlSurfaceModel.ts",
+      "default": "./src/runtime-control-plane/missionControlSurfaceModel.ts"
+    },
+    "./runtimeReviewPackSurfaceModel": {
+      "types": "./src/runtime-control-plane/reviewPackSurfaceModel.ts",
+      "default": "./src/runtime-control-plane/reviewPackSurfaceModel.ts"
+    },
+    "./runtimeMissionNavigationTarget": {
+      "types": "./src/runtime-control-plane/runtimeMissionNavigationTarget.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionNavigationTarget.ts"
+    },
+    "./runtimeMissionNavigationTypes": {
+      "types": "./src/runtime-control-plane/runtimeMissionNavigationTypes.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionNavigationTypes.ts"
+    },
     "./runtimeLiveSkillAliases": {
       "types": "./src/runtimeLiveSkillAliases.ts",
       "default": "./src/runtimeLiveSkillAliases.ts"

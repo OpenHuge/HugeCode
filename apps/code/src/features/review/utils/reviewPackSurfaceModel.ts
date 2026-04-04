@@ -1,6 +1,6 @@
-export type * from "../../../application/runtime/facades/runtimeReviewPackSurfaceFacade";
+export type * from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 export {
   buildReviewPackDetailModel,
   buildReviewPackListItems,
   resolveReviewPackSelection,
-} from "../../../application/runtime/facades/runtimeReviewPackSurfaceFacade";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
