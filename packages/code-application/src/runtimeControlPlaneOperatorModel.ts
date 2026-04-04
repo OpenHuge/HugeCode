@@ -1,10 +1,6 @@
 import type {
-  RuntimeCompositionAuthorityState,
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
-  RuntimeHostBindingDiagnostic,
-  RuntimeHostBindingState,
-  RuntimeHostPublicationState,
   RuntimePluginCompatibility,
   RuntimePluginPackageTransport,
   RuntimePluginTrustDecision,
@@ -14,6 +10,16 @@ import type {
 
 const RUNTIME_CONTROL_PLANE_PLUGIN_REGISTRY_METADATA_KEY = "pluginRegistry";
 const RUNTIME_CONTROL_PLANE_PLUGIN_COMPOSITION_METADATA_KEY = "composition";
+
+type RuntimeControlPlaneCompositionAuthorityState = "published" | "stale" | "unavailable";
+type RuntimeControlPlaneBindingState = "unbound" | "binding" | "bound" | "degraded" | "blocked";
+type RuntimeControlPlanePublicationState = "hidden" | "declaration_only" | "published" | "blocked";
+type RuntimeControlPlaneBindingDiagnostic = {
+  code: string;
+  severity: "info" | "warning" | "error";
+  summary: string;
+  detail?: string | null;
+};
 
 export type RuntimeControlPlanePluginRegistryMetadata = {
   packageRef: string;
@@ -29,7 +35,7 @@ export type RuntimeControlPlanePluginRegistryMetadata = {
 export type RuntimeControlPlanePluginCompositionMetadata = {
   activeProfileId: string | null;
   activeProfileName: string | null;
-  authorityState?: RuntimeCompositionAuthorityState;
+  authorityState?: RuntimeControlPlaneCompositionAuthorityState;
   authorityRevision?: number | null;
   selectedInActiveProfile: boolean;
   blockedInActiveProfile: boolean;
@@ -37,11 +43,11 @@ export type RuntimeControlPlanePluginCompositionMetadata = {
   selectedRouteCandidate: boolean;
   selectedBackendCandidateIds: string[];
   layerOrder: RuntimeCompositionResolution["provenance"]["appliedLayerOrder"];
-  bindingState?: RuntimeHostBindingState;
-  publicationState?: RuntimeHostPublicationState;
+  bindingState?: RuntimeControlPlaneBindingState;
+  publicationState?: RuntimeControlPlanePublicationState;
   trustStatus?: RuntimePluginTrustDecisionStatus;
   compatibilityStatus?: RuntimePluginCompatibility["status"];
-  bindingDiagnostics?: RuntimeHostBindingDiagnostic[];
+  bindingDiagnostics?: RuntimeControlPlaneBindingDiagnostic[];
 };
 
 export type RuntimeControlPlanePluginDescriptor = {
