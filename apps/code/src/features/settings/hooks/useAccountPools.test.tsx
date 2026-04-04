@@ -223,6 +223,18 @@ describe("useAccountPools", () => {
       });
     });
 
+    expect(listOAuthAccounts).toHaveBeenCalledTimes(2);
+    expect(listOAuthPools).toHaveBeenCalledTimes(2);
+    expect(subscribeAppServerEvents).not.toHaveBeenCalled();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("ignores legacy account login completed events", async () => {
+    const { root } = await mount();
+
     expect(listOAuthAccounts).toHaveBeenCalledTimes(1);
     expect(listOAuthPools).toHaveBeenCalledTimes(1);
     expect(subscribeAppServerEvents).not.toHaveBeenCalled();
