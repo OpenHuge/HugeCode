@@ -21,11 +21,19 @@ import type {
 } from "./runtimeLiveSkillsAndTooling.js";
 import type {
   RuntimeCompositionBackendCandidate,
+  RuntimeCompositionAuthorityState,
   RuntimeCompositionBlockedPlugin,
+  RuntimeCompositionPluginEntryV2,
   RuntimeCompositionPluginSelection,
+  RuntimeCompositionProfileSummaryV2,
   RuntimeCompositionResolution,
   RuntimeCompositionResolutionProvenance,
+  RuntimeCompositionResolveV2Response,
   RuntimeCompositionRouteCandidate,
+  RuntimeHostBindingDescriptor,
+  RuntimeHostBindingDiagnostic,
+  RuntimeHostBindingState,
+  RuntimeHostPublicationState,
 } from "../runtimeCompositionPlane.js";
 import type {
   RuntimeCompositionBackendPolicy,
@@ -33,6 +41,7 @@ import type {
   RuntimeCompositionObservabilityPolicy,
   RuntimeCompositionPluginSelector,
   RuntimeCompositionProfile,
+  RuntimeCompositionProfileLaunchOverride,
   RuntimeCompositionProfileScope,
   RuntimeCompositionRoutePolicy,
   RuntimeCompositionTrustPolicy,
@@ -236,11 +245,19 @@ export type RuntimeRegistryPackageDescriptor = {
 
 export type {
   RuntimeCompositionBackendCandidate,
+  RuntimeCompositionAuthorityState,
   RuntimeCompositionBlockedPlugin,
+  RuntimeCompositionPluginEntryV2,
   RuntimeCompositionPluginSelection,
+  RuntimeCompositionProfileSummaryV2,
   RuntimeCompositionResolution,
   RuntimeCompositionResolutionProvenance,
+  RuntimeCompositionResolveV2Response,
   RuntimeCompositionRouteCandidate,
+  RuntimeHostBindingDescriptor,
+  RuntimeHostBindingDiagnostic,
+  RuntimeHostBindingState,
+  RuntimeHostPublicationState,
 } from "../runtimeCompositionPlane.js";
 export type {
   RuntimeCompositionBackendPolicy,
@@ -249,6 +266,7 @@ export type {
   RuntimeCompositionPluginSelectorAction,
   RuntimeCompositionPluginSelector,
   RuntimeCompositionProfile,
+  RuntimeCompositionProfileLaunchOverride,
   RuntimeCompositionProfileScope,
   RuntimeCompositionRoutePolicy,
   RuntimeCompositionTrustPolicy,
@@ -450,6 +468,37 @@ export type KernelContextSnapshotRequest = KernelContextScope;
 
 export type KernelExtensionsListRequest = {
   workspaceId?: string | null;
+};
+
+export type RuntimeCompositionProfileListV2Request = {
+  workspaceId: string;
+};
+
+export type RuntimeCompositionProfileGetV2Request = {
+  workspaceId: string;
+  profileId: string;
+};
+
+export type RuntimeCompositionProfileResolveV2Request = {
+  workspaceId: string;
+  profileId?: string | null;
+  launchOverride?: RuntimeCompositionProfileLaunchOverride | null;
+};
+
+export type RuntimeCompositionSnapshotPublishRequest = {
+  workspaceId: string;
+  profiles: RuntimeCompositionProfile[];
+  snapshot: RuntimeCompositionResolveV2Response;
+  authorityRevision: number;
+  publishedAt?: number | null;
+  publisherSessionId?: string | null;
+};
+
+export type RuntimeCompositionSnapshotPublishResponse = {
+  authorityState: RuntimeCompositionAuthorityState;
+  authorityRevision: number;
+  publishedAt: number;
+  publisherSessionId: string | null;
 };
 
 export type RuntimeExtensionCatalogListRequest = {

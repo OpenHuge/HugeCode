@@ -49,6 +49,13 @@ export type RuntimeCompositionObservabilityPolicy = {
   emitOtelAlignedTelemetry: boolean;
 };
 
+type RuntimeCompositionProfileNestedPolicyOverrides = {
+  routePolicy?: Partial<RuntimeCompositionProfile["routePolicy"]>;
+  backendPolicy?: Partial<RuntimeCompositionProfile["backendPolicy"]>;
+  trustPolicy?: Partial<RuntimeCompositionProfile["trustPolicy"]>;
+  observabilityPolicy?: Partial<RuntimeCompositionProfile["observabilityPolicy"]>;
+};
+
 export type RuntimeCompositionExecutionPolicy = {
   refs: string[];
 };
@@ -72,3 +79,9 @@ export type RuntimeCompositionProfile = {
   observabilityPolicy: RuntimeCompositionObservabilityPolicy;
   configLayers: RuntimeCompositionConfigLayer[];
 };
+
+export type RuntimeCompositionProfileLaunchOverride =
+  RuntimeCompositionProfileNestedPolicyOverrides &
+    Partial<
+      Pick<RuntimeCompositionProfile, "pluginSelectors" | "executionPolicyRefs" | "configLayers">
+    >;

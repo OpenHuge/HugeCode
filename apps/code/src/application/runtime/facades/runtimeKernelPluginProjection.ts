@@ -1,6 +1,7 @@
 import type {
   KernelCapabilityDescriptor,
   KernelExtensionBundle,
+  RuntimeCompositionResolveV2Response,
   RuntimeCompositionResolution,
   RuntimeRegistryPackageDescriptor,
 } from "@ku0/code-runtime-host-contract";
@@ -94,6 +95,7 @@ export function mergeRuntimeKernelProjectionPlugins(input: {
   capabilityPlugins: RuntimeKernelPluginDescriptor[];
   registryPackages?: RuntimeRegistryPackageDescriptor[] | null;
   compositionResolution?: RuntimeCompositionResolution | null;
+  compositionSnapshot?: RuntimeCompositionResolveV2Response | null;
 }): RuntimeKernelPluginDescriptor[] {
   const merged = new Map<string, RuntimeKernelPluginDescriptor>();
 
@@ -184,7 +186,8 @@ export function mergeRuntimeKernelProjectionPlugins(input: {
         ? {
             composition: createRuntimeKernelPluginCompositionMetadata(
               plugin.id,
-              compositionResolution
+              compositionResolution,
+              input.compositionSnapshot ?? null
             ),
           }
         : {}),

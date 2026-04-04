@@ -6,6 +6,10 @@ import type {
   RuntimeTaskSourceRequester,
   RuntimeTaskSourceTriggerMode,
 } from "./runtimeTaskSourceShared.js";
+import type {
+  RuntimeExecutionEvidenceSummary,
+  RuntimeExecutionLifecycleSummary,
+} from "./runtimeExecutionSummaries.js";
 
 export const HUGECODE_RUN_STATES = [
   "draft",
@@ -1126,6 +1130,8 @@ export type HugeCodeRun = {
   sourceCitations?: HugeCodeSourceCitation[] | null;
   queuePosition?: number | null;
   nextEligibleAction?: HugeCodeNextEligibleAction | null;
+  lifecycleSummary?: RuntimeExecutionLifecycleSummary | null;
+  evidenceSummary?: RuntimeExecutionEvidenceSummary | null;
 };
 
 export type HugeCodeExecutionProfile = {
@@ -1276,6 +1282,8 @@ export type HugeCodeReviewPack = {
   sourceCitations?: HugeCodeSourceCitation[] | null;
   queuePosition?: number | null;
   nextEligibleAction?: HugeCodeNextEligibleAction | null;
+  lifecycleSummary?: RuntimeExecutionLifecycleSummary | null;
+  evidenceSummary?: RuntimeExecutionEvidenceSummary | null;
 };
 
 export type HugeCodeTaskSummary = Pick<
@@ -1360,6 +1368,8 @@ export type HugeCodeRunSummary = Pick<
   | "sourceCitations"
   | "queuePosition"
   | "nextEligibleAction"
+  | "lifecycleSummary"
+  | "evidenceSummary"
 >;
 
 export type HugeCodeReviewPackSummary = Pick<
@@ -1416,6 +1426,8 @@ export type HugeCodeReviewPackSummary = Pick<
   | "sourceCitations"
   | "queuePosition"
   | "nextEligibleAction"
+  | "lifecycleSummary"
+  | "evidenceSummary"
 >;
 
 export type HugeCodeMissionControlSnapshot = {
@@ -1425,6 +1437,8 @@ export type HugeCodeMissionControlSnapshot = {
   tasks: HugeCodeTaskSummary[];
   runs: HugeCodeRunSummary[];
   reviewPacks: HugeCodeReviewPackSummary[];
+  lifecycleSummary?: RuntimeExecutionLifecycleSummary | null;
+  evidenceSummary?: RuntimeExecutionEvidenceSummary | null;
 };
 
 export type HugeCodeMissionControlReadinessTone = "ready" | "attention" | "blocked" | "idle";

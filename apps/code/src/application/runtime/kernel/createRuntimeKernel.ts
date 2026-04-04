@@ -1,3 +1,21 @@
+import { createDesktopHostAdapter } from "../adapters/DesktopHostAdapter";
+import { createRuntimeGateway } from "../facades/RuntimeGateway";
+import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
+import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
+import { discoverLocalRuntimeGatewayTargets } from "../facades/discoverLocalRuntimeGatewayTargets";
+import { configureManualWebRuntimeGatewayTarget } from "../ports/runtimeWebGatewayConfig";
+import { getMissionControlSnapshot } from "../ports/missionControl";
+import { detectRuntimeMode, readRuntimeCapabilitiesSummary } from "../ports/runtimeClient";
+import {
+  getRuntimeCompositionProfileV2,
+  listRuntimeCompositionProfilesV2,
+  publishRuntimeCompositionSnapshotV1,
+  resolveRuntimeCompositionV2,
+} from "../ports/runtimeComposition";
+import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
+import { createRuntimeAgentControlDependencies } from "./createRuntimeAgentControlDependencies";
+import { createWorkspaceClientRuntimeBindings } from "./createWorkspaceClientRuntimeBindings";
+import type { RuntimeKernel } from "./runtimeKernelTypes";
 import { createRuntimeExecutableSkillFacade } from "@ku0/code-application/runtimeExecutableSkillFacade";
 import { createRuntimeInvocationCatalogFacade as createActivationRuntimeInvocationCatalogFacade } from "@ku0/code-application/runtimeInvocationCatalogFacade";
 import type {
@@ -10,22 +28,11 @@ import {
   bootstrapRuntimeKernelProjection,
   subscribeRuntimeKernelProjection,
 } from "../../../services/runtimeKernelProjectionTransport";
-import { createDesktopHostAdapter } from "../adapters/DesktopHostAdapter";
-import { discoverLocalRuntimeGatewayTargets } from "../facades/discoverLocalRuntimeGatewayTargets";
-import { createRuntimeAgentControlFacade } from "../facades/runtimeAgentControlFacade";
-import { createRuntimeGateway } from "../facades/RuntimeGateway";
-import { createRuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
-import { getMissionControlSnapshot } from "../ports/missionControl";
-import { detectRuntimeMode, readRuntimeCapabilitiesSummary } from "../ports/runtimeClient";
 import { invokeRuntimeExtensionTool, listRuntimeExtensionTools } from "../ports/runtimeExtensions";
 import { startRuntimeRunV2 } from "../ports/runtimeJobs";
 import { listRuntimePrompts } from "../ports/runtimePrompts";
 import { runRuntimeLiveSkill } from "../ports/runtime";
 import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
-import { configureManualWebRuntimeGatewayTarget } from "../ports/runtimeWebGatewayConfig";
-import { createRuntimeAgentControlDependencies } from "./createRuntimeAgentControlDependencies";
-import { createWorkspaceClientRuntimeBindings } from "./createWorkspaceClientRuntimeBindings";
-import { createWorkspaceRuntimeScope } from "./createWorkspaceRuntimeScope";
 import { createRuntimeExtensionActivationService } from "./runtimeExtensionActivation";
 import { createRuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalog";
 import { createRuntimeInvocationExecuteFacade } from "./runtimeInvocationExecute";
@@ -39,7 +46,6 @@ import {
   createRuntimeKernelPluginCatalogFacade,
   createRuntimeKernelPluginExecutionProvider,
 } from "./runtimeKernelPlugins";
-import type { RuntimeKernel } from "./runtimeKernelTypes";
 import { readRuntimeWorkspaceSkillManifests } from "./runtimeWorkspaceSkillManifests";
 
 function mapWorkspaceClientRuntimeMode(
@@ -98,6 +104,12 @@ export function createRuntimeKernel(): RuntimeKernel {
         workspaceId,
         pluginCatalog,
         pluginRegistry,
+        authority: {
+          listProfilesV2: listRuntimeCompositionProfilesV2,
+          getProfileV2: getRuntimeCompositionProfileV2,
+          resolveV2: resolveRuntimeCompositionV2,
+          publishSnapshotV1: publishRuntimeCompositionSnapshotV1,
+        },
       });
       const extensionActivation = createRuntimeExtensionActivationService({
         workspaceId,

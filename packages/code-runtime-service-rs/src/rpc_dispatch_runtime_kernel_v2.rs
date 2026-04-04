@@ -1,7 +1,7 @@
-use super::mission_control_dispatch::{
-    build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id,
-};
+use super::mission_control_dispatch::{build_mission_run_projection_by_run_id, build_review_pack_projection_by_run_id};
 use super::runtime_kernel_v2_plan::{build_prepare_plan, build_validation_lanes};
+#[path = "rpc_dispatch_runtime_kernel_v2_execution_summary.rs"]
+mod execution_summary;
 #[path = "rpc_dispatch_runtime_kernel_v2_run_id.rs"]
 mod run_id;
 use super::*;
@@ -16,6 +16,7 @@ use crate::agent_task_launch_synthesis::{
 };
 use crate::repository_execution_contract::RepositoryExecutionResolvedDefaults;
 use crate::runtime_helpers::normalize_agent_task_source_summary;
+use execution_summary::{inject_runtime_execution_summaries, serialize_review_pack_with_runtime_summaries};
 use run_id::parse_run_id;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -1321,13 +1322,9 @@ async fn build_run_record_v2(ctx: &AppContext, run_id: &str) -> Result<Value, Rp
         .await
         .ok_or_else(|| RpcError::invalid_params(format!("Run `{run_id}` was not found.")))?;
     let review_pack = build_review_pack_projection_by_run_id(ctx, run_id).await;
-    let mission_run_value = serde_json::to_value(&mission_run)
-        .map_err(|error| RpcError::internal(format!("failed to serialize mission run: {error}")))?;
-    let review_pack_value = review_pack
-        .as_ref()
-        .map(serde_json::to_value)
-        .transpose()
-        .map_err(|error| RpcError::internal(format!("failed to serialize review pack: {error}")))?;
+    let mut mission_run_value = serde_json::to_value(&mission_run).map_err(|error| RpcError::internal(format!("failed to serialize mission run: {error}")))?;
+    let mut review_pack_value = review_pack.as_ref().map(serde_json::to_value).transpose().map_err(|error| RpcError::internal(format!("failed to serialize review pack: {error}")))?;
+    inject_runtime_execution_summaries(&mut mission_run_value, &mission_run, &mut review_pack_value, review_pack.as_ref());
     let selected_opportunity_id = mission_run_value
         .get("selectedOpportunityId")
         .and_then(Value::as_str)
@@ -1373,14 +1370,8 @@ async fn build_run_record_v2(ctx: &AppContext, run_id: &str) -> Result<Value, Rp
                 .cloned()
         })
         .unwrap_or_default();
-    let wake_state = mission_run_value
-        .get("wakeState")
-        .and_then(Value::as_str)
-        .unwrap_or("attention");
-    let next_eligible_action = mission_run_value
-        .get("nextEligibleAction")
-        .and_then(Value::as_str)
-        .unwrap_or("hold");
+    let wake_state = mission_run_value.get("wakeState").and_then(Value::as_str).unwrap_or("attention");
+    let next_eligible_action = mission_run_value.get("nextEligibleAction").and_then(Value::as_str).unwrap_or("hold");
     Ok(json!({
         "run": run,
         "missionRun": mission_run_value,
@@ -1483,9 +1474,11 @@ pub(crate) async fn handle_runtime_review_get_v2(
     params: &Value,
 ) -> Result<Value, RpcError> {
     let run_id = parse_run_id(params)?;
-    Ok(json!(
-        build_review_pack_projection_by_run_id(ctx, run_id.as_str()).await
-    ))
+    let mission_run = build_mission_run_projection_by_run_id(ctx, run_id.as_str()).await;
+    let Some(review_pack) = build_review_pack_projection_by_run_id(ctx, run_id.as_str()).await else {
+        return Ok(Value::Null);
+    };
+    serialize_review_pack_with_runtime_summaries(&review_pack, mission_run.as_ref())
 }
 
 pub(crate) async fn handle_runtime_run_resume_v2(

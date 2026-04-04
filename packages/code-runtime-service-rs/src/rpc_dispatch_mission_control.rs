@@ -4,6 +4,8 @@ use crate::sub_agents::profiles::SubAgentCheckpointState;
 use std::collections::{HashMap, HashSet};
 #[path = "rpc_dispatch_mission_control_builders.rs"]
 mod builders;
+#[path = "rpc_dispatch_mission_control_execution_summary.rs"]
+mod execution_summary;
 #[path = "rpc_dispatch_mission_control_execution_profile.rs"]
 mod execution_profile;
 #[path = "rpc_dispatch_mission_control_projection.rs"]
@@ -32,6 +34,14 @@ use support::{
 };
 pub(crate) use execution_profile::build_task_execution_profile;
 use execution_profile::build_execution_profile;
+pub(crate) use execution_summary::{
+    build_runtime_execution_evidence_summary_for_review_pack,
+    build_runtime_execution_evidence_summary_for_run,
+    build_runtime_execution_evidence_summary_for_snapshot,
+    build_runtime_execution_lifecycle_summary_for_review_pack,
+    build_runtime_execution_lifecycle_summary_for_run,
+    build_runtime_execution_lifecycle_summary_for_snapshot,
+};
 pub(crate) use support::{
     build_runtime_mission_linkage_summary, build_runtime_review_actionability_summary,
     build_runtime_continuation_summary, build_runtime_next_operator_action,
@@ -42,6 +52,9 @@ pub(crate) use support::{
 #[cfg(test)]
 #[path = "rpc_dispatch_mission_control_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "rpc_dispatch_mission_control_execution_summary_tests.rs"]
+mod execution_summary_tests;
 #[cfg(test)]
 #[path = "rpc_dispatch_mission_control_runtime_truth_tests.rs"]
 mod runtime_truth_tests;
@@ -900,16 +913,65 @@ pub(crate) async fn handle_mission_control_snapshot_v1(
     }
     let generated_at = now_ms();
     let projection = build_mission_control_projection_state(ctx, generated_at).await;
+    let lifecycle_summary =
+        build_runtime_execution_lifecycle_summary_for_snapshot(&projection.runs, &projection.review_packs);
+    let evidence_summary =
+        build_runtime_execution_evidence_summary_for_snapshot(&projection.runs, &projection.review_packs);
     let snapshot = MissionControlSnapshotProjection {
         source: "runtime_snapshot_v1".to_string(),
         generated_at: projection.generated_at,
-        workspaces: projection.workspaces,
+        workspaces: projection.workspaces.clone(),
         tasks: projection.tasks,
-        runs: projection.runs,
-        review_packs: projection.review_packs,
+        runs: projection.runs.clone(),
+        review_packs: projection.review_packs.clone(),
     };
-    let snapshot = serde_json::to_value(snapshot)
+    let mut snapshot = serde_json::to_value(snapshot)
         .map_err(|error| RpcError::internal(format!("Serialize mission control snapshot: {error}")))?;
+    if let Some(object) = snapshot.as_object_mut() {
+        object.insert(
+            "lifecycleSummary".to_string(),
+            lifecycle_summary.unwrap_or(Value::Null),
+        );
+        object.insert(
+            "evidenceSummary".to_string(),
+            evidence_summary.unwrap_or(Value::Null),
+        );
+        if let Some(runs) = object.get_mut("runs").and_then(Value::as_array_mut) {
+            for (entry, run) in runs.iter_mut().zip(projection.runs.iter()) {
+                if let Some(run_object) = entry.as_object_mut() {
+                    run_object.insert(
+                        "lifecycleSummary".to_string(),
+                        build_runtime_execution_lifecycle_summary_for_run(run),
+                    );
+                    run_object.insert(
+                        "evidenceSummary".to_string(),
+                        build_runtime_execution_evidence_summary_for_run(run),
+                    );
+                }
+            }
+        }
+        if let Some(review_packs) = object.get_mut("reviewPacks").and_then(Value::as_array_mut) {
+            for (entry, review_pack) in review_packs.iter_mut().zip(projection.review_packs.iter()) {
+                if let Some(review_pack_object) = entry.as_object_mut() {
+                    let run = projection
+                        .runs
+                        .iter()
+                        .find(|candidate| candidate.id == review_pack.run_id);
+                    review_pack_object.insert(
+                        "lifecycleSummary".to_string(),
+                        build_runtime_execution_lifecycle_summary_for_review_pack(
+                            review_pack,
+                            run,
+                        ),
+                    );
+                    review_pack_object.insert(
+                        "evidenceSummary".to_string(),
+                        build_runtime_execution_evidence_summary_for_review_pack(review_pack),
+                    );
+                }
+            }
+        }
+    }
     crate::store_runtime_revision_cached_json_value(
         ctx,
         RuntimeRevisionCacheKey::MissionControlSnapshot,

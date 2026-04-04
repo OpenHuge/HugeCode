@@ -121,6 +121,7 @@ const FULL_GATE_FRONTEND_WIDE_EXACT_FILES = new Set([
   "pnpm-lock.yaml",
   "turbo.json",
   "tsconfig.base.json",
+  "vite.config.ts",
   "vitest.config.ts",
   "vitest.shared.ts",
   "vitest.workspace.ts",
@@ -1575,13 +1576,20 @@ async function runPackageTypechecks(existingChangedFiles) {
 }
 
 function isVitestRelatedTarget(filePath) {
-  if (filePath.startsWith("tests/e2e/")) {
+  const normalized = toPosixPath(filePath);
+  if (normalized.startsWith("tests/e2e/")) {
     return false;
   }
-  if (filePath.startsWith("scripts/")) {
+  if (normalized.startsWith("scripts/")) {
     return false;
   }
-  return TEST_RELATED_EXTENSIONS.has(path.posix.extname(filePath).toLowerCase());
+  if (normalized.startsWith(`${APPS_CODE_PACKAGE_DIR}/`)) {
+    const packageRelative = normalized.slice(`${APPS_CODE_PACKAGE_DIR}/`.length);
+    if (FULL_GATE_FRONTEND_WIDE_EXACT_FILES.has(packageRelative)) {
+      return false;
+    }
+  }
+  return TEST_RELATED_EXTENSIONS.has(path.posix.extname(normalized).toLowerCase());
 }
 
 function classifyRelatedTestPackage(packageDir) {

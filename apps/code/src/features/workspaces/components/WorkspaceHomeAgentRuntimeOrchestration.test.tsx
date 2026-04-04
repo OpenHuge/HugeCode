@@ -11,6 +11,10 @@ import {
 import { act } from "react";
 import type {
   AgentTaskSummary,
+  RuntimeCompositionProfile,
+  RuntimeCompositionProfileSummaryV2,
+  RuntimeCompositionResolution,
+  RuntimeCompositionResolveV2Response,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
@@ -85,8 +89,14 @@ const runtimePluginRegistryUninstallMock = vi.hoisted(() =>
 const runtimeCompositionProfilesMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["listProfiles"]>(async () => [])
 );
+const runtimeCompositionProfilesV2Mock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["listProfilesV2"]>(async () => [])
+);
 const runtimeCompositionResolutionMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["getActiveResolution"]>(async () => null as never)
+);
+const runtimeCompositionResolutionV2Mock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["getActiveResolutionV2"]>(async () => null as never)
 );
 const readBrowserReadinessMock = vi.hoisted(() => vi.fn());
 const extractBrowserContentMock = vi.hoisted(() => vi.fn());
@@ -108,6 +118,9 @@ const runtimeCompositionPreviewMock = vi.hoisted(() =>
     },
   }))
 );
+const runtimeCompositionPreviewV2Mock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["previewResolutionV2"]>(async () => null as never)
+);
 const runtimeCompositionApplyMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["applyProfile"]>(async () => ({
     selectedPlugins: [],
@@ -123,6 +136,85 @@ const runtimeCompositionApplyMock = vi.hoisted(() =>
     },
   }))
 );
+const runtimeCompositionApplyV2Mock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["applyProfileV2"]>(async () => null as never)
+);
+
+function createRuntimeCompositionProfileFixture(): RuntimeCompositionProfile {
+  return {
+    id: "workspace-default",
+    name: "Workspace Default",
+    scope: "workspace",
+    enabled: true,
+    pluginSelectors: [],
+    routePolicy: {
+      preferredRoutePluginIds: [],
+      providerPreference: [],
+      allowRuntimeFallback: true,
+    },
+    backendPolicy: {
+      preferredBackendIds: ["backend-primary"],
+      resolvedBackendId: null,
+    },
+    trustPolicy: {
+      requireVerifiedSignatures: true,
+      allowDevOverrides: false,
+      blockedPublishers: [],
+    },
+    executionPolicyRefs: [],
+    observabilityPolicy: {
+      emitStableEvents: true,
+      emitOtelAlignedTelemetry: true,
+    },
+    configLayers: [],
+  };
+}
+
+function createRuntimeCompositionProfileSummaryFixture(): RuntimeCompositionProfileSummaryV2 {
+  return {
+    id: "workspace-default",
+    name: "Workspace Default",
+    scope: "workspace",
+    enabled: true,
+    active: true,
+  };
+}
+
+function createRuntimeCompositionResolutionFixture(): RuntimeCompositionResolution {
+  return {
+    selectedPlugins: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+  };
+}
+
+function createRuntimeCompositionSnapshotFixture(
+  overrides: Partial<RuntimeCompositionResolveV2Response> = {}
+): RuntimeCompositionResolveV2Response {
+  return {
+    activeProfile: createRuntimeCompositionProfileFixture(),
+    provenance: {
+      activeProfileId: "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+    pluginEntries: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+    ...overrides,
+  };
+}
 
 vi.mock("../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
   subscribeScopedRuntimeUpdatedEvents: vi.fn(),
@@ -357,48 +449,12 @@ beforeEach(() => {
     removed: true,
     blockedReason: null,
   });
-  runtimeCompositionProfilesMock.mockResolvedValue([
-    {
-      id: "workspace-default",
-      name: "Workspace Default",
-      scope: "workspace",
-      enabled: true,
-      pluginSelectors: [],
-      routePolicy: {
-        preferredRoutePluginIds: [],
-        providerPreference: [],
-        allowRuntimeFallback: true,
-      },
-      backendPolicy: {
-        preferredBackendIds: ["backend-primary"],
-        resolvedBackendId: null,
-      },
-      trustPolicy: {
-        requireVerifiedSignatures: true,
-        allowDevOverrides: false,
-        blockedPublishers: [],
-      },
-      executionPolicyRefs: [],
-      observabilityPolicy: {
-        emitStableEvents: true,
-        emitOtelAlignedTelemetry: true,
-      },
-      configLayers: [],
-    },
+  runtimeCompositionProfilesMock.mockResolvedValue([createRuntimeCompositionProfileFixture()]);
+  runtimeCompositionProfilesV2Mock.mockResolvedValue([
+    createRuntimeCompositionProfileSummaryFixture(),
   ]);
-  runtimeCompositionResolutionMock.mockResolvedValue({
-    selectedPlugins: [],
-    selectedRouteCandidates: [],
-    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
-    blockedPlugins: [],
-    trustDecisions: [],
-    provenance: {
-      activeProfileId: "workspace-default",
-      activeProfileName: "Workspace Default",
-      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
-      selectorDecisions: {},
-    },
-  });
+  runtimeCompositionResolutionMock.mockResolvedValue(createRuntimeCompositionResolutionFixture());
+  runtimeCompositionResolutionV2Mock.mockResolvedValue(createRuntimeCompositionSnapshotFixture());
   getRuntimePolicyMock.mockResolvedValue({
     mode: "strict",
     updatedAt: 1_700_000_000_000,
@@ -430,33 +486,13 @@ beforeEach(() => {
     },
   });
   runtimeCompositionPreviewMock.mockClear();
-  runtimeCompositionPreviewMock.mockResolvedValue({
-    selectedPlugins: [],
-    selectedRouteCandidates: [],
-    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
-    blockedPlugins: [],
-    trustDecisions: [],
-    provenance: {
-      activeProfileId: "workspace-default",
-      activeProfileName: "Workspace Default",
-      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
-      selectorDecisions: {},
-    },
-  });
+  runtimeCompositionPreviewMock.mockResolvedValue(createRuntimeCompositionResolutionFixture());
+  runtimeCompositionPreviewV2Mock.mockClear();
+  runtimeCompositionPreviewV2Mock.mockResolvedValue(createRuntimeCompositionSnapshotFixture());
   runtimeCompositionApplyMock.mockClear();
-  runtimeCompositionApplyMock.mockResolvedValue({
-    selectedPlugins: [],
-    selectedRouteCandidates: [],
-    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
-    blockedPlugins: [],
-    trustDecisions: [],
-    provenance: {
-      activeProfileId: "workspace-default",
-      activeProfileName: "Workspace Default",
-      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
-      selectorDecisions: {},
-    },
-  });
+  runtimeCompositionApplyMock.mockResolvedValue(createRuntimeCompositionResolutionFixture());
+  runtimeCompositionApplyV2Mock.mockClear();
+  runtimeCompositionApplyV2Mock.mockResolvedValue(createRuntimeCompositionSnapshotFixture());
   const lifecycle = {
     summary: buildRuntimeToolLifecyclePresentationSummary({
       lifecycleEvents: [],
@@ -949,10 +985,15 @@ function createRuntimeKernelValue(): RuntimeKernel {
   };
   const runtimeComposition: RuntimeKernelCompositionFacade = {
     listProfiles: runtimeCompositionProfilesMock,
+    listProfilesV2: runtimeCompositionProfilesV2Mock,
     getProfile: vi.fn(),
+    getProfileV2: vi.fn(),
     previewResolution: runtimeCompositionPreviewMock,
+    previewResolutionV2: runtimeCompositionPreviewV2Mock,
     applyProfile: runtimeCompositionApplyMock,
+    applyProfileV2: runtimeCompositionApplyV2Mock,
     getActiveResolution: runtimeCompositionResolutionMock,
+    getActiveResolutionV2: runtimeCompositionResolutionV2Mock,
   };
 
   return {
@@ -1628,48 +1669,68 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
         health: null,
       },
     ] satisfies RuntimeKernelPluginDescriptor[]);
-    runtimeCompositionProfilesMock.mockResolvedValue([
-      {
-        id: "workspace-default",
-        name: "Workspace Default",
-        scope: "workspace",
-        enabled: true,
-        pluginSelectors: [],
-        routePolicy: {
-          preferredRoutePluginIds: [],
-          providerPreference: [],
-          allowRuntimeFallback: true,
-        },
-        backendPolicy: {
-          preferredBackendIds: ["backend-primary"],
-          resolvedBackendId: null,
-        },
-        trustPolicy: {
-          requireVerifiedSignatures: true,
-          allowDevOverrides: false,
-          blockedPublishers: [],
-        },
-        executionPolicyRefs: [],
-        observabilityPolicy: {
-          emitStableEvents: true,
-          emitOtelAlignedTelemetry: true,
-        },
-        configLayers: [],
-      },
+    runtimeCompositionProfilesMock.mockResolvedValue([createRuntimeCompositionProfileFixture()]);
+    runtimeCompositionProfilesV2Mock.mockResolvedValue([
+      createRuntimeCompositionProfileSummaryFixture(),
     ]);
-    runtimeCompositionResolutionMock.mockResolvedValue({
-      selectedPlugins: [],
-      selectedRouteCandidates: [],
-      selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
-      blockedPlugins: [],
-      trustDecisions: [],
-      provenance: {
-        activeProfileId: "workspace-default",
-        activeProfileName: "Workspace Default",
-        appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
-        selectorDecisions: {},
-      },
-    });
+    runtimeCompositionResolutionMock.mockResolvedValue(createRuntimeCompositionResolutionFixture());
+    runtimeCompositionResolutionV2Mock.mockResolvedValue(
+      createRuntimeCompositionSnapshotFixture({
+        pluginEntries: [
+          {
+            pluginId: "pkg.search.remote",
+            source: "mcp_remote",
+            packageRef: "hugecode.mcp.search@1.0.0",
+            installed: false,
+            trust: {
+              status: "verified",
+              verificationStatus: "verified",
+              publisher: "HugeCode Labs",
+              attestationSource: "sigstore",
+              blockedReason: null,
+              packageRef: "hugecode.mcp.search@1.0.0",
+              pluginId: "pkg.search.remote",
+            },
+            trustStatus: "verified",
+            compatibility: {
+              status: "compatible",
+              minimumHostContractVersion: "2026-03-25",
+              supportedRuntimeProtocolVersions: ["2026-03-25"],
+              supportedCapabilityKeys: ["plugins.catalog", "plugins.registry"],
+              optionalTransportFeatures: [],
+              blockers: [],
+            },
+            compatibilityStatus: "compatible",
+            bindingState: "unbound",
+            publicationState: "declaration_only",
+            selectedInActiveProfile: false,
+            blockedReason: null,
+            selectedReason: null,
+            routeCandidate: false,
+            selectedRouteCandidate: null,
+            backendCandidateIds: [],
+            backendCandidates: [],
+            bindingDescriptor: {
+              pluginId: "pkg.search.remote",
+              packageRef: "hugecode.mcp.search@1.0.0",
+              source: "mcp_remote",
+              bindingState: "unbound",
+              publicationState: "declaration_only",
+              contractFormat: "mcp",
+              contractBoundary: "registry:mcp_remote",
+              interfaceId: "pkg.search.remote",
+              rawBindingState: "declaration_only",
+              executable: false,
+              reason: "Registry package is not runtime-bound.",
+              diagnostics: [],
+              contractSurfaces: [],
+            },
+            bindingDiagnostics: [],
+            registryPackage: null,
+          },
+        ],
+      })
+    );
 
     await import("./WorkspaceHomeAgentRuntimePluginControlPlane");
 
@@ -1694,10 +1755,15 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       });
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Preview active profile" }));
+    const previewButton = await screen.findByRole("button", { name: "Preview active profile" });
+    await waitFor(() => {
+      expect((previewButton as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(previewButton);
 
     await waitFor(() => {
-      expect(runtimeCompositionPreviewMock).toHaveBeenCalledWith({
+      expect(runtimeCompositionPreviewV2Mock).toHaveBeenCalledWith({
         profileId: "workspace-default",
       });
       expect(screen.getByText("Preview: workspace-default")).toBeTruthy();

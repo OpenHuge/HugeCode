@@ -280,6 +280,8 @@ struct AppContext {
     acp_integrations: Arc<RwLock<acp_client_adapter::AcpIntegrationStore>>,
     acp_runtime: Arc<AsyncMutex<acp_runtime::AcpRuntimeStore>>,
     runtime_backends: Arc<RwLock<HashMap<String, RuntimeBackendSummary>>>,
+    runtime_composition_authority:
+        Arc<RwLock<HashMap<String, RuntimeCompositionAuthorityRecord>>>,
     runtime_backends_sync_last_hydrated_ms: Arc<AtomicU64>,
     runtime_backends_sync_lock: Arc<AsyncMutex<()>>,
     agent_workspace_locks: Arc<RwLock<HashMap<String, Arc<AsyncMutex<()>>>>>,
@@ -300,6 +302,15 @@ struct AppContext {
         Arc<AsyncMutex<HashMap<String, codex_oauth_handlers::PendingCodexOauthLogin>>>,
     codex_oauth_loopback_listener:
         Arc<AsyncMutex<Option<codex_oauth_handlers::CodexOauthLoopbackListenerHandle>>>,
+}
+
+#[derive(Clone, Debug)]
+struct RuntimeCompositionAuthorityRecord {
+    authority_revision: u64,
+    published_at: u64,
+    publisher_session_id: Option<String>,
+    profiles: Vec<serde_json::Value>,
+    snapshot: serde_json::Value,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

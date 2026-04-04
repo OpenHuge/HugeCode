@@ -1207,6 +1207,19 @@ describe("validate.mjs", { timeout: VALIDATE_SCRIPT_TEST_TIMEOUT_MS }, () => {
     expect(result.stderr).toContain("[validate] apps/code incremental fallback:");
   });
 
+  it("skips apps/code frontend-wide config files from vitest related targeting", async () => {
+    const tempRoot = await createFixtureRepo();
+    await writeRepoFile(tempRoot, "apps/code/vite.config.ts", "export default {};\n");
+
+    const result = runValidate(tempRoot, ["--targeted-only", "--skip-typecheck"]);
+    const commandLog = await readCommandLog(tempRoot);
+
+    expect(result.status).toBe(0);
+    expect(commandLog).not.toContain("vitest related --run");
+    expect(result.stderr).not.toContain("[validate] apps/code incremental fallback:");
+    expect(result.stderr).not.toContain("[validate] apps/code incremental dedupe:");
+  });
+
   it("fails validation when the apps/code package fallback test fails", async () => {
     const tempRoot = await createFixtureRepo();
     await writeRepoFile(tempRoot, "apps/code/src/example.ts", "export const value = 1;\n");

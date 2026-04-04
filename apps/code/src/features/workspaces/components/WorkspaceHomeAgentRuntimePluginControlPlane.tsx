@@ -160,6 +160,7 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
               pluginControlPlane.needsAction.map((item) => (
                 <span key={item.id}>
                   {item.label} ({item.statusLabel}, {item.source}/{item.transport})
+                  {`: ${item.stateSummary}`}
                   {item.attentionReason ? `: ${item.attentionReason}` : ""}
                 </span>
               ))
@@ -194,7 +195,7 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
             {pluginControlPlane.selectedNow.length > 0 ? (
               pluginControlPlane.selectedNow.map((item) => (
                 <span key={item.id}>
-                  {item.label} ({item.source}/{item.transport})
+                  {item.label} ({item.source}/{item.transport}){`: ${item.stateSummary}`}
                   {item.attentionReason ? `: ${item.attentionReason}` : ""}
                 </span>
               ))
@@ -208,7 +209,8 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
             <strong>Inventory</strong>
             {pluginControlPlane.inventory.map((item) => (
               <span key={item.id}>
-                {item.label} ({item.statusLabel}, {item.source}/{item.transport})
+                {item.label} ({item.statusLabel}, {item.source}/{item.transport}):{" "}
+                {item.stateSummary}
               </span>
             ))}
           </div>

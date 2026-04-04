@@ -5,6 +5,8 @@ import {
   CODE_RUNTIME_RPC_INVOCATION_COMPLETION_MODES,
   HUGECODE_INTERVENTION_ACTIONS,
   HUGECODE_RUN_STATES,
+  type RuntimeExecutionEvidenceSummary,
+  type RuntimeExecutionLifecycleSummary,
   type RuntimeExtensionActivationSnapshot,
   RUNTIME_COMPOSITION_APPLIED_LAYER_ORDER,
   RUNTIME_COMPOSITION_PROFILE_SCOPES,
@@ -65,6 +67,32 @@ describe("code runtime host event envelope", () => {
       "cancelled",
     ]);
     expect(HUGECODE_INTERVENTION_ACTIONS).toContain("switch_profile_and_retry");
+  });
+
+  it("re-exports runtime execution lifecycle and evidence summaries", () => {
+    const lifecycleSummary: RuntimeExecutionLifecycleSummary = {
+      stage: "validated",
+      summary: "Runtime finished validation and published the latest checkpoint.",
+      blocked: false,
+      rerouted: false,
+      validated: true,
+      readyForReview: false,
+      updatedAt: 2,
+    };
+    const evidenceSummary: RuntimeExecutionEvidenceSummary = {
+      state: "confirmed",
+      summary: "Runtime published validation and artifact evidence for operator review.",
+      validationCount: 2,
+      artifactCount: 1,
+      warningCount: 0,
+      changedPathCount: 3,
+      authoritativeTraceId: "trace-1",
+      authoritativeCheckpointId: "checkpoint-1",
+      reviewStatus: "ready",
+    };
+
+    expect(lifecycleSummary.stage).toBe("validated");
+    expect(evidenceSummary.authoritativeTraceId).toBe("trace-1");
   });
 
   it("accepts turn.completed payloads with responseModelId metadata", () => {
@@ -153,6 +181,26 @@ describe("code runtime host event envelope", () => {
       },
       governance: null,
       placement,
+      lifecycleSummary: {
+        stage: "completed",
+        summary: "Runtime completed execution and published review-ready state.",
+        blocked: false,
+        rerouted: false,
+        validated: true,
+        readyForReview: true,
+        updatedAt: 1,
+      },
+      evidenceSummary: {
+        state: "ready_for_review",
+        summary: "Runtime evidence is ready for review.",
+        validationCount: 0,
+        artifactCount: 0,
+        warningCount: 0,
+        changedPathCount: 1,
+        authoritativeTraceId: "trace-1",
+        authoritativeCheckpointId: "checkpoint-1",
+        reviewStatus: "ready",
+      },
     };
 
     expect(reviewPack.fileChanges?.totalCount).toBe(1);
@@ -160,6 +208,8 @@ describe("code runtime host event envelope", () => {
     expect(reviewPack.checkpoint?.checkpointId).toBe("checkpoint-1");
     expect(reviewPack.placement?.healthSummary).toBe("placement_ready");
     expect(reviewPack.placement?.attentionReasons).toEqual([]);
+    expect(reviewPack.lifecycleSummary?.readyForReview).toBe(true);
+    expect(reviewPack.evidenceSummary?.state).toBe("ready_for_review");
   });
 
   it("re-exports graph-aware task summaries from the package entrypoint", () => {

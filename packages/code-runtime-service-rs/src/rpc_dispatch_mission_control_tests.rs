@@ -1,7 +1,6 @@
 use super::*;
 use std::fs;
 use std::sync::Arc;
-
 use crate::{
     build_app_context, create_initial_state, native_state_store, publish_runtime_updated_event,
     ServiceConfig, DEFAULT_AGENT_MAX_CONCURRENT_TASKS, DEFAULT_AGENT_TASK_HISTORY_LIMIT,
@@ -264,6 +263,7 @@ fn derive_run_changed_paths_prefers_runtime_step_metadata() {
         ]
     );
 }
+
 #[test]
 fn build_placement_evidence_derives_health_summary_and_attention_reasons() {
     let summary = AgentTaskSummary {

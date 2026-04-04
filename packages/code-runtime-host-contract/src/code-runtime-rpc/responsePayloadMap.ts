@@ -43,6 +43,10 @@ import type {
   KernelSession,
   LiveSkillExecutionResult,
   LiveSkillSummary,
+  RuntimeCompositionProfile,
+  RuntimeCompositionProfileSummaryV2,
+  RuntimeCompositionResolveV2Response,
+  RuntimeCompositionSnapshotPublishResponse,
   RuntimeBrowserDebugRunResponse,
   RuntimeBrowserDebugStatusResponse,
   RuntimeCodexCloudTasksListResponse,
@@ -195,6 +199,10 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.KERNEL_EXTENSIONS_LIST_V2]: KernelExtensionBundle[];
   [CODE_RUNTIME_RPC_METHODS.KERNEL_POLICIES_EVALUATE_V2]: KernelPolicyDecision;
   [CODE_RUNTIME_RPC_METHODS.KERNEL_PROJECTION_BOOTSTRAP_V3]: KernelProjectionBootstrapResponse;
+  [CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2]: RuntimeCompositionProfileSummaryV2[];
+  [CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2]: RuntimeCompositionProfile | null;
+  [CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2]: RuntimeCompositionResolveV2Response;
+  [CODE_RUNTIME_RPC_METHODS.COMPOSITION_SNAPSHOT_PUBLISH_V1]: RuntimeCompositionSnapshotPublishResponse;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST]: RuntimeBackendSummary[];
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_UPSERT]: RuntimeBackendSummary;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_REMOVE]: boolean;

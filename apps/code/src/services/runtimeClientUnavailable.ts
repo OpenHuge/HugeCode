@@ -195,6 +195,18 @@ export function createUnavailableRuntimeClient(
     kernelProjectionBootstrapV3() {
       return rejectUnavailable("bootstrap kernel projection v3");
     },
+    runtimeCompositionProfileListV2() {
+      return rejectUnavailable("list runtime composition profiles v2");
+    },
+    runtimeCompositionProfileGetV2() {
+      return rejectUnavailable("read runtime composition profile v2");
+    },
+    runtimeCompositionProfileResolveV2() {
+      return rejectUnavailable("resolve runtime composition profile v2");
+    },
+    runtimeCompositionSnapshotPublishV1() {
+      return rejectUnavailable("publish runtime composition snapshot v1");
+    },
     acpIntegrationsList() {
       return rejectUnavailable("list ACP integrations");
     },

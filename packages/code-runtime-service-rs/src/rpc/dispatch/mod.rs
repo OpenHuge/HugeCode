@@ -216,6 +216,18 @@ pub(crate) async fn handle_rpc(
         "code_kernel_projection_bootstrap_v3" => {
             handle_kernel_projection_bootstrap_v3(ctx, params).await
         }
+        "code_runtime_composition_profile_list_v2" => {
+            handle_runtime_composition_profile_list_v2(ctx, params).await
+        }
+        "code_runtime_composition_profile_get_v2" => {
+            handle_runtime_composition_profile_get_v2(ctx, params).await
+        }
+        "code_runtime_composition_profile_resolve_v2" => {
+            handle_runtime_composition_profile_resolve_v2(ctx, params).await
+        }
+        "code_runtime_composition_snapshot_publish_v1" => {
+            handle_runtime_composition_snapshot_publish_v1(ctx, params).await
+        }
         "code_runtime_backends_list" => handle_runtime_backends_list(ctx).await,
         "code_runtime_backend_upsert" => handle_runtime_backend_upsert(ctx, params).await,
         "code_runtime_backend_remove" => handle_runtime_backend_remove(ctx, params).await,
@@ -656,6 +668,207 @@ pub(crate) async fn handle_rpc(
     }
 }
 
+fn build_runtime_composition_unavailable_snapshot() -> Value {
+    json!({
+        "activeProfile": Value::Null,
+        "authorityState": "unavailable",
+        "authorityRevision": Value::Null,
+        "publishedAt": Value::Null,
+        "publisherSessionId": Value::Null,
+        "provenance": {
+            "activeProfileId": Value::Null,
+            "activeProfileName": Value::Null,
+            "appliedLayerOrder": [],
+            "selectorDecisions": {},
+        },
+        "pluginEntries": [],
+        "selectedRouteCandidates": [],
+        "selectedBackendCandidates": [],
+        "blockedPlugins": [],
+        "trustDecisions": [],
+    })
+}
+
+fn normalize_runtime_composition_snapshot_with_authority(
+    snapshot: &Value,
+    authority_state: &str,
+    authority_revision: Option<u64>,
+    published_at: Option<u64>,
+    publisher_session_id: Option<&str>,
+) -> Result<Value, RpcError> {
+    let Some(snapshot_object) = snapshot.as_object() else {
+        return Err(RpcError::invalid_params(
+            "Runtime composition snapshot publish payload requires an object snapshot.",
+        ));
+    };
+    let mut normalized = snapshot_object.clone();
+    normalized.insert("authorityState".to_string(), json!(authority_state));
+    normalized.insert(
+        "authorityRevision".to_string(),
+        authority_revision.map_or(Value::Null, Value::from),
+    );
+    normalized.insert(
+        "publishedAt".to_string(),
+        published_at.map_or(Value::Null, Value::from),
+    );
+    normalized.insert(
+        "publisherSessionId".to_string(),
+        publisher_session_id.map_or(Value::Null, Value::from),
+    );
+    Ok(Value::Object(normalized))
+}
+
+fn normalize_runtime_composition_publisher_session_id(
+    value: Option<String>,
+) -> Option<String> {
+    value
+        .map(|entry| entry.trim().to_string())
+        .filter(|entry| !entry.is_empty())
+}
+
+async fn handle_runtime_composition_profile_list_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let workspace_id = read_required_string(params, "workspaceId")?;
+    let store = ctx.runtime_composition_authority.read().await;
+    let profiles = store
+        .get(workspace_id)
+        .map(|entry| {
+            let active_profile_id = entry
+                .snapshot
+                .get("provenance")
+                .and_then(Value::as_object)
+                .and_then(|provenance| provenance.get("activeProfileId"))
+                .and_then(Value::as_str);
+            Value::Array(
+                entry
+                    .profiles
+                    .iter()
+                    .filter_map(|profile| {
+                        let profile_object = profile.as_object()?;
+                        let profile_id = profile_object.get("id")?.as_str()?;
+                        Some(json!({
+                            "id": profile_id,
+                            "name": profile_object.get("name").cloned().unwrap_or(Value::String(profile_id.to_string())),
+                            "scope": profile_object.get("scope").cloned().unwrap_or(Value::String("workspace".to_string())),
+                            "enabled": profile_object.get("enabled").cloned().unwrap_or(Value::Bool(true)),
+                            "active": active_profile_id == Some(profile_id),
+                        }))
+                    })
+                    .collect(),
+            )
+        })
+        .unwrap_or_else(|| Value::Array(Vec::new()));
+    Ok(profiles)
+}
+
+async fn handle_runtime_composition_profile_get_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let workspace_id = read_required_string(params, "workspaceId")?;
+    let profile_id = read_required_string(params, "profileId")?;
+    let store = ctx.runtime_composition_authority.read().await;
+    let Some(entry) = store.get(workspace_id) else {
+        return Ok(Value::Null);
+    };
+    Ok(entry
+        .profiles
+        .iter()
+        .find(|profile| profile.get("id").and_then(Value::as_str) == Some(profile_id))
+        .cloned()
+        .unwrap_or(Value::Null))
+}
+
+async fn handle_runtime_composition_profile_resolve_v2(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let workspace_id = read_required_string(params, "workspaceId")?;
+    let store = ctx.runtime_composition_authority.read().await;
+    Ok(store
+        .get(workspace_id)
+        .map(|entry| entry.snapshot.clone())
+        .unwrap_or_else(build_runtime_composition_unavailable_snapshot))
+}
+
+async fn handle_runtime_composition_snapshot_publish_v1(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    let params = as_object(params)?;
+    let workspace_id = read_required_string(params, "workspaceId")?.to_string();
+    let authority_revision = read_optional_u64(params, "authorityRevision")
+        .or_else(|| read_optional_u64(params, "authority_revision"))
+        .ok_or_else(|| {
+            RpcError::invalid_params(
+                "Runtime composition snapshot publish requires authorityRevision.",
+            )
+        })?;
+    let published_at = read_optional_u64(params, "publishedAt")
+        .or_else(|| read_optional_u64(params, "published_at"))
+        .unwrap_or_else(now_ms);
+    let publisher_session_id = normalize_runtime_composition_publisher_session_id(
+        read_optional_string(params, "publisherSessionId")
+            .or_else(|| read_optional_string(params, "publisher_session_id")),
+    );
+    let profiles = params
+        .get("profiles")
+        .and_then(Value::as_array)
+        .cloned()
+        .ok_or_else(|| {
+            RpcError::invalid_params(
+                "Runtime composition snapshot publish requires a profiles array.",
+            )
+        })?;
+    let snapshot = params.get("snapshot").ok_or_else(|| {
+        RpcError::invalid_params("Runtime composition snapshot publish requires a snapshot.")
+    })?;
+    let normalized_snapshot = normalize_runtime_composition_snapshot_with_authority(
+        snapshot,
+        "published",
+        Some(authority_revision),
+        Some(published_at),
+        publisher_session_id.as_deref(),
+    )?;
+
+    let mut store = ctx.runtime_composition_authority.write().await;
+    if let Some(existing) = store.get(workspace_id.as_str()) {
+        let same_session = existing.publisher_session_id.is_some()
+            && existing.publisher_session_id == publisher_session_id;
+        if same_session && authority_revision <= existing.authority_revision {
+            return Ok(json!({
+                "authorityState": "stale",
+                "authorityRevision": existing.authority_revision,
+                "publishedAt": existing.published_at,
+                "publisherSessionId": existing.publisher_session_id,
+            }));
+        }
+    }
+
+    store.insert(
+        workspace_id,
+        RuntimeCompositionAuthorityRecord {
+            authority_revision,
+            published_at,
+            publisher_session_id: publisher_session_id.clone(),
+            profiles,
+            snapshot: normalized_snapshot,
+        },
+    );
+
+    Ok(json!({
+        "authorityState": "published",
+        "authorityRevision": authority_revision,
+        "publishedAt": published_at,
+        "publisherSessionId": publisher_session_id,
+    }))
+}
+
 pub(crate) async fn invoke_workspace_diagnostics_list_v1(
     ctx: &AppContext,
     params: &Value,
@@ -730,3 +943,7 @@ async fn handle_turn_interrupt(ctx: &AppContext, params: &Value) -> Result<Value
     }
     Ok(json!(!waiters.is_empty()))
 }
+
+#[cfg(test)]
+#[path = "../../rpc_dispatch_runtime_composition_tests.rs"]
+mod tests;

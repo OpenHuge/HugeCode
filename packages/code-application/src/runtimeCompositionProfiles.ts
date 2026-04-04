@@ -1,4 +1,9 @@
-import type { RuntimeCompositionProfile } from "@ku0/code-runtime-host-contract";
+import type {
+  RuntimeCompositionProfile,
+  RuntimeCompositionProfileLaunchOverride,
+} from "@ku0/code-runtime-host-contract";
+
+export type { RuntimeCompositionProfileLaunchOverride } from "@ku0/code-runtime-host-contract";
 
 type RuntimeCompositionProfileNestedPolicyOverrides = {
   routePolicy?: Partial<RuntimeCompositionProfile["routePolicy"]>;
@@ -6,12 +11,6 @@ type RuntimeCompositionProfileNestedPolicyOverrides = {
   trustPolicy?: Partial<RuntimeCompositionProfile["trustPolicy"]>;
   observabilityPolicy?: Partial<RuntimeCompositionProfile["observabilityPolicy"]>;
 };
-
-export type RuntimeCompositionProfileLaunchOverride =
-  RuntimeCompositionProfileNestedPolicyOverrides &
-    Partial<
-      Pick<RuntimeCompositionProfile, "pluginSelectors" | "executionPolicyRefs" | "configLayers">
-    >;
 
 export type RuntimeCompositionProfileUpdates = RuntimeCompositionProfileNestedPolicyOverrides &
   Partial<

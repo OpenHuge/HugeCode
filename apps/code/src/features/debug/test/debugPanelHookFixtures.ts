@@ -57,6 +57,7 @@ export function createDebugRuntimePluginsState(
       activeProfileId: null,
       activeProfile: null,
       resolution: null,
+      snapshot: null,
       error: null,
     },
     ...overrides,
