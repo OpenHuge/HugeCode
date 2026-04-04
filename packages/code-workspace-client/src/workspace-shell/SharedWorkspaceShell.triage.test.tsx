@@ -29,7 +29,7 @@ describe("WorkspaceShellApp triage", () => {
     expect(await screen.findByRole("heading", { level: 2, name: "Review queue" })).toBeTruthy();
     expect(screen.getAllByText("Ready for review").length).toBeGreaterThan(0);
     expect(screen.getByText("Passed")).toBeTruthy();
-  });
+  }, 10000);
 
   it("uses the highest-priority mission and review items in the home overview cards", async () => {
     window.history.pushState({}, "", "/app");

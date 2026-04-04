@@ -49,6 +49,14 @@
       "types": "./src/runtimeControlPlaneOperatorPresentation.ts",
       "default": "./src/runtimeControlPlaneOperatorPresentation.ts"
     },
+    "./runtimeMissionControlRunProjection": {
+      "types": "./src/runtimeMissionControlRunProjection.ts",
+      "default": "./src/runtimeMissionControlRunProjection.ts"
+    },
+    "./runtimeMissionControlReviewPackProjection": {
+      "types": "./src/runtimeMissionControlReviewPackProjection.ts",
+      "default": "./src/runtimeMissionControlReviewPackProjection.ts"
+    },
     "./runtimeLiveSkillAliases": {
       "types": "./src/runtimeLiveSkillAliases.ts",
       "default": "./src/runtimeLiveSkillAliases.ts"
