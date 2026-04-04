@@ -1,9 +1,14 @@
 import type {
+  RuntimeCompositionAuthorityState,
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
+  RuntimeHostBindingDiagnostic,
+  RuntimeHostBindingState,
+  RuntimeHostPublicationState,
   RuntimePluginCompatibility,
   RuntimePluginPackageTransport,
   RuntimePluginTrustDecision,
+  RuntimePluginTrustDecisionStatus,
   RuntimeRegistryPackageDescriptor,
 } from "@ku0/code-runtime-host-contract";
 
@@ -24,12 +29,19 @@ export type RuntimeControlPlanePluginRegistryMetadata = {
 export type RuntimeControlPlanePluginCompositionMetadata = {
   activeProfileId: string | null;
   activeProfileName: string | null;
+  authorityState?: RuntimeCompositionAuthorityState;
+  authorityRevision?: number | null;
   selectedInActiveProfile: boolean;
   blockedInActiveProfile: boolean;
   blockedReason: string | null;
   selectedRouteCandidate: boolean;
   selectedBackendCandidateIds: string[];
   layerOrder: RuntimeCompositionResolution["provenance"]["appliedLayerOrder"];
+  bindingState?: RuntimeHostBindingState;
+  publicationState?: RuntimeHostPublicationState;
+  trustStatus?: RuntimePluginTrustDecisionStatus;
+  compatibilityStatus?: RuntimePluginCompatibility["status"];
+  bindingDiagnostics?: RuntimeHostBindingDiagnostic[];
 };
 
 export type RuntimeControlPlanePluginDescriptor = {
@@ -73,7 +85,13 @@ export type RuntimeControlPlanePluginInventoryItem = {
   selectedInActiveProfile: boolean;
   blockedInActiveProfile: boolean;
   statusLabel: string;
+  stateSummary: string;
   attentionReason: string | null;
+  installState: "installed" | "catalog_only" | "runtime_managed";
+  trustStatus: RuntimePluginTrustDecisionStatus | "unknown";
+  compatibilityStatus: "compatible" | "incompatible" | "unknown";
+  bindingState: "unbound" | "binding" | "bound" | "degraded" | "blocked" | "unknown";
+  publicationState: "hidden" | "declaration_only" | "published" | "blocked" | "unknown";
   registry: RuntimeControlPlanePluginRegistryMetadata | null;
   composition: RuntimeControlPlanePluginCompositionMetadata | null;
   actions: RuntimeControlPlaneOperatorAction[];
@@ -162,11 +180,32 @@ function buildPluginStatusLabel(input: {
   registry: RuntimeControlPlanePluginRegistryMetadata | null;
   composition: RuntimeControlPlanePluginCompositionMetadata | null;
 }): string {
-  if (input.composition?.blockedInActiveProfile) {
-    return "Needs action";
+  if (input.composition?.authorityState === "unavailable") {
+    return "Authority unavailable";
   }
-  if (input.composition?.selectedInActiveProfile) {
-    return "Selected now";
+  if (input.composition?.authorityState === "stale") {
+    return "Authority stale";
+  }
+  if (
+    input.composition?.publicationState === "blocked" ||
+    input.composition?.bindingState === "blocked"
+  ) {
+    return "Blocked";
+  }
+  if (input.composition?.publicationState === "published") {
+    return "Published";
+  }
+  if (input.composition?.publicationState === "declaration_only") {
+    return "Declared";
+  }
+  if (input.composition?.bindingState === "degraded") {
+    return "Degraded";
+  }
+  if (input.composition?.bindingState === "bound") {
+    return "Bound";
+  }
+  if (input.registry?.installed && input.composition?.bindingState === "unbound") {
+    return "Installed, unbound";
   }
   if (input.registry?.installed) {
     return "Installed";
@@ -180,11 +219,35 @@ function buildPluginStatusLabel(input: {
   return "Inventory";
 }
 
+function buildPluginStateSummary(input: {
+  registry: RuntimeControlPlanePluginRegistryMetadata | null;
+  composition: RuntimeControlPlanePluginCompositionMetadata | null;
+}): string {
+  const authorityState = input.composition?.authorityState ?? "unknown";
+  const installState =
+    input.registry?.source === "runtime_managed"
+      ? "runtime-managed"
+      : input.registry?.installed
+        ? "installed"
+        : "catalog-only";
+  const trustState = input.composition?.trustStatus ?? input.registry?.trust.status ?? "unknown";
+  const compatibilityState =
+    input.composition?.compatibilityStatus ?? input.registry?.compatibility.status ?? "unknown";
+  const bindingState = input.composition?.bindingState ?? "unknown";
+  const publicationState = input.composition?.publicationState ?? "unknown";
+  return `Authority ${authorityState} | Install ${installState} | Trust ${trustState} | Compatibility ${compatibilityState} | Bind ${bindingState} | Publish ${publicationState}`;
+}
+
 function buildPluginAttentionReason(input: {
   registry: RuntimeControlPlanePluginRegistryMetadata | null;
   composition: RuntimeControlPlanePluginCompositionMetadata | null;
 }): string | null {
   return (
+    (input.composition?.authorityState === "unavailable"
+      ? "Runtime composition authority has not published a workspace snapshot yet."
+      : input.composition?.authorityState === "stale"
+        ? "Runtime composition authority rejected the latest local snapshot as stale."
+        : null) ??
     readOptionalText(input.composition?.blockedReason) ??
     readOptionalText(input.registry?.trust.blockedReason) ??
     getCompatibilityBlocker(input.registry)
@@ -306,7 +369,22 @@ function buildPluginInventoryItem(input: {
       registry,
       composition,
     }),
+    stateSummary: buildPluginStateSummary({
+      registry,
+      composition,
+    }),
     attentionReason: buildPluginAttentionReason({ registry, composition }),
+    installState:
+      registry?.source === "runtime_managed"
+        ? "runtime_managed"
+        : registry?.installed
+          ? "installed"
+          : "catalog_only",
+    trustStatus: composition?.trustStatus ?? registry?.trust.status ?? "unknown",
+    compatibilityStatus:
+      composition?.compatibilityStatus ?? registry?.compatibility.status ?? "unknown",
+    bindingState: composition?.bindingState ?? "unknown",
+    publicationState: composition?.publicationState ?? "unknown",
     registry,
     composition,
     actions: buildPluginActions({
