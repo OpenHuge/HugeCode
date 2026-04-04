@@ -41,7 +41,10 @@ export type ThreadVisualState =
   | "completed"
   | "unread";
 import { formatReviewFailureClassLabel } from "./reviewFailureClass";
-import { formatMissionReviewEvidenceLabel } from "./reviewPackLabels";
+import {
+  formatMissionReviewEvidenceLabel,
+  formatReviewEvidenceStateLabel,
+} from "./reviewPackLabels";
 import { isBlockingSubAgentStatus, resolveSubAgentSignalLabel } from "./subAgentStatus";
 import {
   buildMissionOverviewOperatorSignal,
@@ -269,6 +272,13 @@ function resolveReviewEvidenceLabel(
   reviewPack: HugeCodeReviewPackSummary,
   task: HugeCodeTaskSummary
 ): string {
+  const evidenceSummaryState = reviewPack.evidenceSummary?.state;
+  if (evidenceSummaryState === "confirmed" || evidenceSummaryState === "incomplete") {
+    return formatReviewEvidenceStateLabel(evidenceSummaryState);
+  }
+  if (reviewPack.reviewStatus === "incomplete_evidence") {
+    return "Evidence incomplete";
+  }
   return formatMissionReviewEvidenceLabel(
     reviewPack.validationOutcome,
     reviewPack.warningCount,
@@ -386,6 +396,9 @@ function buildMissionOverviewAttentionSignals(input: {
   ) {
     signals.push("Fallback route");
   }
+  if (input.run?.lifecycleSummary?.rerouted) {
+    signals.push("Rerouted");
+  }
   if (input.reviewPack?.reviewDecision?.status === "rejected") {
     signals.push("Changes requested");
   } else if (input.reviewPack?.reviewStatus === "action_required") {
@@ -502,6 +515,10 @@ function buildMissionOverviewSummary(input: {
   return (
     resolvePublishHandoffLabel(input) ||
     resolveCheckpointHandoffLabel(input) ||
+    input.reviewPack?.evidenceSummary?.summary?.trim() ||
+    input.run?.evidenceSummary?.summary?.trim() ||
+    input.reviewPack?.lifecycleSummary?.summary?.trim() ||
+    input.run?.lifecycleSummary?.summary?.trim() ||
     resolveSubAgentSignal(input) ||
     resolveFailureClassLabel(input.reviewPack?.failureClass ?? null) ||
     resolveRelaunchLabel(input.reviewPack) ||
