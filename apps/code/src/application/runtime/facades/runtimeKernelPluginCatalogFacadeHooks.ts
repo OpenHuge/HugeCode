@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { RuntimeKernelPluginCatalogFacade } from "../kernel/runtimeKernelPlugins";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
 import {
@@ -9,11 +10,19 @@ export function useWorkspaceRuntimePluginCatalog(
   workspaceId: string | null
 ): RuntimeKernelPluginCatalogFacade | null {
   const runtimeKernel = useRuntimeKernel();
-  if (!workspaceId) {
-    return null;
-  }
-  return resolveWorkspaceRuntimeCapability(
-    runtimeKernel.getWorkspaceScope(workspaceId),
-    RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog
+  const workspaceScope = useMemo(
+    () => (workspaceId ? runtimeKernel.getWorkspaceScope(workspaceId) : null),
+    [runtimeKernel, workspaceId]
+  );
+
+  return useMemo(
+    () =>
+      workspaceScope
+        ? resolveWorkspaceRuntimeCapability(
+            workspaceScope,
+            RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog
+          )
+        : null,
+    [workspaceScope]
   );
 }

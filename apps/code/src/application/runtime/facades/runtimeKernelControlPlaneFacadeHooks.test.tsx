@@ -2,11 +2,17 @@
 
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import {
+  resolveRuntimeControlPlaneOperatorActionPresentation,
+  type RuntimeControlPlaneOperatorAction,
+} from "@ku0/code-application";
 import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
-import { useWorkspaceRuntimeControlPlaneOperatorState } from "./runtimeKernelControlPlaneFacadeHooks";
-import { resolveRuntimeControlPlaneOperatorActionPresentation } from "./runtimeKernelControlPlaneOperatorPresentation";
-import type { RuntimeControlPlaneOperatorAction } from "./runtimeKernelControlPlaneOperatorModel";
+import {
+  useWorkspaceRuntimeComposition,
+  useWorkspaceRuntimeControlPlaneOperatorState,
+  useWorkspaceRuntimePluginRegistry,
+} from "./runtimeKernelControlPlaneFacadeHooks";
 
 function createRuntimeKernelValue() {
   const installPackage = vi.fn(async () => ({
@@ -298,6 +304,28 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
     });
     expect(refresh).toHaveBeenCalledTimes(2);
     expect(result.current.info).toContain("Applied runtime composition profile");
+  });
+
+  it("reuses workspace-scoped registry and composition facades across rerenders", () => {
+    const kernelValue = createRuntimeKernelValue();
+
+    const { rerender } = renderHook(
+      ({ workspaceId }) => ({
+        registry: useWorkspaceRuntimePluginRegistry(workspaceId),
+        composition: useWorkspaceRuntimeComposition(workspaceId),
+      }),
+      {
+        initialProps: { workspaceId: "workspace-1" as string | null },
+        wrapper: ({ children }) => (
+          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
+        ),
+      }
+    );
+
+    rerender({ workspaceId: "workspace-1" });
+    rerender({ workspaceId: "workspace-1" });
+
+    expect(kernelValue.getWorkspaceScope).toHaveBeenCalledTimes(2);
   });
 
   it("runs trust override, update, and uninstall actions through the runtime facade", async () => {

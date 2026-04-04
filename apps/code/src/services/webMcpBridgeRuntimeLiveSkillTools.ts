@@ -4,7 +4,7 @@ import {
   buildRuntimeExecutableSkillPublicationReason,
   buildRuntimeExecutableSkillPublicationStatus,
 } from "@ku0/code-application/runtimeExecutableSkillCatalog";
-import { buildRuntimeSkillBackedToolPublicationReason } from "./webMcpBridgeRuntimeSkillPublication";
+import { buildRuntimeSkillBackedToolPublicationReason } from "@ku0/code-application/runtimeExtensionExplainability";
 import {
   AgentCommandCenterSnapshot,
   RuntimeAgentControl,

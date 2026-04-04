@@ -1,12 +1,12 @@
-import { memo, useDeferredValue, useMemo } from "react";
+import { memo, useMemo } from "react";
 import type {
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
 } from "@ku0/code-runtime-host-contract";
+import { buildRuntimeControlPlaneOperatorModel } from "@ku0/code-application/runtimeControlPlaneOperatorModel";
+import { resolveRuntimeControlPlaneOperatorActionPresentation } from "@ku0/code-application/runtimeControlPlaneOperatorPresentation";
 import { ToolCallChip } from "../../../design-system";
 import { useWorkspaceRuntimeControlPlaneOperatorState } from "../../../application/runtime/facades/runtimeKernelControlPlaneFacadeHooks";
-import { buildRuntimeControlPlaneOperatorModel } from "../../../application/runtime/facades/runtimeKernelControlPlaneOperatorModel";
-import { resolveRuntimeControlPlaneOperatorActionPresentation } from "../../../application/runtime/facades/runtimeKernelControlPlaneOperatorPresentation";
 import type { RuntimeKernelPluginDescriptor } from "../../../application/runtime/kernel/runtimeKernelPluginTypes";
 import { MissionControlSectionCard } from "./WorkspaceHomeMissionControlSections";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
@@ -38,22 +38,21 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
       workspaceId,
       refresh: refreshRuntimeTasks,
     });
-    const deferredPluginControlPlaneSurface = useDeferredValue(pluginControlPlaneSurface);
     const pluginControlPlane = useMemo(
       () =>
         buildRuntimeControlPlaneOperatorModel({
-          plugins: deferredPluginControlPlaneSurface.plugins,
-          profiles: deferredPluginControlPlaneSurface.profiles,
-          activeProfile: deferredPluginControlPlaneSurface.activeProfile,
-          activeProfileId: deferredPluginControlPlaneSurface.activeProfileId,
-          resolution: deferredPluginControlPlaneSurface.resolution,
+          plugins: pluginControlPlaneSurface.plugins,
+          profiles: pluginControlPlaneSurface.profiles,
+          activeProfile: pluginControlPlaneSurface.activeProfile,
+          activeProfileId: pluginControlPlaneSurface.activeProfileId,
+          resolution: pluginControlPlaneSurface.resolution,
         }),
-      [deferredPluginControlPlaneSurface]
+      [pluginControlPlaneSurface]
     );
     const pluginControlPlaneError =
-      deferredPluginControlPlaneSurface.pluginsError ??
-      deferredPluginControlPlaneSurface.compositionError ??
-      deferredPluginControlPlaneSurface.registryError;
+      pluginControlPlaneSurface.pluginsError ??
+      pluginControlPlaneSurface.compositionError ??
+      pluginControlPlaneSurface.registryError;
     const pluginControlPlaneStatus = pluginControlPlaneError
       ? {
           label: "Attention",

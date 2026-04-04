@@ -60,4 +60,46 @@ describe("useWorkspaceRuntimePluginCatalog", () => {
     expect(result.current).toBeNull();
     expect(runtimeKernel.getWorkspaceScope).not.toHaveBeenCalled();
   });
+
+  it("reuses the resolved facade across rerenders for the same workspace", () => {
+    const pluginCatalog = {
+      listPlugins: vi.fn(),
+      readPluginResource: vi.fn(),
+      executePlugin: vi.fn(),
+      evaluatePluginPermissions: vi.fn(),
+    };
+    const runtimeKernel = {
+      runtimeGateway: {} as never,
+      workspaceClientRuntimeGateway: {} as never,
+      workspaceClientRuntime: {} as never,
+      desktopHost: {} as never,
+      getWorkspaceScope: vi.fn(() => ({
+        workspaceId: "workspace-1",
+        runtimeGateway: {} as never,
+        getCapability: (key: string) => {
+          if (key === RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog) {
+            return pluginCatalog;
+          }
+          throw new Error(`Unsupported capability: ${key}`);
+        },
+        hasCapability: () => true,
+        listCapabilities: () => [RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog],
+      })),
+    };
+
+    const { rerender } = renderHook(
+      ({ workspaceId }) => useWorkspaceRuntimePluginCatalog(workspaceId),
+      {
+        initialProps: { workspaceId: "workspace-1" as string | null },
+        wrapper: ({ children }) => (
+          <RuntimeKernelProvider value={runtimeKernel as never}>{children}</RuntimeKernelProvider>
+        ),
+      }
+    );
+
+    rerender({ workspaceId: "workspace-1" });
+    rerender({ workspaceId: "workspace-1" });
+
+    expect(runtimeKernel.getWorkspaceScope).toHaveBeenCalledTimes(1);
+  });
 });

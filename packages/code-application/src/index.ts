@@ -50,11 +50,29 @@ export {
   mergeRuntimeCompositionProfiles,
 } from "./runtimeCompositionProfiles";
 export {
+  normalizeRuntimePreferredBackendIds,
+  readRuntimeCompositionPreferredBackendIds,
+  readRuntimeCompositionResolvedBackendId,
+  resolveRuntimeCompositionSelectedBackendCandidates,
+  resolveRuntimePreferredBackendIdsInput,
+} from "./runtimeBackendPreferences";
+export { applyRuntimeConfigHooks, resolveRuntimeCompositionProfile } from "./runtimeConfigHooks";
+export {
   RuntimeSkillExecutionGateError,
   readRuntimeExecutableSkillCatalog,
   resolveRuntimeExecutableSkill,
   runRuntimeExecutableSkill,
 } from "./runtimeExecutableSkillCatalog";
+export {
+  buildRuntimeSkillBackedToolPublicationReason,
+  readRuntimeSkillBackedToolPublicationDecision,
+} from "./runtimeExtensionExplainability";
+export {
+  buildRuntimeControlPlaneOperatorModel,
+  readRuntimeControlPlanePluginCompositionMetadata,
+  readRuntimeControlPlanePluginRegistryMetadata,
+} from "./runtimeControlPlaneOperatorModel";
+export { resolveRuntimeControlPlaneOperatorActionPresentation } from "./runtimeControlPlaneOperatorPresentation";
 export {
   listRuntimeInvocationDescriptors,
   normalizeRuntimeInvocationCatalogSnapshot,
@@ -95,3 +113,20 @@ export type {
   RuntimeCompositionProfileLaunchOverride,
   RuntimeCompositionProfileUpdates,
 } from "./runtimeCompositionProfiles";
+export type { RuntimeConfigHook, RuntimeConfigHookContext } from "./runtimeConfigHooks";
+export type {
+  RuntimeControlPlaneOperatorAction,
+  RuntimeControlPlaneOperatorActionKind,
+  RuntimeControlPlaneOperatorActionTone,
+  RuntimeControlPlaneOperatorModel,
+  RuntimeControlPlanePluginCompositionMetadata,
+  RuntimeControlPlanePluginDescriptor,
+  RuntimeControlPlanePluginInventoryItem,
+  RuntimeControlPlanePluginRegistryMetadata,
+  RuntimeControlPlaneProfileItem,
+} from "./runtimeControlPlaneOperatorModel";
+export type { RuntimeControlPlaneOperatorActionPresentation } from "./runtimeControlPlaneOperatorPresentation";
+export type {
+  RuntimeSkillBackedToolPublicationDecision,
+  RuntimeSkillBackedToolPublicationEntry,
+} from "./runtimeExtensionExplainability";

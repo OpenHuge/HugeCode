@@ -1,8 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type {
   RuntimeCompositionResolution,
   RuntimeCompositionResolveV2Response,
 } from "@ku0/code-runtime-host-contract";
+import type { RuntimeControlPlaneOperatorAction } from "@ku0/code-application/runtimeControlPlaneOperatorModel";
 import type { RuntimeKernelCompositionFacade } from "../kernel/runtimeKernelComposition";
 import type { RuntimeKernelPluginRegistryFacade } from "../kernel/runtimeKernelPluginRegistry";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
@@ -10,7 +11,6 @@ import {
   RUNTIME_KERNEL_CAPABILITY_KEYS,
   resolveWorkspaceRuntimeCapability,
 } from "../kernel/runtimeKernelCapabilities";
-import type { RuntimeControlPlaneOperatorAction } from "./runtimeKernelControlPlaneOperatorModel";
 
 export type RuntimeControlPlaneOperatorState = {
   busyActionId: string | null;
@@ -47,12 +47,20 @@ export function useWorkspaceRuntimePluginRegistry(
   workspaceId: string | null
 ): RuntimeKernelPluginRegistryFacade | null {
   const runtimeKernel = useRuntimeKernel();
-  if (!workspaceId) {
-    return null;
-  }
-  return resolveWorkspaceRuntimeCapability(
-    runtimeKernel.getWorkspaceScope(workspaceId),
-    RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry
+  const workspaceScope = useMemo(
+    () => (workspaceId ? runtimeKernel.getWorkspaceScope(workspaceId) : null),
+    [runtimeKernel, workspaceId]
+  );
+
+  return useMemo(
+    () =>
+      workspaceScope
+        ? resolveWorkspaceRuntimeCapability(
+            workspaceScope,
+            RUNTIME_KERNEL_CAPABILITY_KEYS.pluginRegistry
+          )
+        : null,
+    [workspaceScope]
   );
 }
 
@@ -60,12 +68,20 @@ export function useWorkspaceRuntimeComposition(
   workspaceId: string | null
 ): RuntimeKernelCompositionFacade | null {
   const runtimeKernel = useRuntimeKernel();
-  if (!workspaceId) {
-    return null;
-  }
-  return resolveWorkspaceRuntimeCapability(
-    runtimeKernel.getWorkspaceScope(workspaceId),
-    RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime
+  const workspaceScope = useMemo(
+    () => (workspaceId ? runtimeKernel.getWorkspaceScope(workspaceId) : null),
+    [runtimeKernel, workspaceId]
+  );
+
+  return useMemo(
+    () =>
+      workspaceScope
+        ? resolveWorkspaceRuntimeCapability(
+            workspaceScope,
+            RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime
+          )
+        : null,
+    [workspaceScope]
   );
 }
 

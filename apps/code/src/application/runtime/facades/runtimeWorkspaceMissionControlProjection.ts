@@ -9,6 +9,10 @@ import type {
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
+  readRuntimeCompositionPreferredBackendIds,
+  readRuntimeCompositionResolvedBackendId,
+} from "@ku0/code-application/runtimeBackendPreferences";
+import {
   resolveRuntimeControlPlaneRouteSelection,
   type RuntimeControlPlaneRouteOption,
 } from "./runtimeControlPlaneRouting";
@@ -538,46 +542,6 @@ function buildRuntimePolicyIndicator(input: {
   };
 }
 
-function normalizeBackendIds(values: readonly string[] | null | undefined): string[] | null {
-  if (!values) {
-    return null;
-  }
-  const seen = new Set<string>();
-  const normalized: string[] = [];
-  for (const entry of values) {
-    const trimmed = entry.trim();
-    if (!trimmed || seen.has(trimmed)) {
-      continue;
-    }
-    seen.add(trimmed);
-    normalized.push(trimmed);
-  }
-  return normalized.length > 0 ? normalized : null;
-}
-
-function resolveCompositionPreferredBackendIds(
-  resolution: RuntimeCompositionResolution | null
-): string[] | null {
-  return normalizeBackendIds(resolution?.selectedBackendCandidates.map((entry) => entry.backendId));
-}
-
-function resolveCompositionResolvedBackendId(input: {
-  selectedRoute: string;
-  activeProfile: RuntimeCompositionProfile | null;
-  resolution: RuntimeCompositionResolution | null;
-}): string | null {
-  const normalizedRoute = input.selectedRoute.trim() || "auto";
-  const routePluginId = `route:${normalizedRoute}`;
-  const selectedRouteCandidate =
-    input.resolution?.selectedRouteCandidates.find((entry) => entry.pluginId === routePluginId) ??
-    null;
-  return (
-    selectedRouteCandidate?.resolvedBackendId ??
-    input.activeProfile?.backendPolicy.resolvedBackendId ??
-    null
-  );
-}
-
 export function buildWorkspaceRuntimeMissionControlProjection(
   input: BuildWorkspaceRuntimeMissionControlProjectionInput
 ): WorkspaceRuntimeMissionControlProjection {
@@ -604,10 +568,10 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     runtimePolicy: input.runtimePolicy,
     runtimePolicyError: input.runtimePolicyError,
   });
-  const preferredBackendIds = resolveCompositionPreferredBackendIds(
+  const preferredBackendIds = readRuntimeCompositionPreferredBackendIds(
     input.runtimeCompositionResolution
   );
-  const resolvedBackendId = resolveCompositionResolvedBackendId({
+  const resolvedBackendId = readRuntimeCompositionResolvedBackendId({
     selectedRoute: input.selectedProviderRoute,
     activeProfile: input.runtimeCompositionActiveProfile,
     resolution: input.runtimeCompositionResolution,

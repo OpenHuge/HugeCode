@@ -3,6 +3,8 @@ import {
   ACTIVE_INTENT_CONTEXT_SCHEMA_VERSION,
   buildDesktopBrowserAssessmentProxyPath,
   buildDesktopBrowserAssessmentTargetUrl,
+  createBindingFactory,
+  createCapabilityRegistry,
   DESKTOP_HOST_IPC_CHANNELS,
   DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE,
   DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM,
@@ -27,6 +29,56 @@ describe("code-platform-interfaces", () => {
     expect(isElectronDesktopHostBridge(null)).toBe(false);
     expect(isElectronDesktopHostBridge({ kind: "electron-legacy" })).toBe(false);
     expect(isElectronDesktopHostBridge({})).toBe(false);
+  });
+
+  it("creates a capability registry with optional and required lookups", () => {
+    const registry = createCapabilityRegistry<{
+      alpha: () => string;
+      beta: (value: string) => string;
+    }>([
+      {
+        key: "alpha",
+        capability: () => "ready",
+        source: "test",
+      },
+    ]);
+
+    expect(registry.has("alpha")).toBe(true);
+    expect(registry.has("beta")).toBe(false);
+    expect(registry.get("alpha")?.()).toBe("ready");
+    expect(() => registry.require("beta")).toThrow(/Missing required capability `beta`/i);
+    expect(registry.list()).toEqual([
+      expect.objectContaining({
+        key: "alpha",
+        source: "test",
+      }),
+    ]);
+  });
+
+  it("creates binding factories over capability registries", () => {
+    const registry = createCapabilityRegistry<{
+      alpha: () => string;
+      beta: (value: string) => string;
+    }>([
+      {
+        key: "alpha",
+        capability: () => "alpha-ready",
+      },
+      {
+        key: "beta",
+        capability: (value) => `${value}-beta`,
+      },
+    ]);
+
+    const bindings = createBindingFactory(registry)((helpers) => ({
+      alpha: helpers.require("alpha")(),
+      beta: helpers.optional("beta")?.("value") ?? "missing",
+    }));
+
+    expect(bindings).toEqual({
+      alpha: "alpha-ready",
+      beta: "value-beta",
+    });
   });
 
   it("supports the public beta app, launch, and updater contracts", () => {

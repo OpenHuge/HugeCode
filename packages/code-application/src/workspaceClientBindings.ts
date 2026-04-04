@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { createBindingFactory, createCapabilityRegistry } from "@ku0/code-platform-interfaces";
 import {
   createBrowserWorkspaceClientHostBindings,
   createBrowserWorkspaceClientRuntimeBindings,
@@ -77,6 +78,21 @@ export type CreateDesktopWorkspaceClientBindingsInput = WorkspaceClientPlatformU
     runtime: WorkspaceClientRuntimeBindings;
   };
 
+type WorkspaceClientHostCapabilityMap = {
+  "host.oauth.openExternalUrl": CreateDesktopWorkspaceClientHostBindingsInput["openExternalUrl"];
+  "host.oauth.waitForBinding": CreateDesktopWorkspaceClientHostBindingsInput["waitForOauthBinding"];
+  "host.oauth.createPopupWindow": NonNullable<
+    CreateDesktopWorkspaceClientHostBindingsInput["createOauthPopupWindow"]
+  >;
+  "host.notification.system": CreateDesktopWorkspaceClientHostBindingsInput["testSystemNotification"];
+  "host.notification.sound": NonNullable<
+    CreateDesktopWorkspaceClientHostBindingsInput["testSound"]
+  >;
+  "host.shell.readStartupStatus": NonNullable<
+    CreateDesktopWorkspaceClientHostBindingsInput["readShellStartupStatus"]
+  >;
+};
+
 export function createWorkspaceClientBindings<TBindings extends Record<string, unknown>>(
   input: CreateWorkspaceClientBindingsInput<TBindings>
 ) {
@@ -86,24 +102,61 @@ export function createWorkspaceClientBindings<TBindings extends Record<string, u
 export function createDesktopWorkspaceClientHostBindings(
   input: CreateDesktopWorkspaceClientHostBindingsInput
 ): WorkspaceClientHostBindings {
-  return {
+  const registry = createCapabilityRegistry<WorkspaceClientHostCapabilityMap>([
+    {
+      key: "host.oauth.openExternalUrl",
+      capability: input.openExternalUrl,
+      source: "desktop-host",
+    },
+    {
+      key: "host.oauth.waitForBinding",
+      capability: input.waitForOauthBinding,
+      source: "desktop-host",
+    },
+    {
+      key: "host.oauth.createPopupWindow",
+      capability: input.createOauthPopupWindow ?? (() => null),
+      source: "desktop-host",
+    },
+    {
+      key: "host.notification.system",
+      capability: input.testSystemNotification,
+      source: "desktop-host",
+    },
+    {
+      key: "host.notification.sound",
+      capability: input.testSound ?? (() => undefined),
+      source: "desktop-host",
+    },
+    ...(input.readShellStartupStatus
+      ? ([
+          {
+            key: "host.shell.readStartupStatus",
+            capability: input.readShellStartupStatus,
+            source: "desktop-host",
+          },
+        ] as const)
+      : []),
+  ]);
+
+  return createBindingFactory(registry)((capabilities) => ({
     platform: input.platform ?? "desktop",
     intents: {
       openOauthAuthorizationUrl: async (url) => {
-        await input.openExternalUrl(url);
+        await capabilities.require("host.oauth.openExternalUrl")(url);
       },
-      createOauthPopupWindow: input.createOauthPopupWindow ?? (() => null),
-      waitForOauthBinding: input.waitForOauthBinding,
+      createOauthPopupWindow: capabilities.require("host.oauth.createPopupWindow"),
+      waitForOauthBinding: capabilities.require("host.oauth.waitForBinding"),
     },
     notifications: {
-      testSound: input.testSound ?? (() => undefined),
-      testSystemNotification: input.testSystemNotification,
+      testSound: capabilities.require("host.notification.sound"),
+      testSystemNotification: capabilities.require("host.notification.system"),
     },
     shell: {
       platformHint: input.platformHint ?? "desktop",
-      readStartupStatus: input.readShellStartupStatus,
+      readStartupStatus: capabilities.optional("host.shell.readStartupStatus"),
     },
-  };
+  }));
 }
 
 function createPlatformUiBindings(
