@@ -270,7 +270,7 @@ function buildPluginAttentionReason(input: {
           ? "Runtime composition changes are waiting for authority acknowledgement."
           : input.composition?.freshnessState === "stale"
             ? "Runtime composition authority is serving the last accepted snapshot because the newest publish attempt is stale."
-        : null) ??
+            : null) ??
     readOptionalText(input.composition?.blockedReason) ??
     readOptionalText(input.registry?.trust.blockedReason) ??
     getCompatibilityBlocker(input.registry)

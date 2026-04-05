@@ -75,20 +75,20 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
                   : "Authority unavailable",
             tone: "warning" as const,
           }
-      : pluginControlPlane.counts.needsAction > 0
-        ? {
-            label: "Needs action",
-            tone: "warning" as const,
-          }
-        : pluginControlPlane.counts.selectedNow > 0
+        : pluginControlPlane.counts.needsAction > 0
           ? {
-              label: "Selected",
-              tone: "success" as const,
+              label: "Needs action",
+              tone: "warning" as const,
             }
-          : {
-              label: "Inventory",
-              tone: "neutral" as const,
-            };
+          : pluginControlPlane.counts.selectedNow > 0
+            ? {
+                label: "Selected",
+                tone: "success" as const,
+              }
+            : {
+                label: "Inventory",
+                tone: "neutral" as const,
+              };
     const readPluginActionPresentation = (
       action: Parameters<typeof resolveRuntimeControlPlaneOperatorActionPresentation>[0]["action"]
     ) =>
