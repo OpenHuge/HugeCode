@@ -132,7 +132,10 @@ fn sample_runtime_composition_publish_payload(
                 },
             },
             "authorityState": "unavailable",
+            "freshnessState": "unavailable",
             "authorityRevision": null,
+            "lastAcceptedRevision": null,
+            "lastPublishAttemptAt": null,
             "publishedAt": null,
             "publisherSessionId": null,
             "provenance": {
@@ -164,7 +167,10 @@ async fn rpc_dispatch_runtime_composition_tests_publish_and_read_back_authority_
     .await
     .expect("publish composition snapshot");
     assert_eq!(publish["authorityState"], Value::String("published".to_string()));
+    assert_eq!(publish["freshnessState"], Value::String("current".to_string()));
     assert_eq!(publish["authorityRevision"], Value::from(1_u64));
+    assert_eq!(publish["lastAcceptedRevision"], Value::from(1_u64));
+    assert_eq!(publish["lastPublishAttemptAt"], Value::from(123_u64));
 
     let listed = handle_runtime_composition_profile_list_v2(&ctx, &json!({ "workspaceId": "ws-1" }))
         .await
@@ -198,7 +204,10 @@ async fn rpc_dispatch_runtime_composition_tests_publish_and_read_back_authority_
             .await
             .expect("resolve composition snapshot");
     assert_eq!(resolved["authorityState"], Value::String("published".to_string()));
+    assert_eq!(resolved["freshnessState"], Value::String("current".to_string()));
     assert_eq!(resolved["authorityRevision"], Value::from(1_u64));
+    assert_eq!(resolved["lastAcceptedRevision"], Value::from(1_u64));
+    assert_eq!(resolved["lastPublishAttemptAt"], Value::from(123_u64));
     assert_eq!(
         resolved["publisherSessionId"],
         Value::String("session-a".to_string())
@@ -223,13 +232,20 @@ async fn rpc_dispatch_runtime_composition_tests_rejects_stale_same_session_revis
     .await
     .expect("stale response");
     assert_eq!(stale["authorityState"], Value::String("stale".to_string()));
+    assert_eq!(stale["freshnessState"], Value::String("stale".to_string()));
     assert_eq!(stale["authorityRevision"], Value::from(2_u64));
+    assert_eq!(stale["lastAcceptedRevision"], Value::from(2_u64));
+    assert_eq!(stale["lastPublishAttemptAt"], Value::from(123_u64));
 
     let resolved =
         handle_runtime_composition_profile_resolve_v2(&ctx, &json!({ "workspaceId": "ws-1" }))
             .await
             .expect("resolve current snapshot");
+    assert_eq!(resolved["authorityState"], Value::String("stale".to_string()));
     assert_eq!(resolved["authorityRevision"], Value::from(2_u64));
+    assert_eq!(resolved["freshnessState"], Value::String("stale".to_string()));
+    assert_eq!(resolved["lastAcceptedRevision"], Value::from(2_u64));
+    assert_eq!(resolved["lastPublishAttemptAt"], Value::from(123_u64));
 
     let replaced = handle_runtime_composition_snapshot_publish_v1(
         &ctx,
@@ -238,5 +254,7 @@ async fn rpc_dispatch_runtime_composition_tests_rejects_stale_same_session_revis
     .await
     .expect("publish from new session");
     assert_eq!(replaced["authorityState"], Value::String("published".to_string()));
+    assert_eq!(replaced["freshnessState"], Value::String("current".to_string()));
     assert_eq!(replaced["authorityRevision"], Value::from(1_u64));
+    assert_eq!(replaced["lastAcceptedRevision"], Value::from(1_u64));
 }

@@ -139,6 +139,9 @@ const runtimeCompositionApplyMock = vi.hoisted(() =>
 const runtimeCompositionApplyV2Mock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["applyProfileV2"]>(async () => null as never)
 );
+const runtimeCompositionPublishMock = vi.hoisted(() =>
+  vi.fn<RuntimeKernelCompositionFacade["publishActiveResolutionV1"]>(async () => null as never)
+);
 
 function createRuntimeCompositionProfileFixture(): RuntimeCompositionProfile {
   return {
@@ -201,6 +204,13 @@ function createRuntimeCompositionSnapshotFixture(
 ): RuntimeCompositionResolveV2Response {
   return {
     activeProfile: createRuntimeCompositionProfileFixture(),
+    authorityState: "published",
+    freshnessState: "current",
+    authorityRevision: 1,
+    lastAcceptedRevision: 1,
+    lastPublishAttemptAt: 1,
+    publishedAt: 1,
+    publisherSessionId: "session-1",
     provenance: {
       activeProfileId: "workspace-default",
       activeProfileName: "Workspace Default",
@@ -994,6 +1004,7 @@ function createRuntimeKernelValue(): RuntimeKernel {
     applyProfileV2: runtimeCompositionApplyV2Mock,
     getActiveResolution: runtimeCompositionResolutionMock,
     getActiveResolutionV2: runtimeCompositionResolutionV2Mock,
+    publishActiveResolutionV1: runtimeCompositionPublishMock,
   };
 
   return {

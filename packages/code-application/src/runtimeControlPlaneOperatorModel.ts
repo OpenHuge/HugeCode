@@ -12,6 +12,11 @@ const RUNTIME_CONTROL_PLANE_PLUGIN_REGISTRY_METADATA_KEY = "pluginRegistry";
 const RUNTIME_CONTROL_PLANE_PLUGIN_COMPOSITION_METADATA_KEY = "composition";
 
 type RuntimeControlPlaneCompositionAuthorityState = "published" | "stale" | "unavailable";
+type RuntimeControlPlaneAuthorityFreshnessState =
+  | "current"
+  | "pending_publish"
+  | "stale"
+  | "unavailable";
 type RuntimeControlPlaneBindingState = "unbound" | "binding" | "bound" | "degraded" | "blocked";
 type RuntimeControlPlanePublicationState = "hidden" | "declaration_only" | "published" | "blocked";
 type RuntimeControlPlaneBindingDiagnostic = {
@@ -36,6 +41,7 @@ export type RuntimeControlPlanePluginCompositionMetadata = {
   activeProfileId: string | null;
   activeProfileName: string | null;
   authorityState?: RuntimeControlPlaneCompositionAuthorityState;
+  freshnessState?: RuntimeControlPlaneAuthorityFreshnessState;
   authorityRevision?: number | null;
   selectedInActiveProfile: boolean;
   blockedInActiveProfile: boolean;
@@ -192,6 +198,12 @@ function buildPluginStatusLabel(input: {
   if (input.composition?.authorityState === "stale") {
     return "Authority stale";
   }
+  if (input.composition?.freshnessState === "pending_publish") {
+    return "Publishing";
+  }
+  if (input.composition?.freshnessState === "stale") {
+    return "Authority stale";
+  }
   if (
     input.composition?.publicationState === "blocked" ||
     input.composition?.bindingState === "blocked"
@@ -230,6 +242,7 @@ function buildPluginStateSummary(input: {
   composition: RuntimeControlPlanePluginCompositionMetadata | null;
 }): string {
   const authorityState = input.composition?.authorityState ?? "unknown";
+  const freshnessState = input.composition?.freshnessState ?? "unknown";
   const installState =
     input.registry?.source === "runtime_managed"
       ? "runtime-managed"
@@ -241,7 +254,7 @@ function buildPluginStateSummary(input: {
     input.composition?.compatibilityStatus ?? input.registry?.compatibility.status ?? "unknown";
   const bindingState = input.composition?.bindingState ?? "unknown";
   const publicationState = input.composition?.publicationState ?? "unknown";
-  return `Authority ${authorityState} | Install ${installState} | Trust ${trustState} | Compatibility ${compatibilityState} | Bind ${bindingState} | Publish ${publicationState}`;
+  return `Authority ${authorityState} / ${freshnessState} | Install ${installState} | Trust ${trustState} | Compatibility ${compatibilityState} | Bind ${bindingState} | Publish ${publicationState}`;
 }
 
 function buildPluginAttentionReason(input: {
@@ -253,7 +266,11 @@ function buildPluginAttentionReason(input: {
       ? "Runtime composition authority has not published a workspace snapshot yet."
       : input.composition?.authorityState === "stale"
         ? "Runtime composition authority rejected the latest local snapshot as stale."
-        : null) ??
+        : input.composition?.freshnessState === "pending_publish"
+          ? "Runtime composition changes are waiting for authority acknowledgement."
+          : input.composition?.freshnessState === "stale"
+            ? "Runtime composition authority is serving the last accepted snapshot because the newest publish attempt is stale."
+            : null) ??
     readOptionalText(input.composition?.blockedReason) ??
     readOptionalText(input.registry?.trust.blockedReason) ??
     getCompatibilityBlocker(input.registry)

@@ -209,6 +209,7 @@ export function createRuntimeKernel(): RuntimeKernel {
         runtimeGateway,
         capabilityProviders,
       });
+      void compositionRuntime.publishActiveResolutionV1().catch(() => undefined);
       workspaceScopeCache.set(workspaceId, scope);
       return scope;
     },

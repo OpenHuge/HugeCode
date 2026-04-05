@@ -337,6 +337,39 @@ describe("runtimeControlPlaneOperatorModel", () => {
     expect(model.inventory[0]?.attentionReason).toContain("has not published");
   });
 
+  it("surfaces pending authority freshness as publishing attention", () => {
+    const activeProfile = buildProfile();
+    const model = buildRuntimeControlPlaneOperatorModel({
+      plugins: [
+        buildPlugin({
+          metadata: {
+            composition: {
+              activeProfileId: activeProfile.id,
+              activeProfileName: activeProfile.name,
+              authorityState: "published",
+              freshnessState: "pending_publish",
+              authorityRevision: 4,
+              selectedInActiveProfile: true,
+              blockedInActiveProfile: false,
+              blockedReason: null,
+              selectedRouteCandidate: true,
+              selectedBackendCandidateIds: [],
+              layerOrder: ["built_in", "user", "workspace", "launch_override"],
+            },
+          },
+        }),
+      ],
+      profiles: [activeProfile],
+      activeProfile,
+      activeProfileId: activeProfile.id,
+      resolution: buildResolution(),
+    });
+
+    expect(model.inventory[0]?.statusLabel).toBe("Publishing");
+    expect(model.inventory[0]?.stateSummary).toContain("published / pending_publish");
+    expect(model.inventory[0]?.attentionReason).toContain("waiting for authority acknowledgement");
+  });
+
   it("derives action presentation from runtime loading, busy action, and disabled reasons", () => {
     const action = {
       id: "pkg.search.remote:install",

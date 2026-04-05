@@ -193,7 +193,10 @@ describe("code runtime rpc compatibility helpers", () => {
     expectTypeOf<RuntimeCompositionResolveV2Response>().toExtend<{
       activeProfile: RuntimeCompositionProfile | null;
       authorityState: RuntimeCompositionAuthorityState;
+      freshnessState: "current" | "pending_publish" | "stale" | "unavailable";
       authorityRevision: number | null;
+      lastAcceptedRevision: number | null;
+      lastPublishAttemptAt: number | null;
       pluginEntries: RuntimeCompositionPluginEntryV2[];
     }>();
     expectTypeOf<RuntimeCompositionPluginEntryV2>().toExtend<{
