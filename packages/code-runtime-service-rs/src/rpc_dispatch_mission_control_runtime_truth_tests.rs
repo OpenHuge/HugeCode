@@ -93,6 +93,9 @@ fn build_operator_snapshot_workspace_evidence_and_accountability_from_runtime_tr
             parent_task_id: None,
             child_task_ids: None,
             distributed_status: None,
+            context_boundary: None,
+            context_projection: None,
+            compaction_summary: None,
             steps: vec![
                 make_runtime_truth_step_summary(
                     0,

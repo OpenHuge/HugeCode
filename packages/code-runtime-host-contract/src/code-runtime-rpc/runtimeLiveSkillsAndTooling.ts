@@ -2,6 +2,8 @@ import type {
   RuntimeApprovalEvent,
   RuntimeCheckpointState,
   RuntimeCompactionSummary,
+  RuntimeContextBoundarySummary,
+  RuntimeContextProjectionSummary,
   RuntimeTakeoverBundle,
   SubAgentScopeProfile,
   SubAgentScopeProfileDescriptor,
@@ -56,6 +58,8 @@ export type LiveSkillResearchRunSession = {
   traceId?: string | null;
   recovered?: boolean | null;
   checkpointState?: RuntimeCheckpointState | null;
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
   takeoverBundle?: RuntimeTakeoverBundle | null;
   approvalEvents?: RuntimeApprovalEvent[] | null;
   compactionSummary?: RuntimeCompactionSummary | null;
@@ -94,6 +98,8 @@ export type LiveSkillExecutionMetadata = Record<string, unknown> & {
   profileUsed?: SubAgentScopeProfile | null;
   approvalEvents?: RuntimeApprovalEvent[] | null;
   checkpointState?: RuntimeCheckpointState | null;
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
   compactionSummary?: RuntimeCompactionSummary | null;
   evalTags?: string[] | null;
   researchRun?: LiveSkillResearchRunMetadata | null;

@@ -1,6 +1,7 @@
 use super::*;
 use crate::agent_task_durability::sub_agent_trace_id;
 use crate::rpc_dispatch::mission_control_dispatch::build_runtime_sub_agent_takeover_bundle;
+use crate::runtime_context_compaction::enrich_agent_task_summary_for_response;
 
 #[path = "sub_agents/profiles.rs"]
 pub(crate) mod profiles;
@@ -190,6 +191,10 @@ pub(super) struct SubAgentSessionSummary {
     pub(super) recovered: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) checkpoint_state: Option<SubAgentCheckpointState>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) context_boundary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) context_projection: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) takeover_bundle: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -445,6 +450,7 @@ pub(crate) async fn handle_sub_agent_send(
 
     let session_summary =
         update_sub_agent_session_with_task(ctx, session_id.as_str(), &task_summary).await?;
+    let task_summary = enrich_agent_task_summary_for_response(&task_summary);
 
     Ok(json!(SubAgentSendResult {
         session: session_summary,
@@ -471,6 +477,9 @@ pub(crate) async fn handle_sub_agent_wait(
         if let Some((session_summary, task_summary)) =
             timeouts::enforce_sub_agent_task_timeout_if_needed(ctx, &runtime).await?
         {
+            let task_summary = task_summary
+                .as_ref()
+                .map(enrich_agent_task_summary_for_response);
             return Ok(json!(SubAgentWaitResult {
                 session: session_summary,
                 task: task_summary,
@@ -512,6 +521,7 @@ pub(crate) async fn handle_sub_agent_wait(
         if let Some(task_summary) = task_summary {
             let session_summary =
                 update_sub_agent_session_with_task(ctx, session_id.as_str(), &task_summary).await?;
+            let task_summary = enrich_agent_task_summary_for_response(&task_summary);
             if is_agent_task_terminal_status(task_summary.status.as_str()) {
                 return Ok(json!(SubAgentWaitResult {
                     session: session_summary,
@@ -851,6 +861,8 @@ async fn create_sub_agent_session(
         trace_id: Some(sub_agent_trace_id(session_id.as_str())),
         recovered: Some(false),
         checkpoint_state: None,
+        context_boundary: None,
+        context_projection: None,
         takeover_bundle: None,
         approval_events: Some(Vec::new()),
         compaction_summary: None,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
+import type { RuntimeMissionRunSummary } from "../types/webMcpBridge";
 import {
   CONTROL_PLANE_KERNEL_PROJECTION_SCOPES,
   projectMissionControlSnapshotToRuntimeTasks,
@@ -7,7 +8,7 @@ import {
 } from "./runtimeMissionControlSnapshot";
 
 function createMissionControlSnapshot(
-  overrides?: Partial<HugeCodeMissionControlSnapshot["runs"][number]>
+  overrides?: Partial<RuntimeMissionRunSummary>
 ): HugeCodeMissionControlSnapshot {
   return {
     source: "runtime_snapshot_v1",
@@ -256,5 +257,73 @@ describe("runtimeMissionControlSnapshot", () => {
     expect(tasks[0]?.status).toBe("completed");
     expect(tasks[0]?.reviewPackId).toBe("review-pack:run-1");
     expect(tasks[0]?.runSummary?.summary).toBe("Review Pack ready.");
+  });
+
+  it("preserves runtime context boundary and projection truth when mapping runs back to tasks", () => {
+    const tasks = projectMissionControlSnapshotToRuntimeTasks(
+      createMissionControlSnapshot({
+        contextBoundary: {
+          boundaryId: "boundary-1",
+          trigger: "session_length",
+          phase: "pre_turn",
+          status: "projected",
+          preTokens: 4096,
+          postTokens: 1024,
+          preservedRangeIds: ["run-1:step-1"],
+          summaryRef: "summary://boundary-1",
+          offloadRefs: ["turn://tool-1/output"],
+          projectionFingerprint: "fingerprint-1",
+          updatedAt: 3,
+        },
+        contextProjection: {
+          projectionId: "projection-1",
+          boundaryId: "boundary-1",
+          sourceTaskId: "mission-task-1",
+          sourceRunId: "run-1",
+          phase: "pre_turn",
+          status: "active",
+          preservedRangeIds: ["run-1:step-1"],
+          summaryRef: "summary://projection-1",
+          offloadRefs: ["turn://tool-1/output"],
+          projectionFingerprint: "fingerprint-1",
+          updatedAt: 3,
+        },
+        compactionSummary: {
+          triggered: true,
+          executed: true,
+          source: "session_length",
+          compressedSteps: 1,
+          bytesReduced: 512,
+          keepRecentSteps: 3,
+          summaryMaxChars: 240,
+          executionError: null,
+        },
+      })
+    );
+
+    expect(tasks[0]?.contextBoundary).toMatchObject({
+      boundaryId: "boundary-1",
+      trigger: "session_length",
+    });
+    expect(tasks[0]?.contextProjection).toMatchObject({
+      projectionId: "projection-1",
+      sourceRunId: "run-1",
+    });
+    expect(tasks[0]?.compactionSummary).toMatchObject({
+      triggered: true,
+      source: "session_length",
+    });
+    expect(tasks[0]?.runSummary).toMatchObject({
+      contextBoundary: {
+        boundaryId: "boundary-1",
+      },
+      contextProjection: {
+        projectionId: "projection-1",
+      },
+      compactionSummary: {
+        triggered: true,
+        executed: true,
+      },
+    });
   });
 });

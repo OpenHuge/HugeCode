@@ -272,7 +272,7 @@ pub(super) fn parse_turn_send_request(params: &Value) -> Result<TurnSendRequestE
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{Value, json};
+    use serde_json::{json, Value};
 
     fn parse_collaboration_mode(value: Value) -> Option<TurnSendCollaborationModeRequest> {
         serde_json::from_value(value).ok()

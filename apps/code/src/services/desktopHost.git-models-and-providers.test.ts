@@ -40,6 +40,11 @@ vi.mock("../application/runtime/ports/desktopHostDialogs", () => ({
   open: vi.fn(),
 }));
 
+vi.mock("../application/runtime/ports/desktopHostNotifications", () => ({
+  isPermissionGranted: vi.fn(),
+  requestPermission: vi.fn(),
+  sendNotification: vi.fn(),
+}));
 vi.mock("./runtimeClient", () => ({
   detectRuntimeMode: vi.fn(() => "electron-bridge"),
   getRuntimeClient: vi.fn(),
@@ -65,6 +70,7 @@ describe("desktop host invoke wrappers", () => {
       }
       return undefined;
     });
+    invokeDesktopCommandMock.mockImplementation(invokeMock);
     vi.mocked(getRuntimeClient).mockImplementation(() => {
       throw new Error("runtime unavailable");
     });

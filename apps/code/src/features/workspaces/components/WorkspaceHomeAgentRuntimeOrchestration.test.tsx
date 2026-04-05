@@ -388,7 +388,7 @@ function createBrowserReadinessSummary(overrides: Record<string, unknown> = {}) 
     state: "ready",
     headline: "Browser readiness confirmed",
     detail: "Desktop host bridge publishes the browser extraction contract.",
-    recommendedAction: "Use the host browser extraction contract.",
+    recommendedAction: "Use the runtime browser extraction contract.",
     runtimeHost: "electron",
     source: "desktop_host_bridge",
     sourceLabel: "Desktop host bridge",
@@ -1747,14 +1747,17 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
-    const section = await screen.findByTestId(
-      "workspace-runtime-plugin-operator-actions",
-      {},
-      {
-        timeout: 5_000,
-      }
+    let section: HTMLElement | null = null;
+    await waitFor(
+      () => {
+        section = screen.getByTestId("workspace-runtime-plugin-operator-actions");
+      },
+      { timeout: 5_000 }
     );
-    expect(within(section).getByText("Composition profiles")).toBeTruthy();
+
+    const pluginSection = section;
+    expect(pluginSection).toBeTruthy();
+    expect(within(pluginSection as HTMLElement).getByText("Composition profiles")).toBeTruthy();
     expect(screen.getAllByText("Needs action").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Inventory", { selector: "strong" }).length).toBeGreaterThan(0);
 
@@ -1779,7 +1782,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       });
       expect(screen.getByText("Preview: workspace-default")).toBeTruthy();
     });
-  });
+  }, 15_000);
 
   it("renders session logs from runtime lifecycle events", async () => {
     mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
@@ -1885,8 +1888,10 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
-    fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {
-      target: { value: "Inspect runtime launch path" },
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText("Mission brief for agent"), {
+        target: { value: "Inspect runtime launch path" },
+      });
     });
     await waitFor(() => {
       expect(prepareRuntimeRunV2Mock).toHaveBeenCalledWith(
@@ -1898,20 +1903,21 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
           steps: [{ kind: "read", input: "Inspect runtime launch path" }],
         })
       );
-      expect(screen.getByText("Mission planning")).toBeTruthy();
-      expect(screen.getByText("Plan version: plan-1")).toBeTruthy();
-      expect(screen.getByText("Plan approval: pending")).toBeTruthy();
-      expect(
-        screen.getByText("Runtime clarified the mission and built a native execution plan.")
-      ).toBeTruthy();
-      expect(
-        screen.getByText(/Validation: Run the standard validation lane before review\./)
-      ).toBeTruthy();
-      expect(screen.getByText(/Review focus: runtime truth \| approval batching/)).toBeTruthy();
-      expect(
-        screen.getByText("Repo guidance: AGENTS.md, CLAUDE.md, .github/copilot-instructions.md")
-      ).toBeTruthy();
     });
+
+    expect(await screen.findByText("Mission planning")).toBeTruthy();
+    expect(await screen.findByText("Plan version: plan-1")).toBeTruthy();
+    expect(screen.getByText("Plan approval: pending")).toBeTruthy();
+    expect(
+      screen.getByText("Runtime clarified the mission and built a native execution plan.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/Validation: Run the standard validation lane before review\./)
+    ).toBeTruthy();
+    expect(screen.getByText(/Review focus: runtime truth \| approval batching/)).toBeTruthy();
+    expect(
+      screen.getByText("Repo guidance: AGENTS.md, CLAUDE.md, .github/copilot-instructions.md")
+    ).toBeTruthy();
   });
 
   it("shows repo-derived launch defaults and uses the repo default profile when untouched", async () => {

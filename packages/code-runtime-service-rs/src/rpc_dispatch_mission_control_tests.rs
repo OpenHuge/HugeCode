@@ -92,18 +92,17 @@ fn make_step_summary(index: usize, kind: &str, metadata: Value) -> AgentTaskStep
         approval_id: None,
     }
 }
-#[test]
-fn rpc_dispatch_mission_control_tests_build_runtime_execution_graph_summary_uses_task_id_and_first_step_kind()
- {
-    let summary = AgentTaskSummary {
-        task_id: "task-1".to_string(),
-        workspace_id: "ws-1".to_string(),
+
+fn make_task_summary(task_id: &str, workspace_id: &str, status: &str) -> AgentTaskSummary {
+    AgentTaskSummary {
+        task_id: task_id.to_string(),
+        workspace_id: workspace_id.to_string(),
         thread_id: None,
         request_id: None,
-        title: Some("Build a runtime graph".to_string()),
+        title: None,
         task_source: None,
         validation_preset_id: None,
-        status: "running".to_string(),
+        status: status.to_string(),
         access_mode: "full-access".to_string(),
         execution_profile_id: None,
         review_profile_id: None,
@@ -115,10 +114,10 @@ fn rpc_dispatch_mission_control_tests_build_runtime_execution_graph_summary_uses
         routed_model_id: None,
         routed_pool: None,
         routed_source: None,
-        current_step: Some(0),
+        current_step: None,
         created_at: 1,
         updated_at: 1,
-        started_at: Some(1),
+        started_at: None,
         completed_at: None,
         error_code: None,
         error_message: None,
@@ -128,6 +127,7 @@ fn rpc_dispatch_mission_control_tests_build_runtime_execution_graph_summary_uses
         mission_brief: None,
         relaunch_context: None,
         auto_drive: None,
+        backend_id: None,
         acp_integration_id: None,
         acp_session_id: None,
         acp_config_options: None,
@@ -140,8 +140,20 @@ fn rpc_dispatch_mission_control_tests_build_runtime_execution_graph_summary_uses
         parent_task_id: None,
         child_task_ids: None,
         distributed_status: None,
+        context_boundary: None, context_projection: None, compaction_summary: None,
+        steps: Vec::new(),
+    }
+}
+#[test]
+fn rpc_dispatch_mission_control_tests_build_runtime_execution_graph_summary_uses_task_id_and_first_step_kind()
+ {
+    let summary = AgentTaskSummary {
+        title: Some("Build a runtime graph".to_string()),
+        current_step: Some(0),
+        started_at: Some(1),
         backend_id: Some("backend-1".to_string()),
         steps: vec![make_step_summary(0, "plan", json!({}))],
+        ..make_task_summary("task-1", "ws-1", "running")
     };
 
     let graph = build_runtime_execution_graph_summary(&summary);
@@ -186,18 +198,8 @@ async fn mission_control_snapshot_reuses_cached_value_until_runtime_revision_cha
 #[test]
 fn derive_run_changed_paths_prefers_runtime_step_metadata() {
     let summary = AgentTaskSummary {
-        task_id: "run-1".to_string(),
-        workspace_id: "ws-1".to_string(),
         thread_id: Some("thread-1".to_string()),
-        request_id: None,
         title: Some("Review runtime payload".to_string()),
-        task_source: None,
-        validation_preset_id: None,
-        status: "completed".to_string(),
-        access_mode: "full-access".to_string(),
-        execution_profile_id: None,
-        review_profile_id: None,
-        agent_profile: "delegate".to_string(),
         provider: Some("openai".to_string()),
         model_id: Some("gpt-5.3-codex".to_string()),
         reason_effort: Some("high".to_string()),
@@ -206,31 +208,9 @@ fn derive_run_changed_paths_prefers_runtime_step_metadata() {
         routed_pool: Some("codex".to_string()),
         routed_source: Some("workspace-default".to_string()),
         current_step: Some(2),
-        created_at: 1,
         updated_at: 10,
         started_at: Some(2),
         completed_at: Some(10),
-        error_code: None,
-        error_message: None,
-        pending_approval_id: None,
-        pending_approval: None,
-        review_decision: None,
-        mission_brief: None,
-        relaunch_context: None,
-        auto_drive: None,
-        backend_id: None,
-        acp_integration_id: None,
-        acp_session_id: None,
-        acp_config_options: None,
-        acp_available_commands: None,
-        preferred_backend_ids: None,
-        placement_fallback_reason_code: None,
-        resume_backend_id: None,
-        placement_score_breakdown: None,
-        root_task_id: None,
-        parent_task_id: None,
-        child_task_ids: None,
-        distributed_status: None,
         steps: vec![
             make_step_summary(
                 0,
@@ -247,19 +227,20 @@ fn derive_run_changed_paths_prefers_runtime_step_metadata() {
                 json!({
                     "approval": {
                         "scopeKind": "file-target",
-                        "scopeTarget": "packages/code-runtime-host-contract/src/hypeCodeMissionControl.ts",
+                        "scopeTarget": "packages/code-runtime-host-contract/src/hugeCodeMissionControl.ts",
                     }
                 }),
             ),
             make_step_summary(2, "diagnostics", json!({})),
         ],
+        ..make_task_summary("run-1", "ws-1", "completed")
     };
 
     assert_eq!(
         derive_run_changed_paths(&summary),
         vec![
             "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts".to_string(),
-            "packages/code-runtime-host-contract/src/hypeCodeMissionControl.ts".to_string(),
+            "packages/code-runtime-host-contract/src/hugeCodeMissionControl.ts".to_string(),
         ]
     );
 }
@@ -267,18 +248,8 @@ fn derive_run_changed_paths_prefers_runtime_step_metadata() {
 #[test]
 fn build_placement_evidence_derives_health_summary_and_attention_reasons() {
     let summary = AgentTaskSummary {
-        task_id: "run-placement".to_string(),
-        workspace_id: "ws-1".to_string(),
         thread_id: Some("thread-1".to_string()),
-        request_id: None,
         title: Some("Placement health mission".to_string()),
-        task_source: None,
-        validation_preset_id: None,
-        status: "running".to_string(),
-        access_mode: "full-access".to_string(),
-        execution_profile_id: None,
-        review_profile_id: None,
-        agent_profile: "delegate".to_string(),
         provider: Some("openai".to_string()),
         model_id: Some("gpt-5.3-codex".to_string()),
         reason_effort: Some("high".to_string()),
@@ -287,32 +258,12 @@ fn build_placement_evidence_derives_health_summary_and_attention_reasons() {
         routed_pool: Some("codex".to_string()),
         routed_source: Some("workspace-default".to_string()),
         current_step: Some(0),
-        created_at: 1,
         updated_at: 10,
         started_at: Some(2),
-        completed_at: None,
-        error_code: None,
-        error_message: None,
-        pending_approval_id: None,
-        pending_approval: None,
-        review_decision: None,
-        mission_brief: None,
-        relaunch_context: None,
-        auto_drive: None,
         backend_id: Some("backend-1".to_string()),
-        acp_integration_id: None,
-        acp_session_id: None,
-        acp_config_options: None,
-        acp_available_commands: None,
         preferred_backend_ids: Some(vec!["backend-preferred".to_string()]),
-        placement_fallback_reason_code: None,
-        resume_backend_id: None,
-        placement_score_breakdown: None,
-        root_task_id: None,
-        parent_task_id: None,
-        child_task_ids: None,
-        distributed_status: None,
         steps: vec![make_step_summary(0, "read", json!({}))],
+        ..make_task_summary("run-placement", "ws-1", "running")
     };
     let routing = json!({
         "backendId": "backend-1",
@@ -376,18 +327,8 @@ fn build_placement_evidence_derives_health_summary_and_attention_reasons() {
 #[test]
 fn build_placement_evidence_includes_runtime_fallback_reason_and_score_breakdown() {
     let summary = AgentTaskSummary {
-        task_id: "run-placement-fallback".to_string(),
-        workspace_id: "ws-1".to_string(),
         thread_id: Some("thread-1".to_string()),
-        request_id: None,
         title: Some("Placement fallback mission".to_string()),
-        task_source: None,
-        validation_preset_id: None,
-        status: "running".to_string(),
-        access_mode: "full-access".to_string(),
-        execution_profile_id: None,
-        review_profile_id: None,
-        agent_profile: "delegate".to_string(),
         provider: Some("openai".to_string()),
         model_id: Some("gpt-5.3-codex".to_string()),
         reason_effort: Some("high".to_string()),
@@ -396,23 +337,9 @@ fn build_placement_evidence_includes_runtime_fallback_reason_and_score_breakdown
         routed_pool: Some("codex".to_string()),
         routed_source: Some("workspace-default".to_string()),
         current_step: Some(0),
-        created_at: 1,
         updated_at: 10,
         started_at: Some(2),
-        completed_at: None,
-        error_code: None,
-        error_message: None,
-        pending_approval_id: None,
-        pending_approval: None,
-        review_decision: None,
-        mission_brief: None,
-        relaunch_context: None,
-        auto_drive: None,
         backend_id: Some("backend-fallback".to_string()),
-        acp_integration_id: None,
-        acp_session_id: None,
-        acp_config_options: None,
-        acp_available_commands: None,
         preferred_backend_ids: Some(vec!["backend-preferred".to_string()]),
         placement_fallback_reason_code: Some("resume_backend_unavailable".to_string()),
         resume_backend_id: Some("backend-resume".to_string()),
@@ -444,11 +371,8 @@ fn build_placement_evidence_includes_runtime_fallback_reason_and_score_breakdown
                 "reasons": ["explicit_preference", "placement_attention"]
             }
         ])),
-        root_task_id: None,
-        parent_task_id: None,
-        child_task_ids: None,
-        distributed_status: None,
         steps: vec![make_step_summary(0, "read", json!({}))],
+        ..make_task_summary("run-placement-fallback", "ws-1", "running")
     };
     let routing = json!({
         "backendId": "backend-fallback",
@@ -569,7 +493,7 @@ fn build_review_pack_emits_file_changes_and_evidence_refs() {
         ],
         changed_paths: vec![
             "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts".to_string(),
-            "packages/code-runtime-host-contract/src/hypeCodeMissionControl.ts".to_string(),
+            "packages/code-runtime-host-contract/src/hugeCodeMissionControl.ts".to_string(),
         ],
         completion_reason: Some("Run completed.".to_string()),
         review_pack_id: Some("review-pack:run-1".to_string()),
@@ -618,6 +542,7 @@ fn build_review_pack_emits_file_changes_and_evidence_refs() {
             ],
         })),
         session_boundary: None,
+        context_boundary: None, context_projection: None, compaction_summary: None,
         continuation: None,
         next_operator_action: None,
         execution_graph: None,
@@ -665,7 +590,7 @@ fn build_review_pack_emits_file_changes_and_evidence_refs() {
         review_pack_value["fileChanges"]["paths"],
         json!([
             "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts",
-            "packages/code-runtime-host-contract/src/hypeCodeMissionControl.ts",
+            "packages/code-runtime-host-contract/src/hugeCodeMissionControl.ts",
         ])
     );
     assert_eq!(
@@ -781,6 +706,7 @@ fn build_review_pack_marks_incomplete_evidence_and_resumable_checkpoint_runs() {
             ],
         })),
         session_boundary: None,
+        context_boundary: None, context_projection: None, compaction_summary: None,
         continuation: None,
         next_operator_action: None,
         execution_graph: None,
@@ -905,6 +831,7 @@ fn build_review_pack_includes_relaunch_metadata_and_sub_agents() {
             ],
         })),
         session_boundary: None,
+        context_boundary: None, context_projection: None, compaction_summary: None,
         continuation: None,
         next_operator_action: None,
         execution_graph: None,
@@ -928,6 +855,7 @@ fn build_review_pack_includes_relaunch_metadata_and_sub_agents() {
             parent_run_id: Some("run-relaunch".to_string()),
             scope_profile: Some("review".to_string()),
             status: "awaiting_approval".to_string(),
+            context_boundary: None, context_projection: None, compaction_summary: None,
             approval_state: Some(MissionRunSubAgentApprovalState {
                 status: "pending".to_string(),
                 approval_id: Some("approval-1".to_string()),
@@ -1009,18 +937,9 @@ fn project_runtime_task_to_run_appends_sub_agent_executor_nodes() {
     let now = now_ms();
     let runtime = AgentTaskRuntime {
         summary: AgentTaskSummary {
-            task_id: "run-parent".to_string(),
-            workspace_id: "ws-1".to_string(),
             thread_id: Some("thread-parent".to_string()),
             request_id: Some("request-parent".to_string()),
             title: Some("Parent run".to_string()),
-            task_source: None,
-            validation_preset_id: None,
-            status: "running".to_string(),
-            access_mode: "full-access".to_string(),
-            execution_profile_id: None,
-            review_profile_id: None,
-            agent_profile: "delegate".to_string(),
             provider: Some("openai".to_string()),
             model_id: Some("gpt-5.3-codex".to_string()),
             reason_effort: Some("high".to_string()),
@@ -1032,29 +951,10 @@ fn project_runtime_task_to_run_appends_sub_agent_executor_nodes() {
             created_at: now,
             updated_at: now,
             started_at: Some(now),
-            completed_at: None,
-            error_code: None,
-            error_message: None,
-            pending_approval_id: None,
-            pending_approval: None,
-            review_decision: None,
-            mission_brief: None,
-            relaunch_context: None,
-            auto_drive: None,
-            acp_integration_id: None,
-            acp_session_id: None,
-            acp_config_options: None,
-            acp_available_commands: None,
             preferred_backend_ids: Some(vec!["backend-1".to_string()]),
-            placement_fallback_reason_code: None,
-            resume_backend_id: None,
-            placement_score_breakdown: None,
-            root_task_id: None,
-            parent_task_id: None,
-            child_task_ids: None,
-            distributed_status: None,
             backend_id: Some("backend-1".to_string()),
             steps: vec![make_step_summary(0, "plan", json!({}))],
+            ..make_task_summary("run-parent", "ws-1", "running")
         },
         steps_input: Vec::new(),
         interrupt_requested: false,
@@ -1105,6 +1005,7 @@ fn project_runtime_task_to_run_appends_sub_agent_executor_nodes() {
             parent_run_id: Some("run-parent".to_string()),
             scope_profile: Some("review".to_string()),
             status: "awaiting_approval".to_string(),
+            context_boundary: None, context_projection: None, compaction_summary: None,
             approval_state: None,
             checkpoint_state: Some(SubAgentCheckpointState {
                 state: "checkpointed".to_string(),
@@ -1273,6 +1174,7 @@ fn build_governance_summary_blocks_when_sub_agent_awaits_approval() {
             parent_run_id: Some("run-parent".to_string()),
             scope_profile: Some("review".to_string()),
             status: "awaiting_approval".to_string(),
+            context_boundary: None, context_projection: None, compaction_summary: None,
             approval_state: Some(MissionRunSubAgentApprovalState {
                 status: "pending_decision".to_string(),
                 approval_id: Some("approval-1".to_string()),

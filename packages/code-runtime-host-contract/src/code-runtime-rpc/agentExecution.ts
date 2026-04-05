@@ -30,6 +30,11 @@ import type { LiveSkillSource } from "./liveSkillsShared.js";
 import type { WorkspaceDiagnosticSeverity } from "./workspaceAndGit.js";
 type RuntimeAutonomyRequestV2 = import("./runtimeRunsAndSubAgents.js").RuntimeAutonomyRequestV2;
 type RuntimeCheckpointState = import("./runtimeRunsAndSubAgents.js").RuntimeCheckpointState;
+type RuntimeCompactionSummary = import("./runtimeRunsAndSubAgents.js").RuntimeCompactionSummary;
+type RuntimeContextBoundarySummary =
+  import("./runtimeRunsAndSubAgents.js").RuntimeContextBoundarySummary;
+type RuntimeContextProjectionSummary =
+  import("./runtimeRunsAndSubAgents.js").RuntimeContextProjectionSummary;
 type RuntimeMissionLinkageSummary =
   import("./runtimeRunsAndSubAgents.js").RuntimeMissionLinkageSummary;
 type RuntimeReviewActionabilitySummary =
@@ -946,6 +951,9 @@ export type AgentTaskSummary = {
   skillUsage?: RuntimeSkillUsageSummary[] | null;
   autofixCandidate?: RuntimeAutofixCandidate | null;
   sessionBoundary?: HugeCodeRuntimeSessionBoundary | null;
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
+  compactionSummary?: RuntimeCompactionSummary | null;
   continuation?: HugeCodeContinuationSummary | null;
   nextOperatorAction?: HugeCodeNextOperatorAction | null;
   takeoverBundle?: RuntimeTakeoverBundle | null;

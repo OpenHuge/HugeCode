@@ -1,9 +1,7 @@
 use super::*;
 use crate::runtime_tool_metrics::RuntimeToolExecutionTotals;
-
 const DISTRIBUTED_READINESS_SNAPSHOT_CACHE_TTL: Duration = Duration::from_millis(500);
 const RUNTIME_BACKEND_REGISTRY_SYNC_TTL_MS: u64 = 1_000;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum RuntimeBackendRegistrySyncOutcome {
     Performed,
@@ -1198,6 +1196,9 @@ mod tests {
                 parent_task_id: None,
                 child_task_ids: None,
                 distributed_status: None,
+                context_boundary: None,
+                context_projection: None,
+                compaction_summary: None,
                 steps: Vec::new(),
             },
             steps_input: Vec::new(),
@@ -1231,7 +1232,6 @@ mod tests {
             },
         );
     }
-
     #[tokio::test]
     async fn runtime_observability_snapshot_prunes_stale_compat_failure_entries() {
         let ctx = distributed_runtime_test_context();
@@ -1397,7 +1397,6 @@ mod tests {
         let seeded_age_ms = 250_u64;
         ctx.runtime_update_last_event_at_ms
             .store(now_ms().saturating_sub(seeded_age_ms), Ordering::Relaxed);
-
         let snapshot = build_runtime_observability_snapshot(
             &ctx,
             RuntimeObservabilityScope::LiveUpdate,

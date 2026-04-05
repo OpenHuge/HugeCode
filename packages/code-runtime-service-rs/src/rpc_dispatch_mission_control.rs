@@ -149,6 +149,12 @@ pub(crate) struct MissionRunProjection {
     #[serde(skip_serializing_if = "Option::is_none")]
     session_boundary: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    context_boundary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_projection: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    compaction_summary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     continuation: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     next_operator_action: Option<Value>,
@@ -207,6 +213,12 @@ pub(crate) struct MissionRunSubAgentSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     scope_profile: Option<String>,
     status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_boundary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_projection: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    compaction_summary: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     approval_state: Option<MissionRunSubAgentApprovalState>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -274,6 +286,12 @@ pub(crate) struct MissionReviewPackProjection {
     actionability: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     session_boundary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_boundary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    context_projection: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    compaction_summary: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     continuation: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -433,6 +451,9 @@ fn build_sub_agent_summary(runtime: &sub_agents::SubAgentSessionRuntime) -> Miss
         parent_run_id: trim_to_option(summary.parent_run_id.as_deref()),
         scope_profile: trim_to_option(summary.scope_profile.as_deref()),
         status: summary.status.clone(),
+        context_boundary: summary.context_boundary.clone(),
+        context_projection: summary.context_projection.clone(),
+        compaction_summary: summary.compaction_summary.clone(),
         approval_state: build_sub_agent_approval_state(summary),
         checkpoint_state: summary.checkpoint_state.clone(),
         executor_linkage: summary

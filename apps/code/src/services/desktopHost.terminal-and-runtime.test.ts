@@ -1,10 +1,10 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   invoke,
   invokeDesktopCommand,
   isDesktopHostRuntime,
 } from "../application/runtime/ports/desktopHostCore";
 import { listen } from "../application/runtime/ports/desktopHostEvent";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -95,10 +95,6 @@ vi.mock("../application/runtime/ports/desktopHostCore", () => {
 
 vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
-}));
-
-vi.mock("../application/runtime/ports/desktopHostDialogs", () => ({
-  open: vi.fn(),
 }));
 
 vi.mock("./runtimeClient", () => ({

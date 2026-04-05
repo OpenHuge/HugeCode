@@ -42,6 +42,7 @@ import type {
   KernelProjectionBootstrapResponse,
   KernelProjectionDelta,
   KernelPolicyDecision,
+  LiveSkillExecutionMetadata,
   LiveSkillExecutionResult,
   RuntimeCompositionPluginEntryV2,
   RuntimeExtensionActivationSnapshot,
@@ -54,12 +55,17 @@ import type {
   RuntimeCompositionProfileSummaryV2,
   RuntimeCompositionResolution,
   RuntimeCompositionResolveV2Response,
+  RuntimeCompactionSummary,
+  RuntimeContextBoundarySummary,
+  RuntimeContextProjectionSummary,
   RuntimeExecutionGraphSummary,
+  SubAgentSessionSummary,
   SubAgentSpawnRequest,
 } from "./codeRuntimeRpc";
 import type { RuntimeExtensionActivationSnapshot as RuntimeExtensionActivationSnapshotModule } from "./runtimeActivationPlane";
 import type { RuntimeCompositionProfile as RuntimeCompositionProfileModule } from "./runtimeCompositionProfiles";
 import type { RuntimeCompositionResolution as RuntimeCompositionResolutionModule } from "./runtimeCompositionPlane";
+import type { HugeCodeReviewPackSummary, HugeCodeRunSummary } from "./hugeCodeMissionControl";
 
 type AssertFalse<T extends false> = T;
 type HotTurnSendPayload =
@@ -1156,6 +1162,57 @@ describe("code runtime rpc compatibility helpers", () => {
     expect(interventionAck.spawnedTaskId).toBe("task-2");
   });
 
+  it("exposes runtime context boundary and projection surfaces across summary types", () => {
+    expectTypeOf<AgentTaskSummary["contextBoundary"]>().toEqualTypeOf<
+      RuntimeContextBoundarySummary | null | undefined
+    >();
+    expectTypeOf<AgentTaskSummary["contextProjection"]>().toEqualTypeOf<
+      RuntimeContextProjectionSummary | null | undefined
+    >();
+    expectTypeOf<AgentTaskSummary["compactionSummary"]>().toEqualTypeOf<
+      RuntimeCompactionSummary | null | undefined
+    >();
+    expectTypeOf<SubAgentSessionSummary["contextBoundary"]>().toEqualTypeOf<
+      RuntimeContextBoundarySummary | null | undefined
+    >();
+    expectTypeOf<SubAgentSessionSummary["contextProjection"]>().toEqualTypeOf<
+      RuntimeContextProjectionSummary | null | undefined
+    >();
+    expectTypeOf<SubAgentSessionSummary["compactionSummary"]>().toEqualTypeOf<
+      RuntimeCompactionSummary | null | undefined
+    >();
+    expectTypeOf<LiveSkillExecutionMetadata["contextBoundary"]>().toEqualTypeOf<
+      RuntimeContextBoundarySummary | null | undefined
+    >();
+    expectTypeOf<LiveSkillExecutionMetadata["contextProjection"]>().toEqualTypeOf<
+      RuntimeContextProjectionSummary | null | undefined
+    >();
+    expectTypeOf<LiveSkillExecutionMetadata["compactionSummary"]>().toEqualTypeOf<
+      RuntimeCompactionSummary | null | undefined
+    >();
+    expectTypeOf<
+      LiveSkillExecutionResult["metadata"]
+    >().toMatchTypeOf<LiveSkillExecutionMetadata>();
+    expectTypeOf<HugeCodeRunSummary["contextBoundary"]>().toEqualTypeOf<
+      RuntimeContextBoundarySummary | null | undefined
+    >();
+    expectTypeOf<HugeCodeRunSummary["contextProjection"]>().toEqualTypeOf<
+      RuntimeContextProjectionSummary | null | undefined
+    >();
+    expectTypeOf<HugeCodeRunSummary["compactionSummary"]>().toEqualTypeOf<
+      RuntimeCompactionSummary | null | undefined
+    >();
+    expectTypeOf<HugeCodeReviewPackSummary["contextBoundary"]>().toEqualTypeOf<
+      RuntimeContextBoundarySummary | null | undefined
+    >();
+    expectTypeOf<HugeCodeReviewPackSummary["contextProjection"]>().toEqualTypeOf<
+      RuntimeContextProjectionSummary | null | undefined
+    >();
+    expectTypeOf<HugeCodeReviewPackSummary["compactionSummary"]>().toEqualTypeOf<
+      RuntimeCompactionSummary | null | undefined
+    >();
+  });
+
   it("builds both camelCase and snake_case fields for account/pool ids", () => {
     const payload = buildCodeRuntimeRpcCompatFields({
       accountId: "account-1",
@@ -1968,7 +2025,7 @@ describe("method-not-found error code detection", () => {
     expect(isCodeRuntimeRpcMethodNotFoundErrorCode(null)).toBe(false);
   });
 
-  it("normalizes desktop-host/web message variants into METHOD_NOT_FOUND", () => {
+  it("normalizes native-host/web message variants into METHOD_NOT_FOUND", () => {
     const messages = [
       "Unsupported RPC method: code_workspaces_list",
       "Unknown command code_workspaces_list",

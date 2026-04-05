@@ -60,6 +60,9 @@ fn build_review_pack_and_run_projection_publish_lifecycle_and_evidence_summaries
         mission_linkage: None,
         review_actionability: None,
         session_boundary: None,
+        context_boundary: None,
+        context_projection: None,
+        compaction_summary: None,
         continuation: None,
         next_operator_action: Some(json!({
             "action": "review",

@@ -28,31 +28,39 @@ function mapMissionStateToThreadVisualState(state: MissionOverviewState): Thread
 }
 
 function buildMissionSubline(item: MissionOverviewEntry) {
-  const parts = Array.from(
-    new Set(
-      [
-        item.operatorActionLabel,
-        item.routeDetail,
-        item.governanceSummary,
-        item.operatorSignal,
-        item.attentionSignals[0] ?? null,
-      ].filter((value): value is string => Boolean(value?.trim()))
-    )
-  );
+  const seenValues = new Set<string>();
+  const parts = [
+    { slot: "operatorAction", value: item.operatorActionLabel },
+    { slot: "routeDetail", value: item.routeDetail },
+    { slot: "governanceSummary", value: item.governanceSummary },
+    { slot: "operatorSignal", value: item.operatorSignal },
+    { slot: "attentionSignal", value: item.attentionSignals[0] ?? null },
+  ].filter((part): part is { slot: string; value: string } => {
+    const normalizedValue = part.value?.trim();
+    if (!normalizedValue) {
+      return false;
+    }
+    const dedupeKey = normalizedValue.toLowerCase();
+    if (seenValues.has(dedupeKey)) {
+      return false;
+    }
+    seenValues.add(dedupeKey);
+    return true;
+  });
 
   if (parts.length === 0) {
     return null;
   }
 
   return parts.map((part, index) => (
-    <span key={`${item.threadId}-${index}-${part}`}>
+    <span key={`${item.threadId}-${part.slot}-${part.value}`}>
       {index > 0 ? (
         <span className="thread-secondary-separator" aria-hidden>
           {" "}
           ·{" "}
         </span>
       ) : null}
-      <span className="thread-secondary-meta">{part}</span>
+      <span className="thread-secondary-meta">{part.value}</span>
     </span>
   ));
 }

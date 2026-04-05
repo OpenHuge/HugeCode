@@ -267,6 +267,9 @@ async fn launch_agent_task(
         } else {
             None
         },
+        context_boundary: None,
+        context_projection: None,
+        compaction_summary: None,
         steps: step_summaries,
     };
     if distributed_mode_requested {

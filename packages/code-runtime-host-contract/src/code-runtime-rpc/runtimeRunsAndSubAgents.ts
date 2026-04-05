@@ -702,6 +702,50 @@ export type RuntimeCompactionSummary = {
   executionError?: string | null;
 };
 
+export type RuntimeContextBoundaryTrigger =
+  | "payload_bytes"
+  | "consecutive_failures"
+  | "session_length"
+  | "tool_output"
+  | "manual"
+  | "sub_agent_spawn"
+  | "resume"
+  | "unknown";
+
+export type RuntimeContextBoundaryPhase = "pre_turn" | "mid_turn" | "spawn" | "resume" | "manual";
+
+export type RuntimeContextBoundaryStatus =
+  | "pending"
+  | "active"
+  | "compacted"
+  | "offloaded"
+  | "failed";
+
+export type RuntimeContextBoundarySummary = {
+  boundaryId: string;
+  trigger: RuntimeContextBoundaryTrigger;
+  phase: RuntimeContextBoundaryPhase;
+  status: RuntimeContextBoundaryStatus;
+  preTokens?: number | null;
+  postTokens?: number | null;
+  preservedRangeIds?: string[] | null;
+  summaryRef?: string | null;
+  offloadRefs?: string[] | null;
+  projectionFingerprint?: string | null;
+  updatedAt?: number | null;
+};
+
+export type RuntimeContextProjectionSummary = {
+  boundaryId: string;
+  summaryRef?: string | null;
+  projectionFingerprint?: string | null;
+  preservedRangeIds?: string[] | null;
+  recentSuffixRangeIds?: string[] | null;
+  offloadRefs?: string[] | null;
+  workingSetSummary?: string | null;
+  updatedAt?: number | null;
+};
+
 export type SubAgentScopeProfileDescriptor = {
   profile: SubAgentScopeProfile;
   allowNetwork: boolean;
@@ -742,6 +786,8 @@ export type SubAgentSessionSummary = {
   traceId?: string | null;
   recovered?: boolean | null;
   checkpointState?: RuntimeCheckpointState | null;
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
   takeoverBundle?: RuntimeTakeoverBundle | null;
   approvalEvents?: RuntimeApprovalEvent[] | null;
   compactionSummary?: RuntimeCompactionSummary | null;

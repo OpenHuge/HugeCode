@@ -1,5 +1,6 @@
 use super::*;
 use crate::runtime_checkpoint::build_agent_task_checkpoint_state_payload;
+use crate::runtime_context_compaction::derive_agent_task_context_observability;
 use crate::runtime_execution_graph::{
     upsert_runtime_execution_graph_edge, upsert_runtime_execution_graph_node,
 };
@@ -567,6 +568,8 @@ pub(crate) fn project_runtime_task_to_run(
             .as_ref()
             .expect("session boundary should exist for runtime run projections"),
     ));
+    let (context_boundary, context_projection, compaction_summary) =
+        derive_agent_task_context_observability(summary);
     let mut execution_graph = runtime.execution_graph.clone().unwrap_or_else(|| {
         build_runtime_execution_graph_summary_with_runtime_truth(
             summary,
@@ -641,6 +644,9 @@ pub(crate) fn project_runtime_task_to_run(
         mission_linkage,
         review_actionability,
         session_boundary,
+        context_boundary,
+        context_projection,
+        compaction_summary,
         continuation,
         next_operator_action,
         execution_graph: serde_json::to_value(execution_graph).ok(),
@@ -1004,6 +1010,9 @@ pub(crate) fn build_review_pack(run: &MissionRunProjection) -> MissionReviewPack
         mission_linkage: run.mission_linkage.clone(),
         actionability: run.review_actionability.clone(),
         session_boundary: run.session_boundary.clone(),
+        context_boundary: run.context_boundary.clone(),
+        context_projection: run.context_projection.clone(),
+        compaction_summary: run.compaction_summary.clone(),
         continuation: run.continuation.clone(),
         next_operator_action: run.next_operator_action.clone(),
         takeover_bundle,

@@ -1,7 +1,12 @@
 import type {
   HugeCodeContinuationSummary,
   HugeCodeNextOperatorAction,
+  HugeCodeReviewPackSummary,
+  HugeCodeRunSummary,
   HugeCodeRuntimeSessionBoundary,
+  RuntimeCompactionSummary,
+  RuntimeContextBoundarySummary,
+  RuntimeContextProjectionSummary,
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary as BaseRuntimeAgentTaskSummary } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
@@ -82,8 +87,25 @@ export type {
   WebMcpSyncResult,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
 
+export type RuntimeMissionRunSummary = HugeCodeRunSummary & {
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
+  compactionSummary?: RuntimeCompactionSummary | null;
+};
+
+export type RuntimeMissionReviewPackSummary = HugeCodeReviewPackSummary & {
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
+  compactionSummary?: RuntimeCompactionSummary | null;
+};
+
 export type RuntimeAgentTaskSummary = BaseRuntimeAgentTaskSummary & {
   sessionBoundary?: HugeCodeRuntimeSessionBoundary | null;
   continuation?: HugeCodeContinuationSummary | null;
   nextOperatorAction?: HugeCodeNextOperatorAction | null;
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
+  compactionSummary?: RuntimeCompactionSummary | null;
+  runSummary?: RuntimeMissionRunSummary | null;
+  reviewPackSummary?: RuntimeMissionReviewPackSummary | null;
 };

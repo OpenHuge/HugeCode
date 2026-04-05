@@ -1,7 +1,7 @@
-import { invoke, isDesktopHostRuntime } from "@desktop-host/core";
-import { listen } from "@desktop-host/event";
-import { open } from "@desktop-host/dialogs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
+import { open } from "../application/runtime/ports/desktopHostDialogs";
+import { listen } from "../application/runtime/ports/desktopHostEvent";
 import {
   detectRuntimeMode,
   getRuntimeClient,
@@ -26,23 +26,21 @@ import {
   updateWorkspaceSettings,
 } from "../test/shims/desktopHostServices";
 
-vi.mock("@desktop-host/core", () => ({
-  invoke: vi.fn(),
-  isDesktopHostRuntime: vi.fn(() => true),
-}));
+vi.mock("../application/runtime/ports/desktopHostCore", () => {
+  const invokeMock = vi.fn();
+  return {
+    invoke: invokeMock,
+    invokeDesktopCommand: invokeMock,
+    isDesktopHostRuntime: vi.fn(() => true),
+  };
+});
 
-vi.mock("@desktop-host/event", () => ({
+vi.mock("../application/runtime/ports/desktopHostEvent", () => ({
   listen: vi.fn(),
 }));
 
-vi.mock("@desktop-host/dialogs", () => ({
+vi.mock("../application/runtime/ports/desktopHostDialogs", () => ({
   open: vi.fn(),
-}));
-
-vi.mock("@desktop-host/notifications", () => ({
-  isPermissionGranted: vi.fn(),
-  requestPermission: vi.fn(),
-  sendNotification: vi.fn(),
 }));
 
 vi.mock("./runtimeClient", () => ({

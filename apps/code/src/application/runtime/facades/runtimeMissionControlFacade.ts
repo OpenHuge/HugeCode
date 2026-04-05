@@ -34,10 +34,23 @@ import {
   deriveRuntimeTaskSource,
   deriveThreadTaskSource,
 } from "./runtimeMissionControlTaskSourceSummary";
+import { normalizeRuntimeTaskForProjection } from "./runtimeMissionControlProjectionNormalization";
+import type { RuntimeAgentTaskSummary, RuntimeMissionRunSummary } from "../types/webMcpBridge";
 
 export { listRunExecutionProfiles } from "./runtimeMissionControlExecutionProfiles";
 export type { RunProjectionRoutingContext } from "./runtimeMissionControlRouting";
 
+function resolveRuntimeContextProjectionTruth(
+  task: AgentTaskSummary
+): Pick<RuntimeAgentTaskSummary, "contextBoundary" | "contextProjection" | "compactionSummary"> {
+  const runtimeTask = task as RuntimeAgentTaskSummary;
+  const runtimeRun = runtimeTask.runSummary as RuntimeMissionRunSummary | null | undefined;
+  return {
+    contextBoundary: runtimeTask.contextBoundary ?? runtimeRun?.contextBoundary ?? null,
+    contextProjection: runtimeTask.contextProjection ?? runtimeRun?.contextProjection ?? null,
+    compactionSummary: runtimeTask.compactionSummary ?? runtimeRun?.compactionSummary ?? null,
+  };
+}
 type MissionControlWorkspaceSource = {
   id: string;
   name: string;
@@ -88,14 +101,25 @@ function buildRuntimePublishedRunSummary(input: {
   routingContext?: RunProjectionRoutingContext;
   subAgents?: HugeCodeSubAgentSummary[] | null;
   workspaceRoot?: string | null;
-}): HugeCodeRunSummary {
-  const runtimeRun = input.task.runSummary;
+}): RuntimeMissionRunSummary {
+  const runtimeTask = normalizeRuntimeTaskForProjection(input.task as RuntimeAgentTaskSummary);
+  const runtimeRun = runtimeTask.runSummary as RuntimeMissionRunSummary | null | undefined;
+  const runtimeContext = resolveRuntimeContextProjectionTruth(runtimeTask);
   if (!runtimeRun) {
-    return projectAgentTaskSummaryToRunSummaryWithHelpers(input.task, input);
+    const projectedRun = projectAgentTaskSummaryToRunSummaryWithHelpers(
+      runtimeTask,
+      input
+    ) as RuntimeMissionRunSummary;
+    return {
+      ...projectedRun,
+      contextBoundary: runtimeContext.contextBoundary,
+      contextProjection: runtimeContext.contextProjection,
+      compactionSummary: runtimeContext.compactionSummary,
+    };
   }
 
   const subAgents = normalizeSubAgentSessions(input.subAgents);
-  const run = {
+  const run: RuntimeMissionRunSummary = {
     ...runtimeRun,
     taskId: runtimeRun.taskId ?? resolveMissionTaskId(input.task.taskId, input.task.threadId),
     reviewPackId:
@@ -103,7 +127,10 @@ function buildRuntimePublishedRunSummary(input: {
       input.task.reviewPackId ??
       (isTerminalRunState(runtimeRun.state) ? `review-pack:${input.task.taskId}` : null),
     subAgents: subAgents.length > 0 ? subAgents : (runtimeRun.subAgents ?? []),
-  } satisfies HugeCodeRunSummary;
+    contextBoundary: runtimeContext.contextBoundary,
+    contextProjection: runtimeContext.contextProjection,
+    compactionSummary: runtimeContext.compactionSummary,
+  } satisfies RuntimeMissionRunSummary;
 
   return {
     ...run,
@@ -155,6 +182,9 @@ function buildRuntimePublishedReviewPackSummary(input: {
     missionLinkage: runtimeReviewPack.missionLinkage ?? input.run.missionLinkage ?? null,
     actionability: runtimeReviewPack.actionability ?? input.run.actionability ?? null,
     sessionBoundary: runtimeReviewPack.sessionBoundary ?? input.run.sessionBoundary ?? null,
+    contextBoundary: runtimeReviewPack.contextBoundary ?? input.run.contextBoundary ?? null,
+    contextProjection: runtimeReviewPack.contextProjection ?? input.run.contextProjection ?? null,
+    compactionSummary: runtimeReviewPack.compactionSummary ?? input.run.compactionSummary ?? null,
     continuation: runtimeReviewPack.continuation ?? input.run.continuation ?? null,
     nextOperatorAction:
       runtimeReviewPack.nextOperatorAction ?? input.run.nextOperatorAction ?? null,
@@ -264,8 +294,18 @@ export function projectAgentTaskSummaryToRunSummary(
     subAgents?: HugeCodeSubAgentSummary[] | null;
     workspaceRoot?: string | null;
   }
-): HugeCodeRunSummary {
-  return projectAgentTaskSummaryToRunSummaryWithHelpers(task, options);
+): RuntimeMissionRunSummary {
+  const runtimeContext = resolveRuntimeContextProjectionTruth(task);
+  const projectedRun = projectAgentTaskSummaryToRunSummaryWithHelpers(
+    task,
+    options
+  ) as RuntimeMissionRunSummary;
+  return {
+    ...projectedRun,
+    contextBoundary: runtimeContext.contextBoundary,
+    contextProjection: runtimeContext.contextProjection,
+    compactionSummary: runtimeContext.compactionSummary,
+  };
 }
 
 export function projectCompletedRunToReviewPackSummary(
@@ -373,7 +413,6 @@ function buildOrphanTaskSummary(
 }
 
 export type MissionControlProjection = HugeCodeMissionControlSnapshot;
-export type RuntimeMissionRunSummary = HugeCodeRunSummary;
 export type MissionControlWorkspaceMetadata = MissionControlWorkspaceSource;
 export type MissionControlThreadMetadata = MissionControlThreadSource;
 
