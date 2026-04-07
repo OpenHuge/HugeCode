@@ -1,12 +1,106 @@
-import type { DesktopUpdateState } from "@ku0/code-platform-interfaces";
+import type {
+  DesktopAiWebLabArtifact,
+  DesktopAiWebLabCatalog,
+  DesktopAiWebLabState,
+  DesktopUpdateState,
+} from "@ku0/code-platform-interfaces";
 import { describe, expect, it, vi } from "vitest";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import type { DesktopWindowDescriptor } from "./desktopShellState.js";
+
+const AI_WEB_LAB_CATALOG: DesktopAiWebLabCatalog = {
+  defaultProviderId: "chatgpt",
+  providers: [],
+};
+
+const AI_WEB_LAB_STATE: DesktopAiWebLabState = {
+  actualUrl: null,
+  activeEntrypointId: null,
+  attachedEndpointCount: 0,
+  available: true,
+  catalog: AI_WEB_LAB_CATALOG,
+  lastArtifact: null,
+  managedWindowOpen: false,
+  modeSupport: {
+    attached: true,
+    docked: true,
+    managed: true,
+    window: true,
+  },
+  pageTitle: null,
+  preferredViewMode: "docked",
+  providerId: "chatgpt",
+  sessionMode: "managed",
+  statusMessage: "ready",
+  targetUrl: "https://chatgpt.com/",
+};
+
+const AI_WEB_LAB_ARTIFACT: DesktopAiWebLabArtifact = {
+  artifactKind: "prompt_markdown",
+  content: "```markdown\nartifact\n```",
+  entrypointId: "prompt_refinement",
+  errorMessage: null,
+  extractedAt: "2026-04-07T00:00:00.000Z",
+  format: "markdown",
+  pageTitle: "ChatGPT",
+  providerId: "chatgpt",
+  sourceUrl: "https://chatgpt.com/c/example",
+  status: "succeeded",
+};
 
 describe("createDesktopHostHandlers", () => {
   it("delegates session, tray, and window handlers to the injected controllers", async () => {
     const input = {
       appVersion: "1.2.3",
+      aiWebLab: {
+        closeSession: vi.fn(
+          async (): Promise<DesktopAiWebLabState> => ({
+            ...AI_WEB_LAB_STATE,
+            statusMessage: "closed",
+          })
+        ),
+        extractArtifact: vi.fn(async () => AI_WEB_LAB_ARTIFACT),
+        focusSession: vi.fn(
+          async (): Promise<DesktopAiWebLabState> => ({
+            ...AI_WEB_LAB_STATE,
+            statusMessage: "focused",
+          })
+        ),
+        getCatalog: vi.fn(async () => AI_WEB_LAB_CATALOG),
+        getState: vi.fn(async () => AI_WEB_LAB_STATE),
+        navigate: vi.fn(
+          async (): Promise<DesktopAiWebLabState> => ({
+            ...AI_WEB_LAB_STATE,
+            statusMessage: "navigated",
+          })
+        ),
+        openEntrypoint: vi.fn(
+          async (): Promise<DesktopAiWebLabState> => ({
+            ...AI_WEB_LAB_STATE,
+            statusMessage: "entrypoint",
+          })
+        ),
+        openSession: vi.fn(
+          async (): Promise<DesktopAiWebLabState> => ({
+            ...AI_WEB_LAB_STATE,
+            statusMessage: "opened",
+          })
+        ),
+        setSessionMode: vi.fn(
+          async (): Promise<DesktopAiWebLabState> => ({
+            ...AI_WEB_LAB_STATE,
+            sessionMode: "attached",
+            statusMessage: "attached",
+          })
+        ),
+        setViewMode: vi.fn(
+          async (): Promise<DesktopAiWebLabState> => ({
+            ...AI_WEB_LAB_STATE,
+            preferredViewMode: "window",
+            statusMessage: "window",
+          })
+        ),
+      },
       browserAssessment: {
         assess: vi.fn(async () => ({
           status: "passed" as const,
@@ -274,6 +368,45 @@ describe("createDesktopHostHandlers", () => {
       stage: "checking",
     });
     expect(handlers.restartToApplyUpdate()).toBe(true);
+    await expect(handlers.getAiWebLabCatalog()).resolves.toEqual({
+      defaultProviderId: "chatgpt",
+      providers: [],
+    });
+    await expect(handlers.getAiWebLabState()).resolves.toEqual(AI_WEB_LAB_STATE);
+    await expect(handlers.openAiWebLabSession()).resolves.toEqual({
+      ...AI_WEB_LAB_STATE,
+      statusMessage: "opened",
+    });
+    await expect(handlers.openAiWebLabEntrypoint("gemini", "canvas")).resolves.toEqual({
+      ...AI_WEB_LAB_STATE,
+      statusMessage: "entrypoint",
+    });
+    await expect(
+      handlers.navigateAiWebLab({
+        providerId: "gemini",
+        entrypointId: "canvas",
+        url: "https://gemini.google.com/app",
+      })
+    ).resolves.toEqual({ ...AI_WEB_LAB_STATE, statusMessage: "navigated" });
+    await expect(handlers.focusAiWebLabSession()).resolves.toEqual({
+      ...AI_WEB_LAB_STATE,
+      statusMessage: "focused",
+    });
+    await expect(handlers.closeAiWebLabSession()).resolves.toEqual({
+      ...AI_WEB_LAB_STATE,
+      statusMessage: "closed",
+    });
+    await expect(handlers.setAiWebLabSessionMode("attached")).resolves.toEqual({
+      ...AI_WEB_LAB_STATE,
+      sessionMode: "attached",
+      statusMessage: "attached",
+    });
+    await expect(handlers.setAiWebLabViewMode("window")).resolves.toEqual({
+      ...AI_WEB_LAB_STATE,
+      preferredViewMode: "window",
+      statusMessage: "window",
+    });
+    await expect(handlers.extractAiWebLabArtifact()).resolves.toEqual(AI_WEB_LAB_ARTIFACT);
     expect(handlers.showNotification({ sender: {} as never }, { title: "Build complete" })).toBe(
       true
     );
@@ -287,6 +420,18 @@ describe("createDesktopHostHandlers", () => {
     };
     const handlers = createDesktopHostHandlers({
       appVersion: null,
+      aiWebLab: {
+        closeSession: vi.fn(async () => null),
+        extractArtifact: vi.fn(async () => null),
+        focusSession: vi.fn(async () => null),
+        getCatalog: vi.fn(async () => null),
+        getState: vi.fn(async () => null),
+        navigate: vi.fn(async () => null),
+        openEntrypoint: vi.fn(async () => null),
+        openSession: vi.fn(async () => null),
+        setSessionMode: vi.fn(async () => null),
+        setViewMode: vi.fn(async () => null),
+      },
       browserAssessment: {
         assess: vi.fn(async () => null),
         getLastResult: vi.fn(async () => null),

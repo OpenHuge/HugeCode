@@ -50,6 +50,7 @@ export function useMainAppModalsProps({
       worktreePrompt: worktreePromptState.worktreePrompt,
       onWorktreePromptNameChange: worktreePromptState.updateName,
       onWorktreePromptChange: worktreePromptState.updateBranch,
+      onWorktreePromptBaseRefChange: worktreePromptState.updateBaseRef,
       onWorktreePromptCopyAgentsMdChange: worktreePromptState.updateCopyAgentsMd,
       onWorktreeSetupScriptChange: worktreePromptState.updateSetupScript,
       onWorktreePromptCancel: worktreePromptState.cancelPrompt,

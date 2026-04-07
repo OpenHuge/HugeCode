@@ -5,6 +5,7 @@ type WorktreePromptState = {
   workspace: WorkspaceInfo;
   name: string;
   branch: string;
+  baseRef: string;
   branchWasEdited: boolean;
   copyAgentsMd: boolean;
   setupScript: string;
@@ -19,7 +20,7 @@ type UseWorktreePromptOptions = {
   addWorktreeAgent: (
     workspace: WorkspaceInfo,
     branch: string,
-    options?: { displayName?: string | null; copyAgentsMd?: boolean }
+    options?: { baseRef?: string | null; displayName?: string | null; copyAgentsMd?: boolean }
   ) => Promise<WorkspaceInfo | null>;
   updateWorkspaceSettings: (
     id: string,
@@ -39,6 +40,7 @@ type UseWorktreePromptResult = {
     options?: {
       initialName?: string | null;
       initialBranch?: string | null;
+      initialBaseRef?: string | null;
       branchWasEdited?: boolean;
       copyAgentsMd?: boolean;
     }
@@ -47,6 +49,7 @@ type UseWorktreePromptResult = {
   cancelPrompt: () => void;
   updateName: (value: string) => void;
   updateBranch: (value: string) => void;
+  updateBaseRef: (value: string) => void;
   updateCopyAgentsMd: (value: boolean) => void;
   updateSetupScript: (value: string) => void;
 };
@@ -88,6 +91,7 @@ export function useWorktreePrompt({
       options?: {
         initialName?: string | null;
         initialBranch?: string | null;
+        initialBaseRef?: string | null;
         branchWasEdited?: boolean;
         copyAgentsMd?: boolean;
       }
@@ -100,6 +104,10 @@ export function useWorktreePrompt({
         workspace,
         name: options?.initialName?.trim() ?? "",
         branch: options?.initialBranch?.trim() || defaultBranch,
+        baseRef:
+          options?.initialBaseRef?.trim() ||
+          workspace.settings.aiWebLabDefaultBaseRef?.trim() ||
+          "origin/main",
         branchWasEdited: options?.branchWasEdited ?? Boolean(options?.initialBranch?.trim()),
         copyAgentsMd: options?.copyAgentsMd ?? true,
         setupScript: savedSetupScript ?? "",
@@ -138,6 +146,10 @@ export function useWorktreePrompt({
     setWorktreePrompt((prev) =>
       prev ? { ...prev, branch: value, branchWasEdited: true, error: null } : prev
     );
+  }, []);
+
+  const updateBaseRef = useCallback((value: string) => {
+    setWorktreePrompt((prev) => (prev ? { ...prev, baseRef: value, error: null } : prev));
   }, []);
 
   const updateCopyAgentsMd = useCallback((value: boolean) => {
@@ -214,6 +226,7 @@ export function useWorktreePrompt({
     try {
       const displayName = snapshot.name.trim();
       const worktreeWorkspace = await addWorktreeAgent(parentWorkspace, snapshot.branch, {
+        baseRef: snapshot.baseRef.trim().length > 0 ? snapshot.baseRef.trim() : null,
         displayName: displayName.length > 0 ? displayName : null,
         copyAgentsMd: snapshot.copyAgentsMd,
       });
@@ -256,6 +269,7 @@ export function useWorktreePrompt({
     cancelPrompt,
     updateName,
     updateBranch,
+    updateBaseRef,
     updateCopyAgentsMd,
     updateSetupScript,
   };

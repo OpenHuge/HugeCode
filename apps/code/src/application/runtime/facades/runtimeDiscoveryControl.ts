@@ -329,7 +329,7 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
       }),
     runRuntimeBrowserDebug: async (input: {
       workspaceId: string;
-      operation: "inspect" | "automation" | "chatgpt_decision_lab";
+      operation: "inspect" | "automation" | "chatgpt_decision_lab" | "provider_decision_lab";
       prompt?: string | null;
       includeScreenshot?: boolean | null;
       timeoutMs?: number | null;

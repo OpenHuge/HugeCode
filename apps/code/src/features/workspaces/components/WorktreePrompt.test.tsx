@@ -11,10 +11,12 @@ const baseProps = {
   workspaceName: "Repo",
   name: "",
   branch: "feature/new-worktree",
+  baseRef: "origin/main",
   copyAgentsMd: false,
   setupScript: "",
   onNameChange: vi.fn(),
   onChange: vi.fn(),
+  onBaseRefChange: vi.fn(),
   onCopyAgentsMdChange: vi.fn(),
   onSetupScriptChange: vi.fn(),
   onCancel: vi.fn(),
@@ -97,5 +99,13 @@ describe("WorktreePrompt", () => {
         "Stored on the project (Settings → Environments) and runs once in a dedicated terminal after each new worktree is created."
       )
     ).toBeTruthy();
+  });
+
+  it("renders the worktree base ref input", () => {
+    render(<WorktreePrompt {...baseProps} />);
+
+    const baseRefField = screen.getByLabelText("Base ref");
+    expect((baseRefField as HTMLInputElement).value).toBe("origin/main");
+    expect(screen.getByText(/isolated implementation slices/i)).toBeTruthy();
   });
 });

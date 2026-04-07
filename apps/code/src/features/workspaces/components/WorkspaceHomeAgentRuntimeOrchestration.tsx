@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import type { WorkspaceInfo } from "../../../types";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
@@ -13,6 +14,7 @@ import {
   MissionControlSectionCard,
 } from "./WorkspaceHomeMissionControlSections";
 import { WorkspaceHomeAgentRuntimeBrowserSection } from "./WorkspaceHomeAgentRuntimeBrowserSection";
+import { WorkspaceHomeAiWebLabSection } from "./WorkspaceHomeAiWebLabSection";
 import {
   DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG,
   formatRuntimeTimestamp,
@@ -47,6 +49,18 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
   intent = DEFAULT_INTENT,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
+  const aiWebLabWorkspace = {
+    id: workspaceId,
+    name: workspaceId || "Workspace",
+    path: "",
+    connected: true,
+    kind: "main",
+    parentId: null,
+    worktree: null,
+    settings: {
+      sidebarCollapsed: false,
+    },
+  } satisfies WorkspaceInfo;
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
   );
@@ -326,6 +340,17 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         resume from checkpoints after handoff, and finish in Review Pack once runtime marks the run
         complete.
       </div>
+      <WorkspaceHomeAiWebLabSection
+        workspace={aiWebLabWorkspace}
+        onApplyArtifactToDraft={(artifact) => {
+          setRuntimeDraftInstruction(artifact.content ?? "");
+          if (runtimeDraftTitle.trim().length === 0) {
+            setRuntimeDraftTitle(
+              artifact.pageTitle?.trim() || `AI Web Lab - ${aiWebLabWorkspace.name}`
+            );
+          }
+        }}
+      />
       <div className="workspace-home-code-runtime-item">
         <div className="workspace-home-code-runtime-item-main">
           <strong>Control-device loop</strong>

@@ -1,5 +1,13 @@
 import type {
+  AiWebLabProviderId,
   DesktopAppInfo,
+  DesktopAiWebLabArtifact,
+  DesktopAiWebLabCatalog,
+  DesktopAiWebLabNavigationInput,
+  DesktopAiWebLabOpenInput,
+  DesktopAiWebLabSessionMode,
+  DesktopAiWebLabState,
+  DesktopAiWebLabViewMode,
   DesktopBrowserAssessmentRequest,
   DesktopBrowserAssessmentResult,
   DesktopBrowserExtractionRequest,
@@ -42,6 +50,29 @@ type UpdaterController = {
 
 export type CreateDesktopHostHandlersInput = {
   appVersion: string | null;
+  aiWebLab: {
+    closeSession(): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+    extractArtifact(): Promise<DesktopAiWebLabArtifact | null> | DesktopAiWebLabArtifact | null;
+    focusSession(): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+    getCatalog(): Promise<DesktopAiWebLabCatalog | null> | DesktopAiWebLabCatalog | null;
+    getState(): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+    navigate(
+      input: DesktopAiWebLabNavigationInput
+    ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+    openEntrypoint(
+      providerId: AiWebLabProviderId,
+      entrypointId: string
+    ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+    openSession(
+      input?: DesktopAiWebLabOpenInput
+    ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+    setSessionMode(
+      mode: DesktopAiWebLabSessionMode
+    ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+    setViewMode(
+      mode: DesktopAiWebLabViewMode
+    ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+  };
   browserAssessment: {
     assess(
       input: DesktopBrowserAssessmentRequest
@@ -85,6 +116,9 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     checkForUpdates() {
       return input.updaterController.checkForUpdates();
     },
+    closeAiWebLabSession() {
+      return input.aiWebLab.closeSession();
+    },
     assessBrowserSurface(assessmentInput: DesktopBrowserAssessmentRequest) {
       return input.browserAssessment.assess(assessmentInput);
     },
@@ -98,9 +132,21 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     extractBrowserContent(extractionInput?: DesktopBrowserExtractionRequest) {
       return input.browserExtraction.extract(extractionInput);
     },
+    extractAiWebLabArtifact() {
+      return input.aiWebLab.extractArtifact();
+    },
     focusWindow: input.windowController.focusWindow,
+    focusAiWebLabSession() {
+      return input.aiWebLab.focusSession();
+    },
     getAppInfo() {
       return input.getAppInfo();
+    },
+    getAiWebLabCatalog() {
+      return input.aiWebLab.getCatalog();
+    },
+    getAiWebLabState() {
+      return input.aiWebLab.getState();
     },
     getDiagnosticsInfo() {
       return input.getDiagnosticsInfo();
@@ -133,8 +179,17 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
       return input.listRecentSessions();
     },
     listWindows: input.windowController.listWindows,
+    navigateAiWebLab(aiWebLabNavigationInput: DesktopAiWebLabNavigationInput) {
+      return input.aiWebLab.navigate(aiWebLabNavigationInput);
+    },
     openDialog: input.openDialog,
     openExternalUrl: input.openExternalUrl,
+    openAiWebLabEntrypoint(providerId: AiWebLabProviderId, entrypointId: string) {
+      return input.aiWebLab.openEntrypoint(providerId, entrypointId);
+    },
+    openAiWebLabSession(aiWebLabInput?: DesktopAiWebLabOpenInput) {
+      return input.aiWebLab.openSession(aiWebLabInput);
+    },
     openPathIn: input.openPathIn,
     openPath: input.openPath,
     openWindow: input.windowController.openWindow,
@@ -142,6 +197,12 @@ export function createDesktopHostHandlers(input: CreateDesktopHostHandlersInput)
     revealItemInDir: input.revealItemInDir,
     restartToApplyUpdate() {
       return input.updaterController.restartToApplyUpdate();
+    },
+    setAiWebLabSessionMode(mode: DesktopAiWebLabSessionMode) {
+      return input.aiWebLab.setSessionMode(mode);
+    },
+    setAiWebLabViewMode(mode: DesktopAiWebLabViewMode) {
+      return input.aiWebLab.setViewMode(mode);
     },
     setTrayEnabled(enabled: boolean) {
       input.persistTrayEnabled(enabled);

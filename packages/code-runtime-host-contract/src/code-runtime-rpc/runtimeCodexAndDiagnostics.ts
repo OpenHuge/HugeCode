@@ -181,9 +181,12 @@ export type RuntimeBrowserDebugDecisionLabOption = {
   summary?: string | null;
 };
 
+export type RuntimeBrowserDebugDecisionLabProviderId = "chatgpt" | "gemini";
+
 export type RuntimeBrowserDebugDecisionLabRequest = {
   question: string;
   options: RuntimeBrowserDebugDecisionLabOption[];
+  providerId?: RuntimeBrowserDebugDecisionLabProviderId | null;
   constraints?: string[] | null;
   allowLiveWebResearch?: boolean | null;
   chatgptUrl?: string | null;
@@ -199,7 +202,11 @@ export type RuntimeBrowserDebugDecisionLabResult = {
   followUpQuestions?: string[] | null;
 };
 
-export type RuntimeBrowserDebugOperation = "inspect" | "automation" | "chatgpt_decision_lab";
+export type RuntimeBrowserDebugOperation =
+  | "inspect"
+  | "automation"
+  | "chatgpt_decision_lab"
+  | "provider_decision_lab";
 
 export type RuntimeBrowserDebugRunRequest = {
   workspaceId: string;

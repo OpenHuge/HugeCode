@@ -23,6 +23,13 @@ export type WorkspaceSettings = {
   launchScript?: string | null;
   launchScripts?: LaunchScriptEntry[] | null;
   worktreeSetupScript?: string | null;
+  aiWebLabAutoAttachArtifact?: boolean | null;
+  aiWebLabAutoCreateWorktree?: boolean | null;
+  aiWebLabDefaultBaseRef?: string | null;
+  aiWebLabDefaultProvider?: "chatgpt" | "gemini" | null;
+  aiWebLabPreferredSessionMode?: "managed" | "attached" | null;
+  aiWebLabPreferredViewMode?: "window" | "docked" | null;
+  aiWebLabProviderUrls?: Partial<Record<"chatgpt" | "gemini", string>> | null;
 };
 
 export type LaunchScriptIconId =

@@ -514,6 +514,7 @@ export class AutoDriveRunController {
         timeoutMs: 45_000,
         steps: null,
         decisionLab: {
+          providerId: "chatgpt",
           question: `Which route should AutoDrive choose for iteration ${context.iteration}? Recommend the strongest option and explain the tradeoff.`,
           options: context.opportunities.candidates.map((candidate) => ({
             id: candidate.id,
