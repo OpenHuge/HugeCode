@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use tokio::io::{AsyncRead, AsyncReadExt};
 use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
@@ -341,6 +342,69 @@ fn resolve_cli_path(host: &MiniProgramHost) -> Option<PathBuf> {
     candidates.into_iter().find(|path| path.is_file())
 }
 
+fn parse_login_status_scalar(value: &Value) -> Option<&'static str> {
+    match value {
+        Value::Bool(flag) => Some(if *flag { "logged_in" } else { "logged_out" }),
+        Value::Number(number) => {
+            if number.as_i64() == Some(1) {
+                Some("logged_in")
+            } else if number.as_i64() == Some(0) {
+                Some("logged_out")
+            } else {
+                None
+            }
+        }
+        Value::String(text) => match text.trim().to_ascii_lowercase().as_str() {
+            "true" | "1" | "logged_in" => Some("logged_in"),
+            "false" | "0" | "logged_out" => Some("logged_out"),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn extract_login_status_from_json(value: &Value) -> Option<&'static str> {
+    match value {
+        Value::Object(object) => {
+            for key in ["islogin", "login"] {
+                if let Some(status) = object.get(key).and_then(parse_login_status_scalar) {
+                    return Some(status);
+                }
+            }
+            object
+                .get("data")
+                .and_then(extract_login_status_from_json)
+                .or_else(|| object.values().find_map(extract_login_status_from_json))
+        }
+        Value::Array(entries) => entries.iter().find_map(extract_login_status_from_json),
+        _ => None,
+    }
+}
+
+fn parse_login_status_body(body: &str) -> Option<&'static str> {
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Ok(payload) = serde_json::from_str::<Value>(trimmed) {
+        if let Some(status) = extract_login_status_from_json(&payload) {
+            return Some(status);
+        }
+    }
+    let lowered = trimmed.to_ascii_lowercase();
+    if lowered.contains("\"islogin\":false") || lowered.contains("\"login\":false") {
+        Some("logged_out")
+    } else if lowered.contains("\"islogin\":true") || lowered.contains("\"login\":true") {
+        Some("logged_in")
+    } else if lowered == "true" {
+        Some("logged_in")
+    } else if lowered == "false" {
+        Some("logged_out")
+    } else {
+        None
+    }
+}
+
 async fn read_login_status(http_port: Option<u16>) -> (&'static str, &'static str, Vec<String>) {
     let Some(port) = http_port else {
         return (
@@ -371,14 +435,8 @@ async fn read_login_status(http_port: Option<u16>) -> (&'static str, &'static st
                 "unknown"
             };
             let body = response.text().await.unwrap_or_default();
-            let trimmed = body.trim().to_ascii_lowercase();
-            if trimmed.contains("true") || trimmed.contains("login\":true") || trimmed.contains("islogin\":true") {
-                (service_status, "logged_in", Vec::new())
-            } else if trimmed.contains("false")
-                || trimmed.contains("login\":false")
-                || trimmed.contains("islogin\":false")
-            {
-                (service_status, "logged_out", Vec::new())
+            if let Some(login_status) = parse_login_status_body(&body) {
+                (service_status, login_status, Vec::new())
             } else {
                 (
                     service_status,
@@ -474,9 +532,33 @@ async fn collect_mini_program_status(
     }
 }
 
+async fn read_child_pipe<R>(mut pipe: Option<R>) -> Vec<u8>
+where
+    R: AsyncRead + Unpin,
+{
+    let mut buffer = Vec::new();
+    if let Some(reader) = pipe.as_mut() {
+        let _ = reader.read_to_end(&mut buffer).await;
+    }
+    buffer
+}
+
 async fn run_cli_command(
     cli_path: &Path,
     args: &[String],
+) -> Result<MiniProgramCliRunOutput, String> {
+    run_cli_command_with_timeout(
+        cli_path,
+        args,
+        Duration::from_millis(MINI_PROGRAM_ACTION_TIMEOUT_MS),
+    )
+    .await
+}
+
+async fn run_cli_command_with_timeout(
+    cli_path: &Path,
+    args: &[String],
+    timeout_duration: Duration,
 ) -> Result<MiniProgramCliRunOutput, String> {
     let mut command = Command::new(cli_path);
     command
@@ -487,21 +569,39 @@ async fn run_cli_command(
     let command_repr = std::iter::once(cli_path.to_string_lossy().to_string())
         .chain(args.iter().cloned())
         .collect::<Vec<_>>();
-    let child = command
+    let mut child = command
         .spawn()
         .map_err(|error| format!("spawn mini program cli failed: {error}"))?;
-    let output = timeout(
-        Duration::from_millis(MINI_PROGRAM_ACTION_TIMEOUT_MS),
-        child.wait_with_output(),
-    )
-    .await
-    .map_err(|_| "mini program cli timed out".to_string())?
-    .map_err(|error| format!("wait mini program cli failed: {error}"))?;
+    let stdout_task = tokio::spawn(read_child_pipe(child.stdout.take()));
+    let stderr_task = tokio::spawn(read_child_pipe(child.stderr.take()));
+    let exit_status = match timeout(timeout_duration, child.wait()).await {
+        Ok(Ok(status)) => status,
+        Ok(Err(error)) => {
+            let _ = stdout_task.await;
+            let _ = stderr_task.await;
+            return Err(format!("wait mini program cli failed: {error}"));
+        }
+        Err(_) => {
+            child
+                .kill()
+                .await
+                .map_err(|error| format!("mini program cli timed out and kill failed: {error}"))?;
+            let _ = stdout_task.await;
+            let _ = stderr_task.await;
+            return Err("mini program cli timed out".to_string());
+        }
+    };
+    let stdout = stdout_task
+        .await
+        .map_err(|error| format!("read mini program cli stdout failed: {error}"))?;
+    let stderr = stderr_task
+        .await
+        .map_err(|error| format!("read mini program cli stderr failed: {error}"))?;
     Ok(MiniProgramCliRunOutput {
         command: command_repr,
-        exit_code: output.status.code(),
-        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        exit_code: exit_status.code(),
+        stdout: String::from_utf8_lossy(&stdout).to_string(),
+        stderr: String::from_utf8_lossy(&stderr).to_string(),
     })
 }
 
@@ -835,12 +935,14 @@ pub(super) async fn handle_mini_program_run_v1(
 #[cfg(test)]
 mod tests {
     use super::{
-        collect_mini_program_status, execute_mini_program_action, MiniProgramActionRunRequest,
-        MiniProgramHost, MINI_PROGRAM_CLI_OVERRIDE_ENV,
+        collect_mini_program_status, execute_mini_program_action, parse_login_status_body,
+        run_cli_command_with_timeout, MiniProgramActionRunRequest, MiniProgramHost,
+        MINI_PROGRAM_CLI_OVERRIDE_ENV,
     };
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use tempfile::TempDir;
+    use tokio::time::Duration;
 
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
@@ -904,6 +1006,24 @@ fi
 printf '%s ok' "$cmd"
 "#;
         fs::write(&script_path, script).expect("write fake mini program cli script");
+        #[cfg(unix)]
+        {
+            let mut permissions = fs::metadata(&script_path)
+                .expect("metadata")
+                .permissions();
+            permissions.set_mode(0o755);
+            fs::set_permissions(&script_path, permissions).expect("chmod");
+        }
+        script_path
+    }
+
+    fn write_hanging_cli_script(temp: &TempDir, pid_path: &Path) -> PathBuf {
+        let script_path = temp.path().join("hanging-mini-program-cli.sh");
+        let script = format!(
+            "#!/bin/sh\nset -eu\nprintf '%s' \"$$\" > \"{}\"\nwhile :; do :; done\n",
+            pid_path.to_string_lossy()
+        );
+        fs::write(&script_path, script).expect("write hanging mini program cli script");
         #[cfg(unix)]
         {
             let mut permissions = fs::metadata(&script_path)
@@ -1011,5 +1131,36 @@ printf '%s ok' "$cmd"
         assert!(snapshot.available);
         assert_eq!(snapshot.status, "ready");
         assert!(snapshot.devtools_installed);
+    }
+
+    #[test]
+    fn parse_login_status_body_prefers_islogin_false_over_unrelated_true_fields() {
+        let payload = r#"{"success":true,"islogin":false}"#;
+        assert_eq!(parse_login_status_body(payload), Some("logged_out"));
+    }
+
+    #[test]
+    fn run_cli_command_with_timeout_kills_hung_process() {
+        let temp = TempDir::new().expect("tempdir");
+        let pid_path = temp.path().join("mini-program.pid");
+        let cli_path = write_hanging_cli_script(&temp, pid_path.as_path());
+        let runtime = tokio::runtime::Runtime::new().expect("runtime");
+        let result = runtime.block_on(run_cli_command_with_timeout(
+            cli_path.as_path(),
+            &["preview".to_string()],
+            Duration::from_millis(20),
+        ));
+        assert!(result.is_err());
+        assert_eq!(result.err().as_deref(), Some("mini program cli timed out"));
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        let pid = fs::read_to_string(pid_path)
+            .expect("pid")
+            .trim()
+            .parse::<u32>()
+            .expect("numeric pid");
+        assert!(
+            !PathBuf::from(format!("/proc/{pid}")).exists(),
+            "timed out mini program cli process should be reaped"
+        );
     }
 }
