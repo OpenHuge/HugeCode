@@ -15,6 +15,8 @@ import { assessBrowserSurface } from "../ports/browserCapability";
 import {
   applyWorkspacePatch,
   getRuntimeBrowserDebugStatus,
+  getRuntimeMiniProgramStatus,
+  runRuntimeMiniProgramAction,
   runRuntimeBrowserDebug,
 } from "../ports/runtimeAutomation";
 import { getCollaborationModes } from "../ports/collaboration";
@@ -316,6 +318,8 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
       }),
     getRuntimeBrowserDebugStatus: async (input: { workspaceId: string }) =>
       getRuntimeBrowserDebugStatus(input.workspaceId),
+    getRuntimeMiniProgramStatus: async (input: { workspaceId: string }) =>
+      getRuntimeMiniProgramStatus(input.workspaceId),
     assessRuntimeBrowserSurface: async (input: {
       workspaceId: string;
       target: DesktopBrowserAssessmentRequest["target"];
@@ -357,6 +361,36 @@ export function buildRuntimeDiscoveryControl(workspaceId: string) {
         timeoutMs: input.timeoutMs ?? null,
         steps: input.steps ?? null,
         decisionLab: input.decisionLab ?? null,
+      }),
+    runRuntimeMiniProgramAction: async (input: {
+      workspaceId: string;
+      action:
+        | "open_project"
+        | "refresh_project"
+        | "build_npm"
+        | "preview"
+        | "upload"
+        | "reset_file_watch";
+      compileType?: "miniprogram" | "plugin" | null;
+      compileCondition?: {
+        pathName?: string | null;
+        query?: string | null;
+        scene?: number | null;
+      } | null;
+      version?: string | null;
+      desc?: string | null;
+      qrOutputMode?: "none" | "terminal" | "base64" | "image" | null;
+      infoOutputMode?: "none" | "inline" | null;
+    }) =>
+      runRuntimeMiniProgramAction({
+        workspaceId: input.workspaceId,
+        action: input.action,
+        compileType: input.compileType ?? null,
+        compileCondition: input.compileCondition ?? null,
+        version: input.version ?? null,
+        desc: input.desc ?? null,
+        qrOutputMode: input.qrOutputMode ?? null,
+        infoOutputMode: input.infoOutputMode ?? null,
       }),
     listRuntimeExtensions: async (targetWorkspaceId?: string | null) =>
       listRuntimeExtensions(targetWorkspaceId ?? workspaceId),

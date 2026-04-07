@@ -540,6 +540,20 @@ export function createExtendedRpcRuntimeClient<
         adaptRuntimeRpcPayload("browserDebugRun", request)
       );
     },
+    miniProgramStatusV1(request) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.MINI_PROGRAM_STATUS_V1,
+        adaptRuntimeRpcPayload("miniProgramStatus", request)
+      );
+    },
+    miniProgramRunV1(request) {
+      return invokeRuntimeExtensionRpc(
+        invokeRpc,
+        RUNTIME_EXTENSION_RPC_METHODS.MINI_PROGRAM_RUN_V1,
+        adaptRuntimeRpcPayload("miniProgramRun", request)
+      );
+    },
     extensionCatalogListV2(request = {}) {
       return invokeRuntimeExtensionRpc(
         invokeRpc,

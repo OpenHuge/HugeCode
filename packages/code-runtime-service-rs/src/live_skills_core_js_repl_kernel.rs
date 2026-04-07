@@ -353,6 +353,75 @@ async fn execute_core_js_repl_nested_tool_call(
         )
         .await
         .map_err(|error| error.message),
+        "get-runtime-mini-program-status" => crate::rpc_dispatch::invoke_mini_program_status_v1(
+            ctx,
+            &json!({ "workspaceId": scope.workspace_id }),
+        )
+        .await
+        .map_err(|error| error.message),
+        "open-runtime-mini-program-project" => crate::rpc_dispatch::invoke_mini_program_run_v1(
+            ctx,
+            &json!({
+                "workspaceId": scope.workspace_id,
+                "action": "open_project",
+            }),
+        )
+        .await
+        .map_err(|error| error.message),
+        "refresh-runtime-mini-program-project" => crate::rpc_dispatch::invoke_mini_program_run_v1(
+            ctx,
+            &json!({
+                "workspaceId": scope.workspace_id,
+                "action": "refresh_project",
+            }),
+        )
+        .await
+        .map_err(|error| error.message),
+        "build-runtime-mini-program-npm" => crate::rpc_dispatch::invoke_mini_program_run_v1(
+            ctx,
+            &json!({
+                "workspaceId": scope.workspace_id,
+                "action": "build_npm",
+                "compileType": object.get("compileType").cloned().unwrap_or(Value::Null),
+            }),
+        )
+        .await
+        .map_err(|error| error.message),
+        "preview-runtime-mini-program" => crate::rpc_dispatch::invoke_mini_program_run_v1(
+            ctx,
+            &json!({
+                "workspaceId": scope.workspace_id,
+                "action": "preview",
+                "compileCondition": object.get("compileCondition").cloned().unwrap_or(Value::Null),
+                "qrOutputMode": object.get("qrOutputMode").cloned().unwrap_or(Value::Null),
+                "infoOutputMode": object.get("infoOutputMode").cloned().unwrap_or(Value::Null),
+            }),
+        )
+        .await
+        .map_err(|error| error.message),
+        "upload-runtime-mini-program" => crate::rpc_dispatch::invoke_mini_program_run_v1(
+            ctx,
+            &json!({
+                "workspaceId": scope.workspace_id,
+                "action": "upload",
+                "version": object.get("version").cloned().unwrap_or(Value::Null),
+                "desc": object.get("desc").cloned().unwrap_or(Value::Null),
+                "infoOutputMode": object.get("infoOutputMode").cloned().unwrap_or(Value::Null),
+            }),
+        )
+        .await
+        .map_err(|error| error.message),
+        "reset-runtime-mini-program-file-watch" => {
+            crate::rpc_dispatch::invoke_mini_program_run_v1(
+                ctx,
+                &json!({
+                    "workspaceId": scope.workspace_id,
+                    "action": "reset_file_watch",
+                }),
+            )
+            .await
+            .map_err(|error| error.message)
+        }
         _ => Err(format!("Unsupported nested tool `{tool_name}`.")),
     };
 
@@ -401,6 +470,13 @@ fn core_js_repl_nested_guardrail_tool_name(tool_name: &str) -> &str {
         "get-runtime-browser-debug-status" => "get-runtime-browser-debug-status",
         "inspect-runtime-browser" => "inspect-runtime-browser",
         "run-runtime-browser-automation" => "run-runtime-browser-automation",
+        "get-runtime-mini-program-status" => "get-runtime-mini-program-status",
+        "open-runtime-mini-program-project" => "open-runtime-mini-program-project",
+        "refresh-runtime-mini-program-project" => "refresh-runtime-mini-program-project",
+        "build-runtime-mini-program-npm" => "build-runtime-mini-program-npm",
+        "preview-runtime-mini-program" => "preview-runtime-mini-program",
+        "upload-runtime-mini-program" => "upload-runtime-mini-program",
+        "reset-runtime-mini-program-file-watch" => "reset-runtime-mini-program-file-watch",
         _ => tool_name,
     }
 }
