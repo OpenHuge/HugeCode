@@ -106,6 +106,8 @@ pub(super) async fn handle_workspace_prompt_rpc(
         "code_git_diff_read" => handle_git_diff_read(ctx, params).await,
         "code_browser_debug_status_v1" => handle_browser_debug_status_v1(ctx, params).await,
         "code_browser_debug_run_v1" => handle_browser_debug_run_v1(ctx, params).await,
+        "code_mini_program_status_v1" => handle_mini_program_status_v1(ctx, params).await,
+        "code_mini_program_run_v1" => handle_mini_program_run_v1(ctx, params).await,
         "code_git_branches_list" => handle_git_branches_list(ctx, params).await,
         "code_git_branch_create" => handle_git_branch_create(ctx, params).await,
         "code_git_branch_checkout" => handle_git_branch_checkout(ctx, params).await,

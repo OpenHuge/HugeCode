@@ -260,6 +260,79 @@ describe("runtimeClient mode detection", () => {
       })
     );
 
+    invokeMock.mockResolvedValueOnce({
+      workspaceId: "workspace-123",
+      available: true,
+      status: "ready",
+      hostOs: "macos",
+      devtoolsInstalled: true,
+      cliPath: "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+      httpPort: 9421,
+      serviceStatus: "running",
+      loginStatus: "logged_in",
+      project: {
+        valid: true,
+        projectConfigPath: "/tmp/project.config.json",
+        appId: "wx123",
+        projectName: "demo",
+        miniprogramRoot: "src",
+        pluginRoot: null,
+        compileType: "miniprogram",
+      },
+      miniprogramCi: {
+        available: true,
+        declared: true,
+        packageRoot: "/tmp",
+        version: "2.1.31",
+      },
+      supportedActions: ["open_project", "preview"],
+      warnings: [],
+    });
+    await client.miniProgramStatusV1({ workspaceId: "workspace-123" });
+    expect(invokeMock).toHaveBeenCalledWith("code_mini_program_status_v1", {
+      workspaceId: "workspace-123",
+    });
+
+    invokeMock.mockResolvedValueOnce({
+      workspaceId: "workspace-123",
+      available: true,
+      action: "preview",
+      status: "completed",
+      message: "Mini program action `preview` completed.",
+      command: ["cli", "preview"],
+      exitCode: 0,
+      stdout: "preview ok",
+      stderr: "",
+      qrCode: null,
+      info: null,
+      warnings: [],
+    });
+    await client.miniProgramRunV1({
+      workspaceId: "workspace-123",
+      action: "preview",
+      compileCondition: {
+        pathName: "pages/index/index",
+        query: "foo=bar",
+        scene: 1011,
+      },
+      qrOutputMode: "base64",
+      infoOutputMode: "inline",
+    });
+    expect(invokeMock).toHaveBeenCalledWith("code_mini_program_run_v1", {
+      workspaceId: "workspace-123",
+      action: "preview",
+      compileType: null,
+      compileCondition: {
+        pathName: "pages/index/index",
+        query: "foo=bar",
+        scene: 1011,
+      },
+      version: null,
+      desc: null,
+      qrOutputMode: "base64",
+      infoOutputMode: "inline",
+    });
+
     invokeMock.mockResolvedValueOnce([]);
     await client.runtimeRunsList({
       workspaceId: "workspace-123",

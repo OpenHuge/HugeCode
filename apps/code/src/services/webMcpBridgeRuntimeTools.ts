@@ -6,6 +6,7 @@ import { buildRuntimeDiagnosticsTools } from "./webMcpBridgeRuntimeDiagnosticsTo
 import { buildRuntimeDiscoveryTools } from "./webMcpBridgeRuntimeDiscoveryTools";
 import { buildRuntimeExtensionTools } from "./webMcpBridgeRuntimeExtensionTools";
 import { buildRuntimeGitTools } from "./webMcpBridgeRuntimeGitTools";
+import { buildRuntimeMiniProgramTools } from "./webMcpBridgeRuntimeMiniProgramTools";
 import { buildListRuntimeLiveSkillsTool } from "./webMcpBridgeRuntimeLiveSkillTools";
 import { buildRuntimeOauthTools } from "./webMcpBridgeRuntimeOauthTools";
 import { buildRuntimeOperationsTools } from "./webMcpBridgeRuntimeOperationsTools";
@@ -112,6 +113,13 @@ export function buildRuntimeTools(options: BuildRuntimeToolsOptions): WebMcpTool
       },
     }),
     ...buildRuntimeBrowserTools({
+      snapshot,
+      runtimeControl,
+      requireUserApproval,
+      onApprovalRequest,
+      helpers,
+    }),
+    ...buildRuntimeMiniProgramTools({
       snapshot,
       runtimeControl,
       requireUserApproval,

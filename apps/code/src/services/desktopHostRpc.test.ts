@@ -10,10 +10,12 @@ import {
   compactThread,
   forkThread,
   generateRunMetadata,
+  getRuntimeMiniProgramStatus,
   getCodexConfigPath,
   getCollaborationModes,
   getConfigModel,
   getGlobalPromptsDir,
+  runRuntimeMiniProgramAction,
   getWorkspacePromptsDir,
   listMcpServerStatus,
   setThreadName,
@@ -146,6 +148,80 @@ describe("desktopHostRpc", () => {
       workspaceId: "ws-4",
       cursor: "cursor-2",
       limit: 50,
+    });
+  });
+
+  it("routes mini program status and actions through runtime client", async () => {
+    const miniProgramStatusV1 = vi.fn(async () => ({
+      workspaceId: "ws-mini",
+      available: true,
+      status: "ready" as const,
+      hostOs: "macos",
+      devtoolsInstalled: true,
+      cliPath: "/Applications/wechatwebdevtools.app/Contents/MacOS/cli",
+      httpPort: 9421,
+      serviceStatus: "running" as const,
+      loginStatus: "logged_in" as const,
+      project: {
+        valid: true,
+        projectConfigPath: "/tmp/project.config.json",
+        appId: "wx123",
+        projectName: "demo",
+        miniprogramRoot: "src",
+        pluginRoot: null,
+        compileType: "miniprogram" as const,
+      },
+      miniprogramCi: {
+        available: true,
+        declared: true,
+        packageRoot: "/tmp",
+        version: "2.1.31",
+      },
+      supportedActions: ["open_project", "preview"],
+      warnings: [],
+    }));
+    const miniProgramRunV1 = vi.fn(async () => ({
+      workspaceId: "ws-mini",
+      available: true,
+      action: "preview" as const,
+      status: "completed" as const,
+      message: "Mini program action `preview` completed.",
+      command: ["cli", "preview"],
+      exitCode: 0,
+      stdout: "preview ok",
+      stderr: "",
+      qrCode: null,
+      info: null,
+      warnings: [],
+    }));
+
+    getRuntimeClientMock.mockReturnValue({
+      ...runtimeClientMockInstance,
+      miniProgramStatusV1,
+      miniProgramRunV1,
+    });
+
+    await expect(getRuntimeMiniProgramStatus("ws-mini")).resolves.toMatchObject({
+      workspaceId: "ws-mini",
+      status: "ready",
+    });
+    await expect(
+      runRuntimeMiniProgramAction({
+        workspaceId: "ws-mini",
+        action: "preview",
+        qrOutputMode: "base64",
+      })
+    ).resolves.toMatchObject({
+      workspaceId: "ws-mini",
+      action: "preview",
+      status: "completed",
+    });
+
+    expect(miniProgramStatusV1).toHaveBeenCalledWith({ workspaceId: "ws-mini" });
+    expect(miniProgramRunV1).toHaveBeenCalledWith({
+      workspaceId: "ws-mini",
+      action: "preview",
+      qrOutputMode: "base64",
     });
   });
 });

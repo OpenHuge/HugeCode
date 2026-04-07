@@ -4,6 +4,8 @@ import {
   type AcpIntegrationUpsertInput,
   type RuntimeBrowserDebugRunRequest,
   type RuntimeBrowserDebugStatusRequest,
+  type RuntimeMiniProgramActionRunRequest,
+  type RuntimeMiniProgramStatusRequest,
   type RuntimeRunCancelRequest,
   type RuntimeRunCheckpointApprovalRequest,
   type RuntimeRunGetV2Request,
@@ -432,6 +434,22 @@ function toCompatBrowserDebugRunPayload(payload: RuntimeBrowserDebugRunRequest) 
   });
 }
 
+function toCompatMiniProgramStatusPayload(payload: RuntimeMiniProgramStatusRequest) {
+  return withCanonicalPayload({ ...payload });
+}
+
+function toCompatMiniProgramRunPayload(payload: RuntimeMiniProgramActionRunRequest) {
+  return withCanonicalPayload({
+    ...payload,
+    compileType: payload.compileType ?? null,
+    compileCondition: payload.compileCondition ?? null,
+    version: payload.version ?? null,
+    desc: payload.desc ?? null,
+    qrOutputMode: payload.qrOutputMode ?? null,
+    infoOutputMode: payload.infoOutputMode ?? null,
+  });
+}
+
 function toCompatWorkspacePatchApplyPayload(payload: WorkspacePatchApplyRequest) {
   return withCanonicalPayload({
     ...payload,
@@ -500,6 +518,8 @@ export const RUNTIME_RPC_PAYLOAD_REGISTRY = Object.freeze({
   mcpServerStatusList: toCompatMcpServerStatusListPayload,
   browserDebugStatus: toCompatBrowserDebugStatusPayload,
   browserDebugRun: toCompatBrowserDebugRunPayload,
+  miniProgramStatus: toCompatMiniProgramStatusPayload,
+  miniProgramRun: toCompatMiniProgramRunPayload,
   workspacePatchApply: toCompatWorkspacePatchApplyPayload,
   workspaceDiagnosticsList: toCompatWorkspaceDiagnosticsListPayload,
   extensionInstall: toCompatExtensionInstallPayload,

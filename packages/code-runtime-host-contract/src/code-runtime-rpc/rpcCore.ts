@@ -167,6 +167,8 @@ export const CODE_RUNTIME_RPC_METHODS = {
   MCP_SERVER_STATUS_LIST_V1: "code_mcp_server_status_list_v1",
   BROWSER_DEBUG_STATUS_V1: "code_browser_debug_status_v1",
   BROWSER_DEBUG_RUN_V1: "code_browser_debug_run_v1",
+  MINI_PROGRAM_STATUS_V1: "code_mini_program_status_v1",
+  MINI_PROGRAM_RUN_V1: "code_mini_program_run_v1",
   EXTENSION_CATALOG_LIST_V2: "code_extension_catalog_list_v2",
   EXTENSION_GET_V2: "code_extension_get_v2",
   EXTENSION_INSTALL_V2: "code_extension_install_v2",

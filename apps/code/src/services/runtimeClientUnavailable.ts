@@ -261,6 +261,12 @@ export function createUnavailableRuntimeClient(
     browserDebugRunV1() {
       return rejectUnavailable("run browser debug operation");
     },
+    miniProgramStatusV1() {
+      return rejectUnavailable("read mini program status");
+    },
+    miniProgramRunV1() {
+      return rejectUnavailable("run mini program action");
+    },
     extensionCatalogListV2() {
       return rejectUnavailable("list runtime extension catalog");
     },

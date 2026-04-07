@@ -49,6 +49,8 @@ import type {
   RuntimeCompositionSnapshotPublishResponse,
   RuntimeBrowserDebugRunResponse,
   RuntimeBrowserDebugStatusResponse,
+  RuntimeMiniProgramActionRunResponse,
+  RuntimeMiniProgramStatusResponse,
   RuntimeCodexCloudTasksListResponse,
   RuntimeCodexConfigPathResponse,
   RuntimeCodexDoctorResponse,
@@ -258,6 +260,8 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.MCP_SERVER_STATUS_LIST_V1]: RuntimeMcpServerStatusListResponse;
   [CODE_RUNTIME_RPC_METHODS.BROWSER_DEBUG_STATUS_V1]: RuntimeBrowserDebugStatusResponse;
   [CODE_RUNTIME_RPC_METHODS.BROWSER_DEBUG_RUN_V1]: RuntimeBrowserDebugRunResponse;
+  [CODE_RUNTIME_RPC_METHODS.MINI_PROGRAM_STATUS_V1]: RuntimeMiniProgramStatusResponse;
+  [CODE_RUNTIME_RPC_METHODS.MINI_PROGRAM_RUN_V1]: RuntimeMiniProgramActionRunResponse;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_CATALOG_LIST_V2]: RuntimeExtensionRecord[];
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_GET_V2]: RuntimeExtensionRecord | null;
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_INSTALL_V2]: RuntimeExtensionRecord;

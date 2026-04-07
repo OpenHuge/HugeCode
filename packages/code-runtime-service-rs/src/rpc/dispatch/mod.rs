@@ -6,6 +6,8 @@ mod app_settings_dispatch;
 mod bootstrap_batch;
 #[path = "../../rpc_dispatch_browser_debug.rs"]
 mod browser_debug_dispatch;
+#[path = "../../rpc_dispatch_mini_program.rs"]
+mod mini_program_dispatch;
 #[path = "../../rpc_dispatch_codex.rs"]
 mod codex_dispatch;
 #[path = "../../rpc_dispatch_diagnostics_export.rs"]
@@ -64,6 +66,7 @@ use bootstrap_batch::{
     settings_summary_payload, terminal_status_payload,
 };
 use browser_debug_dispatch::{handle_browser_debug_run_v1, handle_browser_debug_status_v1};
+use mini_program_dispatch::{handle_mini_program_run_v1, handle_mini_program_status_v1};
 use codex_dispatch::handle_codex_rpc_method;
 pub(crate) use crate::rpc_dispatch_extensions as extensions_dispatch;
 use diagnostics_export_dispatch::handle_runtime_diagnostics_export_v1;
@@ -975,6 +978,20 @@ pub(crate) async fn invoke_browser_debug_run_v1(
     params: &Value,
 ) -> Result<Value, RpcError> {
     handle_browser_debug_run_v1(ctx, params).await
+}
+
+pub(crate) async fn invoke_mini_program_status_v1(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    handle_mini_program_status_v1(ctx, params).await
+}
+
+pub(crate) async fn invoke_mini_program_run_v1(
+    ctx: &AppContext,
+    params: &Value,
+) -> Result<Value, RpcError> {
+    handle_mini_program_run_v1(ctx, params).await
 }
 
 #[cfg(test)]

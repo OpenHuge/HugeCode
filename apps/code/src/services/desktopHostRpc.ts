@@ -3,6 +3,9 @@ import type {
   RuntimeBrowserDebugRunRequest,
   RuntimeBrowserDebugRunResponse,
   RuntimeBrowserDebugStatusResponse,
+  RuntimeMiniProgramActionRunRequest,
+  RuntimeMiniProgramActionRunResponse,
+  RuntimeMiniProgramStatusResponse,
   WorkspacePatchApplyRequest,
   WorkspacePatchApplyResponse,
 } from "@ku0/code-runtime-host-contract";
@@ -146,6 +149,18 @@ export async function runRuntimeBrowserDebug(
   request: RuntimeBrowserDebugRunRequest
 ): Promise<RuntimeBrowserDebugRunResponse> {
   return getRuntimeClient().browserDebugRunV1(request);
+}
+
+export async function getRuntimeMiniProgramStatus(
+  workspaceId: string
+): Promise<RuntimeMiniProgramStatusResponse> {
+  return getRuntimeClient().miniProgramStatusV1({ workspaceId });
+}
+
+export async function runRuntimeMiniProgramAction(
+  request: RuntimeMiniProgramActionRunRequest
+): Promise<RuntimeMiniProgramActionRunResponse> {
+  return getRuntimeClient().miniProgramRunV1(request);
 }
 
 export async function setThreadName(
