@@ -3,54 +3,19 @@ import { ToolCallChip } from "../../../design-system";
 import { useRuntimeMiniProgramOperator } from "../../../application/runtime/facades/runtimeMiniProgramOperator";
 import { MissionControlSectionCard } from "./WorkspaceHomeMissionControlSections";
 import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
+import {
+  buildRuntimeMiniProgramActionAvailability,
+  buildRuntimeMiniProgramPreviewRequest,
+  buildRuntimeMiniProgramUploadRequest,
+  readRuntimeMiniProgramBuildCompileType,
+  readRuntimeMiniProgramServiceTone,
+  readRuntimeMiniProgramStatusLabel,
+  readRuntimeMiniProgramStatusTone,
+} from "./runtimeMiniProgramSectionModel";
 
 type WorkspaceHomeAgentRuntimeMiniProgramSectionProps = {
   workspaceId: string;
 };
-
-function supportsAction(
-  status: ReturnType<typeof useRuntimeMiniProgramOperator>["status"],
-  action:
-    | "open_project"
-    | "refresh_project"
-    | "build_npm"
-    | "preview"
-    | "upload"
-    | "reset_file_watch"
-) {
-  return status?.supportedActions.includes(action) ?? false;
-}
-
-function readStatusTone(status: ReturnType<typeof useRuntimeMiniProgramOperator>["status"]) {
-  if (!status) {
-    return "neutral" as const;
-  }
-  switch (status.status) {
-    case "ready":
-      return "success" as const;
-    case "blocked":
-    case "unavailable":
-      return "danger" as const;
-    default:
-      return "warning" as const;
-  }
-}
-
-function readStatusLabel(status: ReturnType<typeof useRuntimeMiniProgramOperator>["status"]) {
-  if (!status) {
-    return "Loading";
-  }
-  switch (status.status) {
-    case "ready":
-      return "Ready";
-    case "blocked":
-      return "Blocked";
-    case "unavailable":
-      return "Unavailable";
-    default:
-      return "Attention";
-  }
-}
 
 export function WorkspaceHomeAgentRuntimeMiniProgramSection({
   workspaceId,
@@ -67,35 +32,30 @@ export function WorkspaceHomeAgentRuntimeMiniProgramSection({
   const [uploadVersion, setUploadVersion] = useState("");
   const [uploadDesc, setUploadDesc] = useState("");
   const [uploadInfoOutputMode, setUploadInfoOutputMode] = useState<"none" | "inline">("inline");
-  const projectReady = status?.project.valid ?? false;
-  const canOpenProject = supportsAction(status, "open_project");
-  const canRefreshProject = supportsAction(status, "refresh_project");
-  const canResetFileWatch = supportsAction(status, "reset_file_watch");
-  const canBuildNpm = projectReady && supportsAction(status, "build_npm");
-  const canPreview = projectReady && supportsAction(status, "preview");
-  const canUpload =
-    projectReady && supportsAction(status, "upload") && uploadVersion.trim().length > 0;
+  const {
+    canBuildNpm,
+    canOpenProject,
+    canPreview,
+    canRefreshProject,
+    canResetFileWatch,
+    canUpload,
+  } = buildRuntimeMiniProgramActionAvailability({
+    status,
+    uploadVersion,
+  });
 
   return (
     <MissionControlSectionCard
       title="Mini Program readiness"
-      statusLabel={readStatusLabel(status)}
-      statusTone={readStatusTone(status)}
+      statusLabel={readRuntimeMiniProgramStatusLabel(status)}
+      statusTone={readRuntimeMiniProgramStatusTone(status)}
       meta={
         <>
           <ToolCallChip tone="neutral">Host {status?.hostOs ?? "n/a"}</ToolCallChip>
           <ToolCallChip tone={status?.devtoolsInstalled ? "success" : "warning"}>
             DevTools {status?.devtoolsInstalled ? "installed" : "missing"}
           </ToolCallChip>
-          <ToolCallChip
-            tone={
-              status?.serviceStatus === "running"
-                ? "success"
-                : status?.serviceStatus === "stopped" || status?.serviceStatus === "unavailable"
-                  ? "warning"
-                  : "neutral"
-            }
-          >
+          <ToolCallChip tone={readRuntimeMiniProgramServiceTone(status?.serviceStatus)}>
             HTTP V2 {status?.serviceStatus ?? "unknown"}
           </ToolCallChip>
           <ToolCallChip tone={status?.loginStatus === "logged_in" ? "success" : "neutral"}>
@@ -200,12 +160,7 @@ export function WorkspaceHomeAgentRuntimeMiniProgramSection({
             onClick={() =>
               void miniProgram.runAction({
                 action: "build_npm",
-                compileType:
-                  status?.project.compileType === "plugin"
-                    ? "plugin"
-                    : status?.project.compileType === "miniprogram"
-                      ? "miniprogram"
-                      : null,
+                compileType: readRuntimeMiniProgramBuildCompileType(status),
               })
             }
           >
@@ -291,16 +246,15 @@ export function WorkspaceHomeAgentRuntimeMiniProgramSection({
             type="button"
             disabled={miniProgram.runningAction !== null || !canPreview}
             onClick={() =>
-              void miniProgram.runAction({
-                action: "preview",
-                compileCondition: {
-                  pathName: compilePathName || null,
-                  query: compileQuery || null,
-                  scene: Number.isFinite(Number(compileScene)) ? Number(compileScene) : null,
-                },
-                qrOutputMode: previewQrOutputMode,
-                infoOutputMode: previewInfoOutputMode,
-              })
+              void miniProgram.runAction(
+                buildRuntimeMiniProgramPreviewRequest({
+                  pathName: compilePathName,
+                  query: compileQuery,
+                  scene: compileScene,
+                  qrOutputMode: previewQrOutputMode,
+                  infoOutputMode: previewInfoOutputMode,
+                })
+              )
             }
           >
             {miniProgram.runningAction === "preview" ? "Previewing..." : "Preview"}
@@ -353,12 +307,13 @@ export function WorkspaceHomeAgentRuntimeMiniProgramSection({
             type="button"
             disabled={miniProgram.runningAction !== null || !canUpload}
             onClick={() =>
-              void miniProgram.runAction({
-                action: "upload",
-                version: uploadVersion.trim(),
-                desc: uploadDesc || null,
-                infoOutputMode: uploadInfoOutputMode,
-              })
+              void miniProgram.runAction(
+                buildRuntimeMiniProgramUploadRequest({
+                  version: uploadVersion,
+                  desc: uploadDesc,
+                  infoOutputMode: uploadInfoOutputMode,
+                })
+              )
             }
           >
             {miniProgram.runningAction === "upload" ? "Uploading..." : "Upload"}

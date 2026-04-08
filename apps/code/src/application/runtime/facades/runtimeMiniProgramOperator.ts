@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   RuntimeMiniProgramAction,
   RuntimeMiniProgramActionRunRequest,
@@ -28,7 +28,11 @@ export type RuntimeMiniProgramOperatorState = {
   runAction: (request: Omit<RuntimeMiniProgramActionRunRequest, "workspaceId">) => Promise<void>;
 };
 
-function buildNotice(
+function readMiniProgramErrorMessage(error: unknown, fallback: string) {
+  return readRuntimeErrorMessage(error) ?? fallback;
+}
+
+export function buildRuntimeMiniProgramNotice(
   status: RuntimeMiniProgramStatusResponse | null,
   actionResult: RuntimeMiniProgramActionRunResponse | null,
   error: string | null
@@ -64,51 +68,78 @@ export function useRuntimeMiniProgramOperator(
   const [lastActionResult, setLastActionResult] =
     useState<RuntimeMiniProgramActionRunResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+  const initialLoadIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const setStateIfMounted = useCallback(
+    <TValue>(setter: (value: TValue) => void, value: TValue) => {
+      if (!mountedRef.current) {
+        return;
+      }
+      setter(value);
+    },
+    []
+  );
+
+  const readStatus = useCallback(
+    async (mode: "initial" | "refresh" | "after_action", initialLoadId?: number) => {
+      const isStaleInitialLoad = () =>
+        mode === "initial" &&
+        typeof initialLoadId === "number" &&
+        initialLoadId !== initialLoadIdRef.current;
+      try {
+        const nextStatus = await getRuntimeMiniProgramStatus(workspaceId);
+        if (isStaleInitialLoad()) {
+          return null;
+        }
+        setStateIfMounted(setStatus, nextStatus);
+        setStateIfMounted(setError, null);
+        return nextStatus;
+      } catch (readError) {
+        if (isStaleInitialLoad()) {
+          return null;
+        }
+        setStateIfMounted(
+          setError,
+          readMiniProgramErrorMessage(readError, "Failed to read mini program status.")
+        );
+        return null;
+      } finally {
+        if (mode === "initial") {
+          if (!isStaleInitialLoad()) {
+            setStateIfMounted(setLoading, false);
+          }
+        }
+        if (mode === "refresh") {
+          setStateIfMounted(setLoading, false);
+          setStateIfMounted(setRefreshing, false);
+        }
+      }
+    },
+    [setStateIfMounted, workspaceId]
+  );
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      const nextStatus = await getRuntimeMiniProgramStatus(workspaceId);
-      setStatus(nextStatus);
-      setError(null);
-    } catch (readError) {
-      setError(readRuntimeErrorMessage(readError) ?? "Failed to read mini program status.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [workspaceId]);
+    await readStatus("refresh");
+  }, [readStatus]);
 
   useEffect(() => {
-    let mounted = true;
+    const initialLoadId = initialLoadIdRef.current + 1;
+    initialLoadIdRef.current = initialLoadId;
     setLoading(true);
     setRefreshing(false);
     setError(null);
     setStatus(null);
     setLastActionResult(null);
-    void getRuntimeMiniProgramStatus(workspaceId)
-      .then((nextStatus) => {
-        if (!mounted) {
-          return;
-        }
-        setStatus(nextStatus);
-      })
-      .catch((readError) => {
-        if (!mounted) {
-          return;
-        }
-        setError(readRuntimeErrorMessage(readError) ?? "Failed to read mini program status.");
-      })
-      .finally(() => {
-        if (!mounted) {
-          return;
-        }
-        setLoading(false);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, [workspaceId]);
+    void readStatus("initial", initialLoadId);
+  }, [readStatus, workspaceId]);
 
   const runAction = useCallback(
     async (request: Omit<RuntimeMiniProgramActionRunRequest, "workspaceId">) => {
@@ -119,16 +150,18 @@ export function useRuntimeMiniProgramOperator(
           workspaceId,
           ...request,
         });
-        setLastActionResult(result);
-        const nextStatus = await getRuntimeMiniProgramStatus(workspaceId);
-        setStatus(nextStatus);
+        setStateIfMounted(setLastActionResult, result);
+        await readStatus("after_action");
       } catch (runError) {
-        setError(readRuntimeErrorMessage(runError) ?? "Failed to run mini program action.");
+        setStateIfMounted(
+          setError,
+          readMiniProgramErrorMessage(runError, "Failed to run mini program action.")
+        );
       } finally {
-        setRunningAction(null);
+        setStateIfMounted(setRunningAction, null);
       }
     },
-    [workspaceId]
+    [readStatus, setStateIfMounted, workspaceId]
   );
 
   return {
@@ -138,7 +171,7 @@ export function useRuntimeMiniProgramOperator(
     runningAction,
     lastActionResult,
     error,
-    notice: buildNotice(status, lastActionResult, error),
+    notice: buildRuntimeMiniProgramNotice(status, lastActionResult, error),
     refresh,
     runAction,
   };

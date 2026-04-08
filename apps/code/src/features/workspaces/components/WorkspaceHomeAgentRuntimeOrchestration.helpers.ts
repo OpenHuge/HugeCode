@@ -2,18 +2,22 @@ import {
   normalizeRuntimeProviderCatalogEntry,
   normalizeRuntimeTaskForProjection,
 } from "../../../application/runtime/facades/runtimeMissionControlProjectionNormalization";
+import {
+  formatRuntimeError,
+  resolveRuntimeErrorLabel,
+} from "../../../application/runtime/facades/runtimeMissionControlErrorPresentation";
 export {
   normalizeRuntimeProviderCatalogEntry,
   normalizeRuntimeTaskForProjection,
 } from "../../../application/runtime/facades/runtimeMissionControlProjectionNormalization";
 export {
+  formatRuntimeError,
+  resolveRuntimeErrorLabel,
+} from "../../../application/runtime/facades/runtimeMissionControlErrorPresentation";
+export {
   parseRuntimeParallelDispatchPlan as parseRuntimeBatchPreviewState,
   readRuntimeParallelDispatchPlanLaunchError,
 } from "../../../application/runtime/facades/runtimeParallelDispatchManager";
-import {
-  readRuntimeErrorCode,
-  readRuntimeErrorMessage,
-} from "../../../application/runtime/ports/runtimeErrorClassifier";
 import type {
   RuntimeAgentTaskInterruptResult,
   RuntimeAgentTaskResumeResult,
@@ -64,37 +68,84 @@ export const STALE_PENDING_APPROVAL_MS = 10 * 60_000;
 
 export const DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG = JSON.stringify(DEFAULT_BATCH_PREVIEW, null, 2);
 
+type RuntimeSectionStatusPresentation = {
+  label: "Ready" | "Blocked" | "Attention";
+  tone: "success" | "danger" | "warning";
+};
+
+export function readBrowserReadinessPresentation(state: "ready" | "attention" | "blocked") {
+  return {
+    label: state === "ready" ? "Ready" : state === "blocked" ? "Blocked" : "Attention",
+    tone:
+      state === "ready"
+        ? ("success" as const)
+        : state === "blocked"
+          ? ("danger" as const)
+          : ("warning" as const),
+  } satisfies RuntimeSectionStatusPresentation;
+}
+
+export function readLaunchReadinessPresentation(state: "ready" | "attention" | "blocked") {
+  return {
+    label: state === "ready" ? "Ready" : state === "blocked" ? "Blocked" : "Attention",
+    tone:
+      state === "ready"
+        ? ("success" as const)
+        : state === "blocked"
+          ? ("danger" as const)
+          : ("warning" as const),
+  } satisfies RuntimeSectionStatusPresentation;
+}
+
+export function readPluginCatalogPresentation(input: {
+  error: string | null;
+  blockedCount: number;
+  attentionCount: number;
+  readyCount: number;
+  total: number;
+}) {
+  if (input.error) {
+    return {
+      label: "Attention",
+      tone: "warning" as const,
+    };
+  }
+  if (input.blockedCount > 0) {
+    return {
+      label: "Blocked",
+      tone: "danger" as const,
+    };
+  }
+  if (input.attentionCount > 0) {
+    return {
+      label: "Attention",
+      tone: "warning" as const,
+    };
+  }
+  if (input.readyCount > 0) {
+    return {
+      label: "Ready",
+      tone: "success" as const,
+    };
+  }
+  if (input.total > 0) {
+    return {
+      label: "Cataloged",
+      tone: "neutral" as const,
+    };
+  }
+  return {
+    label: "Empty",
+    tone: "neutral" as const,
+  };
+}
+
 function toNonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-export function formatRuntimeError(error: unknown): string {
-  const message = readRuntimeErrorMessage(error);
-  const code = readRuntimeErrorCode(error);
-  if (message && code) {
-    return `${message} (${code})`;
-  }
-  if (message) {
-    return message;
-  }
-  if (code) {
-    return code;
-  }
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message.trim();
-  }
-  if (typeof error === "string" && error.trim().length > 0) {
-    return error.trim();
-  }
-  return "Unknown runtime error.";
 }
 
 export function formatRuntimeTimestamp(value: number | null): string {
@@ -129,13 +180,8 @@ export function isRecoverableRuntimeTask(
   );
 }
 
-export function resolveRuntimeErrorLabel(
+export function resolveRuntimeTaskErrorLabel(
   value: RuntimeAgentTaskInterruptResult | RuntimeAgentTaskResumeResult | unknown
 ): string | null {
-  if (isRecord(value)) {
-    const code = toNonEmptyString(value.code);
-    const message = toNonEmptyString(value.message);
-    return code ?? message;
-  }
-  return null;
+  return resolveRuntimeErrorLabel(value);
 }

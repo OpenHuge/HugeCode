@@ -20,6 +20,9 @@ import {
   DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG,
   formatRuntimeTimestamp,
   parseRuntimeBatchPreviewState,
+  readBrowserReadinessPresentation,
+  readLaunchReadinessPresentation,
+  readPluginCatalogPresentation,
   readRuntimeParallelDispatchPlanLaunchError,
 } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
 import { WorkspaceHomeAgentRuntimeParallelDispatchSection } from "./WorkspaceHomeAgentRuntimeParallelDispatchSection";
@@ -126,18 +129,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const oldestPendingApprovalId = oldestPendingApprovalTask?.pendingApprovalId ?? null;
   const policy = missionControlProjection.policy;
   const browserReadiness = missionControlProjection.browserReadiness;
-  const browserReadinessStatusLabel =
-    browserReadiness.state === "ready"
-      ? "Ready"
-      : browserReadiness.state === "blocked"
-        ? "Blocked"
-        : "Attention";
-  const browserReadinessStatusTone =
-    browserReadiness.state === "ready"
-      ? "success"
-      : browserReadiness.state === "blocked"
-        ? "danger"
-        : "warning";
+  const browserReadinessPresentation = readBrowserReadinessPresentation(browserReadiness.state);
   const pluginCatalog = missionControlProjection.pluginCatalog;
   const composition = missionControlProjection.composition;
   const readinessNeedsActionCount =
@@ -146,48 +138,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const readinessSelectedNowCount =
     pluginCatalog.readinessSections.find((section) => section.id === "selected_now")?.entries
       .length ?? 0;
-  const pluginCatalogStatus = pluginCatalog.error
-    ? {
-        label: "Attention",
-        tone: "warning" as const,
-      }
-    : pluginCatalog.blockedCount > 0
-      ? {
-          label: "Blocked",
-          tone: "danger" as const,
-        }
-      : pluginCatalog.attentionCount > 0
-        ? {
-            label: "Attention",
-            tone: "warning" as const,
-          }
-        : pluginCatalog.readyCount > 0
-          ? {
-              label: "Ready",
-              tone: "success" as const,
-            }
-          : pluginCatalog.total > 0
-            ? {
-                label: "Cataloged",
-                tone: "neutral" as const,
-              }
-            : {
-                label: "Empty",
-                tone: "neutral" as const,
-              };
+  const pluginCatalogStatus = readPluginCatalogPresentation(pluginCatalog);
   const launchReadiness = missionControlProjection.launchReadiness;
-  const launchReadinessStatusLabel =
-    launchReadiness.state === "ready"
-      ? "Ready"
-      : launchReadiness.state === "blocked"
-        ? "Blocked"
-        : "Attention";
-  const launchReadinessStatusTone =
-    launchReadiness.state === "ready"
-      ? "success"
-      : launchReadiness.state === "blocked"
-        ? "danger"
-        : "warning";
+  const launchReadinessPresentation = readLaunchReadinessPresentation(launchReadiness.state);
   const activeRuntimeCount = missionControlProjection.runList.activeRuntimeCount;
   const visibleRuntimeRuns = missionControlProjection.runList.visibleRuntimeRuns;
   const persistentFlowRuns = useMemo(
@@ -315,7 +268,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         <span>Recoverable: {continuityReadiness.recoverableRunCount}</span>
         <span>Handoff ready: {continuityReadiness.handoffReadyCount}</span>
         <span>Policy: {policy.statusLabel}</span>
-        <span>Browser: {browserReadinessStatusLabel}</span>
+        <span>Browser: {browserReadinessPresentation.label}</span>
         <span>Plugins: {pluginCatalog.total}</span>
         <span>Bound: {pluginCatalog.boundCount}</span>
         <span>
@@ -357,8 +310,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         browserAssessment={browserAssessment}
         browserExtraction={browserExtraction}
         browserReadiness={browserReadiness}
-        browserReadinessStatusLabel={browserReadinessStatusLabel}
-        browserReadinessStatusTone={browserReadinessStatusTone}
+        browserReadinessStatusLabel={browserReadinessPresentation.label}
+        browserReadinessStatusTone={browserReadinessPresentation.tone}
       />
       <WorkspaceHomeAgentRuntimeMiniProgramSection workspaceId={workspaceId} />
       <Suspense
@@ -653,8 +606,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
 
       <MissionControlSectionCard
         title="Launch readiness"
-        statusLabel={launchReadinessStatusLabel}
-        statusTone={launchReadinessStatusTone}
+        statusLabel={launchReadinessPresentation.label}
+        statusTone={launchReadinessPresentation.tone}
         meta={
           <>
             <ToolCallChip tone="neutral">
