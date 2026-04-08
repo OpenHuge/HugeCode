@@ -7,6 +7,8 @@
     "declarationMap": false,
     "noEmit": true,
     "paths": {
+      "@ku0/code-platform-interfaces": ["../../packages/code-platform-interfaces/src/index.ts"],
+      "@ku0/code-platform-interfaces/*": ["../../packages/code-platform-interfaces/src/*"],
       "@ku0/code-runtime-webmcp-client": ["../../packages/code-runtime-webmcp-client/src/index.ts"],
       "@ku0/code-runtime-webmcp-client/*": ["../../packages/code-runtime-webmcp-client/src/*"],
       "@ku0/code-application": ["../../packages/code-application/src/index.ts"],

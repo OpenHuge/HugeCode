@@ -16,6 +16,9 @@ const codeRuntimeHostContractCanonicalEntry = fileURLToPath(
 const codeRuntimeHostContractCompatEntry = fileURLToPath(
   new URL("../../packages/code-runtime-host-contract/src/codeRuntimeRpcCompat.ts", import.meta.url)
 );
+const codePlatformInterfacesEntry = fileURLToPath(
+  new URL("../../packages/code-platform-interfaces/src/index.ts", import.meta.url)
+);
 const designSystemEntry = fileURLToPath(
   new URL("../../packages/design-system/src/index.ts", import.meta.url)
 );
@@ -158,6 +161,10 @@ export default defineConfig({
         replacement: codeRuntimeHostContractEntry,
       },
       {
+        find: /^@ku0\/code-platform-interfaces$/,
+        replacement: codePlatformInterfacesEntry,
+      },
+      {
         find: "@ku0/design-system/styles",
         replacement: designSystemStylesEntry,
       },
@@ -190,9 +197,6 @@ export default defineConfig({
       ],
     },
     server: {
-      warmup: {
-        clientFiles: [],
-      },
       deps: {
         inline: ["prosemirror-model", "prosemirror-state", "prosemirror-transform"],
       },
