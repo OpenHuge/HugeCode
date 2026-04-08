@@ -13,6 +13,11 @@ import type {
 import { DESKTOP_HOST_IPC_CHANNELS } from "@ku0/code-platform-interfaces";
 import { createDesktopBrowserAssessmentCapability } from "./desktopBrowserAssessment.js";
 import { createDesktopBrowserExtractionCapability } from "./desktopBrowserExtraction.js";
+import {
+  createDesktopAiWebLabController,
+  DEFAULT_AI_WEB_LAB_PROVIDER,
+  getAiWebLabManagedPartition,
+} from "./desktopAiWebLab.js";
 import { createDesktopHostHandlers } from "./createDesktopHostHandlers.js";
 import {
   createDesktopAppRendererUrl,
@@ -49,6 +54,7 @@ type DesktopBrowserWindowLike = {
   destroy?(): void;
   focus(): void;
   getBounds(): DesktopWindowBounds;
+  getTitle?(): string;
   hide(): void;
   id: number;
   isDestroyed(): boolean;
@@ -65,6 +71,7 @@ type DesktopBrowserWindowLike = {
   show(): void;
   webContents: {
     executeJavaScript(code: string): Promise<unknown>;
+    getURL?(): string;
     on(
       event: "console-message",
       listener: (
@@ -80,6 +87,7 @@ type DesktopBrowserWindowLike = {
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void
     ): void;
+    on(event: string, listener: (...args: unknown[]) => unknown): void;
     setWindowOpenHandler(handler: (details: { url: string }) => { action: "deny" }): void;
   };
 };
@@ -191,6 +199,24 @@ export type CreateDesktopMainCompositionInput = {
         ) => void
       ): void;
     } | null;
+    fromPartition?(partition: string): {
+      setPermissionCheckHandler(
+        handler: (
+          webContents: unknown,
+          permission: string,
+          requestingOrigin: string,
+          details?: unknown
+        ) => boolean
+      ): void;
+      setPermissionRequestHandler(
+        handler: (
+          webContents: unknown,
+          permission: string,
+          callback: (granted: boolean) => void,
+          details?: unknown
+        ) => void
+      ): void;
+    } | null;
   };
   shell: {
     openPath(path: string): Promise<string>;
@@ -205,6 +231,7 @@ export type CreateDesktopMainCompositionInput = {
 export function createDesktopMainComposition(input: CreateDesktopMainCompositionInput) {
   let isQuitting = false;
   let desktopReady = false;
+  const aiWebLabSessionSecurityRegistered = new Set<string>();
   const rendererRoot = join(input.sourceDirectory, "../renderer");
 
   const rendererTrust = createDesktopRendererTrust({
@@ -531,9 +558,33 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       });
     },
   });
+  const aiWebLab = createDesktopAiWebLabController({
+    browserWindow: input.browserWindow,
+    ensureManagedSessionSecurity(providerId) {
+      const partition = getAiWebLabManagedPartition(providerId);
+      if (aiWebLabSessionSecurityRegistered.has(partition)) {
+        return;
+      }
+      const managedSession = input.session.fromPartition?.(partition) ?? null;
+      if (!managedSession) {
+        return;
+      }
+      registerDesktopSessionSecurity(managedSession);
+      aiWebLabSessionSecurityRegistered.add(partition);
+    },
+    getDefaultProvider() {
+      return DEFAULT_AI_WEB_LAB_PROVIDER;
+    },
+    isSafeExternalUrl: rendererTrust.isSafeExternalUrl,
+    listLocalChromeDebuggerEndpoints,
+    openExternalUrl(url) {
+      return input.shell.openExternal(url);
+    },
+  });
 
   const desktopHostHandlers = createDesktopHostHandlers({
     appVersion,
+    aiWebLab,
     browserAssessment,
     browserExtraction,
     copySupportSnapshot,

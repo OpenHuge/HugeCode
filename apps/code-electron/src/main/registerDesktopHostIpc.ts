@@ -1,6 +1,14 @@
 import type { IpcMainInvokeEvent } from "electron";
 import type {
+  AiWebLabProviderId,
   DesktopAppInfo,
+  DesktopAiWebLabArtifact,
+  DesktopAiWebLabCatalog,
+  DesktopAiWebLabNavigationInput,
+  DesktopAiWebLabOpenInput,
+  DesktopAiWebLabSessionMode,
+  DesktopAiWebLabState,
+  DesktopAiWebLabViewMode,
   DesktopBrowserAssessmentRequest,
   DesktopBrowserAssessmentResult,
   DesktopBrowserExtractionRequest,
@@ -41,6 +49,7 @@ type DesktopTrayState = {
 };
 
 type DesktopHostIpcHandlers = {
+  closeAiWebLabSession(): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
   assessBrowserSurface(
     input: DesktopBrowserAssessmentRequest
   ): Promise<DesktopBrowserAssessmentResult | null> | DesktopBrowserAssessmentResult | null;
@@ -51,8 +60,15 @@ type DesktopHostIpcHandlers = {
   extractBrowserContent(
     input?: DesktopBrowserExtractionRequest
   ): Promise<DesktopBrowserExtractionResult | null> | DesktopBrowserExtractionResult | null;
+  extractAiWebLabArtifact():
+    | Promise<DesktopAiWebLabArtifact | null>
+    | DesktopAiWebLabArtifact
+    | null;
   focusWindow(windowId: number): Promise<boolean> | boolean;
+  focusAiWebLabSession(): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
   getAppInfo(): Promise<DesktopAppInfo | null> | DesktopAppInfo | null;
+  getAiWebLabCatalog(): Promise<DesktopAiWebLabCatalog | null> | DesktopAiWebLabCatalog | null;
+  getAiWebLabState(): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
   getDiagnosticsInfo(): Promise<DesktopDiagnosticsInfo | null> | DesktopDiagnosticsInfo | null;
   getAppVersion(): Promise<string | null> | string | null;
   getLastBrowserAssessmentResult():
@@ -72,16 +88,32 @@ type DesktopHostIpcHandlers = {
   getWindowLabel(event: IpcInvokeEventLike): Promise<string> | string;
   listRecentSessions(): Promise<unknown[]> | unknown[];
   listWindows(): Promise<DesktopWindowDescriptor[]> | DesktopWindowDescriptor[];
+  navigateAiWebLab(
+    input: DesktopAiWebLabNavigationInput
+  ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
   openDialog(
     input?: DesktopOpenDialogInput
   ): Promise<DesktopOpenDialogResult> | DesktopOpenDialogResult;
   openExternalUrl(url: string): Promise<boolean> | boolean;
+  openAiWebLabEntrypoint(
+    providerId: AiWebLabProviderId,
+    entrypointId: string
+  ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+  openAiWebLabSession(
+    input?: DesktopAiWebLabOpenInput
+  ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
   openPathIn(input: DesktopOpenPathInInput): Promise<boolean> | boolean;
   openPath(path: string): Promise<boolean> | boolean;
   openWindow(input?: OpenDesktopWindowInput): Promise<unknown> | unknown;
   reopenSession(sessionId: string): Promise<boolean> | boolean;
   revealItemInDir(path: string): Promise<boolean> | boolean;
   restartToApplyUpdate(): Promise<boolean> | boolean;
+  setAiWebLabSessionMode(
+    mode: DesktopAiWebLabSessionMode
+  ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
+  setAiWebLabViewMode(
+    mode: DesktopAiWebLabViewMode
+  ): Promise<DesktopAiWebLabState | null> | DesktopAiWebLabState | null;
   setTrayEnabled(enabled: boolean): Promise<DesktopTrayState> | DesktopTrayState;
   showNotification(
     event: IpcInvokeEventLike,
@@ -118,6 +150,49 @@ export function registerDesktopHostIpc(input: RegisterDesktopHostIpcInput) {
 
   handleTrusted(channels.getAppVersion, async () => {
     return handlers.getAppVersion();
+  });
+
+  handleTrusted(channels.getAiWebLabCatalog, async () => {
+    return handlers.getAiWebLabCatalog();
+  });
+
+  handleTrusted(channels.getAiWebLabState, async () => {
+    return handlers.getAiWebLabState();
+  });
+
+  handleTrusted(channels.openAiWebLabSession, async (_event, aiWebLabInput) => {
+    return handlers.openAiWebLabSession(aiWebLabInput as DesktopAiWebLabOpenInput | undefined);
+  });
+
+  handleTrusted(channels.openAiWebLabEntrypoint, async (_event, providerId, entrypointId) => {
+    return handlers.openAiWebLabEntrypoint(
+      providerId as AiWebLabProviderId,
+      entrypointId as string
+    );
+  });
+
+  handleTrusted(channels.focusAiWebLabSession, async () => {
+    return handlers.focusAiWebLabSession();
+  });
+
+  handleTrusted(channels.closeAiWebLabSession, async () => {
+    return handlers.closeAiWebLabSession();
+  });
+
+  handleTrusted(channels.setAiWebLabViewMode, async (_event, mode) => {
+    return handlers.setAiWebLabViewMode(mode as DesktopAiWebLabViewMode);
+  });
+
+  handleTrusted(channels.setAiWebLabSessionMode, async (_event, mode) => {
+    return handlers.setAiWebLabSessionMode(mode as DesktopAiWebLabSessionMode);
+  });
+
+  handleTrusted(channels.navigateAiWebLab, async (_event, aiWebLabNavigationInput) => {
+    return handlers.navigateAiWebLab(aiWebLabNavigationInput as DesktopAiWebLabNavigationInput);
+  });
+
+  handleTrusted(channels.extractAiWebLabArtifact, async () => {
+    return handlers.extractAiWebLabArtifact();
   });
 
   handleTrusted(channels.listLocalChromeDebuggerEndpoints, async () => {

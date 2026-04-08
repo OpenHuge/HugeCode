@@ -151,6 +151,13 @@ function logRuntimeWarning(message: string, context?: unknown) {
 
 function createDefaultWorkspaceSettings(sortOrder?: number): WorkspaceSettings {
   return {
+    aiWebLabAutoAttachArtifact: null,
+    aiWebLabAutoCreateWorktree: null,
+    aiWebLabDefaultBaseRef: null,
+    aiWebLabDefaultProvider: null,
+    aiWebLabPreferredSessionMode: null,
+    aiWebLabPreferredViewMode: null,
+    aiWebLabProviderUrls: null,
     sidebarCollapsed: false,
     sortOrder: sortOrder ?? null,
     groupId: null,
@@ -372,16 +379,24 @@ export async function addWorktree(
   parentId: string,
   branch: string,
   name: string | null,
-  copyAgentsMd = true
+  copyAgentsMd = true,
+  baseRef: string | null = null
 ): Promise<WorkspaceInfo> {
   if (!isDesktopHostRuntime()) {
     void parentId;
     void branch;
     void name;
     void copyAgentsMd;
+    void baseRef;
     throw new Error("Worktree creation is only available through the Electron bridge.");
   }
-  return invoke<WorkspaceInfo>("add_worktree", { parentId, branch, name, copyAgentsMd });
+  return invoke<WorkspaceInfo>("add_worktree", {
+    parentId,
+    branch,
+    name,
+    copyAgentsMd,
+    baseRef,
+  });
 }
 
 export async function updateWorkspaceSettings(

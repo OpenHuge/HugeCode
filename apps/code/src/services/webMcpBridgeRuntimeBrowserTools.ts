@@ -28,7 +28,7 @@ type RuntimeBrowserControl = RuntimeAgentControl & {
   getRuntimeBrowserDebugStatus?: (input: { workspaceId: string }) => Promise<unknown>;
   runRuntimeBrowserDebug?: (input: {
     workspaceId: string;
-    operation: "inspect" | "automation" | "chatgpt_decision_lab";
+    operation: "inspect" | "automation" | "chatgpt_decision_lab" | "provider_decision_lab";
     prompt?: string | null;
     includeScreenshot?: boolean | null;
     timeoutMs?: number | null;
@@ -43,6 +43,7 @@ type RuntimeBrowserControl = RuntimeAgentControl & {
         label: string;
         summary?: string | null;
       }>;
+      providerId?: "chatgpt" | "gemini" | null;
       constraints?: string[] | null;
       allowLiveWebResearch?: boolean | null;
       chatgptUrl?: string | null;
@@ -360,6 +361,94 @@ export function buildRuntimeBrowserTools(
       },
     },
     {
+      name: "run-provider-decision-lab",
+      description:
+        "Use the authenticated provider web session exposed through runtime browser debug to compare route options and return a structured decision recommendation.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          workspaceId: { type: "string" },
+          providerId: {
+            type: "string",
+            enum: ["chatgpt", "gemini"],
+          },
+          question: { type: "string" },
+          options: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                label: { type: "string" },
+                summary: { type: "string" },
+              },
+              required: ["id", "label"],
+            },
+          },
+          constraints: {
+            oneOf: [{ type: "array", items: { type: "string" } }, { type: "string" }],
+          },
+          allowLiveWebResearch: { type: "boolean" },
+          chatgptUrl: { type: "string" },
+          timeoutMs: { type: "number" },
+        },
+        required: ["providerId", "question", "options"],
+      },
+      annotations: {
+        openWorldHint: true,
+        title: "Run Provider Decision Lab",
+        taskSupport: "partial",
+      },
+      execute: async (input, agent) => {
+        const runRuntimeBrowserDebug = requireBrowserControlMethod(
+          control,
+          "runRuntimeBrowserDebug",
+          "run-provider-decision-lab"
+        );
+        const workspaceId = resolveWorkspaceId(input, snapshot, helpers);
+        const providerId = input.providerId === "gemini" ? "gemini" : "chatgpt";
+        const question = helpers.toNonEmptyString(input.question);
+        if (!question) {
+          throw requiredInputError("question is required.");
+        }
+        const options = normalizeDecisionLabOptions(input.options);
+        if (options.length === 0) {
+          throw requiredInputError("options is required.");
+        }
+        const timeoutMs = helpers.toPositiveInteger(input.timeoutMs);
+        const constraints = helpers.toStringArray(input.constraints);
+        const chatgptUrl = helpers.toNonEmptyString(input.chatgptUrl);
+        const allowLiveWebResearch =
+          typeof input.allowLiveWebResearch === "boolean" ? input.allowLiveWebResearch : false;
+        await helpers.confirmWriteAction(
+          agent,
+          requireUserApproval,
+          `Run ${providerId} decision lab in workspace ${snapshot.workspaceName}?`,
+          onApprovalRequest
+        );
+        const result = await runRuntimeBrowserDebug({
+          workspaceId,
+          operation: "provider_decision_lab",
+          prompt: null,
+          includeScreenshot: false,
+          timeoutMs,
+          steps: null,
+          decisionLab: {
+            providerId,
+            question,
+            options,
+            constraints,
+            allowLiveWebResearch,
+            chatgptUrl,
+          },
+        });
+        return helpers.buildResponse(`${providerId} decision lab completed.`, {
+          workspaceId,
+          result,
+        });
+      },
+    },
+    {
       name: "run-chatgpt-decision-lab",
       description:
         "Use Chrome DevTools MCP against an authenticated ChatGPT web session to compare route options and return a structured decision recommendation.",
@@ -428,6 +517,7 @@ export function buildRuntimeBrowserTools(
           timeoutMs,
           steps: null,
           decisionLab: {
+            providerId: "chatgpt",
             question,
             options,
             constraints,

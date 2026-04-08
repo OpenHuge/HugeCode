@@ -1,5 +1,13 @@
 import {
+  type AiWebLabProviderId,
   type DesktopAppInfo,
+  type DesktopAiWebLabArtifact,
+  type DesktopAiWebLabCatalog,
+  type DesktopAiWebLabNavigationInput,
+  type DesktopAiWebLabOpenInput,
+  type DesktopAiWebLabSessionMode,
+  type DesktopAiWebLabState,
+  type DesktopAiWebLabViewMode,
   type DesktopDiagnosticsInfo,
   type LocalChromeDebuggerEndpointDescriptor,
   isElectronDesktopHostBridge,
@@ -17,7 +25,15 @@ import {
 } from "@ku0/code-platform-interfaces";
 
 export type {
+  AiWebLabProviderId,
   DesktopAppInfo,
+  DesktopAiWebLabArtifact,
+  DesktopAiWebLabCatalog,
+  DesktopAiWebLabNavigationInput,
+  DesktopAiWebLabOpenInput,
+  DesktopAiWebLabSessionMode,
+  DesktopAiWebLabState,
+  DesktopAiWebLabViewMode,
   DesktopDiagnosticsInfo,
   DesktopLaunchIntent,
   DesktopHostBridge,

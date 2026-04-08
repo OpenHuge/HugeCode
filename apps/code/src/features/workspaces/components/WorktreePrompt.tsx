@@ -23,6 +23,7 @@ type WorktreePromptProps = {
   workspaceName: string;
   name: string;
   branch: string;
+  baseRef: string;
   branchWasEdited?: boolean;
   branchSuggestions?: BranchInfo[];
   copyAgentsMd: boolean;
@@ -31,6 +32,7 @@ type WorktreePromptProps = {
   error?: string | null;
   onNameChange: (value: string) => void;
   onChange: (value: string) => void;
+  onBaseRefChange: (value: string) => void;
   onCopyAgentsMdChange: (value: boolean) => void;
   onSetupScriptChange: (value: string) => void;
   onCancel: () => void;
@@ -43,6 +45,7 @@ export function WorktreePrompt({
   workspaceName,
   name,
   branch,
+  baseRef,
   branchWasEdited = false,
   branchSuggestions = [],
   copyAgentsMd,
@@ -51,6 +54,7 @@ export function WorktreePrompt({
   error = null,
   onNameChange,
   onChange,
+  onBaseRefChange,
   onCopyAgentsMdChange,
   onSetupScriptChange,
   onCancel,
@@ -236,6 +240,32 @@ export function WorktreePrompt({
           />
         )}
       </div>
+      <DialogInput
+        id="worktree-base-ref"
+        fieldClassName="worktree-modal-input"
+        label={<DialogLabelText className="worktree-modal-label">Base ref</DialogLabelText>}
+        value={baseRef}
+        placeholder="origin/main"
+        description={
+          <span className={joinClassNames(styles.hint, "worktree-modal-hint")}>
+            Optional starting point for the new worktree branch. Use <code>origin/main</code> for
+            isolated implementation slices.
+          </span>
+        }
+        onChange={(event) => onBaseRefChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            if (!isBusy) {
+              onCancel();
+            }
+          }
+          if (event.key === "Enter" && !isBusy) {
+            event.preventDefault();
+            onConfirm();
+          }
+        }}
+      />
       <Checkbox
         id="worktree-copy-agents"
         className={joinClassNames(styles.checkboxRow, "worktree-modal-checkbox-row")}

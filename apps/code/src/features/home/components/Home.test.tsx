@@ -904,6 +904,46 @@ describe("Home", () => {
     });
   });
 
+  it("preserves the full active workspace record when opening agent settings", () => {
+    const workspace: WorkspaceInfo = {
+      id: "workspace-1",
+      name: "Workspace One",
+      path: "/tmp/workspace-one",
+      connected: true,
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: {
+        sidebarCollapsed: false,
+        groupId: "group-review",
+        sortOrder: 3,
+        gitRoot: "/tmp/workspace-one/repo",
+        launchScript: "pnpm dev",
+      },
+    };
+
+    render(<Home {...baseProps} workspaces={[workspace]} activeWorkspaceId={workspace.id} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open agent command center" }));
+
+    expect(workspaceHomeAgentControlPropsSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        workspace: expect.objectContaining({
+          id: workspace.id,
+          name: workspace.name,
+          path: workspace.path,
+          connected: true,
+          settings: expect.objectContaining({
+            groupId: "group-review",
+            sortOrder: 3,
+            gitRoot: "/tmp/workspace-one/repo",
+            launchScript: "pnpm dev",
+          }),
+        }),
+      })
+    );
+  });
+
   it("closes agent settings dialog by backdrop and escape", () => {
     const { container } = render(
       <Home

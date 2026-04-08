@@ -30,6 +30,7 @@ import type {
   ModelOption,
   RequestUserInputRequest,
   SkillOption,
+  WorkspaceInfo,
 } from "../../../types";
 import { joinClassNames } from "../../../utils/classNames";
 import { MainHeaderShell } from "../../app/components/MainHeaderShell";
@@ -72,11 +73,9 @@ type UsageWorkspaceOption = {
 };
 
 type WorkspaceOption = {
-  id: string;
-  name: string;
-  path?: string;
-  connected?: boolean;
-};
+  id: WorkspaceInfo["id"];
+  name: WorkspaceInfo["name"];
+} & Partial<Omit<WorkspaceInfo, "id" | "name">>;
 
 const LazyWorkspaceHomeAgentControl = lazy(async () => {
   const module = await import("../../workspaces/components/WorkspaceHomeAgentControl");

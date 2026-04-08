@@ -451,6 +451,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     branch: string,
     options?: {
       activate?: boolean;
+      baseRef?: string | null;
       displayName?: string | null;
       copyAgentsMd?: boolean;
     }
@@ -461,6 +462,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     }
     const trimmedName = options?.displayName?.trim() || null;
     const copyAgentsMd = options?.copyAgentsMd ?? true;
+    const baseRef = options?.baseRef?.trim() || null;
     onDebug?.({
       id: `${Date.now()}-client-add-worktree`,
       timestamp: Date.now(),
@@ -471,10 +473,17 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         branch: trimmed,
         name: trimmedName,
         copyAgentsMd,
+        baseRef,
       },
     });
     try {
-      const workspace = await addWorktreeService(parent.id, trimmed, trimmedName, copyAgentsMd);
+      const workspace = await addWorktreeService(
+        parent.id,
+        trimmed,
+        trimmedName,
+        copyAgentsMd,
+        baseRef
+      );
       setWorkspaces((prev) => [...prev, workspace]);
       if (options?.activate !== false) {
         setActiveWorkspaceId(workspace.id);

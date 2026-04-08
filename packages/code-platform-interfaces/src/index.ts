@@ -252,6 +252,141 @@ export type DesktopBrowserDebugCapability = {
     | undefined;
 };
 
+export type AiWebLabProviderId = "chatgpt" | "gemini";
+
+export type DesktopAiWebLabCapabilityId =
+  | "artifact_export"
+  | "deep_research"
+  | "editable_canvas"
+  | "persistent_project"
+  | "repo_context_import"
+  | "reusable_workflow";
+
+export type DesktopAiWebLabViewMode = "window" | "docked";
+
+export type DesktopAiWebLabSessionMode = "managed" | "attached";
+
+export type DesktopAiWebLabProviderSupport = {
+  available: boolean;
+  capabilities: DesktopAiWebLabCapabilityId[];
+  defaultEntrypointId: string;
+  displayName: string;
+  entrypoints: Array<{
+    capabilityId?: DesktopAiWebLabCapabilityId | null;
+    id: string;
+    label: string;
+    url: string;
+  }>;
+  providerId: AiWebLabProviderId;
+};
+
+export type DesktopAiWebLabCatalog = {
+  defaultProviderId: AiWebLabProviderId;
+  providers: DesktopAiWebLabProviderSupport[];
+};
+
+export type DesktopAiWebLabOpenInput = {
+  entrypointId?: string | null;
+  preferredSessionMode?: DesktopAiWebLabSessionMode | null;
+  preferredViewMode?: DesktopAiWebLabViewMode | null;
+  providerId?: AiWebLabProviderId | null;
+  url?: string | null;
+};
+
+export type DesktopAiWebLabNavigationInput = {
+  entrypointId?: string | null;
+  providerId?: AiWebLabProviderId | null;
+  url: string;
+};
+
+export type DesktopAiWebLabArtifactKind =
+  | "canvas_document"
+  | "prompt_markdown"
+  | "research_brief"
+  | "share_link"
+  | "workflow_instructions";
+
+export type DesktopAiWebLabExtractionStatus = "blocked" | "failed" | "format_failed" | "succeeded";
+
+export type DesktopAiWebLabArtifact = {
+  artifactKind: DesktopAiWebLabArtifactKind;
+  content: string | null;
+  entrypointId: string | null;
+  errorMessage?: string | null;
+  extractedAt: string;
+  format: "markdown" | "text" | "url";
+  pageTitle: string | null;
+  providerId: AiWebLabProviderId;
+  sourceUrl: string | null;
+  status: DesktopAiWebLabExtractionStatus;
+};
+
+export type DesktopAiWebLabState = {
+  actualUrl: string | null;
+  activeEntrypointId: string | null;
+  attachedEndpointCount: number;
+  available: boolean;
+  catalog: DesktopAiWebLabCatalog;
+  lastArtifact: DesktopAiWebLabArtifact | null;
+  managedWindowOpen: boolean;
+  modeSupport: {
+    attached: boolean;
+    docked: boolean;
+    managed: boolean;
+    window: boolean;
+  };
+  pageTitle: string | null;
+  preferredViewMode: DesktopAiWebLabViewMode;
+  providerId: AiWebLabProviderId;
+  sessionMode: DesktopAiWebLabSessionMode;
+  statusMessage: string;
+  targetUrl: string | null;
+};
+
+export type DesktopAiWebLabCapability = {
+  closeSession?: () =>
+    | Promise<DesktopAiWebLabState | null | undefined>
+    | DesktopAiWebLabState
+    | null
+    | undefined;
+  extractArtifact?: () =>
+    | Promise<DesktopAiWebLabArtifact | null | undefined>
+    | DesktopAiWebLabArtifact
+    | null
+    | undefined;
+  focusSession?: () =>
+    | Promise<DesktopAiWebLabState | null | undefined>
+    | DesktopAiWebLabState
+    | null
+    | undefined;
+  getCatalog?: () =>
+    | Promise<DesktopAiWebLabCatalog | null | undefined>
+    | DesktopAiWebLabCatalog
+    | null
+    | undefined;
+  getState?: () =>
+    | Promise<DesktopAiWebLabState | null | undefined>
+    | DesktopAiWebLabState
+    | null
+    | undefined;
+  navigate?: (
+    input: DesktopAiWebLabNavigationInput
+  ) => Promise<DesktopAiWebLabState | null | undefined> | DesktopAiWebLabState | null | undefined;
+  openEntrypoint?: (
+    providerId: AiWebLabProviderId,
+    entrypointId: string
+  ) => Promise<DesktopAiWebLabState | null | undefined> | DesktopAiWebLabState | null | undefined;
+  openSession?: (
+    input?: DesktopAiWebLabOpenInput
+  ) => Promise<DesktopAiWebLabState | null | undefined> | DesktopAiWebLabState | null | undefined;
+  setSessionMode?: (
+    mode: DesktopAiWebLabSessionMode
+  ) => Promise<DesktopAiWebLabState | null | undefined> | DesktopAiWebLabState | null | undefined;
+  setViewMode?: (
+    mode: DesktopAiWebLabViewMode
+  ) => Promise<DesktopAiWebLabState | null | undefined> | DesktopAiWebLabState | null | undefined;
+};
+
 export type DesktopBrowserExtractionStatus = "succeeded" | "partial" | "empty" | "failed";
 
 export type DesktopBrowserExtractionTraceStage =
@@ -640,6 +775,7 @@ export function readDesktopBrowserAssessmentProxyRequest(
 
 export type DesktopHostCapabilities = {
   app?: DesktopAppCapability;
+  aiWebLab?: DesktopAiWebLabCapability;
   browserAssessment?: DesktopBrowserAssessmentCapability;
   browserDebug?: DesktopBrowserDebugCapability;
   browserExtraction?: DesktopBrowserExtractionCapability;
@@ -675,6 +811,21 @@ export type DesktopHostBridgeApi = {
   app: {
     getInfo(): Promise<DesktopAppInfo | null>;
     getVersion(): Promise<string | null>;
+  };
+  aiWebLab?: {
+    closeSession(): Promise<DesktopAiWebLabState | null>;
+    extractArtifact(): Promise<DesktopAiWebLabArtifact | null>;
+    focusSession(): Promise<DesktopAiWebLabState | null>;
+    getCatalog(): Promise<DesktopAiWebLabCatalog | null>;
+    getState(): Promise<DesktopAiWebLabState | null>;
+    navigate(input: DesktopAiWebLabNavigationInput): Promise<DesktopAiWebLabState | null>;
+    openEntrypoint(
+      providerId: AiWebLabProviderId,
+      entrypointId: string
+    ): Promise<DesktopAiWebLabState | null>;
+    openSession(input?: DesktopAiWebLabOpenInput): Promise<DesktopAiWebLabState | null>;
+    setSessionMode(mode: DesktopAiWebLabSessionMode): Promise<DesktopAiWebLabState | null>;
+    setViewMode(mode: DesktopAiWebLabViewMode): Promise<DesktopAiWebLabState | null>;
   };
   browserDebug: {
     listLocalChromeDebuggerEndpoints(): Promise<LocalChromeDebuggerEndpointDescriptor[]>;
@@ -962,6 +1113,16 @@ export function normalizeActiveIntentContextByWorkspaceId(
 export const DESKTOP_HOST_IPC_CHANNELS = {
   getAppInfo: "hugecode:desktop-host:get-app-info",
   getAppVersion: "hugecode:desktop-host:get-app-version",
+  getAiWebLabCatalog: "hugecode:desktop-host:get-ai-web-lab-catalog",
+  getAiWebLabState: "hugecode:desktop-host:get-ai-web-lab-state",
+  openAiWebLabSession: "hugecode:desktop-host:open-ai-web-lab-session",
+  openAiWebLabEntrypoint: "hugecode:desktop-host:open-ai-web-lab-entrypoint",
+  focusAiWebLabSession: "hugecode:desktop-host:focus-ai-web-lab-session",
+  closeAiWebLabSession: "hugecode:desktop-host:close-ai-web-lab-session",
+  setAiWebLabViewMode: "hugecode:desktop-host:set-ai-web-lab-view-mode",
+  setAiWebLabSessionMode: "hugecode:desktop-host:set-ai-web-lab-session-mode",
+  navigateAiWebLab: "hugecode:desktop-host:navigate-ai-web-lab",
+  extractAiWebLabArtifact: "hugecode:desktop-host:extract-ai-web-lab-artifact",
   listLocalChromeDebuggerEndpoints: "hugecode:desktop-host:list-local-chrome-debugger-endpoints",
   assessBrowserSurface: "hugecode:desktop-host:assess-browser-surface",
   getLastBrowserAssessmentResult: "hugecode:desktop-host:get-last-browser-assessment-result",

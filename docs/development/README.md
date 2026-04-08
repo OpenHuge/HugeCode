@@ -183,5 +183,11 @@ For workflow-facing documentation, use [CI Workflow Map](./ci-workflows.md) as t
 
 ## Prompt Design Workflow
 
+- [AI Web Lab Workflow](./ai-web-lab-workflow.md)
+  Use this workflow when you want HugeCode to orchestrate provider web surfaces such as ChatGPT and Gemini before handing the final artifact back into Mission Control or Codex.
+
 - [ChatGPT Web Prompt Lab Workflow](./chatgpt-web-prompt-lab-workflow.md)
   Use this workflow when you want ChatGPT web to handle prompt exploration and refinement before handing the final prompt to Codex for repo execution.
+
+- [Gemini Web Lab Workflow](./gemini-web-lab-workflow.md)
+  Use this workflow when you want Gemini web to handle canvas editing, deep research, or reusable workflow capture before repo execution.

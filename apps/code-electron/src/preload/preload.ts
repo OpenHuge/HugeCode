@@ -26,6 +26,25 @@ const desktopHostBridge: DesktopHostBridgeApi = {
     getInfo: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getAppInfo),
     getVersion: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getAppVersion),
   },
+  aiWebLab: {
+    getCatalog: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getAiWebLabCatalog),
+    getState: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.getAiWebLabState),
+    openSession: (input) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.openAiWebLabSession, input),
+    openEntrypoint: (providerId, entrypointId) =>
+      ipcRenderer.invoke(
+        DESKTOP_HOST_IPC_CHANNELS.openAiWebLabEntrypoint,
+        providerId,
+        entrypointId
+      ),
+    focusSession: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.focusAiWebLabSession),
+    closeSession: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.closeAiWebLabSession),
+    setViewMode: (mode) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setAiWebLabViewMode, mode),
+    setSessionMode: (mode) =>
+      ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.setAiWebLabSessionMode, mode),
+    navigate: (input) => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.navigateAiWebLab, input),
+    extractArtifact: () => ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.extractAiWebLabArtifact),
+  },
   browserDebug: {
     listLocalChromeDebuggerEndpoints: () =>
       ipcRenderer.invoke(DESKTOP_HOST_IPC_CHANNELS.listLocalChromeDebuggerEndpoints),

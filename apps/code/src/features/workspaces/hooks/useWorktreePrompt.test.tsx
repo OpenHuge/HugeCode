@@ -125,9 +125,50 @@ describe("useWorktreePrompt", () => {
     });
 
     expect(addWorktreeAgent).toHaveBeenCalledWith(parentWorkspace, branch, {
+      baseRef: "origin/main",
       displayName: null,
       copyAgentsMd: false,
     });
+  });
+
+  it("supports overriding the worktree base ref", async () => {
+    const addWorktreeAgent = vi.fn().mockResolvedValue(null);
+    const updateWorkspaceSettings = vi.fn().mockResolvedValue(parentWorkspace);
+    const connectWorkspace = vi.fn().mockResolvedValue(undefined);
+    const onSelectWorkspace = vi.fn();
+
+    const { result } = renderHook(() =>
+      useWorktreePrompt({
+        addWorktreeAgent,
+        updateWorkspaceSettings,
+        connectWorkspace,
+        onSelectWorkspace,
+      })
+    );
+
+    act(() => {
+      result.current.openPrompt(parentWorkspace, {
+        initialBaseRef: "upstream/release",
+      });
+    });
+
+    expect(result.current.worktreePrompt?.baseRef).toBe("upstream/release");
+
+    act(() => {
+      result.current.updateBaseRef("origin/main");
+    });
+
+    await act(async () => {
+      await result.current.confirmPrompt();
+    });
+
+    expect(addWorktreeAgent).toHaveBeenCalledWith(
+      parentWorkspace,
+      expect.any(String),
+      expect.objectContaining({
+        baseRef: "origin/main",
+      })
+    );
   });
 
   it("supports prefilled branch workflow seeds", () => {
