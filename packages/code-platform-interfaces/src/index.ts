@@ -10,14 +10,14 @@ export {
   readRuntimeCompositionSettingsForWorkspace,
   RUNTIME_COMPOSITION_SETTINGS_BY_WORKSPACE_ID_KEY,
   writeRuntimeCompositionSettingsForWorkspace,
-} from "./runtimeCompositionSettings";
+} from "./runtimeCompositionSettings.js";
 export type {
   RuntimeCompositionLaunchOverrideDraft,
   RuntimeCompositionSettingsByWorkspaceId,
   RuntimeCompositionSettingsEntry,
   RuntimeCompositionSettingsPersistenceEnvelope,
   RuntimeCompositionSettingsSelection,
-} from "./runtimeCompositionSettings";
+} from "./runtimeCompositionSettings.js";
 export type DesktopUpdateCapability = "automatic" | "manual" | "unsupported";
 export type DesktopUpdateMode =
   | "disabled_beta_manual"
