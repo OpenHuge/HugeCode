@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
+import { RUNTIME_COMPOSITION_SETTINGS_BY_WORKSPACE_ID_KEY } from "@ku0/code-platform-interfaces";
 import { WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY } from "@ku0/shared/runtimeGatewayEnv";
 import {
   createBrowserWorkspaceClientRuntimeBindings,
@@ -174,5 +175,73 @@ describe("browser workspace bindings", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(reviewPacks).toHaveLength(1);
     expect(reviewPacks[0]?.id).toBe("review-pack-2");
+  });
+
+  it("reads and writes composition settings through app settings compatibility storage", async () => {
+    process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
+    let appSettings: Record<string, unknown> = {
+      defaultRemoteExecutionBackendId: "backend-default",
+    };
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)) as {
+        method?: string;
+        params?: { payload?: Record<string, unknown> };
+      };
+      if (request.method === CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_GET) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: appSettings,
+          }),
+        };
+      }
+      if (request.method === CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_UPDATE) {
+        appSettings = request.params?.payload ?? {};
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            ok: true,
+            result: appSettings,
+          }),
+        };
+      }
+      throw new Error(`Unexpected method ${request.method ?? "unknown"}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runtime = createBrowserWorkspaceClientRuntimeBindings();
+    const before = await runtime.composition?.getSettings("workspace-1");
+    expect(before?.selection.preferredBackendIds).toEqual(["backend-default"]);
+
+    await runtime.composition?.updateSettings("workspace-1", {
+      selection: {
+        profileId: "workspace-default",
+        preferredBackendIds: ["backend-primary"],
+      },
+      launchOverride: null,
+      persistence: {
+        publisherSessionId: "session-1",
+        lastAcceptedAuthorityRevision: 3,
+        lastPublishAttemptAt: 5,
+        lastPublishedAt: 6,
+      },
+    });
+
+    expect(appSettings.defaultRemoteExecutionBackendId).toBe("backend-default");
+    expect(appSettings[RUNTIME_COMPOSITION_SETTINGS_BY_WORKSPACE_ID_KEY]).toEqual(
+      expect.objectContaining({
+        "workspace-1": expect.objectContaining({
+          selection: expect.objectContaining({
+            profileId: "workspace-default",
+          }),
+        }),
+      })
+    );
+    expect(
+      (await runtime.composition?.getSettings("workspace-2"))?.selection.preferredBackendIds
+    ).toEqual(["backend-default"]);
   });
 });

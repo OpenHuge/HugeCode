@@ -17,6 +17,11 @@ import type {
   RuntimeCompositionResolveV2Response,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
+import {
+  type SettingsShellFraming,
+  type WorkspaceClientBindings,
+  WorkspaceClientBindingsProvider,
+} from "@ku0/code-workspace-client";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import {
@@ -1064,6 +1069,29 @@ function createRuntimeKernelValue(): RuntimeKernel {
         updateAppSettings: vi.fn(),
         syncRuntimeGatewayProfileFromAppSettings: vi.fn(),
       },
+      composition: {
+        listProfilesV2: runtimeCompositionProfilesV2Mock,
+        getProfileV2: vi.fn(async (_workspaceId, profileId) => {
+          const profiles = await runtimeCompositionProfilesMock();
+          return profiles.find((profile) => profile.id === profileId) ?? null;
+        }),
+        resolveV2: runtimeCompositionResolutionV2Mock,
+        publishSnapshotV1: runtimeCompositionPublishMock,
+        getSettings: vi.fn(async () => ({
+          selection: {
+            profileId: null,
+            preferredBackendIds: [],
+          },
+          launchOverride: null,
+          persistence: {
+            publisherSessionId: null,
+            lastAcceptedAuthorityRevision: null,
+            lastPublishAttemptAt: null,
+            lastPublishedAt: null,
+          },
+        })),
+        updateSettings: vi.fn(async (_workspaceId, settings) => settings),
+      },
       oauth: {
         listAccounts: vi.fn(),
         listPools: vi.fn(),
@@ -1179,9 +1207,55 @@ function createRuntimeKernelValue(): RuntimeKernel {
   };
 }
 
+const desktopSettingsShellFraming: SettingsShellFraming = {
+  kickerLabel: "Workspace",
+  contextLabel: "Desktop runtime",
+  title: "Settings",
+  subtitle: "Runtime orchestration",
+};
+
+function createWorkspaceClientBindings(runtimeKernel: RuntimeKernel): WorkspaceClientBindings {
+  return {
+    navigation: {
+      readRouteSelection: () => ({ kind: "home" }),
+      subscribeRouteSelection: () => () => undefined,
+      navigateToWorkspace: () => undefined,
+      navigateToSection: () => undefined,
+      navigateHome: () => undefined,
+    },
+    runtimeGateway: runtimeKernel.workspaceClientRuntimeGateway,
+    runtime: runtimeKernel.workspaceClientRuntime,
+    host: {
+      platform: "desktop",
+      intents: {
+        openOauthAuthorizationUrl: async () => undefined,
+        createOauthPopupWindow: () => null,
+        waitForOauthBinding: async () => false,
+      },
+      notifications: {
+        testSound: () => undefined,
+        testSystemNotification: () => undefined,
+      },
+      shell: {
+        platformHint: "desktop",
+      },
+    },
+    platformUi: {
+      WorkspaceRuntimeShell: () => null,
+      WorkspaceApp: () => null,
+      renderWorkspaceHost: (children) => children,
+      settingsShellFraming: desktopSettingsShellFraming,
+    },
+  };
+}
+
 function render(ui: Parameters<typeof rtlRender>[0]) {
+  const runtimeKernel = createRuntimeKernelValue();
+  const workspaceClientBindings = createWorkspaceClientBindings(runtimeKernel);
   return rtlRender(
-    <RuntimeKernelProvider value={createRuntimeKernelValue()}>{ui}</RuntimeKernelProvider>
+    <WorkspaceClientBindingsProvider bindings={workspaceClientBindings}>
+      <RuntimeKernelProvider value={runtimeKernel}>{ui}</RuntimeKernelProvider>
+    </WorkspaceClientBindingsProvider>
   );
 }
 
@@ -1860,8 +1934,10 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     fireEvent.click(previewButton);
 
     await waitFor(() => {
-      expect(runtimeCompositionPreviewV2Mock).toHaveBeenCalledWith({
+      expect(runtimeCompositionResolutionV2Mock).toHaveBeenCalledWith({
+        workspaceId: "ws-approval",
         profileId: "workspace-default",
+        launchOverride: null,
       });
       expect(screen.getByText("Preview: workspace-default")).toBeTruthy();
     });

@@ -1,5 +1,8 @@
-import type { WorkspaceClientRuntimeBindings } from "@ku0/code-workspace-client";
-import { createWorkspaceClientRuntimeMissionControlSurfaceBindings } from "@ku0/code-workspace-client";
+import type { WorkspaceClientRuntimeBindings } from "@ku0/code-workspace-client/workspace-bindings";
+import {
+  readRuntimeCompositionSettingsForWorkspace,
+  writeRuntimeCompositionSettingsForWorkspace,
+} from "@ku0/code-platform-interfaces";
 import { logger } from "../logger";
 import {
   getAppSettings,
@@ -59,6 +62,13 @@ import type {
   KernelProjectionDelta,
   KernelProjectionSubscriptionRequest,
 } from "@ku0/code-runtime-host-contract";
+import {
+  getRuntimeCompositionProfileV2,
+  listRuntimeCompositionProfilesV2,
+  publishRuntimeCompositionSnapshotV1,
+  resolveRuntimeCompositionV2,
+} from "../ports/runtimeComposition";
+import { createWorkspaceClientRuntimeMissionControlSurfaceBindings } from "../../../../../../packages/code-workspace-client/src/workspace/missionControlBindings";
 
 type CreateWorkspaceClientRuntimeBindingsInput = {
   readMissionControlSnapshot: () => Promise<HugeCodeMissionControlSnapshot>;
@@ -166,5 +176,33 @@ export function createWorkspaceClientRuntimeBindings(
       readWorkspaceFile: async (input) => readRuntimeWorkspaceFile(input.workspaceId, input.fileId),
     },
     review: missionControlSurface.review,
+    composition: {
+      listProfilesV2: async (workspaceId) => listRuntimeCompositionProfilesV2({ workspaceId }),
+      getProfileV2: async (workspaceId, profileId) =>
+        getRuntimeCompositionProfileV2({
+          workspaceId,
+          profileId,
+        }),
+      resolveV2: async (input) => resolveRuntimeCompositionV2(input),
+      publishSnapshotV1: async (input) => publishRuntimeCompositionSnapshotV1(input),
+      getSettings: async (workspaceId) =>
+        readRuntimeCompositionSettingsForWorkspace(
+          (await getAppSettings()) as Record<string, unknown>,
+          workspaceId
+        ),
+      updateSettings: async (workspaceId, settings) => {
+        const currentSettings = (await getAppSettings()) as Record<string, unknown>;
+        const nextSettings = writeRuntimeCompositionSettingsForWorkspace(
+          currentSettings,
+          workspaceId,
+          settings
+        );
+        const savedSettings = (await updateAppSettings(nextSettings as never)) as Record<
+          string,
+          unknown
+        >;
+        return readRuntimeCompositionSettingsForWorkspace(savedSettings, workspaceId);
+      },
+    },
   };
 }

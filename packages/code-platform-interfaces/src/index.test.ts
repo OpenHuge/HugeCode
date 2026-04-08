@@ -4,13 +4,16 @@ import {
   buildDesktopBrowserAssessmentProxyPath,
   buildDesktopBrowserAssessmentTargetUrl,
   createBindingFactory,
+  createDefaultRuntimeCompositionSettingsEntry,
   createCapabilityRegistry,
   DESKTOP_HOST_IPC_CHANNELS,
   DESKTOP_BROWSER_ASSESSMENT_PROXY_FIXTURE,
   DESKTOP_BROWSER_ASSESSMENT_SENTINEL_QUERY_PARAM,
   normalizeActiveIntentContext,
+  normalizeRuntimeCompositionSettingsByWorkspaceId,
   normalizeActiveIntentContextByWorkspaceId,
   readDesktopBrowserAssessmentProxyRequest,
+  readRuntimeCompositionSettingsForWorkspace,
   type DesktopAppInfo,
   type DesktopBrowserAssessmentResult,
   type DesktopBrowserExtractionResult,
@@ -18,6 +21,7 @@ import {
   type DesktopLaunchIntent,
   type DesktopUpdateState,
   isElectronDesktopHostBridge,
+  writeRuntimeCompositionSettingsForWorkspace,
 } from "./index";
 
 describe("code-platform-interfaces", () => {
@@ -79,6 +83,89 @@ describe("code-platform-interfaces", () => {
       alpha: "alpha-ready",
       beta: "value-beta",
     });
+  });
+
+  it("normalizes, reads, and writes runtime composition settings per workspace", () => {
+    const defaults = createDefaultRuntimeCompositionSettingsEntry("backend-default");
+    expect(defaults.selection.preferredBackendIds).toEqual(["backend-default"]);
+
+    const normalized = normalizeRuntimeCompositionSettingsByWorkspaceId({
+      " workspace-a ": {
+        selection: {
+          profileId: " workspace-profile ",
+          preferredBackendIds: ["backend-a", "backend-a", "", " backend-b "],
+        },
+        launchOverride: {
+          backendPolicy: {
+            preferredBackendIds: ["backend-c", "backend-c"],
+            resolvedBackendId: " backend-c ",
+          },
+        },
+        persistence: {
+          publisherSessionId: " session-1 ",
+          lastAcceptedAuthorityRevision: 4,
+          lastPublishAttemptAt: 8,
+          lastPublishedAt: 9,
+        },
+      },
+    });
+
+    expect(normalized["workspace-a"]).toEqual({
+      selection: {
+        profileId: "workspace-profile",
+        preferredBackendIds: ["backend-a", "backend-b"],
+      },
+      launchOverride: {
+        backendPolicy: {
+          preferredBackendIds: ["backend-c"],
+          resolvedBackendId: "backend-c",
+        },
+      },
+      persistence: {
+        publisherSessionId: "session-1",
+        lastAcceptedAuthorityRevision: 4,
+        lastPublishAttemptAt: 8,
+        lastPublishedAt: 9,
+      },
+    });
+
+    const readFallback = readRuntimeCompositionSettingsForWorkspace(
+      {
+        defaultRemoteExecutionBackendId: "backend-default",
+      },
+      "workspace-missing"
+    );
+    expect(readFallback.selection.preferredBackendIds).toEqual(["backend-default"]);
+
+    const written = writeRuntimeCompositionSettingsForWorkspace(
+      {
+        defaultRemoteExecutionBackendId: "backend-default",
+      },
+      "workspace-a",
+      {
+        selection: {
+          profileId: "workspace-profile",
+          preferredBackendIds: ["backend-primary"],
+        },
+        launchOverride: null,
+        persistence: {
+          publisherSessionId: "session-2",
+          lastAcceptedAuthorityRevision: 5,
+          lastPublishAttemptAt: 10,
+          lastPublishedAt: 11,
+        },
+      }
+    );
+
+    expect(written.defaultRemoteExecutionBackendId).toBe("backend-default");
+    expect(
+      readRuntimeCompositionSettingsForWorkspace(written as Record<string, unknown>, "workspace-b")
+        .selection.preferredBackendIds
+    ).toEqual(["backend-default"]);
+    expect(
+      readRuntimeCompositionSettingsForWorkspace(written as Record<string, unknown>, "workspace-a")
+        .persistence.publisherSessionId
+    ).toBe("session-2");
   });
 
   it("supports the public beta app, launch, and updater contracts", () => {

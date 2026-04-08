@@ -44,18 +44,18 @@ export const WorkspaceHomeAgentRuntimePluginControlPlane = memo(
       () =>
         buildRuntimeControlPlaneOperatorModel({
           plugins: pluginControlPlaneSurface.plugins,
-          profiles: pluginControlPlaneSurface.profiles,
-          activeProfile: pluginControlPlaneSurface.activeProfile,
-          activeProfileId: pluginControlPlaneSurface.activeProfileId,
-          resolution: pluginControlPlaneSurface.resolution,
+          profiles: runtimePluginControlPlane.profiles,
+          activeProfile: runtimePluginControlPlane.activeProfile,
+          activeProfileId: runtimePluginControlPlane.activeProfileId,
+          resolution: runtimePluginControlPlane.resolution,
         }),
-      [pluginControlPlaneSurface]
+      [pluginControlPlaneSurface.plugins, runtimePluginControlPlane]
     );
     const pluginControlPlaneError =
       pluginControlPlaneSurface.pluginsError ??
-      pluginControlPlaneSurface.compositionError ??
+      runtimePluginControlPlane.compositionError ??
       pluginControlPlaneSurface.registryError;
-    const authoritySnapshot = pluginControlPlaneSurface.snapshot;
+    const authoritySnapshot = runtimePluginControlPlane.snapshot;
     const authorityAttention =
       authoritySnapshot?.authorityState !== "published" ||
       authoritySnapshot?.freshnessState === "stale" ||

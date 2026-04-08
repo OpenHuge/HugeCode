@@ -110,4 +110,58 @@ describe("useAppSettings", () => {
       })
     );
   });
+
+  it("normalizes runtime composition settings into a typed workspace map", () => {
+    renderHook(() => useAppSettings());
+
+    const normalizeSettings = useSharedAppSettingsStateMock.mock.calls[0]?.[0]?.normalizeSettings;
+
+    expect(
+      normalizeSettings?.({
+        runtimeCompositionSettingsByWorkspaceId: {
+          " workspace-1 ": {
+            selection: {
+              profileId: " workspace-default ",
+              preferredBackendIds: [" backend-a ", "backend-a", "backend-b"],
+            },
+            launchOverride: {
+              backendPolicy: {
+                preferredBackendIds: ["backend-c", "backend-c"],
+                resolvedBackendId: " backend-c ",
+              },
+            },
+            persistence: {
+              publisherSessionId: " session-1 ",
+              lastAcceptedAuthorityRevision: 3,
+              lastPublishAttemptAt: 4,
+              lastPublishedAt: 5,
+            },
+          },
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        runtimeCompositionSettingsByWorkspaceId: {
+          "workspace-1": {
+            selection: {
+              profileId: "workspace-default",
+              preferredBackendIds: ["backend-a", "backend-b"],
+            },
+            launchOverride: {
+              backendPolicy: {
+                preferredBackendIds: ["backend-c"],
+                resolvedBackendId: "backend-c",
+              },
+            },
+            persistence: {
+              publisherSessionId: "session-1",
+              lastAcceptedAuthorityRevision: 3,
+              lastPublishAttemptAt: 4,
+              lastPublishedAt: 5,
+            },
+          },
+        },
+      })
+    );
+  });
 });

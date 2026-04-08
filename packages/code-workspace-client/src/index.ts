@@ -9,6 +9,7 @@ export type {
   WorkspaceClientHostNotificationBindings,
   WorkspaceClientHostShellBindings,
   WorkspaceClientRuntimeAgentControlBindings,
+  WorkspaceClientRuntimeCompositionBindings,
   WorkspaceClientOAuthLoginResult,
   WorkspaceClientRuntimeGatewayBindings,
   WorkspaceClientRuntimeBindings,
@@ -74,8 +75,16 @@ export {
   useWorkspaceClientRuntimeBindings,
   useWorkspaceClientRuntimeMode,
 } from "./workspace/WorkspaceClientBindingsProvider";
-export { useSharedAppSettingsState, useSharedDefaultModelsState } from "./settings-state";
-export type { SharedDefaultModelOption, SharedDefaultModelsWorkspace } from "./settings-state";
+export {
+  useSharedAppSettingsState,
+  useSharedDefaultModelsState,
+  useSharedRuntimeCompositionState,
+} from "./settings-state";
+export type {
+  SharedDefaultModelOption,
+  SharedDefaultModelsWorkspace,
+  SharedRuntimeCompositionState,
+} from "./settings-state";
 export type {
   WorkspaceClientAppProps,
   WorkspaceClientBootProps,
