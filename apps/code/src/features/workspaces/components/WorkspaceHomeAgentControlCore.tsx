@@ -15,7 +15,7 @@ import {
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
-import type { ApprovalRequest, RequestUserInputRequest } from "../../../types";
+import type { ApprovalRequest, RequestUserInputRequest, WorkspaceInfo } from "../../../types";
 import { useRuntimeWebMcpCatalogRevision } from "../../app/hooks/useRuntimeWebMcpCatalogRevision";
 import { WorkspaceHomeAgentIntentSection } from "./WorkspaceHomeAgentIntentSection";
 import {
@@ -40,10 +40,7 @@ const LazyWorkspaceHomeAgentWebMcpConsoleSection = lazy(async () => {
 });
 
 type WorkspaceHomeAgentControlProps = {
-  workspace: {
-    id: string;
-    name: string;
-  };
+  workspace: Pick<WorkspaceInfo, "id" | "name"> & Partial<Omit<WorkspaceInfo, "id" | "name">>;
   activeModelContext?: {
     provider?: string | null;
     modelId?: string | null;
@@ -51,6 +48,23 @@ type WorkspaceHomeAgentControlProps = {
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
 };
+
+function readRuntimeWorkspace(
+  workspace: WorkspaceHomeAgentControlProps["workspace"]
+): WorkspaceInfo | null {
+  if (typeof workspace.path !== "string" || typeof workspace.connected !== "boolean") {
+    return null;
+  }
+  if (!workspace.settings) {
+    return null;
+  }
+  return {
+    ...workspace,
+    settings: workspace.settings,
+    path: workspace.path,
+    connected: workspace.connected,
+  };
+}
 
 const EMPTY_GOVERNANCE_POLICY: AgentGovernancePolicy = {
   autoEnabled: false,
@@ -130,6 +144,7 @@ export function WorkspaceHomeAgentControl({
   approvals,
   userInputRequests,
 }: WorkspaceHomeAgentControlProps) {
+  const runtimeWorkspace = useMemo(() => readRuntimeWorkspace(workspace), [workspace]);
   const [intent, setIntent] = useState<AgentIntentState>(DEFAULT_INTENT);
   const [webMcpEnabled, setWebMcpEnabled] = useState(true);
   const [webMcpConsoleMode, setWebMcpConsoleMode] = useState<"basic" | "advanced">("basic");
@@ -557,7 +572,11 @@ export function WorkspaceHomeAgentControl({
         testId="workspace-home-runtime-section"
       >
         <Suspense fallback={null}>
-          <LazyWorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} intent={intent} />
+          <LazyWorkspaceHomeAgentRuntimeOrchestration
+            workspaceId={workspace.id}
+            workspace={runtimeWorkspace}
+            intent={intent}
+          />
         </Suspense>
       </WorkspaceHomeAgentLazySection>
       <WorkspaceHomeAgentLazySection

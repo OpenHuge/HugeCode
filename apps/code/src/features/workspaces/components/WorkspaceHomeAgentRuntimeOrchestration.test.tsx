@@ -18,6 +18,7 @@ import type {
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import type { WorkspaceInfo } from "../../../types";
 import {
   buildRuntimeToolLifecyclePresentationSummary,
   type RuntimeToolLifecycleEvent,
@@ -103,6 +104,7 @@ const extractBrowserContentMock = vi.hoisted(() => vi.fn());
 const getLastBrowserExtractionResultMock = vi.hoisted(() => vi.fn());
 const assessBrowserSurfaceMock = vi.hoisted(() => vi.fn());
 const getLastBrowserAssessmentResultMock = vi.hoisted(() => vi.fn());
+const workspaceHomeAiWebLabSectionSpy = vi.hoisted(() => vi.fn());
 const runtimeCompositionPreviewMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["previewResolution"]>(async () => ({
     selectedPlugins: [],
@@ -254,6 +256,13 @@ vi.mock("../../../application/runtime/ports/missionControl", () => ({
     runs: [],
     reviewPacks: [],
   }),
+}));
+
+vi.mock("./WorkspaceHomeAiWebLabSection", () => ({
+  WorkspaceHomeAiWebLabSection: (props: unknown) => {
+    workspaceHomeAiWebLabSectionSpy(props);
+    return <div data-testid="workspace-home-ai-web-lab-stub" />;
+  },
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeJobs", () => ({
@@ -1144,6 +1153,47 @@ function render(ui: Parameters<typeof rtlRender>[0]) {
 }
 
 describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
+  it("passes the real workspace record to AI Web Lab so unrelated settings remain available", async () => {
+    const workspace: WorkspaceInfo = {
+      id: "ws-approval",
+      name: "Approval Workspace",
+      path: "/tmp/ws-approval",
+      connected: true,
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: {
+        sidebarCollapsed: false,
+        groupId: "group-review",
+        sortOrder: 7,
+        gitRoot: "/tmp/ws-approval/repo",
+        launchScript: "pnpm dev",
+      },
+    };
+    mockRuntimeTasks([buildTask("task-running", "running", "Ship UI")]);
+
+    render(
+      <WorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} workspace={workspace} />
+    );
+
+    await waitFor(() => {
+      expect(workspaceHomeAiWebLabSectionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspace: expect.objectContaining({
+            id: workspace.id,
+            name: workspace.name,
+            settings: expect.objectContaining({
+              groupId: "group-review",
+              sortOrder: 7,
+              gitRoot: "/tmp/ws-approval/repo",
+              launchScript: "pnpm dev",
+            }),
+          }),
+        })
+      );
+    });
+  });
+
   it("republishes live runtime run evidence into persistent flow state when mission control opens", async () => {
     const runtimeTask = {
       ...buildTask("task-running", "running", "Ship UI"),

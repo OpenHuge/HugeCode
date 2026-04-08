@@ -42,25 +42,15 @@ const WorkspaceHomeAutonomousIssueDrive = lazy(async () => {
 
 type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
+  workspace?: WorkspaceInfo | null;
   intent?: AgentIntentState;
 };
 
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
+  workspace = null,
   intent = DEFAULT_INTENT,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
-  const aiWebLabWorkspace = {
-    id: workspaceId,
-    name: workspaceId || "Workspace",
-    path: "",
-    connected: true,
-    kind: "main",
-    parentId: null,
-    worktree: null,
-    settings: {
-      sidebarCollapsed: false,
-    },
-  } satisfies WorkspaceInfo;
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
   );
@@ -340,17 +330,17 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         resume from checkpoints after handoff, and finish in Review Pack once runtime marks the run
         complete.
       </div>
-      <WorkspaceHomeAiWebLabSection
-        workspace={aiWebLabWorkspace}
-        onApplyArtifactToDraft={(artifact) => {
-          setRuntimeDraftInstruction(artifact.content ?? "");
-          if (runtimeDraftTitle.trim().length === 0) {
-            setRuntimeDraftTitle(
-              artifact.pageTitle?.trim() || `AI Web Lab - ${aiWebLabWorkspace.name}`
-            );
-          }
-        }}
-      />
+      {workspace ? (
+        <WorkspaceHomeAiWebLabSection
+          workspace={workspace}
+          onApplyArtifactToDraft={(artifact) => {
+            setRuntimeDraftInstruction(artifact.content ?? "");
+            if (runtimeDraftTitle.trim().length === 0) {
+              setRuntimeDraftTitle(artifact.pageTitle?.trim() || `AI Web Lab - ${workspace.name}`);
+            }
+          }}
+        />
+      ) : null}
       <div className="workspace-home-code-runtime-item">
         <div className="workspace-home-code-runtime-item-main">
           <strong>Control-device loop</strong>
