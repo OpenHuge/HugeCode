@@ -15,6 +15,7 @@ import type {
   RuntimeCompositionProfileSummaryV2,
   RuntimeCompositionResolution,
   RuntimeCompositionResolveV2Response,
+  RuntimeCompositionSnapshotPublishResponse,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
@@ -148,6 +149,17 @@ const runtimeCompositionApplyV2Mock = vi.hoisted(() =>
 );
 const runtimeCompositionPublishMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["publishActiveResolutionV1"]>(async () => null as never)
+);
+const runtimeCompositionPublishSnapshotMock = vi.hoisted(() =>
+  vi.fn<() => Promise<RuntimeCompositionSnapshotPublishResponse>>(async () => ({
+    authorityState: "published",
+    freshnessState: "current",
+    authorityRevision: 1,
+    lastAcceptedRevision: 1,
+    lastPublishAttemptAt: 1_771_331_697_000,
+    publishedAt: 1_771_331_697_000,
+    publisherSessionId: "publisher-session",
+  }))
 );
 
 function createRuntimeCompositionProfileFixture(): RuntimeCompositionProfile {
@@ -1076,7 +1088,7 @@ function createRuntimeKernelValue(): RuntimeKernel {
           return profiles.find((profile) => profile.id === profileId) ?? null;
         }),
         resolveV2: runtimeCompositionResolutionV2Mock,
-        publishSnapshotV1: runtimeCompositionPublishMock,
+        publishSnapshotV1: runtimeCompositionPublishSnapshotMock,
         getSettings: vi.fn(async () => ({
           selection: {
             profileId: null,
@@ -2928,7 +2940,17 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Trace agent-task:runtime-recovered-1")).toBeTruthy();
     });
 
-    const resumeButton = screen.getByRole("button", { name: "Resume" });
+    const recoveredTaskCard = screen
+      .getByText("Recovered task")
+      .closest(".workspace-home-code-runtime-item");
+    if (!recoveredTaskCard) {
+      throw new Error("Expected recovered task card to render");
+    }
+
+    const recoveredTaskCardElement = recoveredTaskCard as HTMLElement;
+    const resumeButton = within(recoveredTaskCardElement).getByRole("button", {
+      name: "Resume",
+    });
     await waitFor(() => {
       expect((resumeButton as HTMLButtonElement).disabled).toBe(false);
     });
@@ -3033,14 +3055,21 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Recovered runs awaiting resume: 2")).toBeTruthy();
     });
 
-    const resumeToolbarButton = screen.getByRole("button", {
-      name: "Resume recoverable runs (2)",
-    });
     await waitFor(() => {
-      expect((resumeToolbarButton as HTMLButtonElement).disabled).toBe(false);
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Resume recoverable runs (2)",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false);
     });
 
-    fireEvent.click(resumeToolbarButton);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Resume recoverable runs (2)",
+      })
+    );
 
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledTimes(2);
@@ -3151,14 +3180,21 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("button", { name: "Resume recoverable runs (3)" })).toBeTruthy();
     });
 
-    const resumeBatchButton = screen.getByRole("button", {
-      name: "Resume recoverable runs (3)",
-    });
     await waitFor(() => {
-      expect((resumeBatchButton as HTMLButtonElement).disabled).toBe(false);
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Resume recoverable runs (3)",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false);
     });
 
-    fireEvent.click(resumeBatchButton);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Resume recoverable runs (3)",
+      })
+    );
 
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledTimes(3);
@@ -3208,14 +3244,21 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("button", { name: "Resume recoverable runs (1)" })).toBeTruthy();
     });
 
-    const resumeNestedButton = screen.getByRole("button", {
-      name: "Resume recoverable runs (1)",
-    });
     await waitFor(() => {
-      expect((resumeNestedButton as HTMLButtonElement).disabled).toBe(false);
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Resume recoverable runs (1)",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false);
     });
 
-    fireEvent.click(resumeNestedButton);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Resume recoverable runs (1)",
+      })
+    );
 
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledWith({ runId: "runtime-batch-nested" });
