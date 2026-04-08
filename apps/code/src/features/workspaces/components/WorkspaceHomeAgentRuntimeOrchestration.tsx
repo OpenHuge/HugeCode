@@ -744,6 +744,19 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                       {runtimeLaunchPreparationDelegationContract.nextOperatorAction}
                     </span>
                   ) : null}
+                  {runtimeLaunchPreparation.delegationPlan ? (
+                    <span>
+                      Delegation plan: {runtimeLaunchPreparation.delegationPlan.summary} | Child
+                      count {runtimeLaunchPreparation.delegationPlan.childCount} | Batches{" "}
+                      {runtimeLaunchPreparation.delegationPlan.batches.length}
+                    </span>
+                  ) : null}
+                  {runtimeLaunchPreparation.auxiliaryExecutionPolicy ? (
+                    <span>
+                      Auxiliary execution:{" "}
+                      {runtimeLaunchPreparation.auxiliaryExecutionPolicy.summary}
+                    </span>
+                  ) : null}
                   {runtimeLaunchPreparationGuidanceStack ? (
                     <span>Guidance: {runtimeLaunchPreparationGuidanceStack.summary}</span>
                   ) : null}
@@ -865,6 +878,42 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   .slice()
                   .sort((left, right) => right.priority - left.priority)
                   .map((layer) => `${layer.scope}: ${layer.summary}`)
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparation?.delegationPlan?.batches.length ? (
+              <div className={controlStyles.sectionMeta}>
+                {[
+                  `delegation plan: ${runtimeLaunchPreparation.delegationPlan.summary}`,
+                  `fan-out: ${runtimeLaunchPreparation.delegationPlan.childCount}`,
+                  `review required: ${
+                    runtimeLaunchPreparation.delegationPlan.reviewRequired ? "yes" : "no"
+                  }`,
+                  runtimeLaunchPreparation.delegationPlan.batches
+                    .map(
+                      (batch) =>
+                        `${batch.id} ${batch.strategy}/${batch.mergeStrategy} -> ${batch.childRoles.join(", ")}`
+                    )
+                    .join(" | "),
+                ]
+                  .filter((value): value is string => Boolean(value))
+                  .join(" | ")}
+              </div>
+            ) : null}
+            {runtimeLaunchPreparation?.auxiliaryExecutionPolicy ? (
+              <div className={controlStyles.sectionMeta}>
+                {[
+                  `auxiliary policy: ${runtimeLaunchPreparation.auxiliaryExecutionPolicy.summary}`,
+                  runtimeLaunchPreparation.auxiliaryExecutionPolicy.enabled
+                    ? "enabled"
+                    : "disabled",
+                  runtimeLaunchPreparation.auxiliaryExecutionPolicy.routes.length > 0
+                    ? runtimeLaunchPreparation.auxiliaryExecutionPolicy.routes
+                        .map((route) => `${route.task}:${route.mode}`)
+                        .join(" | ")
+                    : null,
+                ]
+                  .filter((value): value is string => Boolean(value))
                   .join(" | ")}
               </div>
             ) : null}

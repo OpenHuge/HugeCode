@@ -12,6 +12,13 @@ import type {
   HugeCodeRuntimeAutofixCandidate,
   HugeCodeRuntimeSkillUsageSummary,
   HugeCodeValidationOutcome,
+  RuntimeContextBoundarySummary,
+  RuntimeContextProjectionSummary,
+  RuntimeDelegationBudgetInheritanceV2,
+  RuntimeDelegationKnowledgeAccessV2,
+  RuntimeDelegationToolAccessProfileV2,
+  RuntimeSubAgentFailureClassV2,
+  RuntimeSubAgentResultSummaryV2,
   RuntimeReviewGetV2Response,
 } from "@ku0/code-runtime-host-contract";
 import { type RuntimeContinuityReadinessState } from "./runtimeContinuityReadiness";
@@ -97,8 +104,16 @@ type SubAgentSummary = {
   parentRunId: string | null;
   scopeProfile: string | null;
   status: string;
+  delegationScope: string | null;
+  toolAccessProfile: RuntimeDelegationToolAccessProfileV2 | null;
+  budgetInheritance: RuntimeDelegationBudgetInheritanceV2 | null;
+  knowledgeAccess: RuntimeDelegationKnowledgeAccessV2 | null;
   approvalState: string | null;
   checkpointState: string | null;
+  contextBoundary: RuntimeContextBoundarySummary | null;
+  contextProjection: RuntimeContextProjectionSummary | null;
+  resultSummary: RuntimeSubAgentResultSummaryV2 | null;
+  failureClass: RuntimeSubAgentFailureClassV2 | null;
   summary: string;
   timedOutReason: string | null;
   interruptedReason: string | null;
@@ -396,6 +411,20 @@ function normalizeSubAgentSummary(
       const parentRunId = typeof entry.parentRunId === "string" ? entry.parentRunId : null;
       const scopeProfile = typeof entry.scopeProfile === "string" ? entry.scopeProfile : null;
       const status = typeof entry.status === "string" ? entry.status : "unknown";
+      const delegationScope =
+        typeof entry.delegationScope === "string" ? entry.delegationScope : null;
+      const toolAccessProfile =
+        entry.toolAccessProfile && typeof entry.toolAccessProfile === "object"
+          ? (entry.toolAccessProfile as RuntimeDelegationToolAccessProfileV2)
+          : null;
+      const budgetInheritance =
+        entry.budgetInheritance && typeof entry.budgetInheritance === "object"
+          ? (entry.budgetInheritance as RuntimeDelegationBudgetInheritanceV2)
+          : null;
+      const knowledgeAccess =
+        entry.knowledgeAccess && typeof entry.knowledgeAccess === "object"
+          ? (entry.knowledgeAccess as RuntimeDelegationKnowledgeAccessV2)
+          : null;
       const summary =
         typeof entry.summary === "string"
           ? entry.summary
@@ -418,6 +447,22 @@ function normalizeSubAgentSummary(
               typeof (entry.checkpointState as { state?: unknown }).state === "string"
             ? ((entry.checkpointState as { state: string }).state ?? null)
             : null;
+      const contextBoundary =
+        entry.contextBoundary && typeof entry.contextBoundary === "object"
+          ? (entry.contextBoundary as RuntimeContextBoundarySummary)
+          : null;
+      const contextProjection =
+        entry.contextProjection && typeof entry.contextProjection === "object"
+          ? (entry.contextProjection as RuntimeContextProjectionSummary)
+          : null;
+      const resultSummary =
+        entry.resultSummary && typeof entry.resultSummary === "object"
+          ? (entry.resultSummary as RuntimeSubAgentResultSummaryV2)
+          : null;
+      const failureClass =
+        typeof entry.failureClass === "string"
+          ? (entry.failureClass as RuntimeSubAgentFailureClassV2)
+          : null;
       const timedOutReason = typeof entry.timedOutReason === "string" ? entry.timedOutReason : null;
       const interruptedReason =
         typeof entry.interruptedReason === "string" ? entry.interruptedReason : null;
@@ -426,8 +471,16 @@ function normalizeSubAgentSummary(
         parentRunId,
         scopeProfile,
         status,
+        delegationScope,
+        toolAccessProfile,
+        budgetInheritance,
+        knowledgeAccess,
         approvalState,
         checkpointState,
+        contextBoundary,
+        contextProjection,
+        resultSummary,
+        failureClass,
         summary,
         timedOutReason,
         interruptedReason,

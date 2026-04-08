@@ -859,6 +859,22 @@ function createRuntimeLaunchPreparationFixture() {
       dedupeKey: "manual::inspect runtime launch path",
       summary: "Owner Operator · Priority medium · Risk medium · Tags manual",
     },
+    delegationPlan: {
+      summary: "Runtime will fan out review and validation in two child batches.",
+      fanOutReady: true,
+      reviewRequired: true,
+      childCount: 2,
+      batches: [
+        {
+          id: "delegation-batch-1",
+          summary: "Review and validation batch",
+          strategy: "parallel" as const,
+          mergeStrategy: "operator_review" as const,
+          childRoles: ["review", "validate"],
+          preferredBackendIds: ["backend-policy-a"],
+        },
+      ],
+    },
     delegationContract: {
       summary:
         "Delegate the work, then review a compact evidence artifact instead of supervising the full transcript.",
@@ -870,6 +886,23 @@ function createRuntimeLaunchPreparationFixture() {
       nextOperatorAction:
         "Launch the run and review the resulting Review Pack before accepting outcomes.",
       continueVia: null,
+    },
+    auxiliaryExecutionPolicy: {
+      enabled: true,
+      summary: "Runtime will offload compaction and recall to auxiliary routes.",
+      routes: [
+        {
+          task: "context_compaction" as const,
+          mode: "auxiliary_preferred" as const,
+          summary: "Compaction prefers auxiliary processing.",
+        },
+        {
+          task: "session_recall" as const,
+          mode: "primary_fallback" as const,
+          summary: "Session recall falls back to the primary runtime.",
+        },
+      ],
+      fallbackSummary: "Primary runtime remains the fallback for auxiliary work.",
     },
     executionGraph: {
       graphId: "graph-1",
@@ -1910,6 +1943,16 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(screen.getByText("Plan approval: pending")).toBeTruthy();
     expect(
       screen.getByText("Runtime clarified the mission and built a native execution plan.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Delegation plan: Runtime will fan out review and validation in two child batches. | Child count 2 | Batches 1"
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Auxiliary execution: Runtime will offload compaction and recall to auxiliary routes."
+      )
     ).toBeTruthy();
     expect(
       screen.getByText(/Validation: Run the standard validation lane before review\./)

@@ -855,7 +855,13 @@ fn build_review_pack_includes_relaunch_metadata_and_sub_agents() {
             parent_run_id: Some("run-relaunch".to_string()),
             scope_profile: Some("review".to_string()),
             status: "awaiting_approval".to_string(),
-            context_boundary: None, context_projection: None, compaction_summary: None,
+            delegation_scope: None,
+            tool_access_profile: None,
+            budget_inheritance: None,
+            knowledge_access: None,
+            context_boundary: None,
+            context_projection: None,
+            compaction_summary: None,
             approval_state: Some(MissionRunSubAgentApprovalState {
                 status: "pending".to_string(),
                 approval_id: Some("approval-1".to_string()),
@@ -868,6 +874,8 @@ fn build_review_pack_includes_relaunch_metadata_and_sub_agents() {
             execution_node: None,
             execution_edge: None,
             takeover_bundle: None,
+            result_summary: None,
+            failure_class: None,
             summary: Some("Sub-agent waiting".to_string()),
             timed_out_reason: None,
             interrupted_reason: None,
@@ -1005,7 +1013,51 @@ fn project_runtime_task_to_run_appends_sub_agent_executor_nodes() {
             parent_run_id: Some("run-parent".to_string()),
             scope_profile: Some("review".to_string()),
             status: "awaiting_approval".to_string(),
-            context_boundary: None, context_projection: None, compaction_summary: None,
+            delegation_scope: Some("read_safe:review".to_string()),
+            tool_access_profile: Some(json!({
+                "mode": "read_only",
+                "summary": "Child tool access is runtime-clamped to read-safe inspection tools.",
+                "allowedTools": ["read_file", "search_workspace", "inspect_runtime"],
+                "blockedTools": ["network_lookup", "destructive_shell"],
+            })),
+            budget_inheritance: Some(json!({
+                "mode": "bounded_subset",
+                "summary": "Runtime grants each child a bounded slice of the parent budget and blocks budget escalation.",
+                "inheritedBudgetRatio": 0.35,
+                "maxRuntimeMinutes": 15,
+                "maxAutoContinuations": 0,
+            })),
+            knowledge_access: Some(json!({
+                "mode": "runtime_scoped_read_only",
+                "summary": "Child sessions receive runtime-scoped recall and projection hints but cannot write durable memory directly.",
+                "sources": ["runtime_context_projection", "runtime_context_truth", "runtime_takeover_bundle"],
+            })),
+            context_boundary: None,
+            context_projection: Some(json!({
+                "boundaryId": "boundary-1",
+                "summaryRef": "runtime://agent-task/run-parent/context-summary",
+                "projectionFingerprint": "fingerprint-1",
+                "preservedRangeIds": ["step:1"],
+                "recentSuffixRangeIds": ["step:1"],
+                "offloadRefs": ["turn://tool-1/output"],
+                "workingSetSummary": "Preserved 1 recent range with 1 offload reference.",
+                "knowledgeItems": [
+                    {
+                        "id": "knowledge:sub-agent-1:scope",
+                        "kind": "delegation_hint",
+                        "scope": "sub_agent",
+                        "summary": "Child scope is locked to `review` under runtime governance.",
+                        "detail": "Read-only review profile for validation and code inspection.",
+                        "provenance": ["sub_agent_profile", "runtime_governance"],
+                        "sourceRef": "run-parent",
+                        "confidence": "high",
+                        "durable": false
+                    }
+                ],
+                "skillCandidates": [],
+                "updatedAt": 1,
+            })),
+            compaction_summary: None,
             approval_state: None,
             checkpoint_state: Some(SubAgentCheckpointState {
                 state: "checkpointed".to_string(),
@@ -1027,6 +1079,12 @@ fn project_runtime_task_to_run_appends_sub_agent_executor_nodes() {
             execution_node: None,
             execution_edge: None,
             takeover_bundle: None,
+            result_summary: Some(json!({
+                "summary": "Delegated session `review` is currently `awaiting_approval`.",
+                "artifacts": ["turn://tool-1/output"],
+                "nextAction": "Review the blocked child action before continuing the parent run.",
+            })),
+            failure_class: Some("approval".to_string()),
             summary: Some("Sub-agent waiting on review.".to_string()),
             timed_out_reason: None,
             interrupted_reason: None,
@@ -1061,6 +1119,31 @@ fn project_runtime_task_to_run_appends_sub_agent_executor_nodes() {
         run_value["executionGraph"]["edges"][0]["kind"],
         json!("delegates_to")
     );
+    assert_eq!(
+        run_value["subAgents"][0]["delegationScope"],
+        json!("read_safe:review")
+    );
+    assert_eq!(
+        run_value["subAgents"][0]["toolAccessProfile"]["mode"],
+        json!("read_only")
+    );
+    assert_eq!(
+        run_value["subAgents"][0]["budgetInheritance"]["mode"],
+        json!("bounded_subset")
+    );
+    assert_eq!(
+        run_value["subAgents"][0]["knowledgeAccess"]["mode"],
+        json!("runtime_scoped_read_only")
+    );
+    assert_eq!(
+        run_value["subAgents"][0]["contextProjection"]["knowledgeItems"][0]["kind"],
+        json!("delegation_hint")
+    );
+    assert_eq!(
+        run_value["subAgents"][0]["resultSummary"]["nextAction"],
+        json!("Review the blocked child action before continuing the parent run.")
+    );
+    assert_eq!(run_value["subAgents"][0]["failureClass"], json!("approval"));
 }
 
 #[test]
@@ -1174,7 +1257,13 @@ fn build_governance_summary_blocks_when_sub_agent_awaits_approval() {
             parent_run_id: Some("run-parent".to_string()),
             scope_profile: Some("review".to_string()),
             status: "awaiting_approval".to_string(),
-            context_boundary: None, context_projection: None, compaction_summary: None,
+            delegation_scope: None,
+            tool_access_profile: None,
+            budget_inheritance: None,
+            knowledge_access: None,
+            context_boundary: None,
+            context_projection: None,
+            compaction_summary: None,
             approval_state: Some(MissionRunSubAgentApprovalState {
                 status: "pending_decision".to_string(),
                 approval_id: Some("approval-1".to_string()),
@@ -1187,6 +1276,8 @@ fn build_governance_summary_blocks_when_sub_agent_awaits_approval() {
             execution_node: None,
             execution_edge: None,
             takeover_bundle: None,
+            result_summary: None,
+            failure_class: None,
             summary: Some("Sub-agent is waiting for approval.".to_string()),
             timed_out_reason: None,
             interrupted_reason: None,

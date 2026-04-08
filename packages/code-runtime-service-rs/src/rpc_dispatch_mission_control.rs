@@ -214,6 +214,14 @@ pub(crate) struct MissionRunSubAgentSummary {
     scope_profile: Option<String>,
     status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    delegation_scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_access_profile: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    budget_inheritance: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    knowledge_access: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     context_boundary: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     context_projection: Option<Value>,
@@ -231,6 +239,10 @@ pub(crate) struct MissionRunSubAgentSummary {
     execution_edge: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     takeover_bundle: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    result_summary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    failure_class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     summary: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -451,6 +463,10 @@ fn build_sub_agent_summary(runtime: &sub_agents::SubAgentSessionRuntime) -> Miss
         parent_run_id: trim_to_option(summary.parent_run_id.as_deref()),
         scope_profile: trim_to_option(summary.scope_profile.as_deref()),
         status: summary.status.clone(),
+        delegation_scope: trim_to_option(summary.delegation_scope.as_deref()),
+        tool_access_profile: summary.tool_access_profile.clone(),
+        budget_inheritance: summary.budget_inheritance.clone(),
+        knowledge_access: summary.knowledge_access.clone(),
         context_boundary: summary.context_boundary.clone(),
         context_projection: summary.context_projection.clone(),
         compaction_summary: summary.compaction_summary.clone(),
@@ -469,6 +485,8 @@ fn build_sub_agent_summary(runtime: &sub_agents::SubAgentSessionRuntime) -> Miss
             .as_ref()
             .and_then(|edge| serde_json::to_value(edge).ok()),
         takeover_bundle: Some(build_runtime_sub_agent_takeover_bundle(summary)),
+        result_summary: summary.result_summary.clone(),
+        failure_class: summary.failure_class.clone(),
         summary: summary_text,
         timed_out_reason,
         interrupted_reason,

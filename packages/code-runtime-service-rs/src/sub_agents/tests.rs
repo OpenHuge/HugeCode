@@ -3,12 +3,13 @@ use super::profiles::{
     resolve_sub_agent_profile_defaults, SubAgentApprovalEvent, SubAgentCheckpointState,
 };
 use super::{
-    is_sub_agent_session_counted_as_active, is_sub_agent_session_terminal_status,
-    is_sub_agent_task_timeout_due, map_agent_task_status_to_sub_agent_status,
-    parse_sub_agent_max_task_ms, sub_agent_item_status_from_session_status,
-    sub_agent_session_stale_ttl_ms, sync_sub_agent_executor_linkage,
-    sync_sub_agent_runtime_execution_graph, SubAgentSessionRuntime, SubAgentSessionStore,
-    SubAgentSessionSummary, DEFAULT_SUB_AGENT_MAX_TASK_MS, DEFAULT_SUB_AGENT_SESSION_HISTORY_LIMIT,
+    enrich_sub_agent_summary_for_response, is_sub_agent_session_counted_as_active,
+    is_sub_agent_session_terminal_status, is_sub_agent_task_timeout_due,
+    map_agent_task_status_to_sub_agent_status, parse_sub_agent_max_task_ms,
+    sub_agent_item_status_from_session_status, sub_agent_session_stale_ttl_ms,
+    sync_sub_agent_executor_linkage, sync_sub_agent_runtime_execution_graph,
+    SubAgentSessionRuntime, SubAgentSessionStore, SubAgentSessionSummary,
+    DEFAULT_SUB_AGENT_MAX_TASK_MS, DEFAULT_SUB_AGENT_SESSION_HISTORY_LIMIT,
     MAX_SUB_AGENT_MAX_TASK_MS,
 };
 use crate::{
@@ -47,9 +48,15 @@ fn test_sub_agent_summary() -> SubAgentSessionSummary {
         trace_id: Some("sub-agent:session-1".to_string()),
         recovered: Some(false),
         checkpoint_state: None,
+        delegation_scope: None,
+        tool_access_profile: None,
+        budget_inheritance: None,
+        knowledge_access: None,
         context_boundary: None,
         context_projection: None,
         takeover_bundle: None,
+        result_summary: None,
+        failure_class: None,
         approval_events: Some(Vec::new()),
         compaction_summary: None,
         eval_tags: Some(vec!["scope:general".to_string()]),
@@ -174,6 +181,81 @@ fn sync_sub_agent_runtime_execution_graph_persists_executor_topology() {
     );
     assert_eq!(edge.from_node_id, "graph-run-parent:root");
     assert_eq!(edge.to_node_id, "graph-run-parent:sub-agent:session-1");
+}
+
+#[test]
+fn enrich_sub_agent_summary_for_response_adds_governed_delegation_metadata() {
+    let mut summary = test_sub_agent_summary();
+    summary.parent_run_id = Some("run-parent".to_string());
+    summary.scope_profile = Some("review".to_string());
+    summary.delegation_scope = Some("read_safe:review".to_string());
+    summary.status = "completed".to_string();
+    summary.context_projection = Some(serde_json::json!({
+        "boundaryId": "boundary-1",
+        "summaryRef": "runtime://agent-task/session-1/context-summary",
+        "projectionFingerprint": "fingerprint-1",
+        "preservedRangeIds": ["step:1"],
+        "recentSuffixRangeIds": ["step:1"],
+        "offloadRefs": ["turn://tool-1/output"],
+        "workingSetSummary": "Preserved 1 recent range with 1 offload reference.",
+        "updatedAt": 1,
+    }));
+
+    let enriched = enrich_sub_agent_summary_for_response(&summary);
+
+    assert_eq!(
+        enriched.delegation_scope.as_deref(),
+        Some("read_safe:review")
+    );
+    assert_eq!(
+        enriched
+            .tool_access_profile
+            .as_ref()
+            .and_then(|value| value.get("mode")),
+        Some(&Value::String("read_only".to_string()))
+    );
+    assert_eq!(
+        enriched
+            .budget_inheritance
+            .as_ref()
+            .and_then(|value| value.get("mode")),
+        Some(&Value::String("bounded_subset".to_string()))
+    );
+    assert_eq!(
+        enriched
+            .knowledge_access
+            .as_ref()
+            .and_then(|value| value.get("mode")),
+        Some(&Value::String("runtime_scoped_read_only".to_string()))
+    );
+    assert_eq!(
+        enriched
+            .context_projection
+            .as_ref()
+            .and_then(|value| value.get("knowledgeItems"))
+            .and_then(Value::as_array)
+            .map(|items| items.len()),
+        Some(2)
+    );
+    assert_eq!(
+        enriched
+            .context_projection
+            .as_ref()
+            .and_then(|value| value.get("skillCandidates"))
+            .and_then(Value::as_array)
+            .map(|items| items.len()),
+        Some(1)
+    );
+    assert_eq!(enriched.failure_class.as_deref(), Some("none"));
+    assert_eq!(
+        enriched
+            .result_summary
+            .as_ref()
+            .and_then(|value| value.get("nextAction")),
+        Some(&Value::String(
+            "Merge the delegated result back into the parent run summary.".to_string()
+        ))
+    );
 }
 
 #[test]
