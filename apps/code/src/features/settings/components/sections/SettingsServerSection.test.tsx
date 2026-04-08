@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import type { ComponentProps } from "react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ComponentProps, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { RuntimeCompositionSettingsEntry } from "@ku0/code-platform-interfaces";
+import type { SettingsShellFraming, WorkspaceClientBindings } from "@ku0/code-workspace-client";
+import { WorkspaceClientBindingsProvider } from "@ku0/code-workspace-client";
 import type {
   AppSettings,
   BackendPoolBootstrapPreview,
@@ -11,6 +14,18 @@ import type {
 } from "../../../../types";
 import { SettingsServerSection } from "./SettingsServerSection";
 import { createSettingsServerOperabilityState } from "./settings-server-section/shared";
+
+const desktopSettingsShellFraming: SettingsShellFraming = {
+  kickerLabel: "Preferences",
+  contextLabel: "Desktop app",
+  title: "Settings",
+  subtitle: "Workspace settings",
+};
+
+async function chooseSelectOption(label: string | RegExp, optionName: string | RegExp) {
+  fireEvent.click(screen.getByRole("button", { name: label }));
+  fireEvent.click(await screen.findByRole("option", { name: optionName }));
+}
 
 function createBootstrapPreview(): BackendPoolBootstrapPreview {
   return {
@@ -243,6 +258,266 @@ function createProps(
   };
 }
 
+function createWorkspaceClientBindingsForServerSection() {
+  let compositionSettings: RuntimeCompositionSettingsEntry = {
+    selection: {
+      profileId: "workspace-default",
+      preferredBackendIds: ["backend-primary"],
+    },
+    launchOverride: null,
+    persistence: {
+      publisherSessionId: null,
+      lastAcceptedAuthorityRevision: 2,
+      lastPublishAttemptAt: null,
+      lastPublishedAt: null,
+    },
+  };
+
+  const composition = {
+    listProfilesV2: vi.fn(async () => [
+      {
+        id: "workspace-default",
+        name: "Workspace Default",
+        scope: "workspace",
+        enabled: true,
+        active: true,
+      },
+    ]),
+    getProfileV2: vi.fn(async () => ({
+      id: "workspace-default",
+      name: "Workspace Default",
+      scope: "workspace",
+      enabled: true,
+      pluginSelectors: [],
+      routePolicy: {
+        preferredRoutePluginIds: [],
+        providerPreference: [],
+        allowRuntimeFallback: true,
+      },
+      backendPolicy: {
+        preferredBackendIds: ["backend-primary"],
+        resolvedBackendId: null,
+      },
+      trustPolicy: {
+        requireVerifiedSignatures: true,
+        allowDevOverrides: false,
+        blockedPublishers: [],
+      },
+      executionPolicyRefs: [],
+      observabilityPolicy: {
+        emitStableEvents: true,
+        emitOtelAlignedTelemetry: true,
+      },
+      configLayers: [],
+    })),
+    resolveV2: vi.fn(async (input: { profileId?: string | null }) => ({
+      activeProfile: input.profileId
+        ? {
+            id: input.profileId,
+            name: "Workspace Default",
+            scope: "workspace",
+            enabled: true,
+            pluginSelectors: [],
+            routePolicy: {
+              preferredRoutePluginIds: [],
+              providerPreference: [],
+              allowRuntimeFallback: true,
+            },
+            backendPolicy: {
+              preferredBackendIds: compositionSettings.selection.preferredBackendIds,
+              resolvedBackendId: null,
+            },
+            trustPolicy: {
+              requireVerifiedSignatures: true,
+              allowDevOverrides: false,
+              blockedPublishers: [],
+            },
+            executionPolicyRefs: [],
+            observabilityPolicy: {
+              emitStableEvents: true,
+              emitOtelAlignedTelemetry: true,
+            },
+            configLayers: [],
+          }
+        : null,
+      authorityState: "published",
+      freshnessState: "current",
+      authorityRevision: 3,
+      lastAcceptedRevision: 3,
+      lastPublishAttemptAt: 30,
+      publishedAt: 30,
+      publisherSessionId: "session-1",
+      provenance: {
+        activeProfileId: input.profileId ?? null,
+        activeProfileName: input.profileId ? "Workspace Default" : undefined,
+        appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+        selectorDecisions: {},
+      },
+      pluginEntries: [],
+      selectedRouteCandidates: [],
+      selectedBackendCandidates: compositionSettings.selection.preferredBackendIds.map(
+        (backendId) => ({
+          backendId,
+          sourcePluginId: null,
+        })
+      ),
+      blockedPlugins: [],
+      trustDecisions: [],
+    })),
+    publishSnapshotV1: vi.fn(async () => ({
+      authorityState: "published",
+      freshnessState: "current",
+      authorityRevision: 4,
+      lastAcceptedRevision: 4,
+      lastPublishAttemptAt: 40,
+      publishedAt: 40,
+      publisherSessionId: "session-1",
+    })),
+    getSettings: vi.fn(async () => compositionSettings),
+    updateSettings: vi.fn(async (_workspaceId: string, next: RuntimeCompositionSettingsEntry) => {
+      compositionSettings = next;
+      return compositionSettings;
+    }),
+  };
+
+  const bindings = {
+    navigation: {
+      readRouteSelection: () => ({ kind: "workspace", workspaceId: "workspace-1" }) as const,
+      subscribeRouteSelection: () => () => undefined,
+      navigateToWorkspace: () => undefined,
+      navigateToSection: () => undefined,
+      navigateHome: () => undefined,
+    },
+    runtimeGateway: {
+      readRuntimeMode: () => "connected" as const,
+      subscribeRuntimeMode: () => () => undefined,
+      discoverLocalRuntimeGatewayTargets: async () => [],
+      configureManualWebRuntimeGatewayTarget: () => undefined,
+    },
+    runtime: {
+      surface: "shared-workspace-client" as const,
+      settings: {
+        getAppSettings: async () => ({}),
+        updateAppSettings: async (settings: Record<string, unknown>) => settings,
+        syncRuntimeGatewayProfileFromAppSettings: () => undefined,
+      },
+      oauth: {
+        listAccounts: async () => [],
+        listPools: async () => [],
+        listPoolMembers: async () => [],
+        getPrimaryAccount: async () => null,
+        setPrimaryAccount: async () => undefined,
+        applyPool: async () => undefined,
+        bindPoolAccount: async () => undefined,
+        runLogin: async () => ({ authUrl: "", immediateSuccess: false }),
+        getAccountInfo: async () => null,
+        getProvidersCatalog: async () => [],
+      },
+      models: {
+        getModelList: async () => [],
+        getConfigModel: async () => null,
+      },
+      workspaceCatalog: {
+        listWorkspaces: async () => [],
+      },
+      missionControl: {
+        readMissionControlSnapshot: async () => ({
+          source: "runtime_snapshot_v1" as const,
+          generatedAt: 0,
+          workspaces: [],
+          tasks: [],
+          runs: [],
+          reviewPacks: [],
+        }),
+      },
+      agentControl: {
+        prepareRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        startRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        cancelRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        resumeRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        interveneRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        submitRuntimeJobApprovalDecision: async () => {
+          throw new Error("not implemented");
+        },
+      },
+      threads: {
+        listThreads: async () => [],
+        createThread: async () => {
+          throw new Error("not implemented");
+        },
+        resumeThread: async () => null,
+        archiveThread: async () => true,
+      },
+      git: {
+        listChanges: async () => ({ staged: [], unstaged: [] }),
+        readDiff: async () => null,
+        listBranches: async () => ({ currentBranch: "main", branches: [] }),
+        createBranch: async () => ({ ok: true, error: null }),
+        checkoutBranch: async () => ({ ok: true, error: null }),
+        readLog: async () => ({
+          total: 0,
+          entries: [],
+          ahead: 0,
+          behind: 0,
+          aheadEntries: [],
+          behindEntries: [],
+          upstream: null,
+        }),
+        stageChange: async () => ({ ok: true, error: null }),
+        stageAll: async () => ({ ok: true, error: null }),
+        unstageChange: async () => ({ ok: true, error: null }),
+        revertChange: async () => ({ ok: true, error: null }),
+        commit: async () => ({ committed: false, committedCount: 0, error: null }),
+      },
+      workspaceFiles: {
+        listWorkspaceFileEntries: async () => [],
+        readWorkspaceFile: async () => null,
+      },
+      review: {
+        listReviewPacks: async () => [],
+      },
+      composition,
+    },
+    host: {
+      platform: "desktop" as const,
+      intents: {
+        openOauthAuthorizationUrl: async () => undefined,
+        createOauthPopupWindow: () => null,
+        waitForOauthBinding: async () => false,
+      },
+      notifications: {
+        testSound: () => undefined,
+        testSystemNotification: () => undefined,
+      },
+      shell: {
+        platformHint: "desktop" as const,
+      },
+    },
+    platformUi: {
+      WorkspaceRuntimeShell: function TestRuntimeShell() {
+        return null;
+      },
+      WorkspaceApp: function TestWorkspaceApp() {
+        return null;
+      },
+      renderWorkspaceHost: (children: ReactNode) => children,
+      settingsShellFraming: desktopSettingsShellFraming,
+    },
+  } as WorkspaceClientBindings;
+
+  return { bindings, composition };
+}
+
 describe("SettingsServerSection", () => {
   it("renders desktop server settings through the shared section grammar", () => {
     const { container } = render(<SettingsServerSection {...createProps()} />);
@@ -308,6 +583,42 @@ describe("SettingsServerSection", () => {
     ).toBeTruthy();
     expect(within(backendPoolGroup as HTMLElement).getByText("Backend onboarding")).toBeTruthy();
     expect(within(backendPoolGroup as HTMLElement).getByText("Backend diagnostics")).toBeTruthy();
+  });
+
+  it("routes workspace backend preference through shared runtime composition settings", async () => {
+    const { bindings, composition } = createWorkspaceClientBindingsForServerSection();
+
+    render(
+      <WorkspaceClientBindingsProvider bindings={bindings}>
+        <SettingsServerSection
+          {...createProps({
+            remoteExecutionBackendOptions: [
+              { id: "backend-primary", label: "Primary backend" },
+              { id: "backend-review", label: "Review backend" },
+            ],
+          })}
+        />
+      </WorkspaceClientBindingsProvider>
+    );
+
+    expect(
+      await screen.findByText("Workspace composition & routing", {
+        selector: '[data-settings-field-group-title="true"]',
+      })
+    ).toBeTruthy();
+
+    await chooseSelectOption("Workspace backend preference", "Review backend");
+
+    await waitFor(() => {
+      expect(composition.updateSettings).toHaveBeenCalledWith(
+        "workspace-1",
+        expect.objectContaining({
+          selection: expect.objectContaining({
+            preferredBackendIds: ["backend-review"],
+          }),
+        })
+      );
+    });
   });
 
   it("does not reintroduce legacy section shell, toggle, or action wrappers", () => {
