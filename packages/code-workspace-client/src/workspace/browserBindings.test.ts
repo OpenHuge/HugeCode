@@ -230,7 +230,7 @@ describe("browser workspace bindings", () => {
       },
     });
 
-    expect(appSettings.defaultRemoteExecutionBackendId).toBe("backend-primary");
+    expect(appSettings.defaultRemoteExecutionBackendId).toBe("backend-default");
     expect(appSettings[RUNTIME_COMPOSITION_SETTINGS_BY_WORKSPACE_ID_KEY]).toEqual(
       expect.objectContaining({
         "workspace-1": expect.objectContaining({
@@ -240,5 +240,8 @@ describe("browser workspace bindings", () => {
         }),
       })
     );
+    expect(
+      (await runtime.composition?.getSettings("workspace-2"))?.selection.preferredBackendIds
+    ).toEqual(["backend-default"]);
   });
 });

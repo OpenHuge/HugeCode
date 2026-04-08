@@ -226,7 +226,6 @@ export function writeRuntimeCompositionSettingsForWorkspace(
   byWorkspace[trimmedWorkspaceId] = normalizedEntry;
   return {
     ...appSettings,
-    defaultRemoteExecutionBackendId: normalizedEntry.selection.preferredBackendIds[0] ?? null,
     [RUNTIME_COMPOSITION_SETTINGS_BY_WORKSPACE_ID_KEY]: byWorkspace,
   };
 }

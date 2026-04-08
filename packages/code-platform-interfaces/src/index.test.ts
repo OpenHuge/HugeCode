@@ -157,7 +157,11 @@ describe("code-platform-interfaces", () => {
       }
     );
 
-    expect(written.defaultRemoteExecutionBackendId).toBe("backend-primary");
+    expect(written.defaultRemoteExecutionBackendId).toBe("backend-default");
+    expect(
+      readRuntimeCompositionSettingsForWorkspace(written as Record<string, unknown>, "workspace-b")
+        .selection.preferredBackendIds
+    ).toEqual(["backend-default"]);
     expect(
       readRuntimeCompositionSettingsForWorkspace(written as Record<string, unknown>, "workspace-a")
         .persistence.publisherSessionId

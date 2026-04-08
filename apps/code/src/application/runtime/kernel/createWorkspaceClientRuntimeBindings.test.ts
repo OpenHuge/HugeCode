@@ -280,5 +280,36 @@ describe("createWorkspaceClientRuntimeBindings", () => {
     const settings = await runtime.composition?.getSettings("workspace-1");
     expect(settings?.selection.preferredBackendIds).toEqual(["backend-default"]);
     expect(getAppSettings).toHaveBeenCalled();
+
+    await runtime.composition?.updateSettings("workspace-1", {
+      selection: {
+        profileId: "workspace-default",
+        preferredBackendIds: ["backend-primary"],
+      },
+      launchOverride: null,
+      persistence: {
+        publisherSessionId: "session-1",
+        lastAcceptedAuthorityRevision: 3,
+        lastPublishAttemptAt: 5,
+        lastPublishedAt: 6,
+      },
+    });
+
+    expect(updateAppSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        defaultRemoteExecutionBackendId: "backend-default",
+        runtimeCompositionSettingsByWorkspaceId: expect.objectContaining({
+          "workspace-1": expect.objectContaining({
+            selection: expect.objectContaining({
+              profileId: "workspace-default",
+              preferredBackendIds: ["backend-primary"],
+            }),
+          }),
+        }),
+      })
+    );
+    expect(
+      (await runtime.composition?.getSettings("workspace-2"))?.selection.preferredBackendIds
+    ).toEqual(["backend-default"]);
   });
 });
