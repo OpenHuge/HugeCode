@@ -6905,6 +6905,31 @@ exit 1
             prepare_payload["result"]["validationPlan"]["required"],
             Value::Bool(true)
         );
+        assert_eq!(
+            prepare_payload["result"]["delegationPlan"]["fanOutReady"],
+            Value::Bool(true)
+        );
+        assert_eq!(
+            prepare_payload["result"]["delegationPlan"]["reviewRequired"],
+            Value::Bool(true)
+        );
+        assert_eq!(
+            prepare_payload["result"]["delegationPlan"]["batches"][0]["strategy"],
+            Value::String("parallel".to_string())
+        );
+        assert_eq!(
+            prepare_payload["result"]["auxiliaryExecutionPolicy"]["enabled"],
+            Value::Bool(true)
+        );
+        assert!(
+            prepare_payload["result"]["auxiliaryExecutionPolicy"]["routes"]
+                .as_array()
+                .expect("auxiliary routes")
+                .iter()
+                .any(|entry| {
+                    entry.get("task").and_then(Value::as_str) == Some("context_compaction")
+                })
+        );
         assert!(
             prepare_payload["result"]["reviewFocus"]
                 .as_array()

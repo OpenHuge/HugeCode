@@ -14,11 +14,68 @@ describe("ReviewPackSurfaceSections", () => {
       renderSubAgentSummary([
         {
           sessionId: "agent-1",
+          delegationScope: "read_safe:review-pack",
           scopeProfile: "review-pack",
           status: "running",
           summary: "Reviewing runtime evidence.",
+          resultSummary: {
+            summary: "Delegated session finished with runtime-published evidence.",
+            artifacts: ["runtime://sub-agent/session-1/context-summary"],
+            nextAction: "Merge the delegated result back into the parent run summary.",
+          },
+          toolAccessProfile: {
+            mode: "read_only",
+            summary: "Child tool access is runtime-clamped to read-safe inspection tools.",
+            allowedTools: ["read_file", "search_workspace"],
+            blockedTools: ["destructive_shell"],
+          },
+          budgetInheritance: {
+            mode: "bounded_subset",
+            summary:
+              "Runtime grants each child a bounded slice of the parent budget and blocks budget escalation.",
+            inheritedBudgetRatio: 0.35,
+            maxRuntimeMinutes: 15,
+            maxAutoContinuations: 0,
+          },
+          knowledgeAccess: {
+            mode: "runtime_scoped_read_only",
+            summary:
+              "Child sessions receive runtime-scoped recall and projection hints but cannot write durable memory directly.",
+            sources: ["runtime_context_projection", "runtime_context_truth"],
+          },
           approvalState: "pending",
           checkpointState: "available",
+          contextBoundary: {
+            boundaryId: "boundary-1",
+            trigger: "spawn",
+            phase: "spawn",
+            status: "active",
+          },
+          contextProjection: {
+            boundaryId: "boundary-1",
+            workingSetSummary: "Preserved 2 recent range(s) with 1 offload reference(s).",
+            knowledgeItems: [
+              {
+                id: "knowledge:1",
+                kind: "session_recall",
+                scope: "sub_agent",
+                summary: "Runtime compacted delegated context and published 1 recall reference(s).",
+                provenance: ["context_compaction"],
+                confidence: "medium",
+                durable: false,
+              },
+            ],
+            skillCandidates: [
+              {
+                id: "skill-candidate-1",
+                label: "Runtime review",
+                summary: "Reusable governed delegation pattern.",
+                state: "candidate",
+                source: "sub_agent",
+                evidence: ["status:completed"],
+              },
+            ],
+          },
           timedOutReason: null,
           interruptedReason: null,
           parentRunId: "run-1",
@@ -28,6 +85,21 @@ describe("ReviewPackSurfaceSections", () => {
 
     expect(markup).toContain('data-status-tone="progress"');
     expect(markup).toContain("Reviewing runtime evidence.");
+    expect(markup).toContain("Delegated session finished with runtime-published evidence.");
+    expect(markup).toContain(
+      "Next action: Merge the delegated result back into the parent run summary."
+    );
+    expect(markup).toContain("Artifacts: runtime://sub-agent/session-1/context-summary");
+    expect(markup).toContain(
+      "Context projection: Preserved 2 recent range(s) with 1 offload reference(s)."
+    );
+    expect(markup).toContain(
+      "Knowledge projection: Runtime compacted delegated context and published 1 recall reference(s)."
+    );
+    expect(markup).toContain("Skill candidates: Runtime review [candidate]");
+    expect(markup).toContain("Tools read_only");
+    expect(markup).toContain("Budget bounded_subset");
+    expect(markup).toContain("Knowledge runtime_scoped_read_only");
   });
 
   it("renders relaunch availability through shared status-badge semantics", () => {

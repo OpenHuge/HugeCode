@@ -92,11 +92,294 @@ fn build_sub_agent_item(summary: &SubAgentSessionSummary) -> Value {
     })
 }
 
+fn collect_json_string_array(value: Option<&Value>) -> Vec<String> {
+    value
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+fn derive_sub_agent_failure_class(summary: &SubAgentSessionSummary) -> String {
+    let error_code = summary
+        .error_code
+        .as_deref()
+        .map(str::trim)
+        .unwrap_or_default()
+        .to_ascii_uppercase();
+    if summary.status == SUB_AGENT_STATUS_AWAITING_APPROVAL
+        || error_code.contains("APPROVAL")
+        || error_code.contains("PERMISSION")
+    {
+        return "approval".to_string();
+    }
+    if error_code.contains("TIMEOUT") || error_code.contains("BUDGET") {
+        return "budget".to_string();
+    }
+    if error_code.contains("CONTEXT") || error_code.contains("COMPACTION") {
+        return "context".to_string();
+    }
+    if error_code.contains("TASK_START_FAILED") || error_code.contains("TASK_NOT_FOUND") {
+        return "tooling".to_string();
+    }
+    if matches!(
+        summary.status.as_str(),
+        SUB_AGENT_STATUS_CANCELLED | SUB_AGENT_STATUS_INTERRUPTED
+    ) {
+        return "operator".to_string();
+    }
+    if summary.status == SUB_AGENT_STATUS_FAILED {
+        return "unknown".to_string();
+    }
+    "none".to_string()
+}
+
+fn build_sub_agent_result_summary(summary: &SubAgentSessionSummary) -> Value {
+    let mut artifacts = Vec::new();
+    if let Some(context_projection) = summary.context_projection.as_ref() {
+        artifacts.extend(collect_json_string_array(
+            context_projection.get("offloadRefs"),
+        ));
+        if let Some(summary_ref) = context_projection
+            .get("summaryRef")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            artifacts.push(summary_ref.to_string());
+        }
+    }
+    let status = summary.status.as_str();
+    let next_action = match status {
+        SUB_AGENT_STATUS_COMPLETED => {
+            "Merge the delegated result back into the parent run summary."
+        }
+        SUB_AGENT_STATUS_AWAITING_APPROVAL => {
+            "Review the blocked child action before continuing the parent run."
+        }
+        SUB_AGENT_STATUS_FAILED => {
+            "Inspect the child failure class and decide whether to retry or narrow scope."
+        }
+        SUB_AGENT_STATUS_CANCELLED | SUB_AGENT_STATUS_INTERRUPTED => {
+            "Decide whether the child should be relaunched with tighter runtime scope."
+        }
+        _ => {
+            "Keep the child session under runtime supervision until it publishes a terminal result."
+        }
+    };
+    json!({
+        "summary": summary
+            .title
+            .clone()
+            .map(|title| format!("Delegated session `{title}` is currently `{status}`."))
+            .unwrap_or_else(|| format!("Delegated session is currently `{status}`.")),
+        "artifacts": if artifacts.is_empty() {
+            Value::Null
+        } else {
+            json!(artifacts)
+        },
+        "nextAction": next_action,
+    })
+}
+
+fn build_sub_agent_projection_knowledge(summary: &SubAgentSessionSummary) -> Vec<Value> {
+    let mut knowledge_items = Vec::new();
+    if let Some(scope_profile) = summary
+        .scope_profile
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        knowledge_items.push(json!({
+            "id": format!("knowledge:{}:scope", summary.session_id),
+            "kind": "delegation_hint",
+            "scope": "sub_agent",
+            "summary": format!("Child scope is locked to `{scope_profile}` under runtime governance."),
+            "detail": summary
+                .profile_descriptor
+                .as_ref()
+                .map(|descriptor| descriptor.description.clone()),
+            "provenance": ["sub_agent_profile", "runtime_governance"],
+            "sourceRef": summary.parent_run_id.clone(),
+            "confidence": "high",
+            "durable": false,
+        }));
+    }
+    if let Some(allowed_skill_ids) = summary
+        .allowed_skill_ids
+        .as_ref()
+        .filter(|skills| !skills.is_empty())
+    {
+        knowledge_items.push(json!({
+            "id": format!("knowledge:{}:skills", summary.session_id),
+            "kind": "skill_hint",
+            "scope": "sub_agent",
+            "summary": format!(
+                "Runtime limited delegated execution to {} allowed skill hint(s).",
+                allowed_skill_ids.len()
+            ),
+            "detail": allowed_skill_ids.join(", "),
+            "provenance": ["sub_agent_profile", "runtime_skill_gate"],
+            "sourceRef": summary.parent_run_id.clone(),
+            "confidence": "high",
+            "durable": false,
+        }));
+    }
+    let offload_refs = summary
+        .context_projection
+        .as_ref()
+        .map(|projection| collect_json_string_array(projection.get("offloadRefs")))
+        .unwrap_or_default();
+    if !offload_refs.is_empty() {
+        knowledge_items.push(json!({
+            "id": format!("knowledge:{}:recall", summary.session_id),
+            "kind": "session_recall",
+            "scope": "sub_agent",
+            "summary": format!(
+                "Runtime compacted delegated context and published {} recall reference(s).",
+                offload_refs.len()
+            ),
+            "detail": offload_refs.join(", "),
+            "provenance": ["context_compaction", "runtime_projection"],
+            "sourceRef": summary.parent_run_id.clone(),
+            "confidence": "medium",
+            "durable": false,
+        }));
+    }
+    knowledge_items
+}
+
+fn build_sub_agent_skill_candidates(summary: &SubAgentSessionSummary) -> Vec<Value> {
+    if summary.status != SUB_AGENT_STATUS_COMPLETED {
+        return Vec::new();
+    }
+    let Some(scope_profile) = summary
+        .scope_profile
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Vec::new();
+    };
+    vec![json!({
+        "id": format!("skill-candidate:{}:{scope_profile}", summary.session_id),
+        "label": format!("Runtime {}", scope_profile.replace('-', " ")),
+        "summary": format!(
+            "Completed `{scope_profile}` sub-agent session produced a reusable governed delegation pattern."
+        ),
+        "state": "candidate",
+        "source": "sub_agent",
+        "evidence": [
+            format!("status:{}", summary.status),
+            format!("scope:{scope_profile}"),
+            format!("session:{}", summary.session_id),
+        ],
+        "proposedSkillId": null,
+    })]
+}
+
+fn enrich_sub_agent_context_projection(summary: &SubAgentSessionSummary) -> Option<Value> {
+    let mut projection = summary.context_projection.clone()?;
+    let Some(projection_object) = projection.as_object_mut() else {
+        return Some(projection);
+    };
+    if !projection_object.contains_key("knowledgeItems") {
+        let knowledge_items = build_sub_agent_projection_knowledge(summary);
+        projection_object.insert(
+            "knowledgeItems".to_string(),
+            if knowledge_items.is_empty() {
+                Value::Null
+            } else {
+                Value::Array(knowledge_items)
+            },
+        );
+    }
+    if !projection_object.contains_key("skillCandidates") {
+        let skill_candidates = build_sub_agent_skill_candidates(summary);
+        projection_object.insert(
+            "skillCandidates".to_string(),
+            if skill_candidates.is_empty() {
+                Value::Null
+            } else {
+                Value::Array(skill_candidates)
+            },
+        );
+    }
+    Some(projection)
+}
+
 pub(super) fn enrich_sub_agent_summary_for_response(
     summary: &SubAgentSessionSummary,
 ) -> SubAgentSessionSummary {
     let mut enriched = summary.clone();
     enriched.takeover_bundle = Some(build_runtime_sub_agent_takeover_bundle(&enriched));
+    enriched.context_projection = enrich_sub_agent_context_projection(&enriched);
+    if enriched.tool_access_profile.is_none() {
+        let mut allowed_tools = vec![
+            "read_file".to_string(),
+            "search_workspace".to_string(),
+            "inspect_runtime".to_string(),
+        ];
+        if enriched.access_mode != "read-only" {
+            allowed_tools.push("apply_patch".to_string());
+            allowed_tools.push("run_validation".to_string());
+        }
+        if enriched.allow_network.unwrap_or(false) {
+            allowed_tools.push("network_lookup".to_string());
+        }
+        enriched.tool_access_profile = Some(json!({
+            "mode": if enriched.access_mode == "read-only" {
+                "read_only"
+            } else {
+                "inherit_subset"
+            },
+            "summary": if enriched.access_mode == "read-only" {
+                "Child tool access is runtime-clamped to read-safe inspection tools."
+            } else {
+                "Child tool access inherits a bounded subset of the parent run capabilities."
+            },
+            "allowedTools": allowed_tools,
+            "blockedTools": if enriched.allow_network.unwrap_or(false) {
+                json!(["destructive_shell"])
+            } else {
+                json!(["network_lookup", "destructive_shell"])
+            },
+        }));
+    }
+    if enriched.budget_inheritance.is_none() {
+        let max_runtime_minutes = enriched
+            .profile_descriptor
+            .as_ref()
+            .map(|descriptor| descriptor.max_task_ms.div_ceil(60_000));
+        enriched.budget_inheritance = Some(json!({
+            "mode": if enriched.parent_run_id.is_some() {
+                "bounded_subset"
+            } else {
+                "isolated"
+            },
+            "summary": "Runtime grants each child a bounded slice of the parent budget and blocks budget escalation.",
+            "inheritedBudgetRatio": if enriched.parent_run_id.is_some() { Some(0.35) } else { None::<f64> },
+            "maxRuntimeMinutes": max_runtime_minutes,
+            "maxAutoContinuations": 0,
+        }));
+    }
+    if enriched.knowledge_access.is_none() {
+        enriched.knowledge_access = Some(json!({
+            "mode": "runtime_scoped_read_only",
+            "summary": "Child sessions receive runtime-scoped recall and projection hints but cannot write durable memory directly.",
+            "sources": [
+                "runtime_context_projection",
+                "runtime_context_truth",
+                "runtime_takeover_bundle"
+            ],
+        }));
+    }
+    enriched.failure_class = Some(derive_sub_agent_failure_class(&enriched));
+    enriched.result_summary = Some(build_sub_agent_result_summary(&enriched));
     enriched
 }
 
@@ -192,6 +475,14 @@ pub(super) struct SubAgentSessionSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) checkpoint_state: Option<SubAgentCheckpointState>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) delegation_scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) tool_access_profile: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) budget_inheritance: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) knowledge_access: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) context_boundary: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) context_projection: Option<Value>,
@@ -201,6 +492,10 @@ pub(super) struct SubAgentSessionSummary {
     pub(super) approval_events: Option<Vec<SubAgentApprovalEvent>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) compaction_summary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) result_summary: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) failure_class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) eval_tags: Option<Vec<String>>,
     pub(super) error_code: Option<String>,
@@ -834,6 +1129,15 @@ async fn create_sub_agent_session(
 ) -> Result<SubAgentSessionSummary, RpcError> {
     let now = now_ms();
     let session_id = new_id("sub-agent");
+    let delegation_scope = format!(
+        "{}:{}",
+        if profile_descriptor.read_only {
+            "read_safe"
+        } else {
+            "workspace_mutation"
+        },
+        scope_profile
+    );
     let mut summary = SubAgentSessionSummary {
         session_id: session_id.clone(),
         workspace_id,
@@ -861,11 +1165,17 @@ async fn create_sub_agent_session(
         trace_id: Some(sub_agent_trace_id(session_id.as_str())),
         recovered: Some(false),
         checkpoint_state: None,
+        delegation_scope: Some(delegation_scope),
+        tool_access_profile: None,
+        budget_inheritance: None,
+        knowledge_access: None,
         context_boundary: None,
         context_projection: None,
         takeover_bundle: None,
         approval_events: Some(Vec::new()),
         compaction_summary: None,
+        result_summary: None,
+        failure_class: Some("none".to_string()),
         eval_tags: Some(vec![
             "mode:runtime".to_string(),
             "surface:sub-agent".to_string(),

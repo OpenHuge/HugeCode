@@ -1041,10 +1041,69 @@ describe("ReviewPackSurface", () => {
             {
               sessionId: "session-1",
               parentRunId: "runtime-7",
+              delegationScope: "read_safe:review",
               scopeProfile: "review",
               status: "running",
+              toolAccessProfile: {
+                mode: "read_only",
+                summary: "Child tool access is runtime-clamped to read-safe inspection tools.",
+                allowedTools: ["read_file", "search_workspace"],
+                blockedTools: ["destructive_shell"],
+              },
+              budgetInheritance: {
+                mode: "bounded_subset",
+                summary:
+                  "Runtime grants each child a bounded slice of the parent budget and blocks budget escalation.",
+                inheritedBudgetRatio: 0.35,
+                maxRuntimeMinutes: 15,
+                maxAutoContinuations: 0,
+              },
+              knowledgeAccess: {
+                mode: "runtime_scoped_read_only",
+                summary:
+                  "Child sessions receive runtime-scoped recall and projection hints but cannot write durable memory directly.",
+                sources: ["runtime_context_projection", "runtime_context_truth"],
+              },
               approvalState: "pending",
               checkpointState: "awaiting",
+              contextBoundary: {
+                boundaryId: "boundary-1",
+                trigger: "spawn",
+                phase: "spawn",
+                status: "active",
+              },
+              contextProjection: {
+                boundaryId: "boundary-1",
+                workingSetSummary: "Preserved 2 recent range(s) with 1 offload reference(s).",
+                knowledgeItems: [
+                  {
+                    id: "knowledge:1",
+                    kind: "session_recall",
+                    scope: "sub_agent",
+                    summary:
+                      "Runtime compacted delegated context and published 1 recall reference(s).",
+                    provenance: ["context_compaction"],
+                    confidence: "medium",
+                    durable: false,
+                  },
+                ],
+                skillCandidates: [
+                  {
+                    id: "skill-candidate-1",
+                    label: "Runtime review",
+                    summary: "Reusable governed delegation pattern.",
+                    state: "candidate",
+                    source: "sub_agent",
+                    evidence: ["status:completed"],
+                  },
+                ],
+              },
+              resultSummary: {
+                summary: "Delegated session finished with runtime-published evidence.",
+                artifacts: ["runtime://sub-agent/session-1/context-summary"],
+                nextAction: "Merge the delegated result back into the parent run summary.",
+              },
+              failureClass: "none",
               summary: "Sub-agent running and waiting for approval.",
               timedOutReason: null,
               interruptedReason: null,
@@ -1177,6 +1236,29 @@ describe("ReviewPackSurface", () => {
     expect(screen.getByText("Relaunch options")).toBeTruthy();
     expect(screen.getByText("Sub-agent supervision")).toBeTruthy();
     expect(screen.getByText("Sub-agent running and waiting for approval.")).toBeTruthy();
+    expect(
+      screen.getByText("Delegated session finished with runtime-published evidence.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Next action: Merge the delegated result back into the parent run summary.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Artifacts: runtime://sub-agent/session-1/context-summary")
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Context projection: Preserved 2 recent range(s) with 1 offload reference(s)."
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Knowledge projection: Runtime compacted delegated context and published 1 recall reference(s)."
+      )
+    ).toBeTruthy();
+    expect(screen.getByText("Skill candidates: Runtime review [candidate]")).toBeTruthy();
+    expect(screen.getByText("Tools read_only")).toBeTruthy();
+    expect(screen.getByText("Budget bounded_subset")).toBeTruthy();
+    expect(screen.getByText("Knowledge runtime_scoped_read_only")).toBeTruthy();
 
     const surface = screen.getAllByTestId("review-pack-surface").at(-1);
     expect(surface).toBeTruthy();

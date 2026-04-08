@@ -203,6 +203,50 @@ function resolveTaskTimestamp(
   return task.updatedAt;
 }
 
+type RuntimeContextProjectionLike =
+  | {
+      workingSetSummary?: string | null;
+      knowledgeItems?: Array<{ summary?: string | null }> | null;
+      skillCandidates?: Array<{ label?: string | null; state?: string | null }> | null;
+    }
+  | null
+  | undefined;
+
+function summarizeRuntimeContextProjection(
+  contextProjection: RuntimeContextProjectionLike
+): string | null {
+  if (!contextProjection) {
+    return null;
+  }
+  const segments: string[] = [];
+  if (contextProjection.workingSetSummary) {
+    segments.push(contextProjection.workingSetSummary);
+  }
+  if (
+    Array.isArray(contextProjection.knowledgeItems) &&
+    contextProjection.knowledgeItems.length > 0
+  ) {
+    const knowledgeItems = contextProjection.knowledgeItems
+      .map((item) => item.summary?.trim() ?? "")
+      .filter((item) => item.length > 0);
+    if (knowledgeItems.length > 0) {
+      segments.push(`Knowledge projection: ${knowledgeItems.join(" | ")}`);
+    }
+  }
+  if (
+    Array.isArray(contextProjection.skillCandidates) &&
+    contextProjection.skillCandidates.length > 0
+  ) {
+    const skillCandidates = contextProjection.skillCandidates
+      .map((item) => `${item.label?.trim() ?? ""}${item.state ? ` [${item.state}]` : ""}`)
+      .filter((item) => item.trim().length > 0);
+    if (skillCandidates.length > 0) {
+      segments.push(`Skill candidates: ${skillCandidates.join(" | ")}`);
+    }
+  }
+  return segments.length > 0 ? segments.join(" | ") : null;
+}
+
 function buildEntryContextAndDelegationSummary(input: {
   contract: RepositoryExecutionContract | null;
   taskSource:
@@ -218,6 +262,7 @@ function buildEntryContextAndDelegationSummary(input: {
   continuePathLabel: string | null;
   recommendedNextAction: string | null;
   continuationState: "ready" | "attention" | "blocked" | "missing" | null;
+  contextProjection?: RuntimeContextProjectionLike;
 }): Pick<MissionReviewEntry, "contextSummary" | "triageSummary" | "delegationSummary"> {
   const repositoryDefaults = resolveRepositoryExecutionDefaults({
     contract: input.contract,
@@ -248,12 +293,22 @@ function buildEntryContextAndDelegationSummary(input: {
     nextOperatorAction: input.recommendedNextAction,
     blocked: input.continuationState === "blocked",
   });
+  const contextProjectionSummary = summarizeRuntimeContextProjection(
+    input.contextProjection ?? null
+  );
   return {
-    contextSummary: contextTruth.canonicalTaskSource
-      ? `${contextTruth.canonicalTaskSource.label} · ${contextTruth.reviewIntent}`
-      : contextTruth.summary,
+    contextSummary: [
+      contextTruth.canonicalTaskSource
+        ? `${contextTruth.canonicalTaskSource.label} · ${contextTruth.reviewIntent}`
+        : contextTruth.summary,
+      contextProjectionSummary,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join(" | "),
     triageSummary: triageSummary.summary,
-    delegationSummary: delegationContract.nextOperatorAction,
+    delegationSummary: [delegationContract.nextOperatorAction, contextProjectionSummary]
+      .filter((value): value is string => Boolean(value))
+      .join(" | "),
   };
 }
 function resolveMissionSecondaryLabel(task: HugeCodeTaskSummary): string | null {
@@ -944,6 +999,7 @@ export function buildMissionReviewEntriesFromProjection(
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
       recommendedNextAction,
       continuationState: continuation.state,
+      contextProjection: reviewPack.contextProjection ?? run?.contextProjection ?? null,
     });
     const provenanceSummary =
       [
@@ -1138,6 +1194,7 @@ export function buildMissionReviewEntriesFromProjection(
       continuePathLabel: continuation.state !== "missing" ? continuation.continuePathLabel : null,
       recommendedNextAction,
       continuationState: continuation.state,
+      contextProjection: run.contextProjection ?? null,
     });
     const provenanceSummary =
       [

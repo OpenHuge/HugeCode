@@ -243,16 +243,67 @@ export function renderSubAgentSummary(subAgents?: ReviewPackDetailModel["subAgen
       {subAgents.map((agent) => (
         <li key={agent.sessionId} className={styles.subAgentItem}>
           <div className={styles.subAgentHeader}>
-            <span className={styles.subAgentLabel}>{agent.scopeProfile ?? agent.sessionId}</span>
+            <span className={styles.subAgentLabel}>
+              {agent.delegationScope ?? agent.scopeProfile ?? agent.sessionId}
+            </span>
             <StatusBadge tone={resolveSubAgentStatusTone(agent.status)}>{agent.status}</StatusBadge>
           </div>
           <div className={styles.subAgentSummary}>{agent.summary}</div>
+          {agent.resultSummary?.summary ? (
+            <div className={styles.subAgentSummary}>{agent.resultSummary.summary}</div>
+          ) : null}
+          {agent.resultSummary?.nextAction ? (
+            <div className={styles.subAgentSummary}>
+              Next action: {agent.resultSummary.nextAction}
+            </div>
+          ) : null}
+          {agent.resultSummary?.artifacts?.length ? (
+            <div className={styles.subAgentSummary}>
+              Artifacts: {agent.resultSummary.artifacts.join(" | ")}
+            </div>
+          ) : null}
+          {agent.contextProjection?.workingSetSummary ? (
+            <div className={styles.subAgentSummary}>
+              Context projection: {agent.contextProjection.workingSetSummary}
+            </div>
+          ) : null}
+          {agent.contextProjection?.knowledgeItems?.length ? (
+            <div className={styles.subAgentSummary}>
+              Knowledge projection:{" "}
+              {agent.contextProjection.knowledgeItems
+                .map((item) => item.summary)
+                .filter((item) => item.trim().length > 0)
+                .join(" | ")}
+            </div>
+          ) : null}
+          {agent.contextProjection?.skillCandidates?.length ? (
+            <div className={styles.subAgentSummary}>
+              Skill candidates:{" "}
+              {agent.contextProjection.skillCandidates
+                .map((item) => `${item.label} [${item.state}]`)
+                .join(" | ")}
+            </div>
+          ) : null}
           <div className={styles.subAgentMeta}>
             {agent.approvalState ? (
               <span className={styles.subAgentMetaItem}>Approval {agent.approvalState}</span>
             ) : null}
             {agent.checkpointState ? (
               <span className={styles.subAgentMetaItem}>Checkpoint {agent.checkpointState}</span>
+            ) : null}
+            {agent.toolAccessProfile ? (
+              <span className={styles.subAgentMetaItem}>Tools {agent.toolAccessProfile.mode}</span>
+            ) : null}
+            {agent.budgetInheritance ? (
+              <span className={styles.subAgentMetaItem}>Budget {agent.budgetInheritance.mode}</span>
+            ) : null}
+            {agent.knowledgeAccess ? (
+              <span className={styles.subAgentMetaItem}>
+                Knowledge {agent.knowledgeAccess.mode}
+              </span>
+            ) : null}
+            {agent.failureClass && agent.failureClass !== "none" ? (
+              <span className={styles.subAgentMetaItem}>Failure {agent.failureClass}</span>
             ) : null}
             {agent.timedOutReason ? (
               <span className={styles.subAgentMetaItem}>Timed out: {agent.timedOutReason}</span>
@@ -264,6 +315,11 @@ export function renderSubAgentSummary(subAgents?: ReviewPackDetailModel["subAgen
             ) : null}
             {agent.parentRunId ? (
               <span className={styles.subAgentMetaItem}>Parent run {agent.parentRunId}</span>
+            ) : null}
+            {agent.contextBoundary?.status ? (
+              <span className={styles.subAgentMetaItem}>
+                Boundary {agent.contextBoundary.status}
+              </span>
             ) : null}
           </div>
         </li>

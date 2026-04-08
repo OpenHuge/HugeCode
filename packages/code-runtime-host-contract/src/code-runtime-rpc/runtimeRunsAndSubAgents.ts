@@ -191,6 +191,46 @@ export type RuntimeContextTruthV2 = {
   consumers: RuntimeContextConsumerV2[];
 };
 
+export type RuntimeKnowledgeItemKindV2 =
+  | "repo_fact"
+  | "session_recall"
+  | "skill_hint"
+  | "validation_hint"
+  | "delegation_hint";
+
+export type RuntimeKnowledgeItemScopeV2 =
+  | "workspace"
+  | "run"
+  | "review_pack"
+  | "sub_agent"
+  | "takeover";
+
+export type RuntimeKnowledgeItemConfidenceV2 = "low" | "medium" | "high";
+
+export type RuntimeKnowledgeItemV2 = {
+  id: string;
+  kind: RuntimeKnowledgeItemKindV2;
+  scope: RuntimeKnowledgeItemScopeV2;
+  summary: string;
+  detail?: string | null;
+  provenance: string[];
+  sourceRef?: string | null;
+  confidence?: RuntimeKnowledgeItemConfidenceV2 | null;
+  durable?: boolean | null;
+};
+
+export type RuntimeSkillCandidateStateV2 = "candidate" | "accepted" | "deferred" | "rejected";
+
+export type RuntimeSkillCandidateV2 = {
+  id: string;
+  label: string;
+  summary: string;
+  state: RuntimeSkillCandidateStateV2;
+  source: "run" | "review_pack" | "sub_agent";
+  evidence: string[];
+  proposedSkillId?: string | null;
+};
+
 export type RuntimeGuidanceLayerScopeV2 = "repo" | "source" | "review_profile" | "launch";
 
 export type RuntimeGuidanceLayerV2 = {
@@ -227,6 +267,51 @@ export type RuntimeDelegationContractV2 = {
   continueVia: string | null;
 };
 
+export type RuntimeDelegationToolAccessModeV2 = "inherit_subset" | "read_only" | "scoped_write";
+
+export type RuntimeDelegationToolAccessProfileV2 = {
+  mode: RuntimeDelegationToolAccessModeV2;
+  summary: string;
+  allowedTools: string[];
+  blockedTools?: string[] | null;
+};
+
+export type RuntimeDelegationBudgetInheritanceModeV2 = "inherit" | "bounded_subset" | "isolated";
+
+export type RuntimeDelegationBudgetInheritanceV2 = {
+  mode: RuntimeDelegationBudgetInheritanceModeV2;
+  summary: string;
+  inheritedBudgetRatio?: number | null;
+  maxRuntimeMinutes?: number | null;
+  maxAutoContinuations?: number | null;
+};
+
+export type RuntimeDelegationKnowledgeAccessModeV2 =
+  | "runtime_scoped_read_only"
+  | "runtime_scoped_cached"
+  | "none";
+
+export type RuntimeDelegationKnowledgeAccessV2 = {
+  mode: RuntimeDelegationKnowledgeAccessModeV2;
+  summary: string;
+  sources: string[];
+};
+
+export type RuntimeSubAgentResultSummaryV2 = {
+  summary: string;
+  artifacts?: string[] | null;
+  nextAction?: string | null;
+};
+
+export type RuntimeSubAgentFailureClassV2 =
+  | "none"
+  | "approval"
+  | "budget"
+  | "tooling"
+  | "context"
+  | "operator"
+  | "unknown";
+
 export type RuntimeTriagePriorityV2 = "low" | "medium" | "high" | "urgent";
 
 export type RuntimeTriageSummaryV2 = {
@@ -257,6 +342,7 @@ export type RuntimeExecutionNodeV2 = {
   dependsOn: string[];
   parallelSafe: boolean;
   requiresApproval: boolean;
+  delegationGroupId?: string | null;
 };
 
 export type RuntimeExecutionGraphV2 = {
@@ -404,6 +490,57 @@ export type RuntimeMissionPlanV2 = {
   skillPlan: AgentTaskMissionSkillPlanItem[];
 };
 
+export type RuntimeAuxiliaryExecutionTaskV2 =
+  | "context_compaction"
+  | "session_recall"
+  | "skill_candidate_draft"
+  | "research_summarization"
+  | "browser_assessment";
+
+export type RuntimeAuxiliaryExecutionModeV2 =
+  | "auxiliary_preferred"
+  | "primary_fallback"
+  | "primary_only";
+
+export type RuntimeAuxiliaryExecutionRouteV2 = {
+  task: RuntimeAuxiliaryExecutionTaskV2;
+  mode: RuntimeAuxiliaryExecutionModeV2;
+  summary: string;
+  provider?: ModelProvider | null;
+  modelId?: string | null;
+};
+
+export type RuntimeAuxiliaryExecutionPolicyV2 = {
+  enabled: boolean;
+  summary: string;
+  routes: RuntimeAuxiliaryExecutionRouteV2[];
+  fallbackSummary: string;
+};
+
+export type RuntimeDelegationBatchStrategyV2 = "serial" | "parallel" | "speculative";
+
+export type RuntimeDelegationMergeStrategyV2 =
+  | "operator_review"
+  | "runtime_summary"
+  | "blocking_merge";
+
+export type RuntimeDelegationBatchV2 = {
+  id: string;
+  summary: string;
+  strategy: RuntimeDelegationBatchStrategyV2;
+  mergeStrategy: RuntimeDelegationMergeStrategyV2;
+  childRoles: string[];
+  preferredBackendIds: string[];
+};
+
+export type RuntimeDelegationPlanV2 = {
+  summary: string;
+  fanOutReady: boolean;
+  reviewRequired: boolean;
+  childCount: number;
+  batches: RuntimeDelegationBatchV2[];
+};
+
 export type RuntimeAutonomyRequestV2 = {
   autonomyProfile: RuntimeAutonomyProfileV2;
   wakePolicy: RuntimeWakePolicyV2;
@@ -420,6 +557,7 @@ export type RuntimeRunPrepareV2Response = {
   guidanceStack: RuntimeGuidanceStackV2;
   triageSummary: RuntimeTriageSummaryV2;
   delegationContract: RuntimeDelegationContractV2;
+  delegationPlan?: RuntimeDelegationPlanV2 | null;
   executionGraph: RuntimeExecutionGraphV2;
   approvalBatches: RuntimeApprovalBatchV2[];
   validationPlan: RuntimeValidationPlanV2;
@@ -432,6 +570,7 @@ export type RuntimeRunPrepareV2Response = {
   researchTrace: RuntimeResearchTraceV2;
   executionEligibility: RuntimeExecutionEligibilityV2;
   wakePolicySummary: RuntimeWakePolicySummaryV2;
+  auxiliaryExecutionPolicy?: RuntimeAuxiliaryExecutionPolicyV2 | null;
 };
 
 export type RuntimeRunCancelRequest = {
@@ -743,6 +882,8 @@ export type RuntimeContextProjectionSummary = {
   recentSuffixRangeIds?: string[] | null;
   offloadRefs?: string[] | null;
   workingSetSummary?: string | null;
+  knowledgeItems?: RuntimeKnowledgeItemV2[] | null;
+  skillCandidates?: RuntimeSkillCandidateV2[] | null;
   updatedAt?: number | null;
 };
 
@@ -786,11 +927,17 @@ export type SubAgentSessionSummary = {
   traceId?: string | null;
   recovered?: boolean | null;
   checkpointState?: RuntimeCheckpointState | null;
+  delegationScope?: string | null;
+  toolAccessProfile?: RuntimeDelegationToolAccessProfileV2 | null;
+  budgetInheritance?: RuntimeDelegationBudgetInheritanceV2 | null;
+  knowledgeAccess?: RuntimeDelegationKnowledgeAccessV2 | null;
   contextBoundary?: RuntimeContextBoundarySummary | null;
   contextProjection?: RuntimeContextProjectionSummary | null;
   takeoverBundle?: RuntimeTakeoverBundle | null;
   approvalEvents?: RuntimeApprovalEvent[] | null;
   compactionSummary?: RuntimeCompactionSummary | null;
+  resultSummary?: RuntimeSubAgentResultSummaryV2 | null;
+  failureClass?: RuntimeSubAgentFailureClassV2 | null;
   evalTags?: string[] | null;
 };
 

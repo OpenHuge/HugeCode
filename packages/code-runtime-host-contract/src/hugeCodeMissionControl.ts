@@ -10,6 +10,11 @@ import type {
   RuntimeCompactionSummary,
   RuntimeContextBoundarySummary,
   RuntimeContextProjectionSummary,
+  RuntimeDelegationBudgetInheritanceV2,
+  RuntimeDelegationKnowledgeAccessV2,
+  RuntimeDelegationToolAccessProfileV2,
+  RuntimeSubAgentFailureClassV2,
+  RuntimeSubAgentResultSummaryV2,
 } from "./code-runtime-rpc/runtimeRunsAndSubAgents.js";
 import type {
   RuntimeExecutionEvidenceSummary,
@@ -563,9 +568,15 @@ export type HugeCodeSubAgentSummary = HugeCodeRuntimeContextObservability & {
   parentRunId?: string | null;
   scopeProfile?: string | null;
   status: string;
+  delegationScope?: string | null;
+  toolAccessProfile?: RuntimeDelegationToolAccessProfileV2 | null;
+  budgetInheritance?: RuntimeDelegationBudgetInheritanceV2 | null;
+  knowledgeAccess?: RuntimeDelegationKnowledgeAccessV2 | null;
   approvalState?: HugeCodeSubAgentApprovalState | null;
   checkpointState?: HugeCodeSubAgentCheckpointState | null;
   takeoverBundle?: HugeCodeTakeoverBundle | null;
+  resultSummary?: RuntimeSubAgentResultSummaryV2 | null;
+  failureClass?: RuntimeSubAgentFailureClassV2 | null;
   summary?: string | null;
   timedOutReason?: string | null;
   interruptedReason?: string | null;

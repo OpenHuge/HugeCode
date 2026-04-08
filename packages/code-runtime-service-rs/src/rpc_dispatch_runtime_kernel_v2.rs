@@ -646,6 +646,10 @@ fn build_execution_graph(
     access_mode: &str,
     agent_profile: &str,
 ) -> (Value, Vec<Value>) {
+    let parallel_safe_total = synthesized_steps
+        .iter()
+        .filter(|step| step.kind.parallel_safe())
+        .count();
     let mut approval_batches = Vec::new();
     let mut approval_step_ids = Vec::new();
     let nodes = synthesized_steps
@@ -672,6 +676,11 @@ fn build_execution_graph(
                 "dependsOn": if index == 0 { Vec::<String>::new() } else { vec![format!("step-{index}")] },
                 "parallelSafe": step.kind.parallel_safe(),
                 "requiresApproval": requires_approval,
+                "delegationGroupId": if step.kind.parallel_safe() && parallel_safe_total > 1 {
+                    Value::String("prepare-fanout-1".to_string())
+                } else {
+                    Value::Null
+                },
             })
         })
         .collect::<Vec<_>>();
@@ -694,6 +703,122 @@ fn build_execution_graph(
         }),
         approval_batches,
     )
+}
+
+fn build_delegation_plan(
+    execution_graph: &Value,
+    approval_batches: &[Value],
+    preferred_backend_ids: &[String],
+    missing_context: &[String],
+) -> Value {
+    let nodes = execution_graph
+        .get("nodes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let delegated_nodes = nodes
+        .iter()
+        .filter(|node| {
+            node.get("parallelSafe")
+                .and_then(Value::as_bool)
+                .unwrap_or(false)
+        })
+        .collect::<Vec<_>>();
+    let child_roles = delegated_nodes
+        .iter()
+        .filter_map(|node| node.get("capability").and_then(Value::as_str))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .collect::<Vec<_>>();
+    let fan_out_ready = !child_roles.is_empty();
+    let review_required = !approval_batches.is_empty() || !missing_context.is_empty();
+    let merge_strategy = if !approval_batches.is_empty() {
+        "operator_review"
+    } else if missing_context.is_empty() {
+        "runtime_summary"
+    } else {
+        "blocking_merge"
+    };
+    json!({
+        "summary": if fan_out_ready {
+            format!(
+                "Runtime can delegate {} bounded child lane(s) with {} merge discipline.",
+                child_roles.len(),
+                merge_strategy.replace('_', " ")
+            )
+        } else {
+            "Runtime kept delegation serial because the prepare graph did not expose a safe fan-out lane.".to_string()
+        },
+        "fanOutReady": fan_out_ready,
+        "reviewRequired": review_required,
+        "childCount": child_roles.len(),
+        "batches": if fan_out_ready {
+            json!([{
+                "id": "prepare-fanout-1",
+                "summary": "Parallel child delegation group derived from runtime execution graph.",
+                "strategy": "parallel",
+                "mergeStrategy": merge_strategy,
+                "childRoles": child_roles,
+                "preferredBackendIds": preferred_backend_ids,
+            }])
+        } else {
+            json!([{
+                "id": "prepare-fanout-1",
+                "summary": "Serial delegation fallback keeps runtime governance intact until a safe fan-out lane appears.",
+                "strategy": "serial",
+                "mergeStrategy": merge_strategy,
+                "childRoles": Vec::<String>::new(),
+                "preferredBackendIds": preferred_backend_ids,
+            }])
+        },
+    })
+}
+
+fn build_auxiliary_execution_policy(allow_network_analysis: bool) -> Value {
+    json!({
+        "enabled": true,
+        "summary": "Runtime routes compaction, recall, and skill-draft work through an auxiliary policy instead of inflating the primary execution lane.",
+        "routes": [
+            {
+                "task": "context_compaction",
+                "mode": "auxiliary_preferred",
+                "summary": "Context compaction prefers an auxiliary summarization lane with primary fallback.",
+                "provider": Value::Null,
+                "modelId": Value::Null,
+            },
+            {
+                "task": "session_recall",
+                "mode": "auxiliary_preferred",
+                "summary": "Session recall uses the auxiliary lane to condense prior execution evidence before injection.",
+                "provider": Value::Null,
+                "modelId": Value::Null,
+            },
+            {
+                "task": "skill_candidate_draft",
+                "mode": "auxiliary_preferred",
+                "summary": "Runtime drafts reusable skill candidates outside the primary execution budget.",
+                "provider": Value::Null,
+                "modelId": Value::Null,
+            },
+            {
+                "task": "browser_assessment",
+                "mode": if allow_network_analysis {
+                    "primary_fallback"
+                } else {
+                    "primary_only"
+                },
+                "summary": if allow_network_analysis {
+                    "Browser assessment may route through auxiliary analysis first, then fall back to the primary lane."
+                } else {
+                    "Browser assessment stays on the primary lane because network analysis is disabled."
+                },
+                "provider": Value::Null,
+                "modelId": Value::Null,
+            }
+        ],
+        "fallbackSummary": "If the auxiliary lane is unavailable, runtime falls back to the primary execution lane without widening child permissions.",
+    })
 }
 
 fn build_validation_plan(workspace_context: &WorkspaceLaunchContext) -> Value {
@@ -1212,6 +1337,18 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         build_research_trace(&autonomy_request, task_source.as_ref(), &workspace_context);
     let execution_eligibility =
         build_execution_eligibility(missing_context.as_slice(), approval_batches.as_slice());
+    let preferred_backend_ids = if !explicit_preferred_backend_ids.is_empty() {
+        explicit_preferred_backend_ids.clone()
+    } else {
+        repository_defaults.preferred_backend_ids.clone()
+    };
+    let delegation_plan = build_delegation_plan(
+        &execution_graph,
+        approval_batches.as_slice(),
+        preferred_backend_ids.as_slice(),
+        missing_context.as_slice(),
+    );
+    let auxiliary_execution_policy = build_auxiliary_execution_policy(allow_network_analysis);
     let resolved_execution_profile_id = explicit_launch_input
         .execution_profile_id
         .as_deref()
@@ -1247,11 +1384,7 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             "executionProfileId": resolved_execution_profile_id,
             "reviewProfileId": resolved_review_profile_id,
             "validationPresetId": resolved_validation_preset_id,
-            "preferredBackendIds": if !explicit_preferred_backend_ids.is_empty() {
-                explicit_preferred_backend_ids.clone()
-            } else {
-                repository_defaults.preferred_backend_ids.clone()
-            },
+            "preferredBackendIds": preferred_backend_ids.clone(),
             "requiredCapabilities": required_capabilities,
             "riskLevel": mission_brief
                 .as_ref()
@@ -1283,6 +1416,7 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             missing_context.as_slice(),
             approval_batches.as_slice(),
         ),
+        "delegationPlan": delegation_plan,
         "executionGraph": execution_graph,
         "approvalBatches": approval_batches,
         "validationPlan": validation_plan,
@@ -1302,6 +1436,7 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         "researchTrace": research_trace,
         "executionEligibility": execution_eligibility,
         "wakePolicySummary": build_wake_policy_summary(&wake_policy),
+        "auxiliaryExecutionPolicy": auxiliary_execution_policy,
     }))
 }
 

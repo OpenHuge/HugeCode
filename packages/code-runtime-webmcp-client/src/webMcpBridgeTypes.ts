@@ -40,7 +40,15 @@ import type {
   RuntimeApprovalEvent,
   RuntimeCheckpointState,
   RuntimeCompactionSummary,
+  RuntimeContextBoundarySummary,
+  RuntimeContextProjectionSummary,
+  RuntimeDelegationBudgetInheritanceV2,
+  RuntimeDelegationKnowledgeAccessV2,
+  RuntimeDelegationToolAccessProfileV2,
   RuntimeExtensionInstallRequest,
+  RuntimeSubAgentFailureClassV2,
+  RuntimeSubAgentResultSummaryV2,
+  RuntimeTakeoverBundle,
   SubAgentScopeProfile,
   SubAgentScopeProfileDescriptor,
   WorkspaceDiagnosticsListRequest,
@@ -423,8 +431,17 @@ export type RuntimeSubAgentSessionSummary = {
   traceId?: string | null;
   recovered?: boolean | null;
   checkpointState?: RuntimeCheckpointState | null;
+  delegationScope?: string | null;
+  toolAccessProfile?: RuntimeDelegationToolAccessProfileV2 | null;
+  budgetInheritance?: RuntimeDelegationBudgetInheritanceV2 | null;
+  knowledgeAccess?: RuntimeDelegationKnowledgeAccessV2 | null;
+  contextBoundary?: RuntimeContextBoundarySummary | null;
+  contextProjection?: RuntimeContextProjectionSummary | null;
+  takeoverBundle?: RuntimeTakeoverBundle | null;
   approvalEvents?: RuntimeApprovalEvent[] | null;
   compactionSummary?: RuntimeCompactionSummary | null;
+  resultSummary?: RuntimeSubAgentResultSummaryV2 | null;
+  failureClass?: RuntimeSubAgentFailureClassV2 | null;
   evalTags?: string[] | null;
 };
 
