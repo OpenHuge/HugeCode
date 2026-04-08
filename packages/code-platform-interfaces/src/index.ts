@@ -3,6 +3,21 @@ export type DesktopRuntimeHost = "browser" | DesktopHostKind;
 export type DesktopWindowLabel = "main" | "about";
 export type DesktopRuntimeMode = "local" | "remote";
 export type DesktopReleaseChannel = "stable" | "beta" | "dev";
+export {
+  createDefaultRuntimeCompositionSettingsEntry,
+  normalizeRuntimeCompositionSettingsByWorkspaceId,
+  normalizeRuntimeCompositionSettingsEntry,
+  readRuntimeCompositionSettingsForWorkspace,
+  RUNTIME_COMPOSITION_SETTINGS_BY_WORKSPACE_ID_KEY,
+  writeRuntimeCompositionSettingsForWorkspace,
+} from "./runtimeCompositionSettings";
+export type {
+  RuntimeCompositionLaunchOverrideDraft,
+  RuntimeCompositionSettingsByWorkspaceId,
+  RuntimeCompositionSettingsEntry,
+  RuntimeCompositionSettingsPersistenceEnvelope,
+  RuntimeCompositionSettingsSelection,
+} from "./runtimeCompositionSettings";
 export type DesktopUpdateCapability = "automatic" | "manual" | "unsupported";
 export type DesktopUpdateMode =
   | "disabled_beta_manual"

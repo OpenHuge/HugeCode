@@ -210,6 +210,8 @@ export type RemoteBackendGatewayConfig = {
   enabled?: boolean;
 };
 
+import type { RuntimeCompositionSettingsByWorkspaceId } from "@ku0/code-platform-interfaces";
+
 export type AppSettings = {
   codexBin: string | null;
   codexArgs: string | null;
@@ -280,6 +282,7 @@ export type AppSettings = {
   openAppTargets: OpenAppTarget[];
   selectedOpenAppId: string;
   lastActiveWorkspaceId?: string | null;
+  runtimeCompositionSettingsByWorkspaceId?: RuntimeCompositionSettingsByWorkspaceId;
 };
 
 export type OrbitConnectTestResult = {

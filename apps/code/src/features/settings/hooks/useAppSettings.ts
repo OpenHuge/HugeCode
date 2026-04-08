@@ -1,5 +1,8 @@
 import { themeModes } from "@ku0/design-system";
-import { normalizeActiveIntentContextByWorkspaceId } from "@ku0/code-platform-interfaces";
+import {
+  normalizeActiveIntentContextByWorkspaceId,
+  normalizeRuntimeCompositionSettingsByWorkspaceId,
+} from "@ku0/code-platform-interfaces";
 import { useSharedAppSettingsState } from "@ku0/code-workspace-client/settings-state";
 import { useCallback } from "react";
 import { createDefaultRemoteServerProfile } from "../../../application/runtime/facades/runtimeRemoteServerProfilesFacade";
@@ -376,6 +379,7 @@ function buildDefaultSettings(): AppSettings {
     openAppTargets: DEFAULT_OPEN_APP_TARGETS,
     selectedOpenAppId: DEFAULT_OPEN_APP_ID,
     lastActiveWorkspaceId: null,
+    runtimeCompositionSettingsByWorkspaceId: {},
   };
 }
 
@@ -459,6 +463,10 @@ function normalizeAppSettings(settings: AppSettings): AppSettings {
     ),
     activeIntentContextByWorkspaceId: normalizeActiveIntentContextByWorkspaceId(
       settings.activeIntentContextByWorkspaceId
+    ),
+    runtimeCompositionSettingsByWorkspaceId: normalizeRuntimeCompositionSettingsByWorkspaceId(
+      settings.runtimeCompositionSettingsByWorkspaceId,
+      settings.defaultRemoteExecutionBackendId
     ),
     openAppTargets: normalizedTargets,
     selectedOpenAppId,

@@ -20,6 +20,12 @@ import type {
   OAuthPrimaryAccountSetInput,
   OAuthPrimaryAccountSummary,
   OAuthProviderId,
+  RuntimeCompositionProfile,
+  RuntimeCompositionProfileResolveV2Request,
+  RuntimeCompositionProfileSummaryV2,
+  RuntimeCompositionResolveV2Response,
+  RuntimeCompositionSnapshotPublishRequest,
+  RuntimeCompositionSnapshotPublishResponse,
   RuntimeRunCancelRequest,
   RuntimeRunCancelV2Response,
   RuntimeRunCheckpointApprovalAck,
@@ -36,8 +42,9 @@ import type {
   WorkspaceFileContent,
   WorkspaceFileSummary,
 } from "@ku0/code-runtime-host-contract";
+import type { RuntimeCompositionSettingsEntry } from "@ku0/code-platform-interfaces";
 import type { BrowserRuntimeConnectionState } from "@ku0/shared/runtimeGatewayBrowser";
-import type { SettingsShellFraming } from "../settings-shell";
+import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
 import type { WorkspaceNavigationAdapter } from "../workspace-shell/workspaceNavigation";
 
 export type WorkspaceClientRuntimeMode = BrowserRuntimeConnectionState;
@@ -213,6 +220,25 @@ export type WorkspaceClientRuntimeReviewBindings = {
   listReviewPacks: () => Promise<HugeCodeReviewPackSummary[]>;
 };
 
+export type WorkspaceClientRuntimeCompositionBindings = {
+  listProfilesV2: (workspaceId: string) => Promise<RuntimeCompositionProfileSummaryV2[]>;
+  getProfileV2: (
+    workspaceId: string,
+    profileId: string
+  ) => Promise<RuntimeCompositionProfile | null>;
+  resolveV2: (
+    input: RuntimeCompositionProfileResolveV2Request
+  ) => Promise<RuntimeCompositionResolveV2Response>;
+  publishSnapshotV1: (
+    input: RuntimeCompositionSnapshotPublishRequest
+  ) => Promise<RuntimeCompositionSnapshotPublishResponse>;
+  getSettings: (workspaceId: string) => Promise<RuntimeCompositionSettingsEntry>;
+  updateSettings: (
+    workspaceId: string,
+    settings: RuntimeCompositionSettingsEntry
+  ) => Promise<RuntimeCompositionSettingsEntry>;
+};
+
 export type WorkspaceClientRuntimeBindings = {
   surface: WorkspaceClientSurface;
   settings: WorkspaceClientRuntimeSettingsBindings;
@@ -227,6 +253,7 @@ export type WorkspaceClientRuntimeBindings = {
   git: WorkspaceClientRuntimeGitBindings;
   workspaceFiles: WorkspaceClientRuntimeWorkspaceFilesBindings;
   review: WorkspaceClientRuntimeReviewBindings;
+  composition?: WorkspaceClientRuntimeCompositionBindings;
 };
 
 export type WorkspaceClientHostNotificationBindings = {

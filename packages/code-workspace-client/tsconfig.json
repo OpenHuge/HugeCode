@@ -7,6 +7,8 @@
     "declarationMap": false,
     "noEmit": true,
     "paths": {
+      "@ku0/code-platform-interfaces": ["../code-platform-interfaces/src/index.ts"],
+      "@ku0/code-platform-interfaces/*": ["../code-platform-interfaces/src/*"],
       "@ku0/code-runtime-client": ["../code-runtime-client/src/index.ts"],
       "@ku0/code-runtime-client/*": ["../code-runtime-client/src/*"]
     }

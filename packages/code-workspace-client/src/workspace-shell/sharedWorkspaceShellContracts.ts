@@ -1,5 +1,5 @@
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
-import type { SettingsShellFraming } from "../settings-shell";
+import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
 import type {
   WorkspaceCatalogEntry,
   WorkspaceClientHostStartupStatus,

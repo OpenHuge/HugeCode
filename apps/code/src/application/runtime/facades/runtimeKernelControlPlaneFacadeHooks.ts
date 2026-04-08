@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import type {
+  RuntimeCompositionProfile,
   RuntimeCompositionResolution,
   RuntimeCompositionResolveV2Response,
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeControlPlaneOperatorAction } from "@ku0/code-application/runtimeControlPlaneOperatorModel";
+import { useSharedRuntimeCompositionState } from "@ku0/code-workspace-client/settings-state";
 import type { RuntimeKernelCompositionFacade } from "../kernel/runtimeKernelComposition";
 import type { RuntimeKernelPluginRegistryFacade } from "../kernel/runtimeKernelPluginRegistry";
 import { useRuntimeKernel } from "../kernel/RuntimeKernelContext";
@@ -16,32 +18,19 @@ export type RuntimeControlPlaneOperatorState = {
   busyActionId: string | null;
   error: string | null;
   info: string | null;
+  profiles: RuntimeCompositionProfile[];
+  activeProfileId: string | null;
+  activeProfile: RuntimeCompositionProfile | null;
+  resolution: RuntimeCompositionResolution | null;
+  snapshot: RuntimeCompositionResolveV2Response | null;
+  compositionError: string | null;
+  compositionLoading: boolean;
   previewProfileId: string | null;
   previewResolution: RuntimeCompositionResolution | null;
   previewSnapshot: RuntimeCompositionResolveV2Response | null;
   clearPreview: () => void;
   runAction: (action: RuntimeControlPlaneOperatorAction) => Promise<void>;
 };
-
-function convertCompositionSnapshotToResolution(
-  snapshot: RuntimeCompositionResolveV2Response
-): RuntimeCompositionResolution {
-  return {
-    selectedPlugins: snapshot.pluginEntries
-      .filter((entry) => entry.selectedInActiveProfile)
-      .map((entry) => ({
-        pluginId: entry.pluginId,
-        packageRef: entry.packageRef ?? null,
-        source: entry.source,
-        reason: entry.selectedReason ?? null,
-      })),
-    selectedRouteCandidates: snapshot.selectedRouteCandidates,
-    selectedBackendCandidates: snapshot.selectedBackendCandidates,
-    blockedPlugins: snapshot.blockedPlugins,
-    trustDecisions: snapshot.trustDecisions,
-    provenance: snapshot.provenance,
-  };
-}
 
 export function useWorkspaceRuntimePluginRegistry(
   workspaceId: string | null
@@ -91,31 +80,26 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
 }): RuntimeControlPlaneOperatorState {
   const { refresh, workspaceId } = input;
   const pluginRegistry = useWorkspaceRuntimePluginRegistry(input.workspaceId);
-  const compositionRuntime = useWorkspaceRuntimeComposition(input.workspaceId);
+  const runtimeComposition = useSharedRuntimeCompositionState({
+    workspaceId,
+    enabled: workspaceId !== null,
+  });
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
-  const [previewProfileId, setPreviewProfileId] = useState<string | null>(null);
-  const [previewResolution, setPreviewResolution] = useState<RuntimeCompositionResolution | null>(
-    null
-  );
-  const [previewSnapshot, setPreviewSnapshot] =
-    useState<RuntimeCompositionResolveV2Response | null>(null);
 
   const clearPreview = useCallback(() => {
-    setPreviewProfileId(null);
-    setPreviewResolution(null);
-    setPreviewSnapshot(null);
-  }, []);
+    runtimeComposition.clearPreview();
+  }, [runtimeComposition]);
 
   const runAction = useCallback(
     async (action: RuntimeControlPlaneOperatorAction) => {
       if (!workspaceId) {
-        setError("Workspace runtime control plane is unavailable.");
+        setLocalError("Workspace runtime control plane is unavailable.");
         return;
       }
       setBusyActionId(action.id);
-      setError(null);
+      setLocalError(null);
       try {
         switch (action.kind) {
           case "install": {
@@ -128,9 +112,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (!result.installed) {
               throw new Error(result.blockedReason ?? `Failed to install ${action.packageRef}.`);
             }
-            if (compositionRuntime) {
-              await compositionRuntime.publishActiveResolutionV1();
-            }
+            await runtimeComposition.publishActiveResolution();
             await refresh();
             setInfo(`Installed runtime plugin package ${action.packageRef}.`);
             break;
@@ -149,9 +131,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
                   `Failed to install ${action.packageRef} with a development trust override.`
               );
             }
-            if (compositionRuntime) {
-              await compositionRuntime.publishActiveResolutionV1();
-            }
+            await runtimeComposition.publishActiveResolution();
             await refresh();
             setInfo(`Installed ${action.packageRef} with a development trust override.`);
             break;
@@ -168,9 +148,7 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (result.blockedReason) {
               throw new Error(result.blockedReason);
             }
-            if (compositionRuntime) {
-              await compositionRuntime.publishActiveResolutionV1();
-            }
+            await runtimeComposition.publishActiveResolution();
             await refresh();
             setInfo(
               result.updated
@@ -187,37 +165,25 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
             if (!result.removed) {
               throw new Error(result.blockedReason ?? `Failed to uninstall ${action.pluginId}.`);
             }
-            if (compositionRuntime) {
-              await compositionRuntime.publishActiveResolutionV1();
-            }
+            await runtimeComposition.publishActiveResolution();
             await refresh();
             clearPreview();
             setInfo(`Uninstalled runtime plugin package ${result.packageRef}.`);
             break;
           }
           case "preview_profile": {
-            if (!compositionRuntime || !action.profileId) {
+            if (!action.profileId) {
               throw new Error("Runtime composition control plane is unavailable.");
             }
-            const result = await compositionRuntime.previewResolutionV2({
-              profileId: action.profileId,
-            });
-            setPreviewProfileId(action.profileId);
-            setPreviewSnapshot(result);
-            setPreviewResolution(convertCompositionSnapshotToResolution(result));
+            await runtimeComposition.previewProfile(action.profileId);
             setInfo(`Previewed runtime composition profile ${action.profileId}.`);
             break;
           }
           case "apply_profile": {
-            if (!compositionRuntime || !action.profileId) {
+            if (!action.profileId) {
               throw new Error("Runtime composition control plane is unavailable.");
             }
-            const result = await compositionRuntime.applyProfileV2({
-              profileId: action.profileId,
-            });
-            setPreviewProfileId(action.profileId);
-            setPreviewSnapshot(result);
-            setPreviewResolution(convertCompositionSnapshotToResolution(result));
+            await runtimeComposition.applyProfile(action.profileId);
             await refresh();
             setInfo(`Applied runtime composition profile ${action.profileId}.`);
             break;
@@ -225,23 +191,30 @@ export function useWorkspaceRuntimeControlPlaneOperatorState(input: {
         }
       } catch (nextError) {
         setInfo(null);
-        setError(
+        setLocalError(
           nextError instanceof Error ? nextError.message : "Runtime control-plane action failed."
         );
       } finally {
         setBusyActionId(null);
       }
     },
-    [clearPreview, compositionRuntime, pluginRegistry, refresh, workspaceId]
+    [clearPreview, pluginRegistry, refresh, runtimeComposition, workspaceId]
   );
 
   return {
     busyActionId,
-    error,
+    error: localError ?? runtimeComposition.error,
     info,
-    previewProfileId,
-    previewResolution,
-    previewSnapshot,
+    profiles: runtimeComposition.profiles,
+    activeProfileId: runtimeComposition.activeProfileId,
+    activeProfile: runtimeComposition.activeProfile,
+    resolution: runtimeComposition.resolution,
+    snapshot: runtimeComposition.snapshot,
+    compositionError: runtimeComposition.error,
+    compositionLoading: runtimeComposition.isLoading || runtimeComposition.isMutating,
+    previewProfileId: runtimeComposition.previewProfileId,
+    previewResolution: runtimeComposition.previewResolution,
+    previewSnapshot: runtimeComposition.previewSnapshot,
     clearPreview,
     runAction,
   };

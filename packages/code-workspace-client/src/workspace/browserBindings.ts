@@ -7,7 +7,16 @@ import {
   type KernelProjectionDelta,
   type KernelProjectionScope,
   type KernelProjectionSubscriptionRequest,
+  type RuntimeCompositionProfile,
+  type RuntimeCompositionProfileSummaryV2,
+  type RuntimeCompositionResolveV2Response,
+  type RuntimeCompositionSnapshotPublishResponse,
 } from "@ku0/code-runtime-host-contract";
+import {
+  readRuntimeCompositionSettingsForWorkspace,
+  writeRuntimeCompositionSettingsForWorkspace,
+  type RuntimeCompositionSettingsEntry,
+} from "@ku0/code-platform-interfaces";
 import { invokeWebRuntimeRawAttempt } from "@ku0/code-runtime-client/runtimeClientWebHttpTransport";
 import {
   buildManualWebRuntimeGatewayProfile,
@@ -330,6 +339,32 @@ export function subscribeBrowserWorkspaceClientKernelProjection(
   };
 }
 
+async function readBrowserWorkspaceClientAppSettingsRecord() {
+  return ((await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_GET, {})) ??
+    {}) as Record<string, unknown>;
+}
+
+async function updateBrowserWorkspaceClientAppSettingsRecord(settings: Record<string, unknown>) {
+  return ((await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.APP_SETTINGS_UPDATE, {
+    payload: settings,
+  })) ?? settings) as Record<string, unknown>;
+}
+
+async function readBrowserWorkspaceClientCompositionSettings(workspaceId: string) {
+  const appSettings = await readBrowserWorkspaceClientAppSettingsRecord();
+  return readRuntimeCompositionSettingsForWorkspace(appSettings, workspaceId);
+}
+
+async function updateBrowserWorkspaceClientCompositionSettings(
+  workspaceId: string,
+  settings: RuntimeCompositionSettingsEntry
+) {
+  const appSettings = await readBrowserWorkspaceClientAppSettingsRecord();
+  const updated = writeRuntimeCompositionSettingsForWorkspace(appSettings, workspaceId, settings);
+  const saved = await updateBrowserWorkspaceClientAppSettingsRecord(updated);
+  return readRuntimeCompositionSettingsForWorkspace(saved, workspaceId);
+}
+
 export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRuntimeBindings {
   const missionControlSurface = createWorkspaceClientRuntimeMissionControlSurfaceBindings({
     bootstrapKernelProjection: bootstrapBrowserWorkspaceClientKernelProjection,
@@ -465,6 +500,32 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.WORKSPACE_FILE_READ, input),
     },
     review: missionControlSurface.review,
+    composition: {
+      listProfilesV2: async (workspaceId) =>
+        ((await invokeBrowserWorkspaceRuntime(
+          CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2,
+          {
+            workspaceId,
+          }
+        )) ?? []) as RuntimeCompositionProfileSummaryV2[],
+      getProfileV2: async (workspaceId, profileId) =>
+        ((await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2, {
+          workspaceId,
+          profileId,
+        })) ?? null) as RuntimeCompositionProfile | null,
+      resolveV2: async (input) =>
+        (await invokeBrowserWorkspaceRuntime(
+          CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2,
+          input
+        )) as RuntimeCompositionResolveV2Response,
+      publishSnapshotV1: async (input) =>
+        (await invokeBrowserWorkspaceRuntime(
+          CODE_RUNTIME_RPC_METHODS.COMPOSITION_SNAPSHOT_PUBLISH_V1,
+          input
+        )) as RuntimeCompositionSnapshotPublishResponse,
+      getSettings: readBrowserWorkspaceClientCompositionSettings,
+      updateSettings: updateBrowserWorkspaceClientCompositionSettings,
+    },
   };
 }
 

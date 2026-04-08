@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 
 import { renderHook, waitFor, act } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import {
   resolveRuntimeControlPlaneOperatorActionPresentation,
   type RuntimeControlPlaneOperatorAction,
 } from "@ku0/code-application";
+import type { SettingsShellFraming } from "@ku0/code-workspace-client/settings-shell";
+import type { WorkspaceClientBindings } from "@ku0/code-workspace-client/workspace-bindings";
+import { WorkspaceClientBindingsProvider } from "../../../../../../packages/code-workspace-client/src/workspace/WorkspaceClientBindingsProvider";
 import { RuntimeKernelProvider } from "../kernel/RuntimeKernelContext";
 import { RUNTIME_KERNEL_CAPABILITY_KEYS } from "../kernel/runtimeKernelCapabilities";
 import {
@@ -14,7 +18,27 @@ import {
   useWorkspaceRuntimePluginRegistry,
 } from "./runtimeKernelControlPlaneFacadeHooks";
 
+const desktopSettingsShellFraming: SettingsShellFraming = {
+  kickerLabel: "Preferences",
+  contextLabel: "Desktop app",
+  title: "Settings",
+  subtitle: "Workspace settings",
+};
+
 function createRuntimeKernelValue() {
+  let compositionSettings = {
+    selection: {
+      profileId: "workspace-default",
+      preferredBackendIds: ["backend-primary"],
+    },
+    launchOverride: null,
+    persistence: {
+      publisherSessionId: null,
+      lastAcceptedAuthorityRevision: 4,
+      lastPublishAttemptAt: null,
+      lastPublishedAt: null,
+    },
+  };
   const installPackage = vi.fn(async () => ({
     package: {} as never,
     installed: true,
@@ -171,6 +195,72 @@ function createRuntimeKernelValue() {
     blockedPlugins: [],
     trustDecisions: [],
   }));
+  const listProfilesV2 = vi.fn(async () => [
+    {
+      id: "workspace-default",
+      name: "Workspace Default",
+      scope: "workspace",
+      enabled: true,
+      active: true,
+    },
+  ]);
+  const getProfileV2 = vi.fn(async () => ({
+    id: "workspace-default",
+    name: "Workspace Default",
+    scope: "workspace",
+    enabled: true,
+    pluginSelectors: [],
+    routePolicy: {
+      preferredRoutePluginIds: [],
+      providerPreference: [],
+      allowRuntimeFallback: true,
+    },
+    backendPolicy: {
+      preferredBackendIds: ["backend-primary"],
+      resolvedBackendId: null,
+    },
+    trustPolicy: {
+      requireVerifiedSignatures: true,
+      allowDevOverrides: false,
+      blockedPublishers: [],
+    },
+    executionPolicyRefs: [],
+    observabilityPolicy: {
+      emitStableEvents: true,
+      emitOtelAlignedTelemetry: true,
+    },
+    configLayers: [],
+  }));
+  const resolveV2 = vi.fn(async (input: { profileId?: string | null }) => ({
+    ...createRuntimeKernelValueSnapshot(),
+    activeProfile: await getProfileV2(),
+    provenance: {
+      activeProfileId: input.profileId ?? "workspace-default",
+      activeProfileName: "Workspace Default",
+      appliedLayerOrder: ["built_in", "user", "workspace", "launch_override"],
+      selectorDecisions: {},
+    },
+    authorityRevision: 5,
+    lastAcceptedRevision: 5,
+    lastPublishAttemptAt: 50,
+    publishedAt: 50,
+  }));
+  const publishSnapshotV1 = vi.fn(
+    async (input: { authorityRevision: number; publisherSessionId?: string | null }) => ({
+      authorityState: "published",
+      freshnessState: "current",
+      authorityRevision: input.authorityRevision,
+      lastAcceptedRevision: input.authorityRevision,
+      lastPublishAttemptAt: 60,
+      publishedAt: 61,
+      publisherSessionId: input.publisherSessionId ?? "session-1",
+    })
+  );
+  const getSettings = vi.fn(async () => compositionSettings);
+  const updateSettings = vi.fn(async (_workspaceId: string, next: typeof compositionSettings) => {
+    compositionSettings = next;
+    return compositionSettings;
+  });
 
   const workspaceScope = {
     workspaceId: "workspace-1",
@@ -205,6 +295,115 @@ function createRuntimeKernelValue() {
     runtimeGateway: {} as never,
     workspaceClientRuntimeGateway: {} as never,
     workspaceClientRuntime: {
+      surface: "shared-workspace-client",
+      settings: {
+        getAppSettings: async () => ({}),
+        updateAppSettings: async (settings: Record<string, unknown>) => settings,
+        syncRuntimeGatewayProfileFromAppSettings: () => undefined,
+      },
+      oauth: {
+        listAccounts: async () => [],
+        listPools: async () => [],
+        listPoolMembers: async () => [],
+        getPrimaryAccount: async () => null,
+        setPrimaryAccount: async () => {
+          throw new Error("not implemented");
+        },
+        applyPool: async () => undefined,
+        bindPoolAccount: async () => undefined,
+        runLogin: async () => ({ authUrl: "", immediateSuccess: false }),
+        getAccountInfo: async () => null,
+        getProvidersCatalog: async () => [],
+      },
+      models: {
+        getModelList: async () => [],
+        getConfigModel: async () => null,
+      },
+      workspaceCatalog: {
+        listWorkspaces: async () => [],
+      },
+      missionControl: {
+        readMissionControlSnapshot: async () => ({
+          source: "runtime_snapshot_v1",
+          generatedAt: 0,
+          workspaces: [],
+          tasks: [],
+          runs: [],
+          reviewPacks: [],
+        }),
+      },
+      agentControl: {
+        prepareRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        startRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        cancelRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        resumeRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        interveneRuntimeRun: async () => {
+          throw new Error("not implemented");
+        },
+        submitRuntimeJobApprovalDecision: async () => {
+          throw new Error("not implemented");
+        },
+      },
+      threads: {
+        listThreads: async () => [],
+        createThread: async () => ({
+          id: "thread-1",
+          workspaceId: "workspace-1",
+          title: "Thread",
+          unread: false,
+          running: false,
+          createdAt: 0,
+          updatedAt: 0,
+          provider: "openai",
+          modelId: null,
+        }),
+        resumeThread: async () => null,
+        archiveThread: async () => true,
+      },
+      git: {
+        listChanges: async () => ({ staged: [], unstaged: [] }),
+        readDiff: async () => null,
+        listBranches: async () => ({ currentBranch: "main", branches: [] }),
+        createBranch: async () => ({ ok: true, error: null }),
+        checkoutBranch: async () => ({ ok: true, error: null }),
+        readLog: async () => ({
+          total: 0,
+          entries: [],
+          ahead: 0,
+          behind: 0,
+          aheadEntries: [],
+          behindEntries: [],
+          upstream: null,
+        }),
+        stageChange: async () => ({ ok: true, error: null }),
+        stageAll: async () => ({ ok: true, error: null }),
+        unstageChange: async () => ({ ok: true, error: null }),
+        revertChange: async () => ({ ok: true, error: null }),
+        commit: async () => ({ committed: false, committedCount: 0, error: null }),
+      },
+      workspaceFiles: {
+        listWorkspaceFileEntries: async () => [],
+        readWorkspaceFile: async () => null,
+      },
+      review: {
+        listReviewPacks: async () => [],
+      },
+      composition: {
+        listProfilesV2,
+        getProfileV2,
+        resolveV2,
+        publishSnapshotV1,
+        getSettings,
+        updateSettings,
+      },
       kernelProjection: null,
     } as never,
     desktopHost: {} as never,
@@ -217,7 +416,80 @@ function createRuntimeKernelValue() {
     applyProfile,
     applyProfileV2,
     publishActiveResolutionV1,
+    listProfilesV2,
+    getProfileV2,
+    resolveV2,
+    publishSnapshotV1,
+    getSettings,
+    updateSettings,
   };
+}
+
+function createRuntimeKernelValueSnapshot() {
+  return {
+    authorityState: "published" as const,
+    freshnessState: "current" as const,
+    authorityRevision: 1,
+    lastAcceptedRevision: 1,
+    lastPublishAttemptAt: 1,
+    publishedAt: 1,
+    publisherSessionId: "session-1",
+    pluginEntries: [],
+    selectedRouteCandidates: [],
+    selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
+    blockedPlugins: [],
+    trustDecisions: [],
+  };
+}
+
+function wrapper(kernelValue: ReturnType<typeof createRuntimeKernelValue>) {
+  const bindings: WorkspaceClientBindings = {
+    navigation: {
+      readRouteSelection: () => ({ kind: "home" }),
+      subscribeRouteSelection: () => () => undefined,
+      navigateToWorkspace: () => undefined,
+      navigateToSection: () => undefined,
+      navigateHome: () => undefined,
+    },
+    runtimeGateway: {
+      readRuntimeMode: () => "connected",
+      subscribeRuntimeMode: () => () => undefined,
+      discoverLocalRuntimeGatewayTargets: async () => [],
+      configureManualWebRuntimeGatewayTarget: () => undefined,
+    },
+    runtime: kernelValue.workspaceClientRuntime as never,
+    host: {
+      platform: "desktop",
+      intents: {
+        openOauthAuthorizationUrl: async () => undefined,
+        createOauthPopupWindow: () => null,
+        waitForOauthBinding: async () => false,
+      },
+      notifications: {
+        testSound: () => undefined,
+        testSystemNotification: () => undefined,
+      },
+      shell: {
+        platformHint: "desktop",
+      },
+    },
+    platformUi: {
+      WorkspaceRuntimeShell: function TestRuntimeShell() {
+        return null;
+      },
+      WorkspaceApp: function TestWorkspaceApp() {
+        return null;
+      },
+      renderWorkspaceHost: (children) => children,
+      settingsShellFraming: desktopSettingsShellFraming,
+    },
+  };
+
+  return ({ children }: { children: ReactNode }) => (
+    <WorkspaceClientBindingsProvider bindings={bindings}>
+      <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
+    </WorkspaceClientBindingsProvider>
+  );
 }
 
 describe("runtimeKernelControlPlaneFacadeHooks", () => {
@@ -274,9 +546,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
           refresh,
         }),
       {
-        wrapper: ({ children }) => (
-          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
-        ),
+        wrapper: wrapper(kernelValue),
       }
     );
 
@@ -299,7 +569,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
     expect(kernelValue.installPackage).toHaveBeenCalledWith({
       packageRef: "hugecode.mcp.search@1.0.0",
     });
-    expect(kernelValue.publishActiveResolutionV1).toHaveBeenCalledTimes(1);
+    expect(kernelValue.publishSnapshotV1).toHaveBeenCalledTimes(1);
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(result.current.info).toContain("Installed runtime plugin package");
 
@@ -337,9 +607,8 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
     });
 
     expect(kernelValue.applyProfile).not.toHaveBeenCalled();
-    expect(kernelValue.applyProfileV2).toHaveBeenCalledWith({
-      profileId: "workspace-default",
-    });
+    expect(kernelValue.applyProfileV2).not.toHaveBeenCalled();
+    expect(kernelValue.updateSettings).toHaveBeenCalled();
     expect(refresh).toHaveBeenCalledTimes(2);
     expect(result.current.info).toContain("Applied runtime composition profile");
   });
@@ -354,9 +623,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
       }),
       {
         initialProps: { workspaceId: "workspace-1" as string | null },
-        wrapper: ({ children }) => (
-          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
-        ),
+        wrapper: wrapper(kernelValue),
       }
     );
 
@@ -376,9 +643,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
           refresh,
         }),
       {
-        wrapper: ({ children }) => (
-          <RuntimeKernelProvider value={kernelValue as never}>{children}</RuntimeKernelProvider>
-        ),
+        wrapper: wrapper(kernelValue),
       }
     );
 
@@ -446,7 +711,7 @@ describe("runtimeKernelControlPlaneFacadeHooks", () => {
     });
     expect(kernelValue.updatePackage).toHaveBeenCalledWith("hugecode.mcp.search@1.0.0");
     expect(kernelValue.uninstallPackage).toHaveBeenCalledWith("pkg.search.remote");
-    expect(kernelValue.publishActiveResolutionV1).toHaveBeenCalledTimes(3);
+    expect(kernelValue.publishSnapshotV1).toHaveBeenCalledTimes(3);
     expect(refresh).toHaveBeenCalledTimes(3);
     expect(result.current.previewProfileId).toBeNull();
     expect(result.current.previewResolution).toBeNull();
