@@ -244,6 +244,116 @@ export type RuntimeBrowserDebugRunResponse = {
   decisionLab?: RuntimeBrowserDebugDecisionLabResult | null;
 };
 
+export type RuntimeMiniProgramAvailabilityStatus =
+  | "ready"
+  | "attention"
+  | "blocked"
+  | "unavailable"
+  | (string & {});
+
+export type RuntimeMiniProgramServiceStatus =
+  | "running"
+  | "stopped"
+  | "unknown"
+  | "unavailable"
+  | (string & {});
+
+export type RuntimeMiniProgramLoginStatus =
+  | "logged_in"
+  | "logged_out"
+  | "unknown"
+  | "unavailable"
+  | (string & {});
+
+export type RuntimeMiniProgramCompileType = "miniprogram" | "plugin" | "unknown";
+
+export type RuntimeMiniProgramAction =
+  | "open_project"
+  | "refresh_project"
+  | "build_npm"
+  | "preview"
+  | "upload"
+  | "reset_file_watch";
+
+export type RuntimeMiniProgramQrOutputMode = "none" | "terminal" | "base64" | "image";
+
+export type RuntimeMiniProgramInfoOutputMode = "none" | "inline";
+
+export type RuntimeMiniProgramCompileCondition = {
+  pathName?: string | null;
+  query?: string | null;
+  scene?: number | null;
+};
+
+export type RuntimeMiniProgramProjectInfo = {
+  valid: boolean;
+  projectConfigPath?: string | null;
+  appId?: string | null;
+  projectName?: string | null;
+  miniprogramRoot?: string | null;
+  pluginRoot?: string | null;
+  compileType: RuntimeMiniProgramCompileType;
+};
+
+export type RuntimeMiniProgramCiStatus = {
+  available: boolean;
+  declared: boolean;
+  packageRoot?: string | null;
+  version?: string | null;
+};
+
+export type RuntimeMiniProgramStatusRequest = {
+  workspaceId: string;
+};
+
+export type RuntimeMiniProgramStatusResponse = {
+  workspaceId: string;
+  available: boolean;
+  status: RuntimeMiniProgramAvailabilityStatus;
+  hostOs: string;
+  devtoolsInstalled: boolean;
+  cliPath?: string | null;
+  httpPort?: number | null;
+  serviceStatus: RuntimeMiniProgramServiceStatus;
+  loginStatus: RuntimeMiniProgramLoginStatus;
+  project: RuntimeMiniProgramProjectInfo;
+  miniprogramCi: RuntimeMiniProgramCiStatus;
+  supportedActions: RuntimeMiniProgramAction[];
+  warnings: string[];
+};
+
+export type RuntimeMiniProgramActionRunRequest = {
+  workspaceId: string;
+  action: RuntimeMiniProgramAction;
+  compileType?: Exclude<RuntimeMiniProgramCompileType, "unknown"> | null;
+  compileCondition?: RuntimeMiniProgramCompileCondition | null;
+  version?: string | null;
+  desc?: string | null;
+  qrOutputMode?: RuntimeMiniProgramQrOutputMode | null;
+  infoOutputMode?: RuntimeMiniProgramInfoOutputMode | null;
+};
+
+export type RuntimeMiniProgramQrCodeResult = {
+  format: Exclude<RuntimeMiniProgramQrOutputMode, "none" | "terminal">;
+  dataBase64?: string | null;
+  outputPath?: string | null;
+};
+
+export type RuntimeMiniProgramActionRunResponse = {
+  workspaceId: string;
+  available: boolean;
+  action: RuntimeMiniProgramAction;
+  status: "completed" | "failed" | "blocked";
+  message: string;
+  command: string[];
+  exitCode?: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  qrCode?: RuntimeMiniProgramQrCodeResult | null;
+  info?: Record<string, unknown> | null;
+  warnings: string[];
+};
+
 export type RuntimeSecurityPreflightRequest = {
   workspaceId?: string | null;
   toolName?: string | null;

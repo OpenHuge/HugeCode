@@ -33,6 +33,10 @@ import type {
   RuntimeBrowserDebugRunResponse,
   RuntimeBrowserDebugStatusRequest,
   RuntimeBrowserDebugStatusResponse,
+  RuntimeMiniProgramActionRunRequest,
+  RuntimeMiniProgramActionRunResponse,
+  RuntimeMiniProgramStatusRequest,
+  RuntimeMiniProgramStatusResponse,
   RuntimeApprovalEvent,
   RuntimeCheckpointState,
   RuntimeCompactionSummary,
@@ -946,6 +950,12 @@ export type RuntimeAgentControl = {
   runRuntimeBrowserDebug?: (
     input: RuntimeBrowserDebugRunRequest
   ) => Promise<RuntimeBrowserDebugRunResponse>;
+  getRuntimeMiniProgramStatus?: (
+    input: RuntimeMiniProgramStatusRequest
+  ) => Promise<RuntimeMiniProgramStatusResponse>;
+  runRuntimeMiniProgramAction?: (
+    input: RuntimeMiniProgramActionRunRequest
+  ) => Promise<RuntimeMiniProgramActionRunResponse>;
   listWorkspaceDiagnostics?: (
     input: WorkspaceDiagnosticsListRequest
   ) => Promise<WorkspaceDiagnosticsListResponse | null>;

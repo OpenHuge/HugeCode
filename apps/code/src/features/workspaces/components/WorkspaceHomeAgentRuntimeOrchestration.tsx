@@ -15,6 +15,7 @@ import {
 } from "./WorkspaceHomeMissionControlSections";
 import { WorkspaceHomeAgentRuntimeBrowserSection } from "./WorkspaceHomeAgentRuntimeBrowserSection";
 import { WorkspaceHomeAiWebLabSection } from "./WorkspaceHomeAiWebLabSection";
+import { WorkspaceHomeAgentRuntimeMiniProgramSection } from "./WorkspaceHomeAgentRuntimeMiniProgramSection";
 import {
   DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG,
   formatRuntimeTimestamp,
@@ -359,6 +360,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         browserReadinessStatusLabel={browserReadinessStatusLabel}
         browserReadinessStatusTone={browserReadinessStatusTone}
       />
+      <WorkspaceHomeAgentRuntimeMiniProgramSection workspaceId={workspaceId} />
       <Suspense
         fallback={
           <MissionControlSectionCard

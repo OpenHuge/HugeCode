@@ -67,6 +67,10 @@ import type {
   RuntimeBrowserDebugRunResponse,
   RuntimeBrowserDebugStatusRequest,
   RuntimeBrowserDebugStatusResponse,
+  RuntimeMiniProgramActionRunRequest,
+  RuntimeMiniProgramActionRunResponse,
+  RuntimeMiniProgramStatusRequest,
+  RuntimeMiniProgramStatusResponse,
   RuntimeCompositionProfile,
   RuntimeCompositionProfileGetV2Request,
   RuntimeCompositionProfileListV2Request,
@@ -379,6 +383,12 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     browserDebugRunV1: (
       request: RuntimeBrowserDebugRunRequest
     ) => Promise<RuntimeBrowserDebugRunResponse>;
+    miniProgramStatusV1: (
+      request: RuntimeMiniProgramStatusRequest
+    ) => Promise<RuntimeMiniProgramStatusResponse>;
+    miniProgramRunV1: (
+      request: RuntimeMiniProgramActionRunRequest
+    ) => Promise<RuntimeMiniProgramActionRunResponse>;
     extensionCatalogListV2: (
       request?: RuntimeExtensionCatalogListRequest
     ) => Promise<RuntimeExtensionRecord[]>;

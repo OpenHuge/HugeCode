@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-npm install -g @openai/codex@0.116.0
+npm i -g @openai/codex@latest

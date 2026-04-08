@@ -71,6 +71,8 @@ import type {
   RuntimeCompositionSnapshotPublishRequest,
   RuntimeBrowserDebugRunRequest,
   RuntimeBrowserDebugStatusRequest,
+  RuntimeMiniProgramActionRunRequest,
+  RuntimeMiniProgramStatusRequest,
   RuntimeCodexCloudTasksListRequest,
   RuntimeCodexDoctorRequest,
   RuntimeCodexExecRunRequest,
@@ -609,6 +611,16 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.BROWSER_DEBUG_RUN_V1]: RuntimeBrowserDebugRunRequest & {
     workspace_id?: string;
     include_screenshot?: boolean | null;
+  };
+  [CODE_RUNTIME_RPC_METHODS.MINI_PROGRAM_STATUS_V1]: RuntimeMiniProgramStatusRequest & {
+    workspace_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.MINI_PROGRAM_RUN_V1]: RuntimeMiniProgramActionRunRequest & {
+    workspace_id?: string;
+    compile_type?: string | null;
+    compile_condition?: Record<string, unknown> | null;
+    qr_output_mode?: string | null;
+    info_output_mode?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.EXTENSION_CATALOG_LIST_V2]: RuntimeExtensionCatalogListRequest & {
     workspace_id?: string | null;
