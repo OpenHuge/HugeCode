@@ -76,6 +76,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     resumeRecoverableTasks,
     runtimeLaunchPreparation,
     runtimeLaunchPreparationContextTruth,
+    runtimeLaunchPreparationContextPlane,
+    runtimeLaunchPreparationEvalPlane,
     runtimeLaunchPreparationGuidanceStack,
     runtimeLaunchPreparationTriageSummary,
     runtimeLaunchPreparationDelegationContract,
@@ -87,6 +89,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeLaunchPlanVersion,
     approveRuntimeLaunchPlan,
     clearRuntimeLaunchPlanApproval,
+    runtimeLaunchPreparationToolingPlane,
     runtimeLaunchPreparationTruthSourceLabel,
     runtimeDraftInstruction,
     runtimeDraftProfileId,
@@ -192,6 +195,46 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const runtimePlan = runtimeLaunchPreparation?.plan ?? null;
   const runtimePlanNeedsApproval =
     runtimeLaunchPlanApprovalRequired && runtimeLaunchPlanVersion !== null;
+  const runtimeLaunchContextPlaneSummary = runtimeLaunchPreparationContextPlane
+    ? [
+        `Memory refs: ${runtimeLaunchPreparationContextPlane.memoryRefs.length}`,
+        `Artifacts: ${runtimeLaunchPreparationContextPlane.artifactRefs.length}`,
+        `Retention: ${runtimeLaunchPreparationContextPlane.workingSetPolicy.retentionMode}`,
+        runtimeLaunchPreparationContextPlane.compactionSummary
+          ? `Compaction: ${runtimeLaunchPreparationContextPlane.compactionSummary}`
+          : null,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ")
+    : null;
+  const runtimeLaunchToolingSandbox = runtimeLaunchPreparationToolingPlane?.sandboxRef ?? null;
+  const runtimeLaunchToolingPlaneSummary = runtimeLaunchPreparationToolingPlane
+    ? [
+        `Capabilities: ${
+          runtimeLaunchPreparationToolingPlane.capabilityCatalog?.capabilities.length ?? 0
+        }`,
+        runtimeLaunchToolingSandbox
+          ? `Tool posture: ${runtimeLaunchToolingSandbox.toolPosture}`
+          : null,
+        runtimeLaunchToolingSandbox
+          ? `Approval sensitivity: ${runtimeLaunchToolingSandbox.approvalSensitivity}`
+          : null,
+        `MCP sources: ${runtimeLaunchPreparationToolingPlane.mcpSources.length}`,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ")
+    : null;
+  const runtimeLaunchEvalPlaneSummary = runtimeLaunchPreparationEvalPlane
+    ? [
+        `Eval cases: ${runtimeLaunchPreparationEvalPlane.evalCases.length}`,
+        runtimeLaunchPreparationEvalPlane.evalCases[0]
+          ? `Baseline: ${runtimeLaunchPreparationEvalPlane.evalCases[0].modelBaseline}`
+          : null,
+        `Playbook steps: ${runtimeLaunchPreparationEvalPlane.modelReleasePlaybook.length}`,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ")
+    : null;
 
   useEffect(() => {
     for (const entry of visibleRuntimeRuns.slice(0, 8)) {
@@ -714,6 +757,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   {runtimeLaunchPreparationContextTruth ? (
                     <span>Context truth: {runtimeLaunchPreparationContextTruth.summary}</span>
                   ) : null}
+                  {runtimeLaunchContextPlaneSummary ? (
+                    <span>Context plane: {runtimeLaunchContextPlaneSummary}</span>
+                  ) : null}
                   {runtimeLaunchPreparationDelegationContract ? (
                     <span>
                       Delegation: {runtimeLaunchPreparationDelegationContract.summary} Next:{" "}
@@ -741,6 +787,12 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   ) : null}
                   {runtimeLaunchPreparationTriageSummary ? (
                     <span>Triage: {runtimeLaunchPreparationTriageSummary.summary}</span>
+                  ) : null}
+                  {runtimeLaunchToolingPlaneSummary ? (
+                    <span>Tooling plane: {runtimeLaunchToolingPlaneSummary}</span>
+                  ) : null}
+                  {runtimeLaunchEvalPlaneSummary ? (
+                    <span>Eval plane: {runtimeLaunchEvalPlaneSummary}</span>
                   ) : null}
                   <span>
                     Context strategy:{" "}
@@ -828,6 +880,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   .join(" | ")}
               </div>
             ) : null}
+            {runtimeLaunchContextPlaneSummary ? (
+              <div className={controlStyles.sectionMeta}>{runtimeLaunchContextPlaneSummary}</div>
+            ) : null}
             {runtimeLaunchPreparationTriageSummary ? (
               <div className={controlStyles.sectionMeta}>
                 {[
@@ -856,6 +911,12 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   .map((layer) => `${layer.scope}: ${layer.summary}`)
                   .join(" | ")}
               </div>
+            ) : null}
+            {runtimeLaunchToolingPlaneSummary ? (
+              <div className={controlStyles.sectionMeta}>{runtimeLaunchToolingPlaneSummary}</div>
+            ) : null}
+            {runtimeLaunchEvalPlaneSummary ? (
+              <div className={controlStyles.sectionMeta}>{runtimeLaunchEvalPlaneSummary}</div>
             ) : null}
             {runtimeLaunchPreparation?.delegationPlan?.batches.length ? (
               <div className={controlStyles.sectionMeta}>

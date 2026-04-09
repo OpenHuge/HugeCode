@@ -29,6 +29,9 @@ It returns runtime-owned preparation truth:
 
 - `runIntent`
 - `contextWorkingSet`
+- `contextPlane`
+- `toolingPlane`
+- `evalPlane`
 - `executionGraph`
 - `approvalBatches`
 - `validationPlan`
@@ -37,6 +40,20 @@ It returns runtime-owned preparation truth:
 These fields are the canonical runtime summary for launch preparation. New UI
 surfaces must read them instead of re-deriving intent clarity, repo context,
 approval grouping, or validation scope locally.
+
+`contextPlane` is the long-lived context interface for memory refs, artifact
+refs, compaction summary, and working-set policy. It exists so clients can keep
+context management stable as model behavior changes.
+
+`toolingPlane` is the long-lived tooling interface for capability catalog,
+sandbox policy, MCP sources, and tool call/result references. It exists so
+clients do not need to productize model-specific prompting hacks around tool
+selection or sandbox semantics.
+
+`evalPlane` is the long-lived upgrade interface for eval cases, model baselines,
+regression budgets, and the model-release playbook. It exists so stronger
+models remove prompt and orchestration workarounds without forcing a product
+contract rewrite.
 
 ## Compatibility posture
 

@@ -861,6 +861,38 @@ function createRuntimeLaunchPreparationFixture() {
       sourceMetadata: [],
       consumers: ["run", "review_pack", "takeover", "follow_up"],
     },
+    contextPlane: {
+      summary:
+        "Runtime publishes the governed working set separately from the current model window.",
+      memoryRefs: [
+        {
+          id: "repo-guidance-memory",
+          kind: "repo_guidance",
+          label: "Repo guidance memory",
+          summary: "Canonical repo rules remain available outside the live context window.",
+        },
+      ],
+      artifactRefs: [
+        {
+          id: "validation-plan:standard",
+          kind: "validation_plan",
+          label: "Standard validation plan",
+          summary: "Validation plan artifact for the standard governed launch path.",
+        },
+        {
+          id: "review-pack-template",
+          kind: "review_pack",
+          label: "Review Pack template",
+          summary: "Review evidence template for governed coding runs.",
+        },
+      ],
+      compactionSummary: "Compaction keeps repo guidance and validation artifacts durable.",
+      workingSetPolicy: {
+        retentionMode: "window_and_memory" as const,
+        refreshTrigger: "run_prepare" as const,
+        selectionPolicy: "governed_balanced" as const,
+      },
+    },
     guidanceStack: {
       summary: "Guidance resolves through launch -> repo.",
       precedence: ["launch", "repo"],
@@ -875,6 +907,86 @@ function createRuntimeLaunchPreparationFixture() {
           instructions: ["Prefer runtime-owned truth over page-local heuristics."],
           skillIds: [],
         },
+      ],
+    },
+    toolingPlane: {
+      summary:
+        "Runtime publishes a stable capability catalog and sandbox contract so model upgrades do not require product-level tool-selection workarounds.",
+      capabilityCatalog: {
+        summary: "Stable governed launch capabilities for runtime planning, tooling, and review.",
+        capabilities: [
+          {
+            id: "runtime.launch",
+            label: "Runtime launch",
+            summary: "Prepare and launch governed runs.",
+            posture: "core" as const,
+          },
+          {
+            id: "runtime.tooling",
+            label: "Runtime tooling",
+            summary: "Publish tooling and sandbox posture.",
+            posture: "core" as const,
+          },
+          {
+            id: "runtime.review_pack",
+            label: "Review Pack",
+            summary: "Publish governed review evidence.",
+            posture: "core" as const,
+          },
+        ],
+      },
+      sandboxRef: {
+        postureId: "balanced-delegate",
+        label: "Balanced Delegate",
+        toolPosture: "workspace_safe" as const,
+        approvalSensitivity: "standard" as const,
+      },
+      mcpSources: [
+        {
+          id: "workspace-skill:repo-guidance",
+          label: "repo-guidance",
+          sourceType: "workspace_skill" as const,
+          summary: "Workspace skill source for governed repo guidance.",
+        },
+      ],
+      toolCallRefs: [],
+      toolResultRefs: [],
+    },
+    evalPlane: {
+      summary:
+        "Runtime publishes upgrade-stable eval cases so model improvements delete workarounds instead of redefining product contracts.",
+      evalCases: [
+        {
+          id: "launch:balanced-delegate",
+          label: "Balanced Delegate launch baseline",
+          taskFamily: "github_issue",
+          summary:
+            "Keep governed launch preparation stable across model upgrades and route changes.",
+          successEnvelope:
+            "Prepare should keep task/run/review semantics stable while preserving validation and routing visibility.",
+          modelBaseline: "Balanced Delegate execution profile",
+          regressionBudget:
+            "No regression in launch plan shape, validation attachment, or backend inspectability.",
+          source: "runtime_prepare" as const,
+          trackedWorkarounds: [],
+        },
+        {
+          id: "validation:review-first",
+          label: "Validation preset review-first",
+          taskFamily: "validation",
+          summary: "Validation defaults stay attached as durable governed evidence.",
+          successEnvelope:
+            "Validation commands, preset identity, and review handoff remain reusable across model releases.",
+          modelBaseline: "review-first",
+          regressionBudget: "No regression in validation-plan publication or attachment semantics.",
+          source: "repository_contract" as const,
+          trackedWorkarounds: [],
+        },
+      ],
+      modelReleasePlaybook: [
+        "Re-run governed eval cases before adopting a new default model or route.",
+        "Delete model-specific prompt or orchestration workarounds that the new baseline makes unnecessary.",
+        "Only widen product behavior after the eval plane shows stable launch, validation, and review evidence.",
       ],
     },
     triageSummary: {
@@ -2178,6 +2290,21 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(
       screen.getByText("Repo guidance: AGENTS.md, CLAUDE.md, .github/copilot-instructions.md")
     ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Context plane: Memory refs: 1 | Artifacts: 2 | Retention: window_and_memory | Compaction: Compaction keeps repo guidance and validation artifacts durable."
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Tooling plane: Capabilities: 3 | Tool posture: workspace_safe | Approval sensitivity: standard | MCP sources: 1"
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Eval plane: Eval cases: 2 | Baseline: Balanced Delegate execution profile | Playbook steps: 3"
+      )
+    ).toBeTruthy();
   });
 
   it("shows repo-derived launch defaults and uses the repo default profile when untouched", async () => {
@@ -3309,19 +3436,25 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     render(<WorkspaceHomeAgentRuntimeOrchestration workspaceId="ws-approval" />);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Resume recoverable runs (1)" })).toBeTruthy();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByRole("button", { name: "Resume recoverable runs (1)" })).toBeTruthy();
+      },
+      { timeout: 5_000 }
+    );
 
-    await waitFor(() => {
-      expect(
-        (
-          screen.getByRole("button", {
-            name: "Resume recoverable runs (1)",
-          }) as HTMLButtonElement
-        ).disabled
-      ).toBe(false);
-    });
+    await waitFor(
+      () => {
+        expect(
+          (
+            screen.getByRole("button", {
+              name: "Resume recoverable runs (1)",
+            }) as HTMLButtonElement
+          ).disabled
+        ).toBe(false);
+      },
+      { timeout: 5_000 }
+    );
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -3329,13 +3462,16 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       })
     );
 
-    await waitFor(() => {
-      expect(resumeAgentTask).toHaveBeenCalledWith({ runId: "runtime-batch-nested" });
-      expect(
-        screen.getByText("Resumed 0 recoverable run(s). 1 failed to call resume.")
-      ).toBeTruthy();
-      expect(screen.getByText("Resume errors: runtime.transport.fetch_failed")).toBeTruthy();
-    });
+    await waitFor(
+      () => {
+        expect(resumeAgentTask).toHaveBeenCalledWith({ runId: "runtime-batch-nested" });
+        expect(
+          screen.getByText("Resumed 0 recoverable run(s). 1 failed to call resume.")
+        ).toBeTruthy();
+        expect(screen.getByText("Resume errors: runtime.transport.fetch_failed")).toBeTruthy();
+      },
+      { timeout: 5_000 }
+    );
   });
 
   it("shows blocked continuity readiness when runtime review actionability is blocked", async () => {
