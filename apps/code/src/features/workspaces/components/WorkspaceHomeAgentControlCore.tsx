@@ -15,6 +15,7 @@ import {
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
 import { useRuntimeWebMcpContextPolicy } from "../../../application/runtime/facades/runtimeWebMcpContextPolicy";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
+import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
 import type { ApprovalRequest, RequestUserInputRequest, WorkspaceInfo } from "../../../types";
 import { useRuntimeWebMcpCatalogRevision } from "../../app/hooks/useRuntimeWebMcpCatalogRevision";
 import { WorkspaceHomeAgentIntentSection } from "./WorkspaceHomeAgentIntentSection";
@@ -47,6 +48,7 @@ type WorkspaceHomeAgentControlProps = {
   };
   approvals: ApprovalRequest[];
   userInputRequests: RequestUserInputRequest[];
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void;
 };
 
 function readRuntimeWorkspace(
@@ -143,6 +145,7 @@ export function WorkspaceHomeAgentControl({
   activeModelContext,
   approvals,
   userInputRequests,
+  onOpenMissionTarget,
 }: WorkspaceHomeAgentControlProps) {
   const runtimeWorkspace = useMemo(() => readRuntimeWorkspace(workspace), [workspace]);
   const [intent, setIntent] = useState<AgentIntentState>(DEFAULT_INTENT);
@@ -576,6 +579,7 @@ export function WorkspaceHomeAgentControl({
             workspaceId={workspace.id}
             workspace={runtimeWorkspace}
             intent={intent}
+            onOpenMissionTarget={onOpenMissionTarget}
           />
         </Suspense>
       </WorkspaceHomeAgentLazySection>

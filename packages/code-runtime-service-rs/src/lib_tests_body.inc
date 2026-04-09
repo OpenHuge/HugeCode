@@ -7025,6 +7025,83 @@ exit 1
     }
 
     #[tokio::test]
+    async fn runtime_run_start_v2_materializes_parallel_safe_sub_agent_lanes() {
+        let app = test_router();
+        let prepare_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_runtime_run_prepare_v2",
+                "params": {
+                    "workspaceId": "workspace-web",
+                    "title": "Parallel safe delegation mission",
+                    "executionProfileId": "balanced-delegate",
+                    "steps": [
+                        {
+                            "kind": "read",
+                            "input": "Inspect the runtime sub-agent contract."
+                        },
+                        {
+                            "kind": "diagnostics",
+                            "input": "Validate the mission-control boundary."
+                        }
+                    ]
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(prepare_payload["ok"], Value::Bool(true));
+        let approved_plan_version = prepare_payload["result"]["plan"]["planVersion"]
+            .as_str()
+            .expect("prepare plan version")
+            .to_string();
+
+        let start_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_runtime_run_start_v2",
+                "params": {
+                    "workspaceId": "workspace-web",
+                    "title": "Parallel safe delegation mission",
+                    "executionProfileId": "balanced-delegate",
+                    "approvedPlanVersion": approved_plan_version,
+                    "steps": [
+                        {
+                            "kind": "read",
+                            "input": "Inspect the runtime sub-agent contract."
+                        },
+                        {
+                            "kind": "diagnostics",
+                            "input": "Validate the mission-control boundary."
+                        }
+                    ]
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(start_payload["ok"], Value::Bool(true), "payload: {start_payload:#}");
+        let run_id = start_payload["result"]["run"]["taskId"]
+            .as_str()
+            .expect("runtime run id")
+            .to_string();
+        let sub_agents = start_payload["result"]["missionRun"]["subAgents"]
+            .as_array()
+            .expect("mission run sub agents");
+        assert_eq!(sub_agents.len(), 2);
+        assert!(sub_agents.iter().any(|entry| {
+            entry["scopeProfile"] == Value::String("research".to_string())
+                && entry["parentRunId"] == Value::String(run_id.clone())
+                && entry["sessionId"].as_str().is_some_and(|value| !value.trim().is_empty())
+        }));
+        assert!(sub_agents.iter().any(|entry| {
+            entry["scopeProfile"] == Value::String("review".to_string())
+                && entry["parentRunId"] == Value::String(run_id.clone())
+                && entry["sessionId"].as_str().is_some_and(|value| !value.trim().is_empty())
+        }));
+    }
+
+    #[tokio::test]
     async fn mission_control_snapshot_reports_runtime_fallback_placement() {
         let app = test_router();
         let _ = send_rpc_request(

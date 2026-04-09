@@ -909,6 +909,7 @@ export function Home({
                   }
                   approvals={approvals}
                   userInputRequests={userInputRequests}
+                  onOpenMissionTarget={onOpenMissionTarget}
                 />
               </Suspense>
             </div>

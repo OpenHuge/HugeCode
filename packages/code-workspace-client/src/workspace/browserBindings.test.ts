@@ -73,6 +73,44 @@ describe("browser workspace bindings", () => {
     expect(startRequest.method).toBe(CODE_RUNTIME_RPC_METHODS.RUN_START_V2);
   });
 
+  it("routes browser sub-agent control through canonical runtime sub-agent rpc methods", async () => {
+    process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
+    const fetchMock = vi.fn(async (_input: unknown, _init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        result: {
+          sessionId: "session-1",
+        },
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runtime = createBrowserWorkspaceClientRuntimeBindings();
+
+    await runtime.subAgents.spawn({ workspaceId: "workspace-1" });
+    await runtime.subAgents.send({ sessionId: "session-1", instruction: "Inspect runtime truth." });
+    await runtime.subAgents.wait({ sessionId: "session-1" });
+    await runtime.subAgents.status({ sessionId: "session-1" });
+    await runtime.subAgents.interrupt({ sessionId: "session-1" });
+    await runtime.subAgents.close({ sessionId: "session-1" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+    const methods = fetchMock.mock.calls.map((call) => {
+      const request = JSON.parse(String(call[1]?.body)) as { method?: string };
+      return request.method;
+    });
+    expect(methods).toEqual([
+      CODE_RUNTIME_RPC_METHODS.SUB_AGENT_SPAWN,
+      CODE_RUNTIME_RPC_METHODS.SUB_AGENT_SEND,
+      CODE_RUNTIME_RPC_METHODS.SUB_AGENT_WAIT,
+      CODE_RUNTIME_RPC_METHODS.SUB_AGENT_STATUS,
+      CODE_RUNTIME_RPC_METHODS.SUB_AGENT_INTERRUPT,
+      CODE_RUNTIME_RPC_METHODS.SUB_AGENT_CLOSE,
+    ]);
+  });
+
   it("prefers kernel projection bootstrap truth for mission control", async () => {
     process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {

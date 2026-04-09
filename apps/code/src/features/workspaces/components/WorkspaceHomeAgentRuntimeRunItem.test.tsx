@@ -102,7 +102,13 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         task={buildTask()}
         run={buildRun({
           placement: {
+            resolvedBackendId: "backend-local",
+            requestedBackendIds: [],
+            resolutionSource: "workspace_default",
+            lifecycleState: "fallback",
             readiness: "attention",
+            healthSummary: "placement_attention",
+            attentionReasons: ["fallback_backend_selected"],
             summary: "Launch fell back to the local runtime backend.",
             rationale: "Remote provider routing is not ready for this run.",
             fallbackReasonCode: "remote_provider_not_ready",
@@ -115,8 +121,6 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
             routeLabel: "Automatic workspace routing",
             routeHint: "Local/native fallback is handling this run.",
             health: "attention",
-            resolutionSource: "workspace_default",
-            lifecycleState: "fallback",
             enabledAccountCount: 0,
             readyAccountCount: 0,
             enabledPoolCount: 0,
@@ -155,5 +159,60 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
     expect(
       within(observability).getByText("Fallback reason: remote_provider_not_ready")
     ).toBeTruthy();
+  });
+
+  it("opens runtime-published child continuation targets from takeover truth", () => {
+    const noop = vi.fn();
+    const onOpenMissionTarget = vi.fn();
+
+    render(
+      <WorkspaceHomeAgentRuntimeRunItem
+        task={buildTask({ threadId: "thread-runtime-1" })}
+        run={buildRun({
+          reviewPackId: "review-pack-parent",
+          subAgents: [
+            {
+              sessionId: "session-review",
+              status: "failed",
+              summary: "Review delegate is blocked on operator follow-up.",
+              takeoverBundle: {
+                state: "attention",
+                pathKind: "review",
+                primaryAction: "open_review_pack",
+                summary: "Open the delegated review pack.",
+                recommendedAction: "Inspect the delegated review continuation.",
+                target: {
+                  kind: "review_pack",
+                  workspaceId: "workspace-1",
+                  taskId: "runtime-task-1",
+                  runId: "runtime-task-1",
+                  reviewPackId: "review-pack-child",
+                },
+              },
+            },
+          ],
+        })}
+        continuityItem={null}
+        runtimeLoading={false}
+        onRefresh={noop}
+        onInterrupt={noop}
+        onOpenMissionTarget={onOpenMissionTarget}
+        onResume={noop}
+        onIntervene={noop}
+        onPrepareLauncher={noop}
+        onApproval={noop}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Open review" }));
+
+    expect(onOpenMissionTarget).toHaveBeenCalledWith({
+      kind: "review",
+      workspaceId: "workspace-1",
+      taskId: "runtime-task-1",
+      runId: "runtime-task-1",
+      reviewPackId: "review-pack-child",
+      limitation: null,
+    });
   });
 });

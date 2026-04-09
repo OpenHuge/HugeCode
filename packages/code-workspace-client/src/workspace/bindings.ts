@@ -38,6 +38,16 @@ import type {
   RuntimeRunResumeV2Response,
   RuntimeRunStartRequest,
   RuntimeRunStartV2Response,
+  SubAgentCloseAck,
+  SubAgentCloseRequest,
+  SubAgentInterruptAck,
+  SubAgentInterruptRequest,
+  SubAgentSendRequest,
+  SubAgentSendResult,
+  SubAgentSessionSummary,
+  SubAgentSpawnRequest,
+  SubAgentWaitRequest,
+  SubAgentWaitResult,
   ThreadSummary,
   WorkspaceFileContent,
   WorkspaceFileSummary,
@@ -173,6 +183,15 @@ export type WorkspaceClientRuntimeAgentControlBindings = {
   ) => Promise<RuntimeRunCheckpointApprovalAck>;
 };
 
+export type WorkspaceClientRuntimeSubAgentBindings = {
+  spawn: (input: SubAgentSpawnRequest) => Promise<SubAgentSessionSummary>;
+  send: (input: SubAgentSendRequest) => Promise<SubAgentSendResult>;
+  wait: (input: SubAgentWaitRequest) => Promise<SubAgentWaitResult>;
+  status: (input: { sessionId: string }) => Promise<SubAgentSessionSummary | null>;
+  interrupt: (input: SubAgentInterruptRequest) => Promise<SubAgentInterruptAck>;
+  close: (input: SubAgentCloseRequest) => Promise<SubAgentCloseAck>;
+};
+
 /**
  * Compatibility-only thread lifecycle bindings.
  *
@@ -249,6 +268,7 @@ export type WorkspaceClientRuntimeBindings = {
   kernelProjection?: WorkspaceClientRuntimeKernelProjectionBindings;
   runtimeUpdated?: WorkspaceClientRuntimeUpdatedBindings;
   agentControl: WorkspaceClientRuntimeAgentControlBindings;
+  subAgents: WorkspaceClientRuntimeSubAgentBindings;
   threads: WorkspaceClientRuntimeThreadsBindings;
   git: WorkspaceClientRuntimeGitBindings;
   workspaceFiles: WorkspaceClientRuntimeWorkspaceFilesBindings;

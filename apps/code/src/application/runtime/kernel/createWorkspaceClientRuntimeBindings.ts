@@ -33,6 +33,14 @@ import {
   startRuntimeRunV2,
 } from "../ports/runtimeJobs";
 import {
+  closeSubAgentSession,
+  getSubAgentSessionStatus,
+  interruptSubAgentSession,
+  sendSubAgentInstruction,
+  spawnSubAgentSession,
+  waitSubAgentSession,
+} from "../ports/runtimeSubAgents";
+import {
   archiveRuntimeThread,
   createRuntimeThread,
   listRuntimeThreads,
@@ -146,6 +154,14 @@ export function createWorkspaceClientRuntimeBindings(
       resumeRuntimeRun,
       interveneRuntimeRun,
       submitRuntimeJobApprovalDecision,
+    },
+    subAgents: {
+      spawn: async (input) => spawnSubAgentSession(input),
+      send: async (input) => sendSubAgentInstruction(input),
+      wait: async (input) => waitSubAgentSession(input),
+      status: async (input) => getSubAgentSessionStatus(input),
+      interrupt: async (input) => interruptSubAgentSession(input),
+      close: async (input) => closeSubAgentSession(input),
     },
     threads: {
       listThreads: async (input) => listRuntimeThreads(input.workspaceId),

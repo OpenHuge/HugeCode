@@ -459,6 +459,20 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
           input
         ),
     },
+    subAgents: {
+      spawn: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.SUB_AGENT_SPAWN, input),
+      send: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.SUB_AGENT_SEND, input),
+      wait: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.SUB_AGENT_WAIT, input),
+      status: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.SUB_AGENT_STATUS, input),
+      interrupt: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.SUB_AGENT_INTERRUPT, input),
+      close: async (input) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.SUB_AGENT_CLOSE, input),
+    },
     threads: {
       listThreads: async (input) =>
         await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.THREADS_LIST, input),

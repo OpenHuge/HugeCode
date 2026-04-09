@@ -4,6 +4,8 @@ use super::runtime_kernel_v2_plan::{build_prepare_plan, build_validation_lanes};
 mod execution_summary;
 #[path = "rpc_dispatch_runtime_kernel_v2_run_id.rs"]
 mod run_id;
+#[path = "rpc_dispatch_runtime_kernel_v2_sub_agent_materialization.rs"]
+mod sub_agent_materialization;
 use super::*;
 use crate::agent_policy::{
     normalize_access_mode, normalize_agent_profile, normalize_reason_effort,
@@ -18,6 +20,7 @@ use crate::repository_execution_contract::RepositoryExecutionResolvedDefaults;
 use crate::runtime_helpers::normalize_agent_task_source_summary;
 use execution_summary::{inject_runtime_execution_summaries, serialize_review_pack_with_runtime_summaries};
 use run_id::parse_run_id;
+use sub_agent_materialization::materialize_parallel_safe_sub_agent_lanes;
 use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
 
 fn normalize_execution_mode_v2(value: Option<&str>) -> Result<&'static str, RpcError> {
@@ -70,10 +73,6 @@ fn build_missing_context(
     missing
 }
 
-fn has_repo_instruction_sources(workspace_context: &WorkspaceLaunchContext) -> bool {
-    !workspace_context.repo_instruction_sources.is_empty()
-}
-
 fn summarize_repo_instruction_sources(sources: &[String], max_items: usize) -> String {
     if sources.is_empty() {
         return "No repo instruction surfaces".to_string();
@@ -113,7 +112,7 @@ fn build_context_working_set(
                 "source": root,
             })
         }),
-        has_repo_instruction_sources(workspace_context).then(|| {
+        (!workspace_context.repo_instruction_sources.is_empty()).then(|| {
             json!({
                 "id": "repo-instruction-surfaces",
                 "label": "Repo instruction surfaces",
@@ -378,7 +377,7 @@ fn build_guidance_stack(
     has_explicit_instruction: bool,
 ) -> Value {
     let mut layers = Vec::new();
-    if has_repo_instruction_sources(workspace_context) {
+    if !workspace_context.repo_instruction_sources.is_empty() {
         let repo_instructions = if repository_defaults.repo_instructions.is_empty() {
             vec![
                 "Prefer runtime-owned truth over page-local heuristics.".to_string(),
@@ -988,7 +987,7 @@ fn build_intent_snapshot(
             "confidence": "medium",
         }));
     }
-    if has_repo_instruction_sources(workspace_context) {
+    if !workspace_context.repo_instruction_sources.is_empty() {
         signals.push(json!({
             "kind": "repo_rule",
             "summary": format!(
@@ -1090,7 +1089,7 @@ fn build_source_citations(
     workspace_context: &WorkspaceLaunchContext,
 ) -> Vec<Value> {
     let mut citations = Vec::new();
-    if has_repo_instruction_sources(workspace_context) {
+    if !workspace_context.repo_instruction_sources.is_empty() {
         for source in workspace_context.repo_instruction_sources.iter().take(4) {
             citations.push(json!({
                 "id": format!("repo-instruction-{}", source.replace(['/', '.'], "-")),
@@ -1585,6 +1584,7 @@ pub(crate) async fn handle_runtime_run_start_v2(
         .or_else(|| start.get("runId"))
         .and_then(Value::as_str)
         .ok_or_else(|| RpcError::internal("runtime run start v2 missing taskId"))?;
+    materialize_parallel_safe_sub_agent_lanes(ctx, run_id, &request, &prepare).await;
     build_run_record_v2(ctx, run_id).await
 }
 
