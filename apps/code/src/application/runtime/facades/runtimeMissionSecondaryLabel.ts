@@ -1,5 +1,5 @@
-import type { MissionControlProjection } from "./runtimeMissionControlFacade";
-import { resolveTaskSourceSecondaryLabel } from "./runtimeMissionControlTaskSourceProjector";
+import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
+import { resolveTaskSourceSecondaryLabel } from "@ku0/code-application/runtimeMissionControlTaskSourceProjector";
 
 export function buildMissionSecondaryLabel(input: {
   isRuntimeManaged: boolean;

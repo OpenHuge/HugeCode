@@ -5,7 +5,7 @@ import {
   type ReviewInterventionAvailability,
   type ReviewPackDecisionState,
   type RuntimeReviewPackDecisionActionModel,
-} from "../../../application/runtime/facades/runtimeReviewPackDecisionActionsFacade";
+} from "@ku0/code-application/runtimeReviewPackDecisionActionsFacade";
 
 export type ReviewPackDecisionActionModel =
   RuntimeReviewPackDecisionActionModel<MissionNavigationTarget>;
