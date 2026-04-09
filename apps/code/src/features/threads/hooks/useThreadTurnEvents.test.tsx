@@ -12,7 +12,7 @@ vi.mock("../../../application/runtime/facades/runtimeTurnPlanProjection", () => 
   normalizePlanUpdate: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
+vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     interruptTurn: ({ threadId, turnId }: Record<string, unknown>) =>
       interruptTurn(workspaceId, threadId, turnId),

@@ -1,6 +1,8 @@
 import {
+  type AgentTaskStatus,
   CODE_RUNTIME_RPC_METHODS,
   type DistributedTaskGraph,
+  type RuntimeRunRecordV2,
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeCapabilitiesSummary } from "@ku0/code-runtime-client/runtimeClientTypes";
 import {
@@ -8,13 +10,9 @@ import {
   type DistributedTaskGraphSnapshot,
   normalizeDistributedTaskGraphSnapshot,
 } from "../types/distributedTaskGraph";
-import { distributedTaskGraph } from "../ports/tauriThreads";
-import { getRuntimeCapabilitiesSummary } from "../ports/tauriRuntime";
-import {
-  cancelRuntimeJob,
-  interveneRuntimeJob,
-  type RuntimeJobInterventionAck,
-} from "../ports/tauriRuntimeJobs";
+import { distributedTaskGraph } from "../ports/threads";
+import { getRuntimeCapabilitiesSummary } from "../ports/runtime";
+import { cancelRuntimeRun, interveneRuntimeRun } from "../ports/runtimeJobs";
 
 export type RuntimeDistributedTaskGraphSupport = {
   capabilityEnabled: boolean;
@@ -32,6 +30,32 @@ export const DEFAULT_RUNTIME_DISTRIBUTED_TASK_GRAPH_SUPPORT: RuntimeDistributedT
   readOnlyReason: null,
 };
 
+export type RuntimeDistributedTaskGraphRetryResult = {
+  accepted: true;
+  runId: string;
+  status: AgentTaskStatus;
+  spawnedRunId: string | null;
+  checkpointId: string | null;
+};
+
+function projectRuntimeDistributedTaskGraphRetryResult(
+  record: RuntimeRunRecordV2,
+  sourceRunId: string
+): RuntimeDistributedTaskGraphRetryResult {
+  return {
+    accepted: true,
+    runId: record.run.taskId,
+    status: record.run.status,
+    spawnedRunId: record.run.taskId === sourceRunId ? null : record.run.taskId,
+    checkpointId:
+      record.run.checkpointId ??
+      record.run.checkpointState?.checkpointId ??
+      record.missionRun.checkpoint?.checkpointId ??
+      record.missionRun.ledger?.checkpointId ??
+      null,
+  };
+}
+
 export function buildRuntimeDistributedTaskGraphSupport(
   summary: RuntimeCapabilitiesSummary
 ): RuntimeDistributedTaskGraphSupport {
@@ -39,12 +63,8 @@ export function buildRuntimeDistributedTaskGraphSupport(
   const supportsGraphMethod = summary.methods.includes(
     CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH
   );
-  const supportsInterruptMethod = summary.methods.includes(
-    CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_CANCEL_V3
-  );
-  const supportsRetryMethod = summary.methods.includes(
-    CODE_RUNTIME_RPC_METHODS.KERNEL_JOB_INTERVENE_V3
-  );
+  const supportsInterruptMethod = summary.methods.includes(CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2);
+  const supportsRetryMethod = summary.methods.includes(CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2);
 
   let readOnlyReason: string | null = null;
   if (hasCapability) {
@@ -103,7 +123,7 @@ export async function interruptRuntimeDistributedTaskGraphTasks(taskIds: string[
 
   const acknowledgements = await Promise.all(
     normalizedTaskIds.map((taskId) =>
-      cancelRuntimeJob({
+      cancelRuntimeRun({
         runId: taskId,
         reason: "ui:distributed_control_interrupt",
       })
@@ -121,15 +141,15 @@ export async function interruptRuntimeDistributedTaskGraphTasks(taskIds: string[
 
 export async function retryRuntimeDistributedTaskGraphNode(
   nodeId: string
-): Promise<RuntimeJobInterventionAck> {
+): Promise<RuntimeDistributedTaskGraphRetryResult> {
   const normalizedNodeId = nodeId.trim();
   if (!normalizedNodeId) {
     throw new Error("Distributed graph retry requires a task id.");
   }
 
-  return interveneRuntimeJob({
+  return interveneRuntimeRun({
     runId: normalizedNodeId,
     action: "retry",
     reason: "ui:distributed_control_retry",
-  });
+  }).then((record) => projectRuntimeDistributedTaskGraphRetryResult(record, normalizedNodeId));
 }

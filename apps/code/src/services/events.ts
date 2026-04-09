@@ -656,7 +656,6 @@ function createEventHub<T>(eventName: string) {
     if (unlisten || listenPromise || listeners.size === 0) {
       return;
     }
-    if (!isDesktopHostRuntimeRuntime()) {
     stopRequestedWhileListening = false;
     if (!isDesktopHostRuntimeRuntime()) {
       return;
