@@ -860,6 +860,7 @@ export function WorkspaceHomeAgentRuntimeRunItem({
             ) : (
               <div className={styles.subAgentList}>
                 {subAgents.map((agent) => {
+                  const approvalState = agent.approvalState ?? null;
                   const checkpointSummary =
                     agent.checkpointState?.summary ??
                     (agent.checkpointState?.checkpointId
@@ -867,10 +868,8 @@ export function WorkspaceHomeAgentRuntimeRunItem({
                       : null);
                   const takeoverSummary = agent.takeoverBundle?.summary ?? null;
                   const takeoverRecommendedAction = agent.takeoverBundle?.recommendedAction ?? null;
-                  const approvalSummary = isPendingSubAgentApprovalStatus(
-                    agent.approvalState?.status
-                  )
-                    ? (agent.approvalState.reason ?? "Runtime is waiting for approval.")
+                  const approvalSummary = isPendingSubAgentApprovalStatus(approvalState?.status)
+                    ? (approvalState?.reason ?? "Runtime is waiting for approval.")
                     : null;
                   const resultSummary = agent.resultSummary?.summary ?? null;
                   const resultNextAction = agent.resultSummary?.nextAction ?? null;
@@ -884,10 +883,8 @@ export function WorkspaceHomeAgentRuntimeRunItem({
                   const sessionNodeCount = graphNodes.filter(
                     (node) => node.executorSessionId === agent.sessionId
                   ).length;
-                  const pendingApprovalId = isPendingSubAgentApprovalStatus(
-                    agent.approvalState?.status
-                  )
-                    ? (agent.approvalState.approvalId ?? null)
+                  const pendingApprovalId = isPendingSubAgentApprovalStatus(approvalState?.status)
+                    ? (approvalState?.approvalId ?? null)
                     : null;
                   const canApproveSubAgent =
                     !runtimeLoading &&
