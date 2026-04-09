@@ -1,7 +1,10 @@
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
 import { describe, expect, it } from "vitest";
 import { parseRepositoryExecutionContract } from "../../../application/runtime/facades/runtimeRepositoryExecutionContract";
-import { buildReviewPackDetailModel, resolveReviewPackSelection } from "./reviewPackSurfaceModel";
+import {
+  buildReviewPackDetailModel,
+  resolveReviewPackSelection,
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 
 function requireReviewPackDetail(detail: ReturnType<typeof buildReviewPackDetailModel>) {
   expect(detail?.kind).toBe("review_pack");

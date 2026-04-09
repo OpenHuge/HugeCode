@@ -1,13 +1,21 @@
 // @vitest-environment jsdom
 import { render, screen, within } from "@testing-library/react";
+import { resolveReviewPackSelection } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
-import { describe, expect, it } from "vitest";
-import { resolveReviewPackSelection } from "../../../application/runtime/facades/runtimeReviewPackSurfaceFacade";
+import { describe, expect, it, vi } from "vitest";
 import { ReviewPackSurfaceFromProjection } from "./ReviewPackSurfaceFromProjection";
 
 function asProjection(value: unknown): HugeCodeMissionControlSnapshot {
   return value as HugeCodeMissionControlSnapshot;
 }
+
+vi.mock("../../../application/runtime/facades/runtimeReviewIntelligenceFacade", () => ({
+  useRuntimeWorkspaceSkillCatalog: () => ({
+    status: "idle",
+    entries: [],
+    error: null,
+  }),
+}));
 
 describe("ReviewPackSurfaceFromProjection", () => {
   it("threads continuity continue-path labels into the compact review evidence card", () => {

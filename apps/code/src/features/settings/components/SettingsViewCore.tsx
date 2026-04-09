@@ -28,7 +28,7 @@ import { SettingsSectionContent } from "./SettingsSectionContent";
 import { desktopSettingsShellFraming } from "./desktopSettingsShellFraming";
 import { AcpBackendEditorDialog } from "./sections/settings-backend-pool/AcpBackendEditorDialog";
 import { NativeBackendEditorDialog } from "./sections/settings-backend-pool/NativeBackendAddDialog";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import type { OrbitServiceClient } from "./settingsTypes";
 import {
   COMPOSER_PRESET_CONFIGS,

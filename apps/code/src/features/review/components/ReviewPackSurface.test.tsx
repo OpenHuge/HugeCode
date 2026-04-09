@@ -9,6 +9,57 @@ vi.mock("../../shared/productAnalytics", () => ({
   trackProductAnalyticsEvent: vi.fn(async () => undefined),
 }));
 
+vi.mock("../../../application/runtime/facades/runtimeRemoteExecutionFacade", () => ({
+  resolvePreferredBackendIdsForRuntimeRunLaunch: async (
+    preferredBackendIds: string[] | null | undefined
+  ) => (preferredBackendIds && preferredBackendIds.length > 0 ? preferredBackendIds : null),
+}));
+
+vi.mock("./ReviewPackBrowserVerificationSection", () => ({
+  ReviewPackBrowserVerificationSection: () => null,
+  useReviewPackBrowserVerificationLane: (
+    detail:
+      | {
+          kind?: string;
+          artifacts?: unknown[];
+          reproductionGuidance?: string[];
+          limitations?: string[];
+          decisionActionability?: unknown;
+        }
+      | null
+      | undefined
+  ) => ({
+    attachments: [],
+    pendingCandidate: null,
+    displayedArtifacts: detail?.artifacts ?? [],
+    displayedReproductionGuidance:
+      detail?.kind !== "mission_run" ? (detail?.reproductionGuidance ?? []) : [],
+    displayedLimitations: detail?.limitations ?? [],
+    displayedDecisionActionability:
+      detail?.kind !== "mission_run" ? (detail?.decisionActionability ?? null) : null,
+    browserReadiness: {
+      headline: "Browser verification unavailable in unit tests.",
+      detail: "Browser runtime hooks are mocked in this suite.",
+      recommendedAction: "Use dedicated browser verification tests for runtime coverage.",
+    },
+    browserExtraction: {
+      input: { sourceUrl: "", selector: "" },
+      setSourceUrl: () => undefined,
+      setSelector: () => undefined,
+      canExtract: false,
+      canReviewLastResult: false,
+      extracting: false,
+      reviewingLastResult: false,
+      loading: false,
+      notice: null,
+      extract: async () => undefined,
+      reviewLastResult: async () => undefined,
+    },
+    attachPendingEvidence: () => undefined,
+    ignorePendingEvidence: () => undefined,
+  }),
+}));
+
 function buildEmptyReviewMetadata() {
   return {
     reviewProfileId: null,
@@ -1068,7 +1119,7 @@ describe("ReviewPackSurface", () => {
               checkpointState: "awaiting",
               contextBoundary: {
                 boundaryId: "boundary-1",
-                trigger: "spawn",
+                trigger: "sub_agent_spawn",
                 phase: "spawn",
                 status: "active",
               },
@@ -1576,8 +1627,16 @@ describe("ReviewPackSurface", () => {
               parentRunId: "run-1",
               scopeProfile: "review",
               status: "awaiting_approval",
+              delegationScope: null,
+              toolAccessProfile: null,
+              budgetInheritance: null,
+              knowledgeAccess: null,
               approvalState: "pending",
               checkpointState: "awaiting",
+              contextBoundary: null,
+              contextProjection: null,
+              resultSummary: null,
+              failureClass: null,
               summary: "Sub-agent is waiting for approval.",
               timedOutReason: null,
               interruptedReason: null,

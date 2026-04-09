@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildReviewPackDetailModel,
   resolveReviewPackSelection,
-} from "./runtimeReviewPackSurfaceFacade";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 
 function asProjection(value: unknown): HugeCodeMissionControlSnapshot {
   return value as HugeCodeMissionControlSnapshot;

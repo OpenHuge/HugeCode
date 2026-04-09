@@ -8,8 +8,8 @@ import { useLocalUsage } from "../../home/hooks/useLocalUsage";
 import type {
   MissionControlFreshnessState,
   MissionLatestRunEntry,
-} from "../../missions/utils/missionControlPresentation";
-import { buildLatestMissionRunsFromProjection } from "../../missions/utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
+import { buildLatestMissionRunsFromProjection } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import type { AppTab } from "../../shell/types/shellRoute";
 import type { ThreadStatusSummary } from "../../threads/utils/threadExecutionState";
 

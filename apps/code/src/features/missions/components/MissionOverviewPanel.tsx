@@ -12,11 +12,11 @@ import type {
   MissionNavigationTarget,
   MissionOverviewCounts,
   MissionOverviewEntry as MissionOverviewItem,
-} from "../utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import {
   formatMissionControlFreshnessLabel,
   formatMissionOverviewStateLabel,
-} from "../utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { resolveMissionEntryFallbackSummary } from "../utils/missionNavigation";
 import * as styles from "./MissionOverviewPanel.css";
 

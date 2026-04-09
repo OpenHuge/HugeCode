@@ -61,12 +61,12 @@ import type { TerminalTab } from "../../../terminal/hooks/useTerminalTabs";
 import type { ReviewPromptState, ReviewPromptStep } from "../../../threads/hooks/useReviewPrompt";
 import type { ThreadStatusSummary } from "../../../threads/utils/threadExecutionState";
 import type { PostUpdateNoticeState, UpdateState } from "../../../update/hooks/useUpdater";
-import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import type {
   ReviewPackSelectionRequest,
   ReviewPackSelectionState,
   ReviewPackDetailModel,
-} from "../../../review/utils/reviewPackSurfaceModel";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import type { ReviewPackDecisionSubmissionState } from "../../../review/hooks/useReviewPackDecisionActions";
 import type { MissionInterventionDraft } from "../../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MissionSurfaceDetailModel } from "../utils/reviewPackSurfaceModel";
+import type { MissionSurfaceDetailModel } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import {
   DEFAULT_REVIEW_BACKEND_OPTION,
   useReviewPackSurfaceController,

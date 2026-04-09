@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Select, type SelectOption } from "../../../../design-system";
-import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import type {
   AppSettings,
   BackendPoolBootstrapPreview,

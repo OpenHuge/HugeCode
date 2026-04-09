@@ -46,7 +46,7 @@ import {
   buildLatestMissionRunsFromProjection,
   type MissionNavigationTarget,
   describeMissionRunRouteDetail,
-} from "../../missions/utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { PinnedThreadList } from "./PinnedThreadList";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarMissionQueue } from "./SidebarMissionQueue";

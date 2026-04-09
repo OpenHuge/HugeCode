@@ -6,7 +6,7 @@ import {
   formatMissionControlFreshnessLabel,
   summarizeMissionControlSignals,
   type MissionControlFreshnessState,
-} from "../../missions/utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 
 export type HomeLatestAgentRun = {
   statusKind: "active" | "review_ready" | "needs_input" | "attention" | "recent_activity";

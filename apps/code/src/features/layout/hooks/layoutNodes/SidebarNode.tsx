@@ -1,4 +1,4 @@
-import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { deriveSidebarThreadStatusMap } from "../../../app/components/SidebarThreadStatus.logic";
 import { Sidebar } from "../../../app/components/Sidebar";
 import { flattenLayoutNodesOptions, type LayoutNodesOptions } from "./types";

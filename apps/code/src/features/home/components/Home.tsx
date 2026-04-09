@@ -41,7 +41,7 @@ import { PanelSplitToggleIcon } from "../../layout/components/PanelSplitToggleIc
 import {
   type MissionControlFreshnessState,
   type MissionNavigationTarget,
-} from "../../missions/utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { resolveMissionEntryActionLabel } from "../../missions/utils/missionNavigation";
 import "@ku0/code-workspace-client/settings-shell/SettingsModalChrome.global.css";
 import type { ReviewPromptState, ReviewPromptStep } from "../../threads/hooks/useReviewPrompt";

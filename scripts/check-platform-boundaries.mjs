@@ -9,6 +9,23 @@ const IMPORT_PATTERN = /(?:from\s+["']([^"']+)["']|import\(\s*["']([^"']+)["']\s
 
 const RULES = [
   {
+    id: "shared-control-plane-app-facade-import",
+    description:
+      "shared web/workspace surfaces must not import retired app-local Mission Control or Review Pack compatibility facades/projections",
+    roots: ["apps/code-web", "packages/code-workspace-client"],
+    appliesTo(relativeFilePath) {
+      return (
+        relativeFilePath.startsWith("apps/code-web/") ||
+        relativeFilePath.startsWith("packages/code-workspace-client/")
+      );
+    },
+    matches(_content, specifier) {
+      return /(?:^|\/)application\/runtime\/facades\/(?:runtimeMissionControlSurfaceModel|runtimeReviewPackSurfaceFacade|runtimeMissionControlRunProjection|runtimeMissionControlReviewPackProjection)(?:\.ts)?$/u.test(
+        specifier
+      );
+    },
+  },
+  {
     id: "shared-web-core-platform-import",
     description:
       "shared web core surfaces must not import desktop-host packages or Electron runtime APIs directly",

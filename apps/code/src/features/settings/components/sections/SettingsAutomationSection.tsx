@@ -13,7 +13,7 @@ import {
   SettingsFooterBar,
   SettingsControlRow,
 } from "../SettingsSectionGrammar";
-import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import * as controlStyles from "../SettingsFormControls.css";
 import * as grammar from "../SettingsSectionGrammar.css";
 import { SettingsToggleControl } from "../SettingsToggleControl";

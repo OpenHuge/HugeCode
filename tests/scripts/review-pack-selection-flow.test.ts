@@ -17,7 +17,7 @@ import {
 import {
   buildReviewPackDetailModel,
   resolveReviewPackSelection,
-} from "../../apps/code/src/features/review/utils/reviewPackSurfaceModel";
+} from "../../packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel";
 
 vi.mock("../../apps/code/src/application/runtime/ports/desktopAppSettings", () => ({
   getAppSettings: vi.fn(),

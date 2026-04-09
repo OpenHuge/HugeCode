@@ -2,12 +2,12 @@ import { lazy, Suspense } from "react";
 import { Text } from "../../../../design-system";
 import { GitDiffViewerPlaceholder } from "../../../git/components/GitDiffViewerPlaceholder";
 import { resolveBranchDisplayLabel } from "../../../git/utils/branchLabels";
-import { type MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
+import { type MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { openMissionTargetFromDesktopShell } from "../../../missions/utils/missionNavigation";
 import type {
   ReviewPackSelectionRequest,
   ReviewPackSelectionSource,
-} from "../../../review/utils/reviewPackSurfaceModel";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import {
   flattenLayoutNodesOptions,
   type LayoutNodesOptions,

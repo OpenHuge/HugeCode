@@ -107,7 +107,7 @@ describe("runtimeMissionControlFacade", () => {
         boundaryId: "boundary-1",
         trigger: "payload_bytes",
         phase: "pre_turn",
-        status: "projected",
+        status: "active",
         preTokens: 1024,
         postTokens: 256,
         preservedRangeIds: ["step-2"],
@@ -903,7 +903,7 @@ describe("runtimeMissionControlFacade", () => {
           output: null,
           metadata: {
             safety: {
-              path: "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts",
+              path: "packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts",
             },
           },
           startedAt: 2,
@@ -960,7 +960,7 @@ describe("runtimeMissionControlFacade", () => {
         totalCount: 2,
         summary: "2 runtime-recorded file changes",
         paths: [
-          "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts",
+          "packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts",
           "packages/code-runtime-host-contract/src/hugeCodeMissionControl.ts",
         ],
       },

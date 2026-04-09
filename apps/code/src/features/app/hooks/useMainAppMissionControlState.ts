@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { ConversationItem, DebugEntry, WorkspaceInfo } from "../../../types";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import type { AppTab } from "../../shell/types/shellRoute";
-import type { ReviewPackSelectionRequest } from "../../review/utils/reviewPackSurfaceModel";
+import type { ReviewPackSelectionRequest } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import { useMissionControlAttentionNotificationsController } from "./useMissionControlAttentionNotificationsController";
 import { useMissionControlCompletionNotificationsController } from "./useMissionControlCompletionNotificationsController";
 import { useMainAppAutoDriveState } from "./useMainAppAutoDriveState";
