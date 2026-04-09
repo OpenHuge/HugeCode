@@ -78,6 +78,7 @@ describe("RuntimeBootstrapEffects", () => {
       await waitFor(() => {
         expect(document.documentElement.dataset.desktopRuntime).toBe("electron");
         expect(document.documentElement.dataset.electronRuntime).toBe("true");
+        expect(document.documentElement.hasAttribute("data-desktop-runtime")).toBe(true);
       });
       expect(addDocumentListenerSpy).not.toHaveBeenCalledWith(
         "gesturestart",

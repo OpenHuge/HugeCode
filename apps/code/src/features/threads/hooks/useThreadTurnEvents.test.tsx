@@ -2,16 +2,17 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConversationItem, RateLimitSnapshot, TurnPlan } from "../../../types";
-import {
-  normalizePlanUpdate,
-  normalizeRateLimits,
-  normalizeTokenUsage,
-} from "../utils/threadNormalize";
+import { normalizePlanUpdate } from "../../../application/runtime/facades/runtimeTurnPlanProjection";
+import { normalizeRateLimits, normalizeTokenUsage } from "../utils/threadNormalize";
 import { useThreadTurnEvents } from "./useThreadTurnEvents";
 
 const interruptTurn = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
+vi.mock("../../../application/runtime/facades/runtimeTurnPlanProjection", () => ({
+  normalizePlanUpdate: vi.fn(),
+}));
+
+vi.mock("../../../application/runtime/ports/runtimeSessionCommands", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     interruptTurn: ({ threadId, turnId }: Record<string, unknown>) =>
       interruptTurn(workspaceId, threadId, turnId),
@@ -20,7 +21,6 @@ vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks",
 
 vi.mock("../utils/threadNormalize", () => ({
   asString: (value: unknown) => (typeof value === "string" ? value : value ? String(value) : ""),
-  normalizePlanUpdate: vi.fn(),
   normalizeRateLimits: vi.fn(),
   normalizeTokenUsage: vi.fn(),
 }));

@@ -1,8 +1,8 @@
 import type { MissionControlSnapshotState } from "@ku0/code-workspace-client";
 import { getMissionControlSnapshotStore } from "@ku0/code-workspace-client";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useRuntimeDistributedTaskGraphSupport } from "../../../application/runtime/facades/useRuntimeDistributedTaskGraphSupport";
 import { useRuntimeKernel } from "../../../application/runtime/kernel/RuntimeKernelContext";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
 import type { RateLimitSnapshot, ThreadTokenUsage, TurnPlan, WorkspaceInfo } from "../../../types";
 import { useLocalUsage } from "../../home/hooks/useLocalUsage";
 import type {
@@ -10,7 +10,6 @@ import type {
   MissionLatestRunEntry,
 } from "../../missions/utils/missionControlPresentation";
 import { buildLatestMissionRunsFromProjection } from "../../missions/utils/missionControlPresentation";
-import { DISTRIBUTED_SUBTASK_GRAPH_CAPABILITY } from "../../plan/types/distributedGraph";
 import type { AppTab } from "../../shell/types/shellRoute";
 import type { ThreadStatusSummary } from "../../threads/utils/threadExecutionState";
 
@@ -180,28 +179,8 @@ export function useMainAppHomeState({
     : null;
   const activeTokenUsage = activeThreadId ? (tokenUsageByThread[activeThreadId] ?? null) : null;
   const activePlan = activeThreadId ? (planByThread[activeThreadId] ?? null) : null;
-  const [distributedPlanSurfaceEnabled, setDistributedPlanSurfaceEnabled] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const summary = await getRuntimeCapabilitiesSummary();
-      if (cancelled) {
-        return;
-      }
-      const hasDistributedGraphCapability = summary.features.includes(
-        DISTRIBUTED_SUBTASK_GRAPH_CAPABILITY
-      );
-      const hasDistributedGraphMethod = summary.methods.includes("code_distributed_task_graph");
-      setDistributedPlanSurfaceEnabled(
-        hasDistributedGraphCapability && hasDistributedGraphMethod && !summary.error
-      );
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const distributedTaskGraphSupport = useRuntimeDistributedTaskGraphSupport();
+  const distributedPlanSurfaceEnabled = distributedTaskGraphSupport.capabilityEnabled;
 
   const hasActivePlan =
     activePlan && (activePlan.steps.length > 0 || activePlan.explanation)

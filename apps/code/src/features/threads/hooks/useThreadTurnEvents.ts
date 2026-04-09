@@ -2,15 +2,11 @@ import type { Dispatch, MutableRefObject } from "react";
 import { useCallback, useEffect, useRef } from "react";
 import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
 import type { ConversationItem, RateLimitSnapshot, TurnPlan } from "../../../types";
+import { normalizePlanUpdate } from "../../../application/runtime/facades/runtimeTurnPlanProjection";
 import { resolveRateLimitsSnapshot } from "../../../utils/rateLimits";
 import { getThreadTimestamp } from "../../../utils/threadItems";
 import type { ThreadExecutionState } from "../utils/threadExecutionState";
-import {
-  asString,
-  normalizePlanUpdate,
-  normalizeRateLimits,
-  normalizeTokenUsage,
-} from "../utils/threadNormalize";
+import { asString, normalizeRateLimits, normalizeTokenUsage } from "../utils/threadNormalize";
 import { getMeaningfulThreadName, truncateThreadName } from "../utils/threadTitle";
 import type { ThreadAction } from "./useThreadsReducer";
 

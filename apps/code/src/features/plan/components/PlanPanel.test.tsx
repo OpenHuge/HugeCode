@@ -1,25 +1,14 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { distributedTaskGraph } from "../../../application/runtime/ports/threads";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
-import { cancelRuntimeRun } from "../../../application/runtime/ports/runtimeJobs";
+import { useRuntimeDistributedTaskGraph } from "../../../application/runtime/facades/useRuntimeDistributedTaskGraph";
 import { PlanPanel } from "./PlanPanel";
 
-vi.mock("../../../application/runtime/ports/threads", () => ({
-  distributedTaskGraph: vi.fn(),
+vi.mock("../../../application/runtime/facades/useRuntimeDistributedTaskGraph", () => ({
+  useRuntimeDistributedTaskGraph: vi.fn(),
 }));
 
-vi.mock("../../../application/runtime/ports/runtime", () => ({
-  getRuntimeCapabilitiesSummary: vi.fn(),
-}));
-
-vi.mock("../../../application/runtime/ports/runtimeJobs", () => ({
-  cancelRuntimeRun: vi.fn(),
-}));
-
-vi.mock("../../../application/runtime/ports/desktopAppSettings", () => ({
+vi.mock("../../../application/runtime/ports/tauriAppSettings", () => ({
   getAppSettings: vi.fn().mockResolvedValue({}),
 }));
 
@@ -58,9 +47,40 @@ vi.mock("./DistributedTaskGraphPanel", () => ({
     ) : null,
 }));
 
-const getRuntimeCapabilitiesSummaryMock = vi.mocked(getRuntimeCapabilitiesSummary);
-const distributedTaskGraphMock = vi.mocked(distributedTaskGraph);
-const cancelRuntimeRunMock = vi.mocked(cancelRuntimeRun);
+const useRuntimeDistributedTaskGraphMock = vi.mocked(useRuntimeDistributedTaskGraph);
+
+function mockDistributedTaskGraphState(
+  overrides: Partial<ReturnType<typeof useRuntimeDistributedTaskGraph>> = {}
+) {
+  const interruptNode = vi.fn(async () => undefined);
+  const interruptSubtree = vi.fn(async () => undefined);
+  const retryNode = vi.fn(async () => undefined);
+  const refreshGraph = vi.fn(async () => undefined);
+
+  const baseState: ReturnType<typeof useRuntimeDistributedTaskGraph> = {
+    graph: null,
+    capabilityEnabled: false,
+    actionsEnabled: false,
+    retryEnabled: false,
+    disabledReason: "Control actions are unavailable in current runtime.",
+    refreshGraph,
+    interruptNode,
+    interruptSubtree,
+    retryNode,
+  };
+
+  useRuntimeDistributedTaskGraphMock.mockReturnValue({
+    ...baseState,
+    ...overrides,
+  });
+
+  return {
+    interruptNode,
+    interruptSubtree,
+    retryNode,
+    refreshGraph,
+  };
+}
 
 describe("PlanPanel", () => {
   afterEach(() => {
@@ -69,20 +89,7 @@ describe("PlanPanel", () => {
   });
 
   beforeEach(() => {
-    getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "electron-bridge",
-      methods: [],
-      features: [],
-      wsEndpointPath: null,
-      error: null,
-    });
-    distributedTaskGraphMock.mockResolvedValue(null);
-    cancelRuntimeRunMock.mockResolvedValue({
-      accepted: true,
-      runId: "task-node-1",
-      status: "interrupted",
-      message: "ok",
-    });
+    mockDistributedTaskGraphState();
   });
 
   it("shows a waiting label while processing without a plan", () => {
@@ -147,13 +154,13 @@ describe("PlanPanel", () => {
     expect(screen.getByText("[-]")).toBeTruthy();
   });
 
-  it("shows distributed graph slot when capability is enabled", async () => {
-    getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "electron-bridge",
-      methods: ["code_distributed_task_graph"],
-      features: ["distributed_subtask_graph_v1"],
-      wsEndpointPath: null,
-      error: null,
+  it("shows distributed graph slot when capability is enabled", () => {
+    mockDistributedTaskGraphState({
+      capabilityEnabled: true,
+      graph: {
+        nodes: [{ id: "node-1", title: "Node 1", status: "running" }],
+        edges: [],
+      },
     });
 
     render(
@@ -163,13 +170,7 @@ describe("PlanPanel", () => {
           explanation: "Distributed plan",
           steps: [],
           distributedGraph: {
-            nodes: [
-              {
-                id: "node-1",
-                title: "Node 1",
-                status: "running",
-              },
-            ],
+            nodes: [{ id: "node-1", title: "Node 1", status: "running" }],
             edges: [],
           },
         }}
@@ -177,73 +178,15 @@ describe("PlanPanel", () => {
       />
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId("distributed-graph-slot")).toBeTruthy();
-    });
-    expect(screen.getByText("graph-present")).toBeTruthy();
+    expect(screen.getByTestId("distributed-graph-slot").textContent).toBe("graph-present");
   });
 
-  it("refreshes graph from rpc when graph id is available", async () => {
-    getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "electron-bridge",
-      methods: ["code_distributed_task_graph"],
-      features: ["distributed_subtask_graph_v1"],
-      wsEndpointPath: null,
-      error: null,
-    });
-    distributedTaskGraphMock.mockResolvedValue({
-      taskId: "task-root-1",
-      rootTaskId: "task-root-1",
-      nodes: [
-        {
-          taskId: "task-node-1",
-          parentTaskId: null,
-          role: "planner",
-          backendId: null,
-          status: "running",
-          attempt: 1,
-        },
-      ],
-      edges: [],
-    });
-
-    render(
-      <PlanPanel
-        plan={{
-          turnId: "turn-1",
-          explanation: "Distributed plan",
-          steps: [],
-          distributedGraph: {
-            graphId: "task-root-1",
-            nodes: [],
-            edges: [],
-          },
-        }}
-        isProcessing={false}
-      />
-    );
-
-    await waitFor(() => {
-      expect(distributedTaskGraphMock).toHaveBeenCalledWith({
-        taskId: "task-root-1",
-        includeDiagnostics: false,
-      });
-    });
-    await waitFor(() => {
-      expect(screen.getAllByText("graph-present").length).toBeGreaterThan(0);
-    });
-  });
-
-  it("enables interrupt controls and routes interrupt action to runtime rpc", async () => {
-    getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "electron-bridge",
-      methods: [
-        CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH,
-        CODE_RUNTIME_RPC_METHODS.RUN_CANCEL_V2,
-      ],
-      features: ["distributed_subtask_graph_v1"],
-      wsEndpointPath: null,
-      error: null,
+  it("enables interrupt controls and routes interrupt action through the runtime hook", () => {
+    const interruptNode = vi.fn(async () => undefined);
+    mockDistributedTaskGraphState({
+      capabilityEnabled: true,
+      actionsEnabled: true,
+      interruptNode,
     });
 
     render(
@@ -261,30 +204,16 @@ describe("PlanPanel", () => {
       />
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId("distributed-graph-actions").textContent).toBe("actions-enabled");
-    });
-
+    expect(screen.getByTestId("distributed-graph-actions").textContent).toBe("actions-enabled");
     fireEvent.click(screen.getByText("interrupt-node-1"));
-
-    await waitFor(() => {
-      expect(cancelRuntimeRunMock).toHaveBeenCalledWith({
-        runId: "task-node-1",
-        reason: "ui:distributed_control_interrupt",
-      });
-    });
+    expect(interruptNode).toHaveBeenCalledWith("task-node-1");
   });
 
-  it("exposes retry capability to the graph surface when runtime intervention is available", async () => {
-    getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "electron-bridge",
-      methods: [
-        CODE_RUNTIME_RPC_METHODS.DISTRIBUTED_TASK_GRAPH,
-        CODE_RUNTIME_RPC_METHODS.RUN_INTERVENE_V2,
-      ],
-      features: ["distributed_subtask_graph_v1"],
-      wsEndpointPath: null,
-      error: null,
+  it("exposes retry capability to the graph surface when runtime intervention is available", () => {
+    mockDistributedTaskGraphState({
+      capabilityEnabled: true,
+      actionsEnabled: true,
+      retryEnabled: true,
     });
 
     render(
@@ -303,18 +232,29 @@ describe("PlanPanel", () => {
       />
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId("distributed-graph-retry").textContent).toBe("retry-enabled");
-    });
+    expect(screen.getByTestId("distributed-graph-retry").textContent).toBe("retry-enabled");
   });
 
-  it("renders remote-first diagnostics warning when graph summary includes distributed context", async () => {
-    getRuntimeCapabilitiesSummaryMock.mockResolvedValue({
-      mode: "electron-bridge",
-      methods: ["code_distributed_task_graph"],
-      features: ["distributed_subtask_graph_v1"],
-      wsEndpointPath: null,
-      error: null,
+  it("renders remote-first diagnostics warning when graph summary includes distributed context", () => {
+    mockDistributedTaskGraphState({
+      capabilityEnabled: true,
+      graph: {
+        graphId: "task-root-2",
+        nodes: [],
+        edges: [],
+        summary: {
+          totalNodes: 0,
+          runningNodes: 0,
+          completedNodes: 0,
+          failedNodes: 0,
+          queueDepth: 9,
+          placementFailuresTotal: 2,
+          accessMode: "on-request",
+          routedProvider: "openai",
+          executionMode: "runtime",
+          reason: "Local host access is denied in remote-provider mode.",
+        },
+      },
     });
 
     render(
@@ -327,27 +267,13 @@ describe("PlanPanel", () => {
             graphId: "task-root-2",
             nodes: [],
             edges: [],
-            summary: {
-              totalNodes: 0,
-              runningNodes: 0,
-              completedNodes: 0,
-              failedNodes: 0,
-              queueDepth: 9,
-              placementFailuresTotal: 2,
-              accessMode: "on-request",
-              routedProvider: "openai",
-              executionMode: "runtime",
-              reason: "Local host access is denied in remote-provider mode.",
-            },
           },
         }}
         isProcessing={false}
       />
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId("plan-distributed-warning")).toBeTruthy();
-    });
+    expect(screen.getByTestId("plan-distributed-warning")).toBeTruthy();
     expect(screen.getByText(/placement failures detected/i)).toBeTruthy();
     expect(screen.getByText(/access_mode=on-request/i)).toBeTruthy();
     expect(screen.getByText(/execution_mode=runtime/i)).toBeTruthy();

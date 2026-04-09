@@ -1,4 +1,5 @@
 import type { DynamicToolCallResponse, ReviewTarget } from "../types";
+import { invoke, isDesktopHostRuntime } from "../application/runtime/ports/desktopHostCore";
 import { getRuntimeClient } from "./runtimeClient";
 
 export const REVIEW_START_DESKTOP_ONLY_MESSAGE =
@@ -9,12 +10,16 @@ export async function startReview(
   threadId: string,
   target: ReviewTarget,
   delivery?: "inline" | "detached"
-): Promise<unknown> {
-  void workspaceId;
-  void threadId;
-  void target;
-  void delivery;
-  throw new Error(REVIEW_START_DESKTOP_ONLY_MESSAGE);
+) {
+  if (!isDesktopHostRuntime()) {
+    throw new Error(REVIEW_START_DESKTOP_ONLY_MESSAGE);
+  }
+  return invoke("start_review", {
+    workspaceId,
+    threadId,
+    target,
+    ...(delivery ? { delivery } : {}),
+  });
 }
 
 export async function respondToServerRequest(
@@ -30,10 +35,13 @@ export async function respondToServerRequest(
     });
     return;
   }
-  void workspaceId;
-  void requestId;
-  void decision;
-  throw new Error("Numeric approval requests are unavailable in the Electron desktop host.");
+  return invoke("respond_to_server_request", {
+    workspaceId,
+    requestId,
+    result: {
+      decision,
+    },
+  });
 }
 
 export async function respondToUserInputRequest(
@@ -41,10 +49,13 @@ export async function respondToUserInputRequest(
   requestId: number | string,
   answers: Record<string, { answers: string[] }>
 ) {
-  void workspaceId;
-  void requestId;
-  void answers;
-  throw new Error("User-input request responses are unavailable in the Electron desktop host.");
+  return invoke("respond_to_server_request", {
+    workspaceId,
+    requestId,
+    result: {
+      answers,
+    },
+  });
 }
 
 export async function respondToToolCallRequest(
@@ -52,10 +63,11 @@ export async function respondToToolCallRequest(
   requestId: number | string,
   response: DynamicToolCallResponse
 ) {
-  void workspaceId;
-  void requestId;
-  void response;
-  throw new Error("Tool-call request responses are unavailable in the Electron desktop host.");
+  return invoke("respond_to_server_request", {
+    workspaceId,
+    requestId,
+    result: response,
+  });
 }
 
 export async function respondToServerRequestResult(
@@ -63,10 +75,11 @@ export async function respondToServerRequestResult(
   requestId: number | string,
   result: Record<string, unknown>
 ) {
-  void workspaceId;
-  void requestId;
-  void result;
-  throw new Error("Server request result replies are unavailable in the Electron desktop host.");
+  return invoke("respond_to_server_request", {
+    workspaceId,
+    requestId,
+    result,
+  });
 }
 
 export async function rememberApprovalRule(workspaceId: string, command: string[]) {

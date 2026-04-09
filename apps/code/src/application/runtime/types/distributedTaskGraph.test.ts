@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { normalizeDistributedTaskGraphSnapshot } from "./distributedGraph";
+import {
+  collectDistributedTaskGraphSubtreeTaskIds,
+  normalizeDistributedTaskGraphSnapshot,
+} from "./distributedTaskGraph";
 
 describe("normalizeDistributedTaskGraphSnapshot", () => {
   it("maps runtime contract task graph payloads", () => {
@@ -78,5 +81,37 @@ describe("normalizeDistributedTaskGraphSnapshot", () => {
 
   it("returns null for empty records", () => {
     expect(normalizeDistributedTaskGraphSnapshot({})).toBeNull();
+  });
+
+  it("collects subtree task ids across parent links and graph edges", () => {
+    expect(
+      collectDistributedTaskGraphSubtreeTaskIds(
+        {
+          graphId: "task-root-1",
+          nodes: [
+            { id: "task-root-1", title: "root", status: "running" },
+            {
+              id: "task-node-1",
+              title: "node 1",
+              status: "running",
+              parentId: "task-root-1",
+            },
+            {
+              id: "task-node-2",
+              title: "node 2",
+              status: "queued",
+              parentId: "task-node-1",
+            },
+            {
+              id: "task-node-3",
+              title: "node 3",
+              status: "queued",
+            },
+          ],
+          edges: [{ fromId: "task-node-2", toId: "task-node-3", kind: "depends_on" }],
+        },
+        "task-node-1"
+      )
+    ).toEqual(["task-node-1", "task-node-2", "task-node-3"]);
   });
 });

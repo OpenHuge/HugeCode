@@ -11,7 +11,7 @@ import type {
   RuntimeModelCapabilityMatrix,
   RuntimeProviderCapabilityMatrix,
 } from "@ku0/code-runtime-host-contract";
-import type { DistributedTaskGraphSnapshot } from "./features/plan/types/distributedGraph";
+import type { DistributedTaskGraphSnapshot } from "./application/runtime/types/distributedTaskGraph";
 
 export type WorkspaceSettings = {
   sidebarCollapsed: boolean;

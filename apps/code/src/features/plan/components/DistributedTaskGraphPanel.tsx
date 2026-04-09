@@ -1,7 +1,12 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { retryDistributedTaskGraphNode } from "../../../application/runtime/facades/runtimeDistributedTaskGraphControlFacade";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  collectDistributedTaskGraphNodeDependencies,
+  type DistributedTaskGraphNode,
+  type DistributedTaskGraphSnapshot,
+  groupDistributedTaskGraphNodesByBackend,
+} from "../../../application/runtime/types/distributedTaskGraph";
 import { Button, StatusBadge } from "../../../design-system";
 import { joinClassNames } from "../../../utils/classNames";
 import {
@@ -10,12 +15,6 @@ import {
   InspectorSectionHeader,
   RightPanelEmptyState,
 } from "../../right-panel/RightPanelPrimitives";
-import {
-  collectDistributedTaskGraphNodeDependencies,
-  type DistributedTaskGraphNode,
-  type DistributedTaskGraphSnapshot,
-  groupDistributedTaskGraphNodesByBackend,
-} from "../types/distributedGraph";
 import * as styles from "./DistributedTaskGraphPanel.css";
 import { DistributedControlDrawer } from "./DistributedControlDrawer";
 import {
@@ -30,7 +29,7 @@ type DistributedTaskGraphPanelProps = {
   retryEnabled?: boolean;
   disabledReason?: string | null;
   diagnosticsMessage?: string | null;
-  onRefreshGraph?: (taskIdOverride?: string) => Promise<void>;
+  onRetryNode?: (nodeId: string) => Promise<void>;
   onInterruptNode?: (nodeId: string) => Promise<void>;
   onInterruptSubtree?: (nodeId: string) => Promise<void>;
   onForceReroute?: (nodeId: string) => Promise<void>;
@@ -78,7 +77,7 @@ export function DistributedTaskGraphPanel({
   retryEnabled = false,
   disabledReason = null,
   diagnosticsMessage = null,
-  onRefreshGraph,
+  onRetryNode,
   onInterruptNode,
   onInterruptSubtree,
   onForceReroute,
@@ -122,13 +121,6 @@ export function DistributedTaskGraphPanel({
     summary?.runningNodes ?? graph?.nodes.filter((node) => node.status === "running").length ?? 0;
   const failedNodes =
     summary?.failedNodes ?? graph?.nodes.filter((node) => node.status === "failed").length ?? 0;
-  const handleRetryNode = useCallback(
-    async (nodeId: string) => {
-      const record = await retryDistributedTaskGraphNode(nodeId);
-      await onRefreshGraph?.(record.run.taskId || nodeId);
-    },
-    [onRefreshGraph]
-  );
 
   const renderRow = (row: GraphRow, yOffset?: number) => {
     if (row.kind === "group") {
@@ -261,7 +253,7 @@ export function DistributedTaskGraphPanel({
           onClose={() => {
             setDrawerOpen(false);
           }}
-          onRetryNode={retryEnabled ? handleRetryNode : undefined}
+          onRetryNode={retryEnabled ? onRetryNode : undefined}
           onInterruptNode={onInterruptNode}
           onInterruptSubtree={onInterruptSubtree}
           onForceReroute={onForceReroute}

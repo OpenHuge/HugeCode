@@ -285,7 +285,9 @@ describe("events subscriptions", () => {
     cleanup();
 
     resolveListener(unlisten);
-    await Promise.resolve();
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
     expect(unlisten).toHaveBeenCalledTimes(1);
   });
 

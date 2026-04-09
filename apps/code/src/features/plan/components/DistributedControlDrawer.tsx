@@ -1,9 +1,9 @@
 import X from "lucide-react/dist/esm/icons/x";
 import { useState } from "react";
+import type { DistributedTaskGraphNode } from "../../../application/runtime/types/distributedTaskGraph";
 import { Button, StatusBadge } from "../../../design-system";
 import { joinClassNames } from "../../../utils/classNames";
 import { KeyValueRow, PropertyGrid } from "../../right-panel/RightPanelPrimitives";
-import type { DistributedTaskGraphNode } from "../types/distributedGraph";
 import * as styles from "./DistributedTaskGraphPanel.css";
 import { getDistributedTaskGraphStatusTone } from "./distributedTaskGraphStatus";
 
