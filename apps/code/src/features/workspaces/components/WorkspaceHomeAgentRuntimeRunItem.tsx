@@ -974,7 +974,10 @@ export function WorkspaceHomeAgentRuntimeRunItem({
                                   : undefined
                               }
                             >
-                              {resolveSubAgentContinuationLabel(agent.takeoverBundle!.pathKind)}
+                              {resolveSubAgentContinuationLabel({
+                                pathKind: agent.takeoverBundle!.pathKind,
+                                target: continuationTarget,
+                              })}
                             </button>
                           ) : null}
                           {canApproveSubAgent ? (

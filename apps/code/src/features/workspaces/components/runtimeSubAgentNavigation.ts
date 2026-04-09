@@ -85,18 +85,22 @@ function mapTakeoverTargetToMissionNavigationTarget(input: {
   };
 }
 
-export function resolveSubAgentContinuationLabel(
-  pathKind: HugeCodeTakeoverBundle["pathKind"]
-): string {
-  switch (pathKind) {
-    case "approval":
-      return "Open approval";
+export function resolveSubAgentContinuationLabel(input: {
+  pathKind: HugeCodeTakeoverBundle["pathKind"];
+  target: MissionNavigationTarget | null;
+}): string {
+  if (input.target?.kind === "thread") {
+    return "Open thread";
+  }
+  if (input.target?.kind === "review") {
+    return "Open review";
+  }
+  if (input.target?.kind === "mission") {
+    return "Open mission";
+  }
+  switch (input.pathKind) {
     case "review":
       return "Open review";
-    case "resume":
-      return "Resume mission";
-    case "handoff":
-      return "Open handoff";
     default:
       return "Open continuation";
   }
