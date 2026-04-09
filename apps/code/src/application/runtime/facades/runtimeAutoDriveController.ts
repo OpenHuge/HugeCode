@@ -10,7 +10,6 @@ import {
   resolveBaseExecutionConfig,
   resolveValidationCommands,
   sameExecutionConfig,
-  shouldPromoteBranchOnlyToPush,
 } from "./runtimeAutoDriveExecution";
 import { extractLatestTaskOutput } from "./runtimeAutoDriveReviewParsing";
 import {
@@ -25,17 +24,13 @@ import {
   hasDestructiveSignals,
   mapProposalReviewToStopReason,
   resolveTerminalState,
-} from "./runtimeAutoDriveCompat/controllerSupport";
+} from "./runtimeAutoDriveControllerSupport";
 import {
-  buildFallbackCommitMessage,
-  buildPublishBranchName,
-  sanitizeCommitMessage,
-} from "./runtimeAutoDrivePublish";
-import {
-  buildPublishFailureOperatorActions,
-  resolvePublishAwareStopReason,
-  shouldAvoidAutomaticPushFromHistory,
-} from "./runtimeAutoDrivePublishRecovery";
+  advanceContinuationState,
+  resolveStoppedContinuationState,
+} from "./runtimeAutoDriveContinuation";
+import { maybePublishGoalReachedOutcome } from "./runtimeAutoDrivePublishControl";
+import { resolvePublishAwareStopReason } from "./runtimeAutoDrivePublishRecovery";
 import { renderAutoDriveFinalReport } from "./runtimeAutoDriveReport";
 import { decideAutoDriveNextStep, shouldAutoRunChatgptDecisionLab } from "./runtimeAutoDrivePolicy";
 import { synthesizeAutoDriveContext } from "./runtimeAutoDriveContext";
@@ -48,7 +43,6 @@ import type {
   AutoDriveLedger,
   AutoDriveNextDecision,
   AutoDriveProposalReview,
-  AutoDrivePublishOutcome,
   AutoDriveRouteProposal,
   AutoDriveRunRecord,
   AutoDriveStopReason,
@@ -65,79 +59,6 @@ function notifyAutoDriveRunListener(
   } catch (error) {
     logger.error("[AutoDriveRunController] listener failed", error);
   }
-}
-
-function buildContinuationReason(
-  run: AutoDriveRunRecord,
-  summary: AutoDriveIterationSummary
-): string {
-  const validationCommands = summary.validation.commands.join(" | ");
-  if (
-    (run.continuationPolicy?.requireValidationSuccessToStop ?? true) &&
-    summary.validation.success !== true
-  ) {
-    if (summary.validation.success === false) {
-      return `Validation is still failing: ${
-        summary.validation.failures[0] ?? summary.validation.summary
-      }`;
-    }
-    return validationCommands.length > 0
-      ? `Validation is still pending for ${validationCommands}.`
-      : `Validation is still pending: ${summary.validation.summary}`;
-  }
-  if (summary.waypoint.arrivalCriteriaMissed.length > 0) {
-    return `A required arrival criterion is still open: ${summary.waypoint.arrivalCriteriaMissed[0]}`;
-  }
-  if (summary.blockers.length > 0) {
-    return `An active blocker still needs resolution: ${summary.blockers[0]}`;
-  }
-  if (summary.routeHealth.offRoute || summary.routeHealth.rerouteRecommended) {
-    return `The route still needs re-anchoring: ${
-      summary.routeHealth.rerouteReason ?? summary.routeHealth.triggerSignals[0] ?? "route drift"
-    }`;
-  }
-  const minimumConfidence = run.continuationPolicy?.minimumConfidenceToStop ?? "high";
-  const confidenceRank: Record<AutoDriveConfidence, number> = {
-    low: 0,
-    medium: 1,
-    high: 2,
-  };
-  if (confidenceRank[summary.progress.arrivalConfidence] < confidenceRank[minimumConfidence]) {
-    return `Confidence is still below the stop target of ${minimumConfidence}.`;
-  }
-  return "The route needs one more verification pass before stopping.";
-}
-
-function advanceContinuationState(params: {
-  run: AutoDriveRunRecord;
-  summary: AutoDriveIterationSummary;
-  now: number;
-}): AutoDriveRunRecord {
-  const automaticFollowUpCount = (params.run.continuationState?.automaticFollowUpCount ?? 0) + 1;
-  return {
-    ...params.run,
-    continuationState: {
-      automaticFollowUpCount,
-      status: "continuing",
-      lastContinuationAt: params.now,
-      lastContinuationReason: buildContinuationReason(params.run, params.summary),
-    },
-  };
-}
-
-function resolveStoppedContinuationState(
-  run: AutoDriveRunRecord,
-  now: number
-): AutoDriveRunRecord["continuationState"] {
-  if (!run.continuationState && !run.continuationPolicy) {
-    return run.continuationState ?? null;
-  }
-  return {
-    automaticFollowUpCount: run.continuationState?.automaticFollowUpCount ?? 0,
-    status: "stopped",
-    lastContinuationAt: run.continuationState?.lastContinuationAt ?? now,
-    lastContinuationReason: run.continuationState?.lastContinuationReason ?? "finalized",
-  };
 }
 
 type AutoDriveControllerServices = {
@@ -635,201 +556,6 @@ export class AutoDriveRunController {
     return null;
   }
 
-  private async maybePublishBranchOnlyCandidate(params: {
-    context: AutoDriveContextSnapshot;
-    summary: AutoDriveIterationSummary;
-  }): Promise<AutoDrivePublishOutcome | null> {
-    if (params.context.publishReadiness.recommendedMode !== "branch_only") {
-      return null;
-    }
-    return this.createBranchOnlyCandidate(params.summary);
-  }
-
-  private async createBranchOnlyCandidate(
-    summary: AutoDriveIterationSummary
-  ): Promise<AutoDrivePublishOutcome | null> {
-    if (summary.validation.success !== true) {
-      return null;
-    }
-    if (!this.deps.stageGitAll || !this.deps.commitGit) {
-      return {
-        mode: "branch_only",
-        status: "failed",
-        summary:
-          "Branch-only publish candidate could not run because git commit controls are unavailable.",
-        commitMessage: null,
-        branchName: null,
-        pushed: false,
-        createdAt: defaultNow(this.deps),
-      };
-    }
-
-    let commitMessage: string | null = null;
-    try {
-      commitMessage = sanitizeCommitMessage(
-        this.deps.generateCommitMessage
-          ? await this.deps.generateCommitMessage(this.run.workspaceId)
-          : null
-      );
-    } catch {
-      commitMessage = null;
-    }
-    const finalCommitMessage = commitMessage ?? buildFallbackCommitMessage(this.run, summary);
-
-    try {
-      await this.deps.stageGitAll(this.run.workspaceId);
-      await this.deps.commitGit(this.run.workspaceId, finalCommitMessage);
-      return {
-        mode: "branch_only",
-        status: "completed",
-        summary: `Created a branch-only commit candidate with message: ${finalCommitMessage}`,
-        commitMessage: finalCommitMessage,
-        branchName: null,
-        pushed: false,
-        createdAt: defaultNow(this.deps),
-      };
-    } catch (error) {
-      const detail =
-        error instanceof Error && error.message.trim().length > 0
-          ? error.message.trim()
-          : "unknown git publish error";
-      return {
-        mode: "branch_only",
-        status: "failed",
-        summary: `Branch-only publish candidate failed: ${detail}`,
-        commitMessage: finalCommitMessage,
-        branchName: null,
-        pushed: false,
-        createdAt: defaultNow(this.deps),
-      };
-    }
-  }
-
-  private async pushPublishCandidate(params: {
-    context: AutoDriveContextSnapshot;
-    commitMessage: string | null;
-  }): Promise<AutoDrivePublishOutcome> {
-    const createdAt = defaultNow(this.deps);
-    if (
-      !this.deps.createGitBranch ||
-      !this.deps.checkoutGitBranch ||
-      !this.deps.pushGit ||
-      !params.context.git.branch
-    ) {
-      return {
-        mode: "push_candidate",
-        status: "failed",
-        summary: "Push candidate could not run because branch push controls are unavailable.",
-        commitMessage: params.commitMessage,
-        branchName: null,
-        pushed: false,
-        createdAt,
-      };
-    }
-
-    const originalBranch = params.context.git.branch;
-    const branchName = buildPublishBranchName(this.run, createdAt);
-    let switchedToCandidate = false;
-    let pushed = false;
-
-    try {
-      await this.deps.createGitBranch(this.run.workspaceId, branchName);
-      await this.deps.checkoutGitBranch(this.run.workspaceId, branchName);
-      switchedToCandidate = true;
-      await this.deps.pushGit(this.run.workspaceId);
-      pushed = true;
-      await this.deps.checkoutGitBranch(this.run.workspaceId, originalBranch);
-      return {
-        mode: "push_candidate",
-        status: "completed",
-        summary: `Pushed isolated publish candidate branch ${branchName}.`,
-        commitMessage: params.commitMessage,
-        branchName,
-        pushed,
-        createdAt,
-      };
-    } catch (error) {
-      const detail =
-        error instanceof Error && error.message.trim().length > 0
-          ? error.message.trim()
-          : "unknown push error";
-      if (switchedToCandidate) {
-        try {
-          await this.deps.checkoutGitBranch(this.run.workspaceId, originalBranch);
-        } catch {
-          return {
-            mode: "push_candidate",
-            status: "failed",
-            summary: `Push candidate branch ${branchName} changed local checkout and restore failed after: ${detail}`,
-            commitMessage: params.commitMessage,
-            branchName,
-            pushed,
-            operatorActions: buildPublishFailureOperatorActions({
-              publishOutcome: {
-                mode: "push_candidate",
-                status: "failed",
-                summary: `Push candidate branch ${branchName} changed local checkout and restore failed after: ${detail}`,
-                commitMessage: params.commitMessage,
-                branchName,
-                restoreBranch: originalBranch,
-                pushed,
-                createdAt,
-              },
-              originalBranch,
-            }),
-            restoreBranch: originalBranch,
-            createdAt,
-          };
-        }
-      }
-      const failedOutcome: AutoDrivePublishOutcome = {
-        mode: "push_candidate",
-        status: "failed",
-        summary: `Push candidate failed: ${detail}`,
-        commitMessage: params.commitMessage,
-        branchName,
-        restoreBranch: originalBranch,
-        pushed,
-        createdAt,
-      };
-      return {
-        ...failedOutcome,
-        operatorActions: buildPublishFailureOperatorActions({
-          publishOutcome: failedOutcome,
-          originalBranch,
-        }),
-      };
-    }
-  }
-
-  private async maybePublishGoalReachedOutcome(params: {
-    context: AutoDriveContextSnapshot;
-    summary: AutoDriveIterationSummary;
-  }): Promise<AutoDrivePublishOutcome | null> {
-    const branchOnlyOutcome = await this.maybePublishBranchOnlyCandidate(params);
-    if (params.context.publishReadiness.recommendedMode === "push_candidate") {
-      if (shouldAvoidAutomaticPushFromHistory(params.context)) {
-        return this.createBranchOnlyCandidate(params.summary);
-      }
-      return this.pushPublishCandidate({
-        context: params.context,
-        commitMessage: branchOnlyOutcome?.commitMessage ?? null,
-      });
-    }
-    if (
-      shouldPromoteBranchOnlyToPush({
-        context: params.context,
-        branchOnlyOutcome,
-      })
-    ) {
-      return this.pushPublishCandidate({
-        context: params.context,
-        commitMessage: branchOnlyOutcome?.commitMessage ?? null,
-      });
-    }
-    return branchOnlyOutcome;
-  }
-
   private async runLoop(): Promise<AutoDriveRunRecord> {
     while (true) {
       const pendingOperatorIntervention = await this.finalizePendingOperatorIntervention();
@@ -1046,7 +772,9 @@ export class AutoDriveRunController {
 
       const publishOutcome =
         decision.reason?.code === "goal_reached"
-          ? await this.maybePublishGoalReachedOutcome({
+          ? await maybePublishGoalReachedOutcome({
+              deps: this.deps,
+              run: this.run,
               context,
               summary,
             })
