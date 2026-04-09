@@ -89,6 +89,34 @@
       "types": "./src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts"
     },
+    "./runtimeMissionControlTaskSourceProjector": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts"
+    },
+    "./runtimeMissionControlProvenance": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlProvenance.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlProvenance.ts"
+    },
+    "./runtimeReviewPackDecisionActionsFacade": {
+      "types": "./src/runtime-control-plane/runtimeReviewPackDecisionActionsFacade.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewPackDecisionActionsFacade.ts"
+    },
+    "./runtimeReviewPackDetailPresentation": {
+      "types": "./src/runtime-control-plane/runtimeReviewPackDetailPresentation.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewPackDetailPresentation.ts"
+    },
+    "./runtimeReviewPackEmptySectionLabels": {
+      "types": "./src/runtime-control-plane/runtimeReviewPackEmptySectionLabels.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewPackEmptySectionLabels.ts"
+    },
+    "./runtimeReviewPackSurfaceNormalization": {
+      "types": "./src/runtime-control-plane/runtimeReviewPackSurfaceNormalization.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewPackSurfaceNormalization.ts"
+    },
+    "./runtimeReviewPackSurfacePresentation": {
+      "types": "./src/runtime-control-plane/runtimeReviewPackSurfacePresentation.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewPackSurfacePresentation.ts"
+    },
     "./runtimeLiveSkillAliases": {
       "types": "./src/runtimeLiveSkillAliases.ts",
       "default": "./src/runtimeLiveSkillAliases.ts"
