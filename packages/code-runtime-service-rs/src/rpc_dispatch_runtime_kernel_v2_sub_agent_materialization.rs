@@ -91,6 +91,15 @@ pub(super) async fn materialize_parallel_safe_sub_agent_lanes(
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .unwrap_or("Delegated runtime lane");
+        let requires_approval = node
+            .get("requiresApproval")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        let approval_reason = requires_approval.then(|| {
+            format!(
+                "Runtime delegated lane `{node_label}` ({capability}) requires operator approval."
+            )
+        });
         let scope_profile = map_parallel_safe_capability_to_scope_profile(capability);
         let session_title = format!("{} delegate · {node_label}", scope_profile.replace('_', " "));
 
@@ -147,6 +156,8 @@ pub(super) async fn materialize_parallel_safe_sub_agent_lanes(
                     "{run_id}:delegation:{capability}:{}",
                     node.get("id").and_then(Value::as_str).unwrap_or("lane")
                 ),
+                "requiresApproval": requires_approval,
+                "approvalReason": approval_reason,
             }),
         )
         .await

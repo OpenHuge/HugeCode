@@ -34,6 +34,9 @@ This directory is the canonical entrypoint for runtime transport, contract, and 
 - `code_runtime_run_prepare_v2` publishes runtime-owned preparation truth:
   - `runIntent`
   - `contextWorkingSet`
+  - `contextPlane`
+  - `toolingPlane`
+  - `evalPlane`
   - `executionGraph`
   - `approvalBatches`
   - `validationPlan`

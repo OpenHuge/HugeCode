@@ -191,6 +191,165 @@ export type RuntimeContextTruthV2 = {
   consumers: RuntimeContextConsumerV2[];
 };
 
+export type RuntimeContextMemoryRefKindV2 =
+  | "repo_instruction_surface"
+  | "task_source_digest"
+  | "review_guidance"
+  | "checkpoint_summary"
+  | "operator_note";
+
+export type RuntimeContextMemoryStorageV2 =
+  | "workspace_manifest"
+  | "runtime_memory"
+  | "external_reference"
+  | "review_pack";
+
+export type RuntimeContextMemoryPersistenceScopeV2 =
+  | "workspace"
+  | "run"
+  | "review_pack"
+  | "cross_run";
+
+export type RuntimeContextMemoryRefV2 = {
+  id: string;
+  label: string;
+  kind: RuntimeContextMemoryRefKindV2;
+  summary: string;
+  storage: RuntimeContextMemoryStorageV2;
+  persistenceScope: RuntimeContextMemoryPersistenceScopeV2;
+  sourceRef?: string | null;
+  updatedAt?: number | null;
+};
+
+export type RuntimeContextArtifactRefKindV2 =
+  | "task_source_snapshot"
+  | "validation_plan"
+  | "review_pack"
+  | "checkpoint_projection"
+  | "diff_bundle";
+
+export type RuntimeContextArtifactRefV2 = {
+  id: string;
+  label: string;
+  kind: RuntimeContextArtifactRefKindV2;
+  summary: string;
+  mimeType?: string | null;
+  locator?: string | null;
+  sourceRef?: string | null;
+};
+
+export type RuntimeContextRefreshModeV2 = "on_prepare" | "on_resume" | "on_demand";
+
+export type RuntimeContextRetentionModeV2 = "window_only" | "window_and_memory" | "memory_first";
+
+export type RuntimeContextWorkingSetPolicyV2 = {
+  selectionStrategy: RuntimeContextSelectionStrategyV2;
+  toolExposureProfile: RuntimeContextToolExposureProfileV2;
+  tokenBudgetTarget: number;
+  refreshMode: RuntimeContextRefreshModeV2;
+  retentionMode: RuntimeContextRetentionModeV2;
+  preferColdFetch: boolean;
+  compactBeforeDelegation: boolean;
+};
+
+export type RuntimeContextPlaneV2 = {
+  summary: string;
+  memoryRefs: RuntimeContextMemoryRefV2[];
+  artifactRefs: RuntimeContextArtifactRefV2[];
+  compactionSummary?: RuntimeCompactionSummary | null;
+  workingSetPolicy: RuntimeContextWorkingSetPolicyV2;
+};
+
+export type RuntimeCapabilityKindV2 =
+  | "workspace_read"
+  | "workspace_write"
+  | "network_fetch"
+  | "validation"
+  | "review_skill"
+  | "runtime_tool"
+  | "session_command"
+  | "plugin";
+
+export type RuntimeCapabilityReadinessV2 = "ready" | "attention" | "blocked" | "unsupported";
+
+export type RuntimeCapabilitySafetyLevelV2 = "read" | "write" | "destructive";
+
+export type RuntimeCapabilityDescriptorV2 = {
+  id: string;
+  label: string;
+  summary: string;
+  kind: RuntimeCapabilityKindV2;
+  readiness: RuntimeCapabilityReadinessV2;
+  safetyLevel: RuntimeCapabilitySafetyLevelV2;
+  source: string | null;
+  runtimeToolName?: string | null;
+};
+
+export type RuntimeCapabilityCatalogV2 = {
+  summary: string;
+  catalogId: string | null;
+  generatedAt: number | null;
+  capabilities: RuntimeCapabilityDescriptorV2[];
+};
+
+export type RuntimeSandboxFilesystemPolicyV2 = "workspace_scoped" | "read_only" | "host_managed";
+
+export type RuntimeSandboxRefV2 = {
+  id: string;
+  label: string;
+  summary: string;
+  accessMode: AccessMode;
+  executionProfileId: string | null;
+  preferredBackendIds: string[];
+  routedProvider: ModelProvider | null;
+  networkPolicy: "default" | "restricted" | "offline" | null;
+  filesystemPolicy: RuntimeSandboxFilesystemPolicyV2;
+  toolPosture: string | null;
+  approvalSensitivity: string | null;
+};
+
+export type RuntimeMcpSourceKindV2 = "remote_mcp" | "workspace_skill" | "runtime_extension";
+
+export type RuntimeMcpSourceAuthorityV2 = "runtime" | "workspace" | "session";
+
+export type RuntimeMcpSourceAvailabilityV2 = "ready" | "attention" | "blocked";
+
+export type RuntimeMcpSourceV2 = {
+  id: string;
+  label: string;
+  kind: RuntimeMcpSourceKindV2;
+  authority: RuntimeMcpSourceAuthorityV2;
+  availability: RuntimeMcpSourceAvailabilityV2;
+  summary: string;
+};
+
+export type RuntimeToolCallRefStatusV2 = "planned" | "completed" | "blocked";
+
+export type RuntimeToolCallRefV2 = {
+  id: string;
+  toolName: string;
+  status: RuntimeToolCallRefStatusV2;
+  summary: string;
+  capabilityId?: string | null;
+};
+
+export type RuntimeToolResultRefV2 = {
+  id: string;
+  toolName: string;
+  summary: string;
+  artifactRefIds: string[];
+  sourceCallId?: string | null;
+};
+
+export type RuntimeToolingPlaneV2 = {
+  summary: string;
+  capabilityCatalog: RuntimeCapabilityCatalogV2 | null;
+  sandboxRef: RuntimeSandboxRefV2 | null;
+  mcpSources: RuntimeMcpSourceV2[];
+  toolCallRefs: RuntimeToolCallRefV2[];
+  toolResultRefs: RuntimeToolResultRefV2[];
+};
+
 export type RuntimeKnowledgeItemKindV2 =
   | "repo_fact"
   | "session_recall"
@@ -541,6 +700,24 @@ export type RuntimeDelegationPlanV2 = {
   batches: RuntimeDelegationBatchV2[];
 };
 
+export type RuntimeEvalCaseV2 = {
+  id: string;
+  label: string;
+  taskFamily: string;
+  summary: string;
+  successEnvelope: string;
+  modelBaseline: string;
+  regressionBudget: string;
+  source: "runtime_prepare" | "repository_contract" | "task_source";
+  trackedWorkarounds: string[];
+};
+
+export type RuntimeEvalPlaneV2 = {
+  summary: string;
+  evalCases: RuntimeEvalCaseV2[];
+  modelReleasePlaybook: string[];
+};
+
 export type RuntimeAutonomyRequestV2 = {
   autonomyProfile: RuntimeAutonomyProfileV2;
   wakePolicy: RuntimeWakePolicyV2;
@@ -554,6 +731,9 @@ export type RuntimeRunPrepareV2Response = {
   runIntent: RuntimeRunIntentBriefV2;
   contextWorkingSet: RuntimeContextWorkingSetV2;
   contextTruth: RuntimeContextTruthV2;
+  contextPlane?: RuntimeContextPlaneV2 | null;
+  toolingPlane?: RuntimeToolingPlaneV2 | null;
+  evalPlane?: RuntimeEvalPlaneV2 | null;
   guidanceStack: RuntimeGuidanceStackV2;
   triageSummary: RuntimeTriageSummaryV2;
   delegationContract: RuntimeDelegationContractV2;

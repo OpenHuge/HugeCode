@@ -104,7 +104,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
           placement: {
             resolvedBackendId: "backend-local",
             requestedBackendIds: [],
-            resolutionSource: "workspace_default",
+            resolutionSource: "runtime_fallback",
             lifecycleState: "fallback",
             readiness: "attention",
             healthSummary: "placement_attention",
@@ -214,5 +214,69 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
       reviewPackId: "review-pack-child",
       limitation: null,
     });
+  });
+
+  it("surfaces runtime execution lifecycle and evidence summaries from the canonical run payload", () => {
+    const noop = vi.fn();
+
+    render(
+      <WorkspaceHomeAgentRuntimeRunItem
+        task={buildTask()}
+        run={buildRun({
+          lifecycleSummary: {
+            stage: "completed",
+            summary: "Runtime completed the delegated execution path.",
+            blocked: false,
+            rerouted: true,
+            validated: true,
+            readyForReview: true,
+            updatedAt: 1_700_000_050_000,
+          },
+          evidenceSummary: {
+            state: "ready_for_review",
+            summary: "Runtime published review-ready evidence for this run.",
+            validationCount: 2,
+            artifactCount: 3,
+            warningCount: 1,
+            changedPathCount: 4,
+            authoritativeTraceId: "trace-runtime-task-1",
+            authoritativeCheckpointId: "checkpoint-runtime-task-1",
+            reviewStatus: "ready",
+          },
+        })}
+        continuityItem={null}
+        runtimeLoading={false}
+        onRefresh={noop}
+        onInterrupt={noop}
+        onResume={noop}
+        onIntervene={noop}
+        onPrepareLauncher={noop}
+        onApproval={noop}
+      />
+    );
+
+    expect(
+      screen.getByText("Execution: Runtime completed the delegated execution path.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Evidence: Runtime published review-ready evidence for this run.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Evidence counts: validations 2 | artifacts 3 | warnings 1 | changed paths 4 | review Review ready"
+      )
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open sub-agent observability" }));
+
+    const observability = screen.getByRole("region", { name: "Sub-agent observability" });
+    expect(
+      within(observability).getByText("Execution: Runtime completed the delegated execution path.")
+    ).toBeTruthy();
+    expect(
+      within(observability).getByText(
+        "Evidence counts: validations 2 | artifacts 3 | warnings 1 | changed paths 4 | review Review ready"
+      )
+    ).toBeTruthy();
   });
 });

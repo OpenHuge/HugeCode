@@ -471,6 +471,33 @@ export function ReviewPackSurface({
               />
             ) : null}
             {renderControlDeviceHandoff(displayedReviewPackDetail)}
+            {displayedReviewPackDetail.executionLifecycle ||
+            displayedReviewPackDetail.executionEvidence ? (
+              <ReviewDetailSection title="Execution summary">
+                {displayedReviewPackDetail.executionLifecycle ? (
+                  <>
+                    <div className={styles.bodyText}>
+                      Lifecycle: {displayedReviewPackDetail.executionLifecycle.summary}
+                    </div>
+                    {renderCopyList(
+                      displayedReviewPackDetail.executionLifecycle.details,
+                      "Runtime did not publish lifecycle detail for this review pack."
+                    )}
+                  </>
+                ) : null}
+                {displayedReviewPackDetail.executionEvidence ? (
+                  <>
+                    <div className={styles.bodyText}>
+                      Evidence: {displayedReviewPackDetail.executionEvidence.summary}
+                    </div>
+                    {renderCopyList(
+                      displayedReviewPackDetail.executionEvidence.details,
+                      "Runtime did not publish evidence detail for this review pack."
+                    )}
+                  </>
+                ) : null}
+              </ReviewDetailSection>
+            ) : null}
             {renderOperatorCockpit({
               operatorSnapshot: displayedReviewPackDetail.operatorSnapshot,
               placement: displayedReviewPackDetail.placement,

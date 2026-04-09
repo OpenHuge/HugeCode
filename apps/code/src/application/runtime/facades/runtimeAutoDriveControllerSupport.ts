@@ -7,7 +7,7 @@ import {
   extractSingleLineSection,
   parseBooleanSection,
   parseGoalReached,
-} from "../runtimeAutoDriveReviewParsing";
+} from "./runtimeAutoDriveReviewParsing";
 import type {
   AutoDriveConfidence,
   AutoDriveContextSnapshot,
@@ -21,7 +21,7 @@ import type {
   AutoDriveRunRecord,
   AutoDriveStopReason,
   AutoDriveValidationResult,
-} from "../../types/autoDrive";
+} from "../types/autoDrive";
 
 export function defaultNow(deps: AutoDriveControllerDeps): number {
   return deps.now?.() ?? Date.now();
@@ -125,7 +125,7 @@ function buildDefaultRouteHealth(params: {
   const offRoute =
     parseBooleanSection(params.output, "Off Route") || params.waypointStatus !== "arrived";
   const rerouteReason = extractSingleLineSection(params.output, "Reroute Reason");
-  const routeHealth = {
+  return {
     offRoute,
     noProgressLoop:
       (params.previousSummary?.routeHealth.noProgressLoop ?? false) ||
@@ -142,7 +142,6 @@ function buildDefaultRouteHealth(params: {
       rerouteReason,
     ].filter((value): value is string => Boolean(value)),
   };
-  return routeHealth;
 }
 
 export function buildDefaultSummary(params: {

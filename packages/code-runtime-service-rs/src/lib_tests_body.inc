@@ -6898,6 +6898,51 @@ exit 1
             Value::String("standard".to_string())
         );
         assert_eq!(
+            prepare_payload["result"]["contextPlane"]["workingSetPolicy"]["retentionMode"],
+            Value::String("window_and_memory".to_string())
+        );
+        assert_eq!(
+            prepare_payload["result"]["toolingPlane"]["sandboxRef"]["toolPosture"],
+            Value::String("workspace_safe".to_string())
+        );
+        assert_eq!(
+            prepare_payload["result"]["toolingPlane"]["sandboxRef"]["approvalSensitivity"],
+            Value::String("standard".to_string())
+        );
+        assert!(
+            prepare_payload["result"]["toolingPlane"]["capabilityCatalog"]["capabilities"]
+                .as_array()
+                .expect("tooling plane capabilities")
+                .iter()
+                .any(|entry| entry.get("id").and_then(Value::as_str) == Some("runtime.tooling"))
+        );
+        assert!(
+            prepare_payload["result"]["contextPlane"]["artifactRefs"]
+                .as_array()
+                .expect("context plane artifact refs")
+                .iter()
+                .any(|entry| {
+                    entry.get("id").and_then(Value::as_str)
+                        == Some("validation-plan:standard")
+                })
+        );
+        assert!(
+            prepare_payload["result"]["evalPlane"]["evalCases"]
+                .as_array()
+                .expect("eval plane cases")
+                .iter()
+                .any(|entry| {
+                    entry.get("id").and_then(Value::as_str)
+                        == Some("launch:balanced-delegate")
+                })
+        );
+        assert_eq!(
+            prepare_payload["result"]["evalPlane"]["modelReleasePlaybook"]
+                .as_array()
+                .map(Vec::len),
+            Some(3)
+        );
+        assert_eq!(
             prepare_payload["result"]["validationPlan"]["commands"],
             json!(["pnpm validate:fast", "pnpm test:component"])
         );
@@ -7042,7 +7087,9 @@ exit 1
                         },
                         {
                             "kind": "diagnostics",
-                            "input": "Validate the mission-control boundary."
+                            "input": "Validate the mission-control boundary.",
+                            "requiresApproval": true,
+                            "approvalReason": "delegated diagnostics needs approval"
                         }
                     ]
                 }
@@ -7072,7 +7119,9 @@ exit 1
                         },
                         {
                             "kind": "diagnostics",
-                            "input": "Validate the mission-control boundary."
+                            "input": "Validate the mission-control boundary.",
+                            "requiresApproval": true,
+                            "approvalReason": "delegated diagnostics needs approval"
                         }
                     ]
                 }
@@ -7094,6 +7143,56 @@ exit 1
                 && entry["parentRunId"] == Value::String(run_id.clone())
                 && entry["sessionId"].as_str().is_some_and(|value| !value.trim().is_empty())
         }));
+        let review_session_id = sub_agents
+            .iter()
+            .find(|entry| {
+                entry["scopeProfile"] == Value::String("review".to_string())
+                    && entry["parentRunId"] == Value::String(run_id.clone())
+                    && entry["sessionId"].as_str().is_some_and(|value| !value.trim().is_empty())
+            })
+            .and_then(|entry| entry["sessionId"].as_str())
+            .expect("review delegated session id")
+            .to_string();
+        let review_task_id = tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                let status_payload = send_rpc_request(
+                    app.clone(),
+                    json!({
+                        "method":"code_sub_agent_status",
+                        "params":{
+                            "sessionId": review_session_id,
+                        }
+                    }),
+                )
+                .await;
+                if let Some(task_id) = status_payload["result"]["lastTaskId"]
+                    .as_str()
+                    .filter(|value| !value.trim().is_empty())
+                {
+                    break task_id.to_string();
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        })
+        .await
+        .expect("review delegated session should publish a child task id");
+        let review_task_payload = wait_for_agent_task_terminal_status(
+            app.clone(),
+            review_task_id.as_str(),
+            &["awaiting_approval"],
+        )
+        .await;
+        assert_eq!(
+            review_task_payload["result"]["status"],
+            Value::String("awaiting_approval".to_string())
+        );
+        assert!(review_task_payload["result"]["pendingApprovalId"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()));
+        assert_eq!(
+            review_task_payload["result"]["steps"][0]["metadata"]["approval"]["requestSource"],
+            Value::String("explicit_override".to_string())
+        );
         assert!(sub_agents.iter().any(|entry| {
             entry["scopeProfile"] == Value::String("review".to_string())
                 && entry["parentRunId"] == Value::String(run_id.clone())

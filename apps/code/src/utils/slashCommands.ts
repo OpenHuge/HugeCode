@@ -34,6 +34,11 @@ export type SlashCommandRegistry = {
   entries: SlashCommandEntry[];
 };
 
+export type ResolvedInvocationSlashCommand = {
+  invocationId: string;
+  arguments: Record<string, unknown>;
+};
+
 type InvocationSlashCommandMetadata = {
   primaryTrigger: string;
   legacyAliases?: string[];
@@ -470,6 +475,63 @@ export function buildSlashCommandRegistryFromInvocations(input: {
 
   return {
     entries: [...builtInEntries, ...catalogEntries],
+  };
+}
+
+function normalizeSlashTriggerName(trigger: string): string | null {
+  const parsed = parseSlashName(trigger.trim());
+  if (!parsed || parsed.rest.length > 0) {
+    return null;
+  }
+  return parsed.name;
+}
+
+export function resolveInvocationSlashCommandText(
+  text: string,
+  invocations: InvocationDescriptor[]
+): ResolvedInvocationSlashCommand | { error: string } | null {
+  const parsed = parseSlashName(text.trim());
+  if (!parsed) {
+    return null;
+  }
+
+  const match = invocations.find((invocation) => {
+    const slashCommand = readInvocationSlashCommandMetadata(invocation);
+    if (!slashCommand) {
+      return false;
+    }
+    const primaryName = normalizeSlashTriggerName(slashCommand.primaryTrigger);
+    if (primaryName === parsed.name) {
+      return !slashCommand.shadowedByBuiltin;
+    }
+    return (slashCommand.legacyAliases ?? [])
+      .map(normalizeSlashTriggerName)
+      .some((alias) => alias === parsed.name);
+  });
+
+  if (!match) {
+    return null;
+  }
+
+  const tokens = splitShlex(normalizeQuotes(parsed.rest));
+  const hasNamedArguments = tokens.some((token) => token.includes("="));
+  if (!hasNamedArguments) {
+    return {
+      invocationId: match.id,
+      arguments: tokens.length > 0 ? { _positional: tokens } : {},
+    };
+  }
+
+  const parsedInputs = parsePromptInputs(parsed.rest);
+  if ("error" in parsedInputs) {
+    return {
+      error: formatPromptArgsError(`/${parsed.name}`, parsedInputs.error),
+    };
+  }
+
+  return {
+    invocationId: match.id,
+    arguments: parsedInputs.values,
   };
 }
 

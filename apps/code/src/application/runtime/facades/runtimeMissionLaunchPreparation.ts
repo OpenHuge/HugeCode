@@ -11,9 +11,12 @@ import { buildGovernedRuntimeRunRequest } from "./runtimeGovernedRunIngestion";
 import { normalizeTaskSourceDraft } from "./runtimeTaskSourceFacade";
 import type { RuntimeTaskLauncherSourceDraft } from "./runtimeTaskInterventionDraftFacade";
 import {
+  buildRuntimeContextPlane,
   buildRuntimeContextTruth,
   buildRuntimeDelegationContract,
+  buildRuntimeEvalPlane,
   buildRuntimeGuidanceStack,
+  buildRuntimeToolingPlane,
   buildRuntimeTriageSummary,
 } from "./runtimeContextTruth";
 
@@ -33,6 +36,9 @@ export type RuntimeMissionLaunchPreviewState = {
   request: RuntimeRunPrepareV2Request | null;
   preparation: RuntimeRunPrepareV2Response | null;
   contextTruth: RuntimeRunPrepareV2Response["contextTruth"] | null;
+  contextPlane: RuntimeRunPrepareV2Response["contextPlane"] | null;
+  toolingPlane: RuntimeRunPrepareV2Response["toolingPlane"] | null;
+  evalPlane: RuntimeRunPrepareV2Response["evalPlane"] | null;
   guidanceStack: RuntimeRunPrepareV2Response["guidanceStack"] | null;
   triageSummary: RuntimeRunPrepareV2Response["triageSummary"] | null;
   delegationContract: RuntimeRunPrepareV2Response["delegationContract"] | null;
@@ -233,6 +239,60 @@ export function useRuntimeMissionLaunchPreview(
     });
   }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
 
+  const contextPlane = useMemo(() => {
+    if (preparation?.contextPlane) {
+      return preparation.contextPlane;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeContextPlane({
+      taskSource: request.taskSource ?? null,
+      repositoryDefaults: input.repositoryLaunchDefaults,
+      contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
+      hasRepoInstructions: true,
+      explicitInstruction: input.draftInstruction,
+    });
+  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
+
+  const toolingPlane = useMemo(() => {
+    if (preparation?.toolingPlane) {
+      return preparation.toolingPlane;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeToolingPlane({
+      selectedExecutionProfile: input.selectedExecutionProfile,
+      preferredBackendIds: request.preferredBackendIds ?? input.preferredBackendIds ?? null,
+      routedProvider: input.routedProvider,
+      reviewProfileId: request.reviewProfileId ?? null,
+      validationPresetId: request.validationPresetId ?? null,
+    });
+  }, [
+    input.preferredBackendIds,
+    input.routedProvider,
+    input.selectedExecutionProfile,
+    preparation,
+    request,
+  ]);
+
+  const evalPlane = useMemo(() => {
+    if (preparation?.evalPlane) {
+      return preparation.evalPlane;
+    }
+    if (!request) {
+      return null;
+    }
+    return buildRuntimeEvalPlane({
+      taskSource: request.taskSource ?? null,
+      repositoryDefaults: input.repositoryLaunchDefaults,
+      selectedExecutionProfile: input.selectedExecutionProfile,
+      reviewProfileId: request.reviewProfileId ?? null,
+      validationPresetId: request.validationPresetId ?? null,
+    });
+  }, [input.repositoryLaunchDefaults, input.selectedExecutionProfile, preparation, request]);
+
   const triageSummary = useMemo(() => {
     if (preparation?.triageSummary) {
       return preparation.triageSummary;
@@ -274,6 +334,9 @@ export function useRuntimeMissionLaunchPreview(
     request,
     preparation,
     contextTruth,
+    contextPlane,
+    toolingPlane,
+    evalPlane,
     guidanceStack,
     triageSummary,
     delegationContract,
