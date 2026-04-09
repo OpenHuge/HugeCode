@@ -39,6 +39,30 @@ export type InvocationAudience = (typeof INVOCATION_AUDIENCES)[number];
 
 export type InvocationSafetyLevel = "read" | "write" | "destructive";
 
+export const INVOCATION_EXECUTION_BINDING_KINDS = [
+  "runtime_run",
+  "runtime_live_skill",
+  "runtime_extension_tool",
+  "session_message",
+  "approval_response",
+  "prompt_overlay",
+  "unsupported",
+] as const;
+
+export type InvocationExecutionBindingKind = (typeof INVOCATION_EXECUTION_BINDING_KINDS)[number];
+
+export type InvocationExecutionHost = "runtime" | "workspace" | "session";
+
+export type InvocationHostRequirementKey =
+  | "runtime_service"
+  | "extension_bridge"
+  | "session_facade"
+  | "prompt_library";
+
+export type InvocationExecutionPreflightState = "ready" | "blocked" | "not_required";
+
+export type InvocationExecutionOutcomeStatus = "executed" | "resolved" | "blocked" | "unsupported";
+
 export type InvocationReadiness = {
   state: InvocationReadinessState;
   available: boolean;
@@ -72,6 +96,43 @@ export type InvocationSource = {
   provenance: Record<string, unknown> | null;
 };
 
+export type InvocationHostRequirement = {
+  key: InvocationHostRequirementKey;
+  summary: string;
+};
+
+export type InvocationExecutionBinding = {
+  kind: InvocationExecutionBindingKind;
+  host: InvocationExecutionHost;
+  toolName?: string | null;
+  extensionId?: string | null;
+  promptId?: string | null;
+};
+
+export type InvocationExecutionPreflight = {
+  state: InvocationExecutionPreflightState;
+  summary: string;
+};
+
+export type InvocationExecutionPlan = {
+  binding: InvocationExecutionBinding;
+  hostRequirements: InvocationHostRequirement[];
+  preflight: InvocationExecutionPreflight;
+};
+
+export type InvocationExecutionOutcome = {
+  status: InvocationExecutionOutcomeStatus;
+  summary: string;
+};
+
+export type InvocationExecutionEvidence = InvocationExecutionPlan & {
+  invocationId: string;
+  caller: InvocationAudience;
+  source: InvocationSource;
+  readiness: InvocationReadiness;
+  outcome: InvocationExecutionOutcome;
+};
+
 export type RuntimeToolDescriptor = {
   toolName: string;
   scope: RuntimeToolExecutionScope;
@@ -94,12 +155,33 @@ export type InvocationDescriptor = {
   safety: InvocationSafetyProfile;
   exposure: InvocationExposurePolicy;
   readiness: InvocationReadiness;
+  execution?: InvocationExecutionPlan | null;
   metadata: Record<string, unknown> | null;
 };
 
 export type ActiveInvocationCatalogSourceSummary = {
   kind: InvocationDescriptorKind;
   count: number;
+};
+
+export type ActiveInvocationCatalogExecutionSummary = {
+  bindingKind: InvocationExecutionBindingKind;
+  host: InvocationExecutionHost;
+  count: number;
+  readyCount: number;
+  blockedCount: number;
+  notRequiredCount: number;
+  requirementKeys: InvocationHostRequirementKey[];
+};
+
+export type ActiveInvocationCatalogRequirementSummary = {
+  key: InvocationHostRequirementKey;
+  count: number;
+};
+
+export type ActiveInvocationCatalogExecutionPlane = {
+  bindings: ActiveInvocationCatalogExecutionSummary[];
+  requirements: ActiveInvocationCatalogRequirementSummary[];
 };
 
 export type ActiveInvocationCatalog = {
@@ -109,4 +191,5 @@ export type ActiveInvocationCatalog = {
   generatedAt: number;
   items: InvocationDescriptor[];
   sources: ActiveInvocationCatalogSourceSummary[];
+  execution: ActiveInvocationCatalogExecutionPlane;
 };

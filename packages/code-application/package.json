@@ -25,6 +25,10 @@
       "types": "./src/runtimeInvocationCatalogFacade.ts",
       "default": "./src/runtimeInvocationCatalogFacade.ts"
     },
+    "./runtimeInvocationExecution": {
+      "types": "./src/runtimeInvocationExecution.ts",
+      "default": "./src/runtimeInvocationExecution.ts"
+    },
     "./runtimeBackendPreferences": {
       "types": "./src/runtimeBackendPreferences.ts",
       "default": "./src/runtimeBackendPreferences.ts"

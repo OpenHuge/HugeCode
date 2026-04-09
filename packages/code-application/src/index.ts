@@ -44,6 +44,12 @@ export {
 export { createRuntimeExecutableSkillFacade } from "./runtimeExecutableSkillFacade";
 export { createRuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalogFacade";
 export {
+  buildInvocationExecutionEvidence,
+  buildInvocationExecutionPlan,
+  summarizeInvocationExecutionCatalog,
+  withInvocationExecutionPlan,
+} from "./runtimeInvocationExecution";
+export {
   applyRuntimeCompositionProfileUpdates,
   buildDefaultRuntimeCompositionProfiles,
   cloneRuntimeCompositionProfile,
@@ -78,10 +84,30 @@ export {
   normalizeRuntimeInvocationCatalogSnapshot,
   resolveRuntimeInvocationDescriptor,
 } from "./runtimeInvocationCatalog";
-export * from "./runtime-control-plane/missionControlSurfaceModel";
-export * from "./runtime-control-plane/reviewPackSurfaceModel";
-export * from "./runtime-control-plane/runtimeMissionNavigationTarget";
-export * from "./runtime-control-plane/runtimeMissionNavigationTypes";
+export {
+  buildLatestMissionRunsFromProjection,
+  buildMissionOverviewCountsFromProjection,
+  buildMissionOverviewItemsFromProjection,
+  buildMissionReviewEntriesFromProjection,
+  describeMissionRunRouteDetail,
+  formatMissionControlFreshnessDetail,
+  formatMissionControlFreshnessLabel,
+  formatMissionOverviewStateLabel,
+  isMissionRunActive,
+  isMissionRunNeedsAction,
+  mapRunStateToMissionOverviewState,
+  mapThreadVisualStateToMissionOverviewState,
+  summarizeMissionControlSignals,
+} from "./runtime-control-plane/missionControlSurfaceModel";
+export {
+  buildReviewPackDetailModel,
+  buildReviewPackListItems,
+  resolveReviewPackSelection,
+} from "./runtime-control-plane/reviewPackSurfaceModel";
+export {
+  buildMissionNavigationTarget,
+  buildReviewNavigationTarget,
+} from "./runtime-control-plane/runtimeMissionNavigationTarget";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,
@@ -112,7 +138,26 @@ export type {
 } from "./workspaceHostRenderer";
 export type * from "./runtimeExecutableSkillFacade";
 export type * from "./runtimeInvocationCatalogFacade";
+export type * from "./runtimeInvocationExecution";
 export type * from "./runtimeLiveSkillAliases";
+export type {
+  MissionControlFreshnessState,
+  MissionLatestRunEntry,
+  MissionNavigationTarget,
+  MissionOverviewCounts,
+  MissionOverviewEntry,
+  MissionOverviewState,
+  MissionReviewEntry,
+  ThreadVisualState,
+} from "./runtime-control-plane/missionControlSurfaceModel";
+export type {
+  MissionRunDetailModel,
+  MissionSurfaceDetailModel,
+  ReviewPackDetailModel,
+  ReviewPackSelectionRequest,
+  ReviewPackSelectionSource,
+  ReviewPackSelectionState,
+} from "./runtime-control-plane/reviewPackSurfaceModel";
 export type {
   RuntimeCompositionProfileLaunchOverride,
   RuntimeCompositionProfileUpdates,
