@@ -902,6 +902,18 @@ function createRuntimeLaunchPreparationFixture() {
       precedence: ["launch", "repo"],
       layers: [
         {
+          id: "launch-guidance",
+          scope: "launch",
+          summary: "Operator launch instruction: Inspect runtime launch path",
+          source: "launch_instruction",
+          priority: 100,
+          instructions: [
+            "Inspect runtime launch path",
+            "Favor the operator's explicit objective when guidance layers conflict.",
+          ],
+          skillIds: [],
+        },
+        {
           id: "repo-instructions",
           scope: "repo",
           summary:
@@ -2307,6 +2319,11 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     expect(
       screen.getByText(
         "Eval plane: Eval cases: 2 | Baseline: Balanced Delegate execution profile | Playbook steps: 3"
+      )
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        /launch: Operator launch instruction: Inspect runtime launch path \| instructions: Inspect runtime launch path/
       )
     ).toBeTruthy();
   });
