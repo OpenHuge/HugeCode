@@ -139,6 +139,10 @@ function isSubAgentSessionTerminal(status: string | null | undefined): boolean {
   );
 }
 
+function isPendingSubAgentApprovalStatus(status: string | null | undefined): boolean {
+  return status === "pending" || status === "requested" || status === "pending_decision";
+}
+
 function formatExecutionEvidenceReviewStatusLabel(
   reviewStatus: NonNullable<RuntimeExecutionEvidenceSummary["reviewStatus"]>
 ): string {
@@ -863,10 +867,11 @@ export function WorkspaceHomeAgentRuntimeRunItem({
                       : null);
                   const takeoverSummary = agent.takeoverBundle?.summary ?? null;
                   const takeoverRecommendedAction = agent.takeoverBundle?.recommendedAction ?? null;
-                  const approvalSummary =
-                    agent.approvalState?.status === "pending"
-                      ? (agent.approvalState.reason ?? "Runtime is waiting for approval.")
-                      : null;
+                  const approvalSummary = isPendingSubAgentApprovalStatus(
+                    agent.approvalState?.status
+                  )
+                    ? (agent.approvalState.reason ?? "Runtime is waiting for approval.")
+                    : null;
                   const resultSummary = agent.resultSummary?.summary ?? null;
                   const resultNextAction = agent.resultSummary?.nextAction ?? null;
                   const contextProjectionSummary =
@@ -879,10 +884,11 @@ export function WorkspaceHomeAgentRuntimeRunItem({
                   const sessionNodeCount = graphNodes.filter(
                     (node) => node.executorSessionId === agent.sessionId
                   ).length;
-                  const pendingApprovalId =
-                    agent.approvalState?.status === "pending"
-                      ? (agent.approvalState.approvalId ?? null)
-                      : null;
+                  const pendingApprovalId = isPendingSubAgentApprovalStatus(
+                    agent.approvalState?.status
+                  )
+                    ? (agent.approvalState.approvalId ?? null)
+                    : null;
                   const canApproveSubAgent =
                     !runtimeLoading &&
                     pendingApprovalId !== null &&

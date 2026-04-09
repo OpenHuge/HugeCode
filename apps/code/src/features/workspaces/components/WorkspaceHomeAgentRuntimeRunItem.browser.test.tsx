@@ -220,7 +220,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
               status: "awaiting_approval",
               summary: "Reviewer session is paused for approval.",
               approvalState: {
-                status: "pending",
+                status: "requested",
                 approvalId: "approval-review-1",
                 reason: "Approve reviewer escalation to continue.",
                 at: 1_700_000_100_000,
