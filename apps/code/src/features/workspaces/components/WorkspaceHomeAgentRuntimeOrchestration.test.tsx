@@ -465,6 +465,10 @@ function mockRoutingPlugins(input: {
 
 beforeEach(() => {
   runtimeUpdatedListeners.clear();
+  submitTaskApprovalDecisionMock.mockReset();
+  interruptAgentTaskMock.mockReset();
+  resumeAgentTaskMock.mockReset();
+  vi.mocked(startAgentTask).mockReset();
   runtimePluginCatalogListMock.mockResolvedValue([]);
   runtimePluginRegistryListMock.mockResolvedValue([]);
   runtimePluginRegistryInstallMock.mockClear();
