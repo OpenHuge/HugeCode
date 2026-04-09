@@ -15,6 +15,17 @@ type UseRuntimeDistributedTaskGraphOptions = {
   fallbackGraph?: DistributedTaskGraphSnapshot | null;
 };
 
+function readRuntimeDistributedTaskGraphFailureMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+  return "Distributed graph request failed.";
+}
+
+async function loadRuntimeDistributedTaskGraphSnapshot(taskId: string) {
+  return readNormalizedRuntimeDistributedTaskGraph(taskId);
+}
+
 export function useRuntimeDistributedTaskGraph({
   graphId,
   fallbackGraph = null,
@@ -30,9 +41,16 @@ export function useRuntimeDistributedTaskGraph({
       if (!refreshTaskId) {
         return;
       }
-      const nextGraph = await readNormalizedRuntimeDistributedTaskGraph(refreshTaskId);
-      setGraphSnapshot(nextGraph);
-      setGraphReadOnlyReason(null);
+      try {
+        const nextGraph = await loadRuntimeDistributedTaskGraphSnapshot(refreshTaskId);
+        setGraphSnapshot(nextGraph);
+        setGraphReadOnlyReason(null);
+      } catch (error) {
+        const message = readRuntimeDistributedTaskGraphFailureMessage(error);
+        setGraphSnapshot(null);
+        setGraphReadOnlyReason(message);
+        throw error;
+      }
     },
     [normalizedGraphId]
   );
@@ -47,7 +65,7 @@ export function useRuntimeDistributedTaskGraph({
     let cancelled = false;
     void (async () => {
       try {
-        const nextGraph = await readNormalizedRuntimeDistributedTaskGraph(normalizedGraphId);
+        const nextGraph = await loadRuntimeDistributedTaskGraphSnapshot(normalizedGraphId);
         if (cancelled) {
           return;
         }
@@ -57,8 +75,7 @@ export function useRuntimeDistributedTaskGraph({
         if (cancelled) {
           return;
         }
-        const message =
-          error instanceof Error ? error.message : "Distributed graph request failed.";
+        const message = readRuntimeDistributedTaskGraphFailureMessage(error);
         setGraphSnapshot(null);
         setGraphReadOnlyReason(message);
       }

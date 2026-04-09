@@ -80,6 +80,33 @@ describe("useRuntimeDistributedTaskGraph", () => {
     });
   });
 
+  it("surfaces a read-only reason when a graph refresh fails", async () => {
+    readNormalizedRuntimeDistributedTaskGraphMock
+      .mockResolvedValueOnce({
+        graphId: "task-root-1",
+        nodes: [{ id: "node-1", title: "Node 1", status: "running", parentId: null, attempt: 1 }],
+        edges: [],
+      })
+      .mockRejectedValueOnce(new Error("graph refresh failed"));
+
+    const { result } = renderHook(() =>
+      useRuntimeDistributedTaskGraph({
+        graphId: "task-root-1",
+        fallbackGraph: null,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.graph?.graphId).toBe("task-root-1");
+    });
+
+    await expect(result.current.refreshGraph()).rejects.toThrow("graph refresh failed");
+
+    await waitFor(() => {
+      expect(result.current.disabledReason).toBe("graph refresh failed");
+    });
+  });
+
   it("keeps the fallback graph visible when the runtime graph has not loaded", () => {
     const fallbackGraph = {
       graphId: "task-root-2",

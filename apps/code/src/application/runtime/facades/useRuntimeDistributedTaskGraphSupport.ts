@@ -13,6 +13,20 @@ const DEFAULT_SNAPSHOT: RuntimeDistributedTaskGraphSupportSnapshot = {
   support: DEFAULT_RUNTIME_DISTRIBUTED_TASK_GRAPH_SUPPORT,
 };
 
+function buildRuntimeDistributedTaskGraphSupportFailure(
+  error: unknown
+): RuntimeDistributedTaskGraphSupport {
+  const message =
+    error instanceof Error
+      ? error.message.trim() || "Distributed graph support is unavailable in current runtime."
+      : "Distributed graph support is unavailable in current runtime.";
+
+  return {
+    ...DEFAULT_RUNTIME_DISTRIBUTED_TASK_GRAPH_SUPPORT,
+    readOnlyReason: message,
+  };
+}
+
 let runtimeDistributedTaskGraphSupportSnapshot = DEFAULT_SNAPSHOT;
 let runtimeDistributedTaskGraphSupportInflight: Promise<void> | null = null;
 const runtimeDistributedTaskGraphSupportListeners = new Set<() => void>();
@@ -40,8 +54,8 @@ export async function ensureRuntimeDistributedTaskGraphSupport() {
     try {
       const support = await readRuntimeDistributedTaskGraphSupport();
       setRuntimeDistributedTaskGraphSupport(support);
-    } catch {
-      setRuntimeDistributedTaskGraphSupport(DEFAULT_RUNTIME_DISTRIBUTED_TASK_GRAPH_SUPPORT);
+    } catch (error) {
+      setRuntimeDistributedTaskGraphSupport(buildRuntimeDistributedTaskGraphSupportFailure(error));
     } finally {
       runtimeDistributedTaskGraphSupportInflight = null;
     }
