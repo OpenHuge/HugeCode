@@ -81,6 +81,16 @@ describe("vite manualChunks", () => {
     ).toBe("runtime-mission-control");
     expect(
       resolveChunkName(
+        "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/runtimeMissionControlPluginCatalog.ts"
+      )
+    ).toBe("runtime-mission-control");
+    expect(
+      resolveChunkName(
+        "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts"
+      )
+    ).toBe("runtime-mission-control");
+    expect(
+      resolveChunkName(
         "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/runtimeKernelPluginReadiness.ts"
       )
     ).toBe("runtime-mission-control");

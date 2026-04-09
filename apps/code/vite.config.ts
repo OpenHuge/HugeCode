@@ -105,9 +105,11 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/packages/code-application/src/runtimeMissionControlRunProjection.ts",
   "/packages/code-application/src/runtimeMissionControlReviewPackProjection.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeKernelPluginReadiness.ts",
+  "/packages/code-application/src/runtime-control-plane/runtimeMissionControlPluginCatalog.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeMissionControlOperatorAction.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts",
+  "/packages/code-application/src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts",
   "/src/application/runtime/ports/runtimeDiagnostics.ts",
 ] as const;
 const RUNTIME_AUTODRIVE_CHUNK_PATTERNS = [
