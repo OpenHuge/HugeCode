@@ -135,6 +135,15 @@ describe("runtimeInvocationExecute", () => {
       kind: "runtime_run_started",
       ok: true,
       message: null,
+      evidence: {
+        binding: {
+          kind: "runtime_run",
+          host: "runtime",
+        },
+        outcome: {
+          status: "executed",
+        },
+      },
     });
   });
 
@@ -202,6 +211,14 @@ describe("runtimeInvocationExecute", () => {
       kind: "live_skill_executed",
       ok: true,
       payload: execution,
+      evidence: {
+        binding: {
+          kind: "runtime_live_skill",
+        },
+        outcome: {
+          status: "executed",
+        },
+      },
     });
   });
 
@@ -414,6 +431,16 @@ describe("runtimeInvocationExecute", () => {
         promptId: "prompt.summarize",
         scope: "workspace",
       },
+      evidence: {
+        binding: {
+          kind: "prompt_overlay",
+          host: "workspace",
+          promptId: "prompt.summarize",
+        },
+        outcome: {
+          status: "resolved",
+        },
+      },
     });
   });
 
@@ -481,6 +508,14 @@ describe("runtimeInvocationExecute", () => {
       kind: "blocked",
       ok: false,
       message: "operator only",
+      evidence: {
+        binding: {
+          kind: "session_message",
+        },
+        outcome: {
+          status: "blocked",
+        },
+      },
     });
 
     await expect(
@@ -490,6 +525,14 @@ describe("runtimeInvocationExecute", () => {
     ).resolves.toMatchObject({
       kind: "unsupported",
       ok: false,
+      evidence: {
+        binding: {
+          kind: "unsupported",
+        },
+        outcome: {
+          status: "unsupported",
+        },
+      },
     });
   });
 
@@ -549,6 +592,14 @@ describe("runtimeInvocationExecute", () => {
       kind: "blocked",
       ok: false,
       message: "Invocation `tool:start-runtime-run` failed: runtime unavailable",
+      evidence: {
+        binding: {
+          kind: "runtime_run",
+        },
+        outcome: {
+          status: "blocked",
+        },
+      },
     });
 
     await expect(

@@ -185,6 +185,68 @@ describe("runtimeInvocationCatalog", () => {
       { kind: "plugin", count: 2 },
       { kind: "session_command", count: 2 },
     ]);
+    expect(catalog.execution).toEqual({
+      bindings: [
+        {
+          bindingKind: "runtime_live_skill",
+          host: "runtime",
+          count: 1,
+          readyCount: 1,
+          blockedCount: 0,
+          notRequiredCount: 0,
+          requirementKeys: ["runtime_service"],
+        },
+        {
+          bindingKind: "runtime_run",
+          host: "runtime",
+          count: 1,
+          readyCount: 1,
+          blockedCount: 0,
+          notRequiredCount: 0,
+          requirementKeys: ["runtime_service"],
+        },
+        {
+          bindingKind: "unsupported",
+          host: "runtime",
+          count: 1,
+          readyCount: 1,
+          blockedCount: 0,
+          notRequiredCount: 0,
+          requirementKeys: [],
+        },
+        {
+          bindingKind: "approval_response",
+          host: "session",
+          count: 1,
+          readyCount: 0,
+          blockedCount: 0,
+          notRequiredCount: 1,
+          requirementKeys: ["session_facade"],
+        },
+        {
+          bindingKind: "session_message",
+          host: "session",
+          count: 1,
+          readyCount: 0,
+          blockedCount: 0,
+          notRequiredCount: 1,
+          requirementKeys: ["session_facade"],
+        },
+        {
+          bindingKind: "unsupported",
+          host: "workspace",
+          count: 1,
+          readyCount: 0,
+          blockedCount: 1,
+          notRequiredCount: 0,
+          requirementKeys: [],
+        },
+      ],
+      requirements: [
+        { key: "runtime_service", count: 2 },
+        { key: "session_facade", count: 2 },
+      ],
+    });
 
     const runtimeTool = catalog.items.find((entry) => entry.id === "tool:start-runtime-run");
     expect(runtimeTool).toMatchObject({
@@ -201,6 +263,15 @@ describe("runtimeInvocationCatalog", () => {
       readiness: {
         state: "ready",
         available: true,
+      },
+      execution: {
+        binding: {
+          kind: "runtime_run",
+          host: "runtime",
+        },
+        preflight: {
+          state: "ready",
+        },
       },
     });
 
@@ -263,6 +334,38 @@ describe("runtimeInvocationCatalog", () => {
       "tool:run-runtime-live-skill",
       "tool:start-runtime-run",
     ]);
+    expect(modelCatalog.execution).toEqual({
+      bindings: [
+        {
+          bindingKind: "runtime_live_skill",
+          host: "runtime",
+          count: 1,
+          readyCount: 1,
+          blockedCount: 0,
+          notRequiredCount: 0,
+          requirementKeys: ["runtime_service"],
+        },
+        {
+          bindingKind: "runtime_run",
+          host: "runtime",
+          count: 1,
+          readyCount: 1,
+          blockedCount: 0,
+          notRequiredCount: 0,
+          requirementKeys: ["runtime_service"],
+        },
+        {
+          bindingKind: "unsupported",
+          host: "runtime",
+          count: 1,
+          readyCount: 1,
+          blockedCount: 0,
+          notRequiredCount: 0,
+          requirementKeys: [],
+        },
+      ],
+      requirements: [{ key: "runtime_service", count: 2 }],
+    });
   });
 
   it("prefers projection-backed runtime extensions over fallback plugin rows and publishes extension tools through runtime tool descriptors", async () => {
@@ -380,6 +483,14 @@ describe("runtimeInvocationCatalog", () => {
       safety: {
         level: "read",
         readOnly: true,
+      },
+      execution: {
+        binding: {
+          kind: "runtime_extension_tool",
+          host: "runtime",
+          extensionId: "ext.review",
+          toolName: "ext.review.search",
+        },
       },
     });
 

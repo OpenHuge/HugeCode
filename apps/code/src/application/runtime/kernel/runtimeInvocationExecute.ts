@@ -1,6 +1,7 @@
 import type {
   InvocationAudience,
   InvocationDescriptor,
+  InvocationExecutionEvidence,
   LiveSkillExecuteRequest,
   LiveSkillExecutionResult,
   PromptLibraryEntry,
@@ -9,6 +10,10 @@ import type {
   RuntimeRunStartRequest,
   RuntimeRunStartV2Response,
 } from "@ku0/code-runtime-host-contract";
+import {
+  buildInvocationExecutionEvidence,
+  buildInvocationExecutionPlan,
+} from "@ku0/code-application/runtimeInvocationExecution";
 import type { RuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import type { RuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalog";
 
@@ -40,6 +45,7 @@ export type RuntimeInvocationExecuteResult =
       ok: true;
       payload: unknown;
       message: string | null;
+      evidence: InvocationExecutionEvidence | null;
     }
   | {
       invocationId: string;
@@ -47,6 +53,7 @@ export type RuntimeInvocationExecuteResult =
       ok: false;
       payload: null;
       message: string;
+      evidence: InvocationExecutionEvidence | null;
     };
 
 export type RuntimeInvocationExecuteFacade = {
@@ -101,30 +108,41 @@ function readPromptOverlayMetadata(descriptor: InvocationDescriptor): PromptOver
   };
 }
 
-function buildUnsupported(invocationId: string, message: string): RuntimeInvocationExecuteResult {
+function buildUnsupported(
+  invocationId: string,
+  message: string,
+  evidence: InvocationExecutionEvidence | null = null
+): RuntimeInvocationExecuteResult {
   return {
     invocationId,
     kind: "unsupported",
     ok: false,
     payload: null,
     message,
+    evidence,
   };
 }
 
-function buildBlocked(invocationId: string, message: string): RuntimeInvocationExecuteResult {
+function buildBlocked(
+  invocationId: string,
+  message: string,
+  evidence: InvocationExecutionEvidence | null = null
+): RuntimeInvocationExecuteResult {
   return {
     invocationId,
     kind: "blocked",
     ok: false,
     payload: null,
     message,
+    evidence,
   };
 }
 
 function buildSuccess(
   invocationId: string,
   kind: RuntimeInvocationExecuteSuccessKind,
-  payload: unknown
+  payload: unknown,
+  evidence: InvocationExecutionEvidence
 ): RuntimeInvocationExecuteResult {
   return {
     invocationId,
@@ -132,6 +150,7 @@ function buildSuccess(
     ok: true,
     payload,
     message: null,
+    evidence,
   };
 }
 
@@ -282,8 +301,9 @@ export function createRuntimeInvocationExecuteFacade(
       context,
       caller = "operator",
     }) => {
+      let descriptor: InvocationDescriptor | null = null;
       try {
-        const descriptor = await input.invocationCatalog.resolveInvocationDescriptor(invocationId);
+        descriptor = await input.invocationCatalog.resolveInvocationDescriptor(invocationId);
         if (!descriptor) {
           return buildUnsupported(
             invocationId,
@@ -294,28 +314,60 @@ export function createRuntimeInvocationExecuteFacade(
           return buildBlocked(
             invocationId,
             descriptor.exposure.hiddenReason ??
-              `Invocation \`${invocationId}\` is not visible to ${caller} callers.`
+              `Invocation \`${invocationId}\` is not visible to ${caller} callers.`,
+            buildInvocationExecutionEvidence({
+              descriptor,
+              caller,
+              outcome: {
+                status: "blocked",
+                summary:
+                  descriptor.exposure.hiddenReason ??
+                  `Invocation \`${invocationId}\` is hidden from ${caller} callers.`,
+              },
+            })
           );
         }
         if (descriptor.exposure.requiresReadiness && !descriptor.readiness.available) {
           return buildBlocked(
             invocationId,
-            descriptor.readiness.reason ?? `Invocation \`${invocationId}\` is not ready.`
+            descriptor.readiness.reason ?? `Invocation \`${invocationId}\` is not ready.`,
+            buildInvocationExecutionEvidence({
+              descriptor,
+              caller,
+              outcome: {
+                status: "blocked",
+                summary:
+                  descriptor.readiness.reason ??
+                  `Invocation \`${invocationId}\` is blocked by readiness.`,
+              },
+            })
           );
         }
 
         const args = asArgumentsRecord(invocationArguments);
+        const executionPlan = descriptor.execution ?? buildInvocationExecutionPlan(descriptor);
+        const bindingKind = executionPlan.binding.kind;
 
-        if (descriptor.kind === "plugin") {
+        if (bindingKind === "unsupported" || descriptor.kind === "plugin") {
           return buildUnsupported(
             invocationId,
-            `Invocation \`${invocationId}\` does not expose a direct execute binding yet.`
+            `Invocation \`${invocationId}\` does not expose a direct execute binding yet.`,
+            buildInvocationExecutionEvidence({
+              descriptor,
+              caller,
+              outcome: {
+                status: "unsupported",
+                summary: `Invocation \`${invocationId}\` does not expose a supported execute binding.`,
+              },
+            })
           );
         }
 
-        if (descriptor.kind === "runtime_tool" && descriptor.source.kind === "runtime_extension") {
-          const toolName = descriptor.runtimeTool?.toolName ?? descriptor.title;
+        if (bindingKind === "runtime_extension_tool") {
+          const toolName =
+            executionPlan.binding.toolName ?? descriptor.runtimeTool?.toolName ?? descriptor.title;
           const extensionId =
+            executionPlan.binding.extensionId ??
             readString(asRecord(descriptor.metadata) ?? {}, "extensionId") ??
             descriptor.source.sourceId;
           const payload = await input.invokeRuntimeExtensionTool({
@@ -324,31 +376,58 @@ export function createRuntimeInvocationExecuteFacade(
             toolName,
             input: args,
           });
-          return buildSuccess(invocationId, "extension_tool_executed", payload);
+          return buildSuccess(
+            invocationId,
+            "extension_tool_executed",
+            payload,
+            buildInvocationExecutionEvidence({
+              descriptor,
+              caller,
+              outcome: {
+                status: "executed",
+                summary: "Runtime extension tool executed through the runtime extension bridge.",
+              },
+            })
+          );
         }
 
-        if (
-          descriptor.kind === "runtime_tool" &&
-          descriptor.runtimeTool?.toolName === "start-runtime-run"
-        ) {
+        if (bindingKind === "runtime_run") {
           const payload = await input.startRuntimeRun({
             ...(args as RuntimeRunStartRequest),
             workspaceId: input.workspaceId,
             ...(context?.threadId && !("threadId" in args) ? { threadId: context.threadId } : {}),
           });
-          return buildSuccess(invocationId, "runtime_run_started", payload);
+          return buildSuccess(
+            invocationId,
+            "runtime_run_started",
+            payload,
+            buildInvocationExecutionEvidence({
+              descriptor,
+              caller,
+              outcome: {
+                status: "executed",
+                summary:
+                  "Runtime run launch request was dispatched through the canonical runtime path.",
+              },
+            })
+          );
         }
 
-        if (
-          descriptor.kind === "runtime_tool" &&
-          descriptor.runtimeTool?.toolName === "run-runtime-live-skill"
-        ) {
+        if (bindingKind === "runtime_live_skill") {
           const skillId = readString(args, "skillId");
           const liveSkillInput = readString(args, "input");
           if (!skillId || !liveSkillInput) {
             return buildBlocked(
               invocationId,
-              "Runtime live skill execution requires `skillId` and `input`."
+              "Runtime live skill execution requires `skillId` and `input`.",
+              buildInvocationExecutionEvidence({
+                descriptor,
+                caller,
+                outcome: {
+                  status: "blocked",
+                  summary: "Runtime live skill execution is missing required `skillId` or `input`.",
+                },
+              })
             );
           }
           const options = {
@@ -360,18 +439,38 @@ export function createRuntimeInvocationExecuteFacade(
             input: liveSkillInput,
             ...(Object.keys(options).length > 0 ? { options } : {}),
           });
-          return buildSuccess(invocationId, "live_skill_executed", payload);
+          return buildSuccess(
+            invocationId,
+            "live_skill_executed",
+            payload,
+            buildInvocationExecutionEvidence({
+              descriptor,
+              caller,
+              outcome: {
+                status: "executed",
+                summary: "Runtime live skill executed through the canonical runtime path.",
+              },
+            })
+          );
         }
 
         if (descriptor.kind === "session_command") {
           const promptOverlay = readPromptOverlayMetadata(descriptor);
-          if (promptOverlay) {
+          if (bindingKind === "prompt_overlay" && promptOverlay) {
             const prompts = await input.listRuntimePrompts(input.workspaceId);
             const prompt = prompts.find((entry) => entry.id === promptOverlay.promptId);
             if (!prompt) {
               return buildBlocked(
                 invocationId,
-                `Prompt overlay \`${promptOverlay.promptId}\` is no longer available.`
+                `Prompt overlay \`${promptOverlay.promptId}\` is no longer available.`,
+                buildInvocationExecutionEvidence({
+                  descriptor,
+                  caller,
+                  outcome: {
+                    status: "blocked",
+                    summary: `Prompt overlay \`${promptOverlay.promptId}\` is no longer available.`,
+                  },
+                })
               );
             }
             const resolved = resolvePromptOverlayText({
@@ -379,23 +478,55 @@ export function createRuntimeInvocationExecuteFacade(
               args,
             });
             if ("error" in resolved) {
-              return buildBlocked(invocationId, resolved.error);
+              return buildBlocked(
+                invocationId,
+                resolved.error,
+                buildInvocationExecutionEvidence({
+                  descriptor,
+                  caller,
+                  outcome: {
+                    status: "blocked",
+                    summary: resolved.error,
+                  },
+                })
+              );
             }
-            return buildSuccess(invocationId, "compose_patch_resolved", {
-              text: resolved.text,
-              cursorOffset: promptOverlay.cursorOffset,
-              promptId: promptOverlay.promptId,
-              scope: promptOverlay.scope,
-            });
+            return buildSuccess(
+              invocationId,
+              "compose_patch_resolved",
+              {
+                text: resolved.text,
+                cursorOffset: promptOverlay.cursorOffset,
+                promptId: promptOverlay.promptId,
+                scope: promptOverlay.scope,
+              },
+              buildInvocationExecutionEvidence({
+                descriptor,
+                caller,
+                outcome: {
+                  status: "resolved",
+                  summary:
+                    "Prompt overlay resolved into compose text without sending a runtime turn.",
+                },
+              })
+            );
           }
 
-          if (invocationId === "session:send-message") {
+          if (bindingKind === "session_message") {
             const threadId = readString(args, "threadId") ?? context?.threadId ?? null;
             const text = readString(args, "text");
             if (!threadId || !text) {
               return buildBlocked(
                 invocationId,
-                "Session message execution requires `threadId` and `text`."
+                "Session message execution requires `threadId` and `text`.",
+                buildInvocationExecutionEvidence({
+                  descriptor,
+                  caller,
+                  outcome: {
+                    status: "blocked",
+                    summary: "Session message execution is missing required `threadId` or `text`.",
+                  },
+                })
               );
             }
             const payload = await input.sessionCommands.sendMessage({
@@ -405,10 +536,22 @@ export function createRuntimeInvocationExecuteFacade(
                 telemetrySource: context?.telemetrySource ?? "runtime_invocation_execute",
               },
             });
-            return buildSuccess(invocationId, "session_message_sent", payload);
+            return buildSuccess(
+              invocationId,
+              "session_message_sent",
+              payload,
+              buildInvocationExecutionEvidence({
+                descriptor,
+                caller,
+                outcome: {
+                  status: "executed",
+                  summary: "Session command sent through the runtime session facade.",
+                },
+              })
+            );
           }
 
-          if (invocationId === "session:respond-to-approval") {
+          if (bindingKind === "approval_response") {
             const requestId = args.requestId;
             const decision = args.decision;
             if (
@@ -417,27 +560,81 @@ export function createRuntimeInvocationExecuteFacade(
             ) {
               return buildBlocked(
                 invocationId,
-                "Approval resolution requires `requestId` and `decision`."
+                "Approval resolution requires `requestId` and `decision`.",
+                buildInvocationExecutionEvidence({
+                  descriptor,
+                  caller,
+                  outcome: {
+                    status: "blocked",
+                    summary: "Approval resolution is missing required `requestId` or `decision`.",
+                  },
+                })
               );
             }
             const payload = await input.sessionCommands.respondToApproval({
               requestId,
               decision,
             });
-            return buildSuccess(invocationId, "approval_resolved", payload);
+            return buildSuccess(
+              invocationId,
+              "approval_resolved",
+              payload,
+              buildInvocationExecutionEvidence({
+                descriptor,
+                caller,
+                outcome: {
+                  status: "executed",
+                  summary: "Approval response sent through the runtime session facade.",
+                },
+              })
+            );
           }
         }
 
         return buildUnsupported(
           invocationId,
-          `Invocation \`${invocationId}\` does not have a supported execute binding.`
+          `Invocation \`${invocationId}\` does not have a supported execute binding.`,
+          buildInvocationExecutionEvidence({
+            descriptor,
+            caller,
+            outcome: {
+              status: "unsupported",
+              summary: `Invocation \`${invocationId}\` does not have a supported execute binding.`,
+            },
+          })
         );
       } catch (error) {
         const message = describeExecutionFailure(error);
         if (message === "Unexpected runtime invocation failure.") {
-          return buildBlocked(invocationId, `Invocation \`${invocationId}\` failed unexpectedly.`);
+          return buildBlocked(
+            invocationId,
+            `Invocation \`${invocationId}\` failed unexpectedly.`,
+            descriptor
+              ? buildInvocationExecutionEvidence({
+                  descriptor,
+                  caller,
+                  outcome: {
+                    status: "blocked",
+                    summary: `Invocation \`${invocationId}\` failed unexpectedly.`,
+                  },
+                })
+              : null
+          );
         }
-        return buildBlocked(invocationId, `Invocation \`${invocationId}\` failed: ${message}`);
+        return buildBlocked(
+          invocationId,
+          `Invocation \`${invocationId}\` failed: ${message}`,
+          descriptor
+            ? buildInvocationExecutionEvidence({
+                descriptor,
+                caller,
+                outcome: {
+                  status: "blocked",
+                  summary: `Invocation \`${invocationId}\` failed: ${message}`,
+                },
+              })
+            : null
+        );
       }
     },
   };

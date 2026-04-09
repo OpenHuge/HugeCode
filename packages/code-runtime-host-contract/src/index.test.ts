@@ -5,6 +5,9 @@ import {
   CODE_RUNTIME_RPC_INVOCATION_COMPLETION_MODES,
   HUGECODE_INTERVENTION_ACTIONS,
   HUGECODE_RUN_STATES,
+  type ActiveInvocationCatalogExecutionPlane,
+  type InvocationExecutionEvidence,
+  type InvocationExecutionPlan,
   type RuntimeExecutionEvidenceSummary,
   type RuntimeExecutionLifecycleSummary,
   type RuntimeExtensionActivationSnapshot,
@@ -93,6 +96,74 @@ describe("code runtime host event envelope", () => {
 
     expect(lifecycleSummary.stage).toBe("validated");
     expect(evidenceSummary.authoritativeTraceId).toBe("trace-1");
+  });
+
+  it("re-exports invocation execution plan and evidence types", () => {
+    const executionPlan: InvocationExecutionPlan = {
+      binding: {
+        kind: "runtime_run",
+        host: "runtime",
+        toolName: "start-runtime-run",
+      },
+      hostRequirements: [
+        {
+          key: "runtime_service",
+          summary: "Requires runtime service availability.",
+        },
+      ],
+      preflight: {
+        state: "ready",
+        summary: "Invocation is executable.",
+      },
+    };
+    const evidence: InvocationExecutionEvidence = {
+      invocationId: "tool:start-runtime-run",
+      caller: "operator",
+      source: {
+        kind: "runtime_tool",
+        contributionType: "built_in",
+        authority: "runtime",
+        label: "Runtime tool catalog",
+        sourceId: "start-runtime-run",
+        workspaceId: "ws-1",
+        provenance: null,
+      },
+      readiness: {
+        state: "ready",
+        available: true,
+        reason: null,
+        warnings: [],
+        checkedAt: null,
+      },
+      outcome: {
+        status: "executed",
+        summary: "Runtime run launch request was dispatched through the canonical runtime path.",
+      },
+      ...executionPlan,
+    };
+
+    expect(evidence.binding.kind).toBe("runtime_run");
+    expect(evidence.outcome.status).toBe("executed");
+  });
+
+  it("re-exports invocation catalog execution summaries", () => {
+    const executionPlane: ActiveInvocationCatalogExecutionPlane = {
+      bindings: [
+        {
+          bindingKind: "runtime_run",
+          host: "runtime",
+          count: 1,
+          readyCount: 1,
+          blockedCount: 0,
+          notRequiredCount: 0,
+          requirementKeys: ["runtime_service"],
+        },
+      ],
+      requirements: [{ key: "runtime_service", count: 1 }],
+    };
+
+    expect(executionPlane.bindings[0]?.bindingKind).toBe("runtime_run");
+    expect(executionPlane.requirements[0]?.key).toBe("runtime_service");
   });
 
   it("accepts turn.completed payloads with responseModelId metadata", () => {

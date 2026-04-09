@@ -10,6 +10,10 @@ import type {
   KernelExtensionBundle,
   RuntimeExtensionToolSummary,
 } from "@ku0/code-runtime-host-contract";
+import {
+  summarizeInvocationExecutionCatalog,
+  withInvocationExecutionPlan,
+} from "@ku0/code-application/runtimeInvocationExecution";
 import type { RuntimeKernelPluginCatalogFacade } from "./runtimeKernelPlugins";
 import type { RuntimeKernelPluginDescriptor } from "./runtimeKernelPluginTypes";
 import { mergeRuntimeKernelProjectionPlugins } from "../facades/runtimeKernelPluginProjection";
@@ -182,7 +186,7 @@ function createBuiltInRuntimeToolDescriptor(
   workspaceId: string,
   descriptor: (typeof BUILT_IN_RUNTIME_TOOLS)[number]
 ): InvocationDescriptor {
-  return {
+  return withInvocationExecutionPlan({
     id: descriptor.id,
     title: descriptor.title,
     summary: descriptor.summary,
@@ -217,14 +221,14 @@ function createBuiltInRuntimeToolDescriptor(
         winningSource: "built_in_runtime_tool",
       },
     },
-  };
+  });
 }
 
 function createSessionCommandDescriptor(
   workspaceId: string,
   descriptor: (typeof SESSION_COMMANDS)[number]
 ): InvocationDescriptor {
-  return {
+  return withInvocationExecutionPlan({
     id: descriptor.id,
     title: descriptor.title,
     summary: descriptor.summary,
@@ -265,7 +269,7 @@ function createSessionCommandDescriptor(
         winningSource: "session_command",
       },
     },
-  };
+  });
 }
 
 function mapPluginReadiness(plugin: RuntimeKernelPluginDescriptor): InvocationReadiness {
@@ -330,7 +334,7 @@ function createPluginInvocationDescriptor(
     plugin.executionBoundaries.includes("remote") ||
     plugin.executionBoundaries.includes("network");
 
-  return {
+  return withInvocationExecutionPlan({
     id: `plugin:${plugin.id}`,
     title: plugin.name,
     summary: plugin.summary ?? plugin.name,
@@ -378,7 +382,7 @@ function createPluginInvocationDescriptor(
             : "plugin_catalog",
       },
     },
-  };
+  });
 }
 
 function createRuntimeExtensionToolDescriptor(input: {
@@ -387,7 +391,7 @@ function createRuntimeExtensionToolDescriptor(input: {
   tool: RuntimeExtensionToolSummary;
 }): InvocationDescriptor {
   const readOnly = input.tool.readOnly;
-  return {
+  return withInvocationExecutionPlan({
     id: `tool:${input.tool.toolName}`,
     title: input.tool.toolName,
     summary: input.tool.description,
@@ -445,7 +449,7 @@ function createRuntimeExtensionToolDescriptor(input: {
       },
       extensionId: input.plugin.id,
     },
-  };
+  });
 }
 
 function promptArgumentNames(content: string): string[] {
@@ -501,7 +505,7 @@ function createRuntimePromptOverlayDescriptor(
   const shadowedByBuiltin = BUILT_IN_SLASH_COMMAND_NAMES.has(prompt.title);
   const hint = buildPromptArgumentHint(prompt);
   const insert = buildPromptInsertText(prompt, shadowedByBuiltin);
-  return {
+  return withInvocationExecutionPlan({
     id: `session:prompt:${prompt.id}`,
     title: prompt.title,
     summary: prompt.description || prompt.title,
@@ -556,7 +560,7 @@ function createRuntimePromptOverlayDescriptor(
         shadowedByBuiltin,
       },
     },
-  };
+  });
 }
 
 function sortCatalogEntries(left: InvocationDescriptor, right: InvocationDescriptor): number {
@@ -593,6 +597,7 @@ function applyAudienceFilter(
     ...catalog,
     items,
     sources: summarizeSources(items),
+    execution: summarizeInvocationExecutionCatalog(items),
   };
 }
 
@@ -600,10 +605,12 @@ function buildCatalogFingerprint(input: {
   workspaceId: string;
   items: InvocationDescriptor[];
   sources: ActiveInvocationCatalog["sources"];
+  execution: ActiveInvocationCatalog["execution"];
 }): string {
   return JSON.stringify({
     workspaceId: input.workspaceId,
     sources: input.sources,
+    execution: input.execution,
     items: input.items,
   });
 }
@@ -815,10 +822,12 @@ export function createRuntimeInvocationCatalogFacade(
     ]);
 
     const sources = summarizeSources(items);
+    const execution = summarizeInvocationExecutionCatalog(items);
     const fingerprint = buildCatalogFingerprint({
       workspaceId: input.workspaceId,
       items,
       sources,
+      execution,
     });
 
     if (cachedCatalog && cachedFingerprint === fingerprint) {
@@ -832,6 +841,7 @@ export function createRuntimeInvocationCatalogFacade(
       generatedAt: Date.now(),
       items,
       sources,
+      execution,
     };
 
     cachedCatalog = nextCatalog;
