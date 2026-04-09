@@ -4,7 +4,7 @@ import type {
   HugeCodeTakeoverTarget,
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 
 function buildFallbackMissionTarget(
   task: RuntimeAgentTaskSummary,

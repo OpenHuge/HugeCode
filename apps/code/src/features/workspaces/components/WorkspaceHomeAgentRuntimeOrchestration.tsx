@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { WorkspaceInfo } from "../../../types";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
 import { buildRuntimeAiWebLabSourceDraft } from "../../../application/runtime/facades/runtimeAiWebLabSourceDraft";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";

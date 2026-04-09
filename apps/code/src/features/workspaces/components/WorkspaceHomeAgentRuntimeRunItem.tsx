@@ -4,7 +4,7 @@ import type {
   HugeCodeRunSummary,
   RuntimeExecutionEvidenceSummary,
 } from "@ku0/code-runtime-host-contract";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { projectAgentTaskStatusToRunState } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import {
   buildRuntimeAutonomyContextDetails,
