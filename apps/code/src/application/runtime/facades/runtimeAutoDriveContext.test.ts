@@ -425,6 +425,9 @@ describe("synthesizeAutoDriveContext", () => {
     expect(context.researchPolicy?.strategy).toBe("search-only");
     expect(context.researchPolicy?.reasonCodes).toContain("research-search-only");
     expect(context.intent.signals.some((signal) => signal.kind === "external_research")).toBe(true);
+    expect(
+      context.intent.signals.find((signal) => signal.kind === "external_research")?.source
+    ).toBe("https://example.com/sdk");
     expect(context.intent.directionHypotheses[0]?.rationale).toContain("Latest SDK guidance");
     expect(
       context.opportunities.candidates.some((candidate) => candidate.id === "use_fresh_research")
@@ -606,6 +609,59 @@ describe("synthesizeAutoDriveContext", () => {
     expect(context.intent.directionHypotheses[0]?.rationale).toContain(
       "The operator prefers safe incremental milestones with explicit validation."
     );
+  });
+
+  it("keeps prior route continuity in the primary hypothesis and honors the per-iteration file budget", async () => {
+    const deps = createDeps();
+    deps.readPersistedThreadSnapshots = vi.fn().mockResolvedValue({
+      "workspace-1:thread-1": {
+        workspaceId: "workspace-1",
+        threadId: "thread-1",
+        name: "AutoDrive direction",
+        updatedAt: 1_700_000_003_200,
+        items: [
+          {
+            id: "m-1",
+            kind: "message",
+            role: "user",
+            text: "Keep the next step grounded in the active thread history.",
+          },
+        ],
+      },
+    });
+    const previousSummary = createPreviousSummary({
+      summaryText: "Validated the active route and narrowed the remaining gap.",
+      suggestedNextAreas: [
+        "apps/code/src/application/runtime/facades/runtimeRemoteExecutionFacade.ts",
+        "apps/code/src/features/composer/components/ComposerMetaBar.tsx",
+        "README.md",
+      ],
+    });
+    const run = {
+      ...createRun(),
+      budget: {
+        ...createRun().budget,
+        maxFilesPerIteration: 2,
+      },
+    };
+
+    const context = await synthesizeAutoDriveContext({
+      deps,
+      run,
+      iteration: 2,
+      previousSummary,
+    });
+
+    expect(context.intent.directionHypotheses[0]?.rationale).toContain(
+      "Validated the active route and narrowed the remaining gap."
+    );
+    expect(context.intent.directionHypotheses[0]?.rationale).toContain(
+      "Keep the next step grounded in the active thread history."
+    );
+    expect(context.intent.directionHypotheses[0]?.suggestedAreas).toEqual([
+      "apps/code/src/application/runtime/facades/runtimeRemoteExecutionFacade.ts",
+      "apps/code/src/features/composer/components/ComposerMetaBar.tsx",
+    ]);
   });
 
   it("raises collaborator conflict risk when recent commit momentum diverges from destination intent", async () => {
@@ -1202,7 +1258,7 @@ describe("synthesizeAutoDriveContext", () => {
         },
       ],
     });
-    vi.mocked(deps.getGitRemote).mockResolvedValue("origin");
+    vi.mocked(deps.getGitRemote!).mockResolvedValue("origin");
 
     const context = await synthesizeAutoDriveContext({
       deps,
@@ -1244,7 +1300,7 @@ describe("synthesizeAutoDriveContext", () => {
         },
       ],
     });
-    vi.mocked(deps.getGitRemote).mockResolvedValue(null);
+    vi.mocked(deps.getGitRemote!).mockResolvedValue(null);
 
     const context = await synthesizeAutoDriveContext({
       deps,

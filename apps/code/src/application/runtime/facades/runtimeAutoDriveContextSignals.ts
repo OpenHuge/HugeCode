@@ -225,10 +225,10 @@ export function buildIntentModel(params: {
   if (momentum.alignedSummaries.length > 0) {
     signals.push({
       kind: "collaborator_intent",
-      summary: momentum.alignedSummaries.join(" | "),
+      summary: `Git momentum: ${momentum.alignedSummaries.join(" | ")}`,
       source: "git_log",
       confidence:
-        momentum.alignmentScore >= 0.5
+        momentum.alignmentScore >= 0.35
           ? "high"
           : momentum.alignmentScore >= 0.25
             ? "medium"
@@ -239,7 +239,7 @@ export function buildIntentModel(params: {
     signals.push({
       kind: "blocker",
       summary: routeStagnation.summary,
-      source: previousSummary?.task.taskId ?? null,
+      source: "iteration_history",
       confidence: routeStagnation.isStagnating ? "high" : "medium",
     });
   }
@@ -247,7 +247,7 @@ export function buildIntentModel(params: {
     signals.push({
       kind: "external_research",
       summary: externalResearch[0].summary,
-      source: externalResearch[0].query,
+      source: externalResearch[0].sources[0] ?? null,
       confidence: "medium",
     });
   }
@@ -275,6 +275,14 @@ export function buildIntentModel(params: {
       confidence: "medium",
     });
   }
+  for (const blocker of blockers) {
+    signals.push({
+      kind: "blocker",
+      summary: blocker,
+      source: null,
+      confidence: "medium",
+    });
+  }
   for (const evidence of ruleEvidence.slice(0, 2)) {
     signals.push({
       kind: "repo_rule",
@@ -284,49 +292,56 @@ export function buildIntentModel(params: {
     });
   }
 
-  const dominantSignalKinds = [
-    signals[0]?.kind ?? null,
-    signals[1]?.kind ?? null,
-    signals[2]?.kind ?? null,
-  ].filter(
-    (value): value is NonNullable<AutoDriveDirectionHypothesis["dominantSignalKinds"][number]> =>
-      Boolean(value)
+  const dominantSignalKinds = dedupeNonEmpty(
+    [
+      "operator_intent",
+      collaboratorIntent.probableIntent ? "collaborator_intent" : null,
+      previousSummary?.summaryText ? "previous_summary" : null,
+      externalResearch.length > 0 ? "external_research" : null,
+      (repoBacklog.openIssues ?? 0) > 0 || (repoBacklog.openPullRequests ?? 0) > 0
+        ? "repo_backlog"
+        : null,
+      threadContext?.summary ? "thread_history" : null,
+      threadContext?.longTermMemorySummary ? "thread_memory" : null,
+    ],
+    4
   ) as AutoDriveDirectionHypothesis["dominantSignalKinds"];
 
   const primaryHypothesis: AutoDriveDirectionHypothesis = {
-    summary:
-      blockers.length > 0
-        ? "Resolve blockers before broadening the route"
-        : routeStagnation.isStagnating
-          ? "Reroute through the strongest validated corridor"
-          : (collaboratorIntent.touchedAreas[0] ?? relevantFiles[0] ?? "Continue the active route"),
+    summary: `Advance ${run.destination.title} through the highest-signal repo surfaces first.`,
     rationale: [
-      `Operator destination: ${run.destination.title}`,
+      `Destination scope centers on ${run.destination.title}.`,
       collaboratorIntent.probableIntent,
-      blockers[0] ? `Current blocker: ${blockers[0]}` : null,
-      momentum.alignedSummaries[0] ? `Momentum: ${momentum.alignedSummaries[0]}` : null,
+      previousSummary?.summaryText ?? null,
       externalResearch[0]?.summary ?? null,
+      threadContext?.summary ?? null,
       threadContext?.longTermMemorySummary ?? null,
     ]
       .filter((value): value is string => Boolean(value))
       .join(" "),
     suggestedAreas: dedupeNonEmpty(
       [
+        ...(previousSummary?.suggestedNextAreas ?? []),
         ...relevantFiles,
         ...collaboratorIntent.touchedAreas,
-        ...(previousSummary?.suggestedNextAreas ?? []),
       ],
-      5
+      run.budget.maxFilesPerIteration ?? 6
     ),
     dominantSignalKinds,
     confidence:
-      signals.some((signal) => signal.confidence === "high") && !routeStagnation.isStagnating
-        ? "high"
+      collaboratorIntent.confidence === "low" && !previousSummary && externalResearch.length === 0
+        ? "low"
         : "medium",
   };
 
   return {
-    summary: `${primaryHypothesis.summary}. ${primaryHypothesis.rationale}`,
+    summary: [
+      `Prioritize ${run.destination.title}.`,
+      collaboratorIntent.probableIntent,
+      blockers.length > 0 ? `Current blockers: ${blockers.join(" | ")}.` : null,
+    ]
+      .filter((value): value is string => Boolean(value))
+      .join(" "),
     signals,
     directionHypotheses: [primaryHypothesis],
   };
