@@ -27,6 +27,7 @@ import type { BackendPoolSnapshot } from "../../types/backendPool";
 import { buildSettingsServerSectionViewModel } from "./settingsServerSectionViewModel";
 import { SettingsBackendPoolSection } from "./SettingsBackendPoolSection";
 import { SettingsRemoteProfilesFieldGroup } from "./settings-server-section/SettingsRemoteProfilesFieldGroup";
+import { SettingsRuntimeCompositionFieldGroup } from "./settings-server-section/SettingsRuntimeCompositionFieldGroup";
 import { SettingsTransportModeFieldGroup } from "./settings-server-section/SettingsTransportModeFieldGroup";
 import { SettingsTcpTransportSections } from "./settings-server-section/SettingsTcpTransportSections";
 import { SettingsWebRuntimeGatewayFieldGroup } from "./settings-server-section/SettingsWebRuntimeGatewayFieldGroup";
@@ -401,6 +402,15 @@ export function SettingsServerSection({
           ) : null}
         </SettingsFieldGroup>
       )}
+
+      {!isMobileSimplified ? (
+        <SettingsRuntimeCompositionFieldGroup
+          workspaceOptions={workspaceOptions}
+          remoteExecutionBackendOptions={remoteExecutionBackendOptions}
+          defaultRemoteExecutionBackendId={defaultRemoteExecutionBackendId}
+          compactSelectProps={compactSelectProps}
+        />
+      ) : null}
 
       {!isMobileSimplified && backendPoolVisible ? (
         <SettingsFieldGroup

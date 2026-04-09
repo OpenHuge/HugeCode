@@ -31,6 +31,10 @@ export const aliases: AliasEntry[] = [
     replacement: path.resolve(__dirname, "packages/code-runtime-webmcp-client/src/$1"),
   },
   {
+    find: /^@ku0\/code-platform-interfaces\/(.+)$/,
+    replacement: path.resolve(__dirname, "packages/code-platform-interfaces/src/$1"),
+  },
+  {
     find: "@ku0/code-workspace-client/account-center",
     replacement: path.resolve(
       __dirname,
@@ -188,6 +192,10 @@ export const aliases: AliasEntry[] = [
   {
     find: /^@ku0\/code-runtime-client$/,
     replacement: path.resolve(__dirname, "packages/code-runtime-client/src/index.ts"),
+  },
+  {
+    find: /^@ku0\/code-platform-interfaces$/,
+    replacement: path.resolve(__dirname, "packages/code-platform-interfaces/src/index.ts"),
   },
   {
     find: /^@ku0\/code-runtime-webmcp-client$/,
