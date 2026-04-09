@@ -1,4 +1,3 @@
-<<<<<<<< HEAD:packages/code-application/src/runtime-control-plane/runtimeKernelPluginReadiness.ts
 import {
   readRuntimeControlPlanePluginCompositionMetadata,
   readRuntimeControlPlanePluginRegistryMetadata,
@@ -830,19 +829,3 @@ export function buildRuntimeKernelPluginReadinessSections(
     },
   ];
 }
-========
-// TODO(runtime-control-plane): remove this compatibility re-export once app surfaces
-// import plugin catalog readiness helpers from @ku0/code-application directly.
-export {
-  buildRuntimeKernelPluginReadinessEntries,
-  buildRuntimeKernelPluginReadinessSections,
-} from "@ku0/code-application/runtimeMissionControlPluginCatalog";
-
-export type {
-  RuntimeKernelPluginReadinessBadge,
-  RuntimeKernelPluginReadinessEntry,
-  RuntimeKernelPluginReadinessSection,
-  RuntimeKernelPluginReadinessState,
-  RuntimeKernelPluginReadinessTone,
-} from "@ku0/code-application/runtimeMissionControlPluginCatalog";
->>>>>>>> 50be19f1 (refactor(code): share mission control plugin catalog projection):apps/code/src/application/runtime/facades/runtimeKernelPluginReadiness.ts
