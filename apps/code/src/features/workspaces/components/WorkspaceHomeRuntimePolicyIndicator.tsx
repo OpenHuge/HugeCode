@@ -1,4 +1,4 @@
-import type { WorkspaceRuntimePolicyIndicator } from "../../../application/runtime/facades/runtimeWorkspaceMissionControlProjection";
+import type { RuntimeMissionControlPolicyIndicator } from "@ku0/code-application/runtimeMissionControlProjectionSummaries";
 import { ToolCallChip } from "../../../design-system";
 import { formatRuntimeTimestamp } from "./WorkspaceHomeAgentRuntimeOrchestration.helpers";
 import { MissionControlSectionCard } from "./WorkspaceHomeMissionControlSections";
@@ -6,7 +6,7 @@ import * as controlStyles from "./WorkspaceHomeAgentControl.styles.css";
 import * as styles from "./WorkspaceHomeRuntimePolicyIndicator.css";
 
 type WorkspaceHomeRuntimePolicyIndicatorProps = {
-  policy: WorkspaceRuntimePolicyIndicator;
+  policy: RuntimeMissionControlPolicyIndicator;
 };
 
 function resolvePolicyChipTone(
@@ -23,7 +23,7 @@ function resolvePolicyChipTone(
 }
 
 function resolvePolicyEffectTone(
-  effect: WorkspaceRuntimePolicyIndicator["capabilities"][number]["effect"]
+  effect: RuntimeMissionControlPolicyIndicator["capabilities"][number]["effect"]
 ): "neutral" | "success" | "warning" | "danger" {
   switch (effect) {
     case "blocked":
