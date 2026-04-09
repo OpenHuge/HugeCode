@@ -1,85 +1,16 @@
-import { readRuntimeKernelPluginCompositionMetadata } from "../kernel/runtimeKernelComposition";
-import { readRuntimeKernelPluginRegistryMetadata } from "../kernel/runtimeKernelPluginRegistry";
-import { readRuntimeKernelRoutingPluginMetadata } from "../kernel/runtimeKernelRoutingPlugins";
-import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPluginTypes";
-import type {
-  RuntimeExtensionActivationRecord,
-  RuntimeExtensionActivationState,
-} from "../kernel/runtimeExtensionActivation";
-
-export type RuntimeKernelPluginReadinessState = "ready" | "attention" | "blocked";
-
-export type RuntimeKernelPluginReadinessTone = "neutral" | "success" | "warning" | "danger";
-
-export type RuntimeKernelPluginReadinessBadge = {
-  label: string;
-  tone: RuntimeKernelPluginReadinessTone;
-};
-
-export type RuntimeKernelPluginReadinessEntry = {
-  id: string;
-  name: string;
-  version: string;
-  source: RuntimeKernelPluginDescriptor["source"];
-  sourceLabel: string;
-  badges: RuntimeKernelPluginReadinessBadge[];
-  capabilitySupport: {
-    state: RuntimeKernelPluginReadinessState;
-    summary: string;
-    detail: string;
-  };
-  permissionState: {
-    state: RuntimeKernelPluginReadinessState;
-    label: string;
-    detail: string;
-  };
-  readiness: {
-    state: RuntimeKernelPluginReadinessState;
-    label: "Ready" | "Attention" | "Blocked";
-    detail: string;
-  };
-  selectionState: {
-    state: RuntimeKernelPluginReadinessState;
-    kind:
-      | "blocked_in_active_profile"
-      | "selected_route"
-      | "selected_in_active_profile"
-      | "published_route"
-      | "repository_declaration"
-      | "available_inventory";
-    label: string;
-    detail: string;
-  };
-  trustState: {
-    state: RuntimeKernelPluginReadinessState;
-    kind:
-      | "incompatible"
-      | "verified"
-      | "runtime_managed"
-      | "dev_override"
-      | "trust_blocked"
-      | "trust_unknown"
-      | "runtime_published"
-      | "repository_local"
-      | "trust_unspecified";
-    label: string;
-    detail: string;
-  };
-  activationState: {
-    state: RuntimeKernelPluginReadinessState;
-    lifecycle: RuntimeExtensionActivationState | "untracked";
-    label: string;
-    detail: string;
-  };
-  remediationSummary: string;
-};
-
-export type RuntimeKernelPluginReadinessSection = {
-  id: "needs_action" | "selected_now" | "inventory";
-  title: string;
-  description: string;
-  entries: RuntimeKernelPluginReadinessEntry[];
-};
+import {
+  readRuntimeControlPlanePluginCompositionMetadata,
+  readRuntimeControlPlanePluginRegistryMetadata,
+} from "../runtimeControlPlaneOperatorModel";
+import {
+  readRuntimeControlPlaneRoutingPluginMetadata,
+  type RuntimeKernelPluginReadinessBadge,
+  type RuntimeKernelPluginReadinessEntry,
+  type RuntimeKernelPluginReadinessSection,
+  type RuntimeKernelPluginReadinessState,
+  type RuntimeMissionControlActivationRecord,
+  type RuntimeMissionControlPluginDescriptor,
+} from "./runtimeMissionControlPluginCatalogTypes";
 
 function formatReadinessLabel(state: RuntimeKernelPluginReadinessState) {
   if (state === "ready") {
@@ -99,7 +30,7 @@ function formatLayerOrder(values: string[]) {
   return values.length > 0 ? values.join(" -> ") : "none";
 }
 
-function toSourceLabel(source: RuntimeKernelPluginDescriptor["source"]) {
+function toSourceLabel(source: RuntimeMissionControlPluginDescriptor["source"]) {
   switch (source) {
     case "runtime_extension":
       return "Runtime extension";
@@ -128,8 +59,8 @@ function toSourceLabel(source: RuntimeKernelPluginDescriptor["source"]) {
   }
 }
 
-function toActivationRecordId(plugin: RuntimeKernelPluginDescriptor) {
-  const registryMetadata = readRuntimeKernelPluginRegistryMetadata(plugin.metadata);
+function toActivationRecordId(plugin: RuntimeMissionControlPluginDescriptor) {
+  const registryMetadata = readRuntimeControlPlanePluginRegistryMetadata(plugin.metadata);
   if (registryMetadata?.packageRef) {
     return `package:${registryMetadata.packageRef}`;
   }
@@ -140,8 +71,8 @@ function toActivationRecordId(plugin: RuntimeKernelPluginDescriptor) {
 }
 
 function buildActivationState(
-  plugin: RuntimeKernelPluginDescriptor,
-  activationRecords?: RuntimeExtensionActivationRecord[]
+  plugin: RuntimeMissionControlPluginDescriptor,
+  activationRecords?: RuntimeMissionControlActivationRecord[]
 ): RuntimeKernelPluginReadinessEntry["activationState"] {
   const activationRecord = activationRecords?.find(
     (record) => record.activationId === toActivationRecordId(plugin)
@@ -200,13 +131,13 @@ function buildActivationState(
 }
 
 function buildCapabilitySupport(
-  plugin: RuntimeKernelPluginDescriptor
+  plugin: RuntimeMissionControlPluginDescriptor
 ): RuntimeKernelPluginReadinessEntry["capabilitySupport"] {
   const publishedCapabilities = plugin.capabilities
     .filter((capability) => capability.enabled)
     .map((capability) => capability.id);
   const surfaceIds = plugin.binding.surfaces.map((surface) => surface.id);
-  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+  const routingMetadata = readRuntimeControlPlaneRoutingPluginMetadata(plugin.metadata);
 
   if (routingMetadata) {
     return {
@@ -287,10 +218,10 @@ function buildCapabilitySupport(
 }
 
 function buildPermissionState(
-  plugin: RuntimeKernelPluginDescriptor
+  plugin: RuntimeMissionControlPluginDescriptor
 ): RuntimeKernelPluginReadinessEntry["permissionState"] {
   const permissionList = formatList(plugin.permissions);
-  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+  const routingMetadata = readRuntimeControlPlaneRoutingPluginMetadata(plugin.metadata);
 
   if (routingMetadata) {
     return {
@@ -367,10 +298,10 @@ function buildPermissionState(
 }
 
 function buildSelectionState(
-  plugin: RuntimeKernelPluginDescriptor
+  plugin: RuntimeMissionControlPluginDescriptor
 ): RuntimeKernelPluginReadinessEntry["selectionState"] {
-  const compositionMetadata = readRuntimeKernelPluginCompositionMetadata(plugin.metadata);
-  const routingMetadata = readRuntimeKernelRoutingPluginMetadata(plugin.metadata);
+  const compositionMetadata = readRuntimeControlPlanePluginCompositionMetadata(plugin.metadata);
+  const routingMetadata = readRuntimeControlPlaneRoutingPluginMetadata(plugin.metadata);
   if (compositionMetadata?.blockedInActiveProfile) {
     return {
       state: "blocked",
@@ -440,9 +371,9 @@ function buildSelectionState(
 }
 
 function buildTrustState(
-  plugin: RuntimeKernelPluginDescriptor
+  plugin: RuntimeMissionControlPluginDescriptor
 ): RuntimeKernelPluginReadinessEntry["trustState"] {
-  const registryMetadata = readRuntimeKernelPluginRegistryMetadata(plugin.metadata);
+  const registryMetadata = readRuntimeControlPlanePluginRegistryMetadata(plugin.metadata);
   if (registryMetadata) {
     if (registryMetadata.compatibility.status === "incompatible") {
       return {
@@ -529,7 +460,7 @@ function buildTrustState(
 }
 
 function buildBadges(input: {
-  plugin: RuntimeKernelPluginDescriptor;
+  plugin: RuntimeMissionControlPluginDescriptor;
   readinessState: RuntimeKernelPluginReadinessState;
   selectionState: RuntimeKernelPluginReadinessEntry["selectionState"];
   trustState: RuntimeKernelPluginReadinessEntry["trustState"];
@@ -600,7 +531,7 @@ function buildBadges(input: {
 }
 
 function buildReadinessState(input: {
-  plugin: RuntimeKernelPluginDescriptor;
+  plugin: RuntimeMissionControlPluginDescriptor;
   capabilitySupport: RuntimeKernelPluginReadinessEntry["capabilitySupport"];
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"];
   selectionState: RuntimeKernelPluginReadinessEntry["selectionState"];
@@ -636,7 +567,7 @@ function buildReadinessState(input: {
 }
 
 function buildReadinessDetail(
-  plugin: RuntimeKernelPluginDescriptor,
+  plugin: RuntimeMissionControlPluginDescriptor,
   readinessState: RuntimeKernelPluginReadinessState,
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"],
   selectionState: RuntimeKernelPluginReadinessEntry["selectionState"],
@@ -650,7 +581,7 @@ function buildReadinessDetail(
     if (plugin.binding.state === "unbound") {
       return (
         plugin.operations.execution.reason ??
-        (typeof plugin.metadata?.["reason"] === "string" ? plugin.metadata["reason"] : null) ??
+        (typeof plugin.metadata?.reason === "string" ? plugin.metadata.reason : null) ??
         "Runtime host binder is not connected."
       );
     }
@@ -690,7 +621,7 @@ function buildReadinessDetail(
 }
 
 function buildRemediationSummary(
-  plugin: RuntimeKernelPluginDescriptor,
+  plugin: RuntimeMissionControlPluginDescriptor,
   readinessState: RuntimeKernelPluginReadinessState,
   permissionState: RuntimeKernelPluginReadinessEntry["permissionState"],
   selectionState: RuntimeKernelPluginReadinessEntry["selectionState"],
@@ -761,8 +692,8 @@ function buildRemediationSummary(
 }
 
 export function buildRuntimeKernelPluginReadinessEntries(
-  plugins: RuntimeKernelPluginDescriptor[],
-  activationRecords?: RuntimeExtensionActivationRecord[]
+  plugins: RuntimeMissionControlPluginDescriptor[],
+  activationRecords?: RuntimeMissionControlActivationRecord[]
 ): RuntimeKernelPluginReadinessEntry[] {
   return plugins.map((plugin) => {
     const capabilitySupport = buildCapabilitySupport(plugin);

@@ -62,11 +62,11 @@ const WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS = [
 ] as const;
 const RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeContextTruth.ts",
-  "/src/application/runtime/facades/runtimeMissionControlProvenance.ts",
   "/src/application/runtime/facades/runtimeReviewContinuationFacade.ts",
   "/src/application/runtime/facades/runtimeReviewIntelligenceSummary.ts",
   "/packages/code-application/src/runtime-control-plane/missionControlSurfaceModel.ts",
   "/packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts",
+  "/packages/code-application/src/runtime-control-plane/runtimeMissionControlProvenance.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeMissionNavigationTarget.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeMissionNavigationTypes.ts",
 ] as const;
@@ -88,7 +88,6 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeKernelPluginCatalogFacadeHooks.ts",
   "/src/application/runtime/facades/runtimeKernelPluginProjection",
   "/src/application/runtime/facades/runtimeExecutionReliability.ts",
-  "/src/application/runtime/facades/runtimeKernelPluginReadiness.ts",
   "/src/application/runtime/facades/runtimeLaunchReadiness.ts",
   "/src/application/runtime/facades/runtimeMissionNavigation",
   "/src/application/runtime/facades/runtimeMissionControl",
@@ -105,16 +104,19 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",
   "/packages/code-application/src/runtimeMissionControlRunProjection.ts",
   "/packages/code-application/src/runtimeMissionControlReviewPackProjection.ts",
+  "/packages/code-application/src/runtime-control-plane/runtimeKernelPluginReadiness.ts",
+  "/packages/code-application/src/runtime-control-plane/runtimeMissionControlPluginCatalog.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeMissionControlOperatorAction.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts",
   "/packages/code-application/src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts",
+  "/packages/code-application/src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts",
   "/src/application/runtime/ports/runtimeDiagnostics.ts",
 ] as const;
 const RUNTIME_AUTODRIVE_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeAutoDrive",
   "/src/application/runtime/facades/chatgptWorkspaceAutomation.ts",
-  "/src/application/runtime/facades/runtimeReviewPackDetailPresentation.ts",
-  "/src/application/runtime/facades/runtimeReviewPackDecisionActionsFacade.ts",
+  "/packages/code-application/src/runtime-control-plane/runtimeReviewPackDetailPresentation.ts",
+  "/packages/code-application/src/runtime-control-plane/runtimeReviewPackDecisionActionsFacade.ts",
 ] as const;
 const RUNTIME_EXTENSION_KERNEL_CHUNK_PATTERNS = [
   "/src/application/runtime/kernel/runtimeExtensionActivation.ts",

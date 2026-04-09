@@ -1,53 +1,40 @@
 import { describe, expect, it } from "vitest";
-import type { RuntimeKernelPluginDescriptor } from "../kernel/runtimeKernelPluginTypes";
-import type { RuntimeExtensionActivationRecord } from "../kernel/runtimeExtensionActivation";
 import {
   buildRuntimeKernelPluginReadinessEntries,
   buildRuntimeKernelPluginReadinessSections,
-} from "./runtimeKernelPluginReadiness";
+} from "./runtime-control-plane/runtimeKernelPluginReadiness";
+import type {
+  RuntimeMissionControlActivationRecord,
+  RuntimeMissionControlPluginDescriptor,
+} from "./runtime-control-plane/runtimeMissionControlPluginCatalogTypes";
 
 function buildPlugin(
-  overrides: Partial<RuntimeKernelPluginDescriptor> = {}
-): RuntimeKernelPluginDescriptor {
+  overrides: Partial<RuntimeMissionControlPluginDescriptor> = {}
+): RuntimeMissionControlPluginDescriptor {
   return {
     id: "ext.shell",
     name: "Shell Tools",
     version: "1.0.0",
-    summary: "Runtime shell helpers",
     source: "runtime_extension",
-    transport: "runtime_extension",
-    hostProfile: {
-      kind: "runtime",
-      executionBoundaries: ["runtime"],
-    },
-    workspaceId: null,
     enabled: true,
     runtimeBacked: true,
     capabilities: [],
     permissions: ["network"],
-    resources: [],
-    executionBoundaries: ["runtime"],
     binding: {
       state: "bound",
-      contractFormat: "runtime_extension",
-      contractBoundary: "runtime-extension",
-      interfaceId: "ext.shell",
       surfaces: [],
     },
     operations: {
       execution: {
         executable: true,
-        mode: "none",
         reason: null,
       },
       resources: {
         readable: false,
-        mode: "none",
         reason: null,
       },
       permissions: {
         evaluable: true,
-        mode: "runtime_extension_permissions",
         reason: null,
       },
     },
@@ -55,7 +42,6 @@ function buildPlugin(
     permissionDecision: "allow",
     health: {
       state: "healthy",
-      checkedAt: null,
       warnings: [],
     },
     ...overrides,
@@ -112,30 +98,23 @@ describe("runtimeKernelPluginReadiness", () => {
         id: "pkg.future.wasi",
         name: "Future WASI Host",
         source: "wasi_component",
-        transport: "wasi_component",
         runtimeBacked: false,
         enabled: false,
         binding: {
           state: "declaration_only",
-          contractFormat: "wasi_component",
-          contractBoundary: "registry:wasi_component",
-          interfaceId: "hugecode:plugin/future-host",
           surfaces: [],
         },
         operations: {
           execution: {
             executable: false,
-            mode: "none",
             reason: "Installed package is not runtime-bound.",
           },
           resources: {
             readable: false,
-            mode: "none",
             reason: "Installed package is not runtime-bound.",
           },
           permissions: {
             evaluable: false,
-            mode: "none",
             reason:
               "Installed package does not publish runtime-evaluable permissions until activation.",
           },
@@ -172,7 +151,6 @@ describe("runtimeKernelPluginReadiness", () => {
         },
         health: {
           state: "unknown",
-          checkedAt: null,
           warnings: [],
         },
       }),
@@ -207,36 +185,28 @@ describe("runtimeKernelPluginReadiness", () => {
         id: "repo.skill",
         name: "Repository Skill",
         source: "repo_manifest",
-        transport: "repo_manifest",
         runtimeBacked: false,
         binding: {
           state: "declaration_only",
-          contractFormat: "manifest",
-          contractBoundary: "repository",
-          interfaceId: "repo.skill",
           surfaces: [],
         },
         operations: {
           execution: {
             executable: false,
-            mode: "none",
             reason: "Runtime has not published a bound provider for this manifest yet.",
           },
           resources: {
             readable: false,
-            mode: "repo_manifest_resource",
             reason: "Manifest does not publish readable resources yet.",
           },
           permissions: {
             evaluable: false,
-            mode: "repo_manifest_permissions",
             reason: "Runtime has not published a permission evaluation path for this manifest yet.",
           },
         },
         permissionDecision: "unsupported",
         health: {
           state: "unknown",
-          checkedAt: null,
           warnings: [],
         },
       }),
@@ -312,28 +282,13 @@ describe("runtimeKernelPluginReadiness", () => {
   });
 
   it("promotes repository declarations to ready when activation truth says the behavior asset is active", () => {
-    const activationRecords: RuntimeExtensionActivationRecord[] = [
+    const activationRecords: RuntimeMissionControlActivationRecord[] = [
       {
         activationId: "behavior:workspace:repo.skill",
-        sourceType: "behavior_asset",
-        sourceScope: "workspace",
-        sourceRef: "repo.skill",
-        pluginId: "repo.skill",
-        packageRef: null,
-        overlayId: null,
-        sessionId: null,
-        name: "Repository Skill",
-        version: "1.0.0",
         state: "active",
         readiness: {
-          state: "ready",
-          summary: "Behavior asset is active.",
           detail: "Compiled behavior asset published live runtime contributions.",
         },
-        diagnostics: [],
-        contributions: [],
-        transitionHistory: [],
-        metadata: null,
       },
     ];
 
@@ -343,36 +298,28 @@ describe("runtimeKernelPluginReadiness", () => {
           id: "repo.skill",
           name: "Repository Skill",
           source: "repo_manifest",
-          transport: "repo_manifest",
           runtimeBacked: false,
           binding: {
             state: "declaration_only",
-            contractFormat: "manifest",
-            contractBoundary: "repository",
-            interfaceId: "repo.skill",
             surfaces: [],
           },
           operations: {
             execution: {
               executable: false,
-              mode: "none",
               reason: "Repository declaration only.",
             },
             resources: {
               readable: false,
-              mode: "none",
               reason: "Repository declaration only.",
             },
             permissions: {
               evaluable: false,
-              mode: "none",
               reason: "Repository declaration only.",
             },
           },
           permissionDecision: "unsupported",
           health: {
             state: "unknown",
-            checkedAt: null,
             warnings: [],
           },
         }),

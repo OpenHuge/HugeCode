@@ -120,6 +120,12 @@ export {
   buildRuntimeMissionControlPolicyIndicator,
   buildRuntimeMissionControlSummaryCounts,
 } from "./runtime-control-plane/runtimeMissionControlProjectionSummaries";
+export {
+  buildRuntimeMissionControlPluginCatalogSummary,
+  buildRuntimeKernelPluginReadinessEntries,
+  buildRuntimeKernelPluginReadinessSections,
+  readRuntimeControlPlaneRoutingPluginMetadata,
+} from "./runtime-control-plane/runtimeMissionControlPluginCatalog";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,
@@ -169,6 +175,19 @@ export type {
   RuntimeMissionControlPolicyIndicator,
   RuntimeMissionControlSummaryCounts,
 } from "./runtime-control-plane/runtimeMissionControlProjectionSummaries";
+export type {
+  RuntimeKernelPluginReadinessBadge,
+  RuntimeKernelPluginReadinessEntry,
+  RuntimeKernelPluginReadinessSection,
+  RuntimeKernelPluginReadinessState,
+  RuntimeKernelPluginReadinessTone,
+  RuntimeMissionControlActivationReadiness,
+  RuntimeMissionControlActivationRecord,
+  RuntimeMissionControlPluginCatalogSummary,
+  RuntimeMissionControlPluginDescriptor,
+  RuntimeMissionControlPluginSource,
+  RuntimeMissionControlPluginCatalogStatus,
+} from "./runtime-control-plane/runtimeMissionControlPluginCatalog";
 export type {
   MissionRunDetailModel,
   MissionSurfaceDetailModel,

@@ -1,14 +1,14 @@
 import type { HugeCodeValidationOutcome } from "@ku0/code-runtime-host-contract";
-import {
-  type CompactReviewEvidenceInput,
-  type ReviewEvidenceInputReviewGate,
-} from "../../../application/runtime/facades/runtimeReviewEvidenceModel";
-import { buildMissionProvenanceSummary } from "../../../application/runtime/facades/runtimeMissionControlProvenance";
+import { buildMissionProvenanceSummary } from "@ku0/code-application/runtimeMissionControlProvenance";
 import {
   buildTaskSourceEvidenceLabel,
   normalizeTaskSourceLinkage,
   readTaskSourceGitHubProvenanceHint,
-} from "../../../application/runtime/facades/runtimeMissionControlTaskSourceProjector";
+} from "@ku0/code-application/runtimeMissionControlTaskSourceProjector";
+import {
+  type CompactReviewEvidenceInput,
+  type ReviewEvidenceInputReviewGate,
+} from "../../../application/runtime/facades/runtimeReviewEvidenceModel";
 import { formatValidationOutcomeLabel } from "../../../utils/reviewPackLabels";
 
 export type ReviewEvidenceTone = "default" | "warning" | "success" | "progress";

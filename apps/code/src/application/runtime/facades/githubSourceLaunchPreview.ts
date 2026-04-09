@@ -3,7 +3,7 @@ import {
   buildTaskSourceEvidenceLabel,
   normalizeTaskSourceLinkage,
   readTaskSourceGitHubProvenanceHint,
-} from "./runtimeMissionControlTaskSourceProjector";
+} from "@ku0/code-application/runtimeMissionControlTaskSourceProjector";
 import type { GitHubSourceLaunchSummary } from "./githubSourceLaunchNormalization";
 
 export type GovernedGitHubFollowUpPreviewField = {
