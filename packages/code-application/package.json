@@ -85,6 +85,10 @@
       "types": "./src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts"
     },
+    "./runtimeMissionControlProjectionSummaries": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts"
+    },
     "./runtimeLiveSkillAliases": {
       "types": "./src/runtimeLiveSkillAliases.ts",
       "default": "./src/runtimeLiveSkillAliases.ts"
