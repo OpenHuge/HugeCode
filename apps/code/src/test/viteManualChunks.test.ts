@@ -24,6 +24,16 @@ describe("vite manualChunks", () => {
         "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts"
       )
     ).toBe("runtime-governed-context");
+    expect(
+      manualChunks(
+        "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/runtimeMissionNavigationTarget.ts"
+      )
+    ).toBe("runtime-governed-context");
+    expect(
+      manualChunks(
+        "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/runtimeMissionNavigationTypes.ts"
+      )
+    ).toBe("runtime-governed-context");
   });
 
   it("keeps shared mission-control projection helpers in the mission-control chunk", () => {
@@ -37,6 +47,21 @@ describe("vite manualChunks", () => {
     expect(
       manualChunks(
         "/home/han/src/HugeCode/packages/code-application/src/runtimeMissionControlReviewPackProjection.ts"
+      )
+    ).toBe("runtime-mission-control");
+    expect(
+      manualChunks(
+        "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/runtimeMissionControlOperatorAction.ts"
+      )
+    ).toBe("runtime-mission-control");
+    expect(
+      manualChunks(
+        "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts"
+      )
+    ).toBe("runtime-mission-control");
+    expect(
+      manualChunks(
+        "/home/han/src/HugeCode/packages/code-application/src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts"
       )
     ).toBe("runtime-mission-control");
   });
