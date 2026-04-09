@@ -108,6 +108,13 @@ export {
   buildMissionNavigationTarget,
   buildReviewNavigationTarget,
 } from "./runtime-control-plane/runtimeMissionNavigationTarget";
+export {
+  buildMissionOverviewOperatorSignal,
+  resolveCanonicalMissionOperatorAction,
+  resolveCheckpointHandoffLabel,
+  resolveMissionOperatorAction,
+} from "./runtime-control-plane/runtimeMissionControlOperatorAction";
+export { resolveMissionTakeoverOperatorAction } from "./runtime-control-plane/runtimeMissionControlTakeoverAction";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,
@@ -150,6 +157,7 @@ export type {
   MissionReviewEntry,
   ThreadVisualState,
 } from "./runtime-control-plane/missionControlSurfaceModel";
+export type { MissionOperatorActionModel } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
 export type {
   MissionRunDetailModel,
   MissionSurfaceDetailModel,

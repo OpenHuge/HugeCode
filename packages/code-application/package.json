@@ -77,6 +77,14 @@
       "types": "./src/runtime-control-plane/runtimeMissionNavigationTypes.ts",
       "default": "./src/runtime-control-plane/runtimeMissionNavigationTypes.ts"
     },
+    "./runtimeMissionControlOperatorAction": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlOperatorAction.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlOperatorAction.ts"
+    },
+    "./runtimeMissionControlTakeoverAction": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts"
+    },
     "./runtimeLiveSkillAliases": {
       "types": "./src/runtimeLiveSkillAliases.ts",
       "default": "./src/runtimeLiveSkillAliases.ts"
