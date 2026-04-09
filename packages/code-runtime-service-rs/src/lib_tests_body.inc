@@ -6898,6 +6898,51 @@ exit 1
             Value::String("standard".to_string())
         );
         assert_eq!(
+            prepare_payload["result"]["contextPlane"]["workingSetPolicy"]["retentionMode"],
+            Value::String("window_and_memory".to_string())
+        );
+        assert_eq!(
+            prepare_payload["result"]["toolingPlane"]["sandboxRef"]["toolPosture"],
+            Value::String("workspace_safe".to_string())
+        );
+        assert_eq!(
+            prepare_payload["result"]["toolingPlane"]["sandboxRef"]["approvalSensitivity"],
+            Value::String("standard".to_string())
+        );
+        assert!(
+            prepare_payload["result"]["toolingPlane"]["capabilityCatalog"]["capabilities"]
+                .as_array()
+                .expect("tooling plane capabilities")
+                .iter()
+                .any(|entry| entry.get("id").and_then(Value::as_str) == Some("runtime.tooling"))
+        );
+        assert!(
+            prepare_payload["result"]["contextPlane"]["artifactRefs"]
+                .as_array()
+                .expect("context plane artifact refs")
+                .iter()
+                .any(|entry| {
+                    entry.get("id").and_then(Value::as_str)
+                        == Some("validation-plan:standard")
+                })
+        );
+        assert!(
+            prepare_payload["result"]["evalPlane"]["evalCases"]
+                .as_array()
+                .expect("eval plane cases")
+                .iter()
+                .any(|entry| {
+                    entry.get("id").and_then(Value::as_str)
+                        == Some("launch:balanced-delegate")
+                })
+        );
+        assert_eq!(
+            prepare_payload["result"]["evalPlane"]["modelReleasePlaybook"]
+                .as_array()
+                .map(Vec::len),
+            Some(3)
+        );
+        assert_eq!(
             prepare_payload["result"]["validationPlan"]["commands"],
             json!(["pnpm validate:fast", "pnpm test:component"])
         );

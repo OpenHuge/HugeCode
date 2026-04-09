@@ -699,4 +699,35 @@ describe("runtimeInvocationCatalog", () => {
       },
     });
   });
+
+  it("ignores escaped placeholders when building prompt overlay hint metadata", async () => {
+    const facade = createRuntimeInvocationCatalogFacade({
+      workspaceId: "ws-1",
+      pluginCatalog: {
+        listPlugins: vi.fn(async () => []),
+      },
+      listRuntimePrompts: vi.fn(async () => [
+        createPromptLibraryEntry({
+          id: "prompt.literal",
+          title: "literal",
+          description: "Keep escaped placeholders literal",
+          content: "Literal $$TARGET and $FOCUS",
+          scope: "workspace",
+        }),
+      ]),
+    });
+
+    const catalog = await facade.readActiveCatalog();
+
+    expect(
+      catalog.items.find((entry) => entry.id === "session:prompt:prompt.literal")
+    ).toMatchObject({
+      metadata: {
+        slashCommand: {
+          insertText: 'literal FOCUS=""',
+          hint: "FOCUS=",
+        },
+      },
+    });
+  });
 });

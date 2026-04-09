@@ -71,6 +71,29 @@ export function useRuntimeMissionControlDraftState(input: {
   function selectRuntimeDraftProfile(profileId: string) {
     setRuntimeDraftProfileTouched(true);
     setRuntimeDraftProfileIdState(profileId);
+    setRuntimeSourceDraft((current) =>
+      current
+        ? {
+            ...current,
+            profileId,
+            fieldOrigins: {
+              ...current.fieldOrigins,
+              executionProfileId: "explicit_override",
+            },
+          }
+        : current
+    );
+  }
+
+  function applyRuntimeSourceDraft(input: {
+    draftTitle: string;
+    draftInstruction: string;
+    sourceDraft: RuntimeTaskLauncherSourceDraft;
+  }) {
+    setRuntimeDraftTitle(input.draftTitle);
+    setRuntimeDraftInstruction(input.draftInstruction);
+    setRuntimeDraftProfileIdState(input.sourceDraft.profileId);
+    setRuntimeSourceDraft(input.sourceDraft);
   }
 
   function prepareRunLauncher(input: {
@@ -93,11 +116,12 @@ export function useRuntimeMissionControlDraftState(input: {
         error: nextDraft.error,
       };
     }
-    setRuntimeDraftTitle(nextDraft.draft.title);
-    setRuntimeDraftInstruction(nextDraft.draft.instruction);
-    setRuntimeDraftProfileIdState(nextDraft.draft.profileId);
+    applyRuntimeSourceDraft({
+      draftTitle: nextDraft.draft.title,
+      draftInstruction: nextDraft.draft.instruction,
+      sourceDraft: nextDraft.draft.sourceDraft,
+    });
     setRuntimeDraftProfileTouched(true);
-    setRuntimeSourceDraft(nextDraft.draft.sourceDraft);
     return {
       ok: true as const,
       infoMessage: nextDraft.draft.infoMessage,
@@ -124,6 +148,7 @@ export function useRuntimeMissionControlDraftState(input: {
     setRuntimeSourceDraft,
     selectedExecutionProfile,
     selectRuntimeDraftProfile,
+    applyRuntimeSourceDraft,
     prepareRunLauncher,
     resetRuntimeDraftState,
   };

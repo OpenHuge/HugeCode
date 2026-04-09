@@ -444,6 +444,78 @@ describe("runtimeInvocationExecute", () => {
     });
   });
 
+  it("ignores escaped placeholders when resolving prompt overlay arguments", async () => {
+    const facade = createRuntimeInvocationExecuteFacade({
+      workspaceId: "ws-1",
+      invocationCatalog: {
+        resolveInvocationDescriptor: vi.fn(async () =>
+          createInvocationDescriptor({
+            id: "session:prompt:prompt.literal",
+            title: "literal",
+            kind: "session_command",
+            source: {
+              kind: "session_command",
+              contributionType: "session_scoped",
+              authority: "workspace",
+              label: "Runtime prompt library",
+              sourceId: "prompt.literal",
+              workspaceId: "ws-1",
+              provenance: null,
+            },
+            runtimeTool: null,
+            exposure: {
+              operatorVisible: true,
+              modelVisible: false,
+              requiresReadiness: false,
+              hiddenReason: null,
+            },
+            metadata: {
+              promptOverlay: {
+                promptId: "prompt.literal",
+                scope: "workspace",
+              },
+              slashCommand: {
+                primaryTrigger: "/literal",
+                insertText: 'literal FOCUS=""',
+                shadowedByBuiltin: false,
+              },
+            },
+          })
+        ),
+      },
+      sessionCommands: {
+        sendMessage: vi.fn(),
+        respondToApproval: vi.fn(),
+      } as never,
+      startRuntimeRun: vi.fn(),
+      runRuntimeLiveSkill: vi.fn(),
+      invokeRuntimeExtensionTool: vi.fn(),
+      listRuntimePrompts: vi.fn(async () => [
+        createPromptEntry({
+          id: "prompt.literal",
+          title: "literal",
+          content: "Literal $$TARGET and $FOCUS",
+        }),
+      ]),
+    });
+
+    const result = await facade.invoke({
+      invocationId: "session:prompt:prompt.literal",
+      arguments: {
+        FOCUS: "the diff",
+      },
+    });
+
+    expect(result).toMatchObject({
+      invocationId: "session:prompt:prompt.literal",
+      kind: "compose_patch_resolved",
+      ok: true,
+      payload: {
+        text: "Literal $$TARGET and the diff",
+      },
+    });
+  });
+
   it("blocks operator-hidden execution and rejects unsupported invocation kinds", async () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",

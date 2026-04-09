@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRuntimeContextPlane,
   buildRuntimeContextTruth,
   buildRuntimeDelegationContract,
+  buildRuntimeEvalPlane,
   buildRuntimeGuidanceStack,
+  buildRuntimeToolingPlane,
   buildRuntimeTriageSummary,
   classifyRuntimeContextSourceFamily,
   inferRuntimeReviewIntent,
@@ -146,6 +149,131 @@ describe("runtimeContextTruth", () => {
     expect(guidanceStack.layers.find((layer) => layer.scope === "source")?.skillIds).toEqual([
       "discussion-triage",
     ]);
+  });
+
+  it("builds a context plane with stable memory and artifact references", () => {
+    const contextPlane = buildRuntimeContextPlane({
+      taskSource: {
+        kind: "github_issue",
+        label: "GitHub issue #42",
+        title: "Stabilize context plane",
+        reference: "#42",
+        canonicalUrl: "https://github.com/acme/hugecode/issues/42",
+      },
+      repositoryDefaults: {
+        executionProfileId: "balanced-delegate",
+        reviewProfileId: "issue-review",
+        validationPresetId: "review-first",
+        owner: "Runtime Core",
+        triagePriority: "high",
+        triageRiskLevel: "medium",
+        triageTags: ["runtime"],
+        repoInstructions: ["Prefer runtime-owned context truth."],
+        repoSkillIds: ["repo-baseline"],
+        sourceInstructions: [],
+        sourceSkillIds: [],
+        reviewProfile: null,
+      },
+      contractLabel: "Workspace defaults",
+      hasRepoInstructions: true,
+    });
+
+    expect(contextPlane.memoryRefs.map((entry) => entry.kind)).toEqual(
+      expect.arrayContaining(["repo_instruction_surface", "task_source_digest", "review_guidance"])
+    );
+    expect(contextPlane.artifactRefs.map((entry) => entry.kind)).toEqual(
+      expect.arrayContaining(["task_source_snapshot", "validation_plan"])
+    );
+    expect(contextPlane.workingSetPolicy.retentionMode).toBe("window_and_memory");
+    expect(contextPlane.compactionSummary).toMatchObject({
+      triggered: false,
+      executed: false,
+      source: "runtime_prepare_v2",
+    });
+  });
+
+  it("builds a tooling plane from execution-profile policy instead of model-specific hacks", () => {
+    const toolingPlane = buildRuntimeToolingPlane({
+      selectedExecutionProfile: {
+        id: "balanced-delegate",
+        name: "Balanced Delegate",
+        accessMode: "on-request",
+        networkPolicy: "restricted",
+        toolPosture: "workspace_safe",
+        approvalSensitivity: "standard",
+        validationPresetId: "validate-fast",
+      },
+      preferredBackendIds: ["backend-primary", "backend-primary", "backend-fallback"],
+      routedProvider: "anthropic",
+      reviewProfileId: "issue-review",
+      validationPresetId: "review-first",
+    });
+
+    expect(toolingPlane.capabilityCatalog?.capabilities.map((entry) => entry.id)).toEqual(
+      expect.arrayContaining([
+        "workspace.read",
+        "workspace.write",
+        "network.fetch",
+        "validation:review-first",
+        "review:issue-review",
+      ])
+    );
+    expect(toolingPlane.sandboxRef).toMatchObject({
+      executionProfileId: "balanced-delegate",
+      routedProvider: "anthropic",
+      preferredBackendIds: ["backend-primary", "backend-fallback"],
+      filesystemPolicy: "workspace_scoped",
+      toolPosture: "workspace_safe",
+      approvalSensitivity: "standard",
+    });
+    expect(toolingPlane.toolCallRefs).toEqual([]);
+    expect(toolingPlane.toolResultRefs).toEqual([]);
+  });
+
+  it("builds an eval plane that survives model upgrades", () => {
+    const evalPlane = buildRuntimeEvalPlane({
+      taskSource: {
+        kind: "github_issue",
+        label: "GitHub issue #42",
+        title: "Protect long-term interfaces",
+        reference: "#42",
+      },
+      repositoryDefaults: {
+        executionProfileId: "balanced-delegate",
+        reviewProfileId: "issue-review",
+        validationPresetId: "review-first",
+        owner: "Runtime Core",
+        triagePriority: "high",
+        triageRiskLevel: "medium",
+        triageTags: ["runtime"],
+        repoInstructions: ["Prefer runtime-owned context truth."],
+        repoSkillIds: ["repo-baseline"],
+        sourceInstructions: [],
+        sourceSkillIds: [],
+        reviewProfile: null,
+      },
+      selectedExecutionProfile: {
+        id: "balanced-delegate",
+        name: "Balanced Delegate",
+        accessMode: "on-request",
+        networkPolicy: "restricted",
+        toolPosture: "workspace_safe",
+        approvalSensitivity: "standard",
+        validationPresetId: "review-first",
+      },
+      reviewProfileId: "issue-review",
+      validationPresetId: "review-first",
+    });
+
+    expect(evalPlane.evalCases.map((entry) => entry.id)).toEqual(
+      expect.arrayContaining([
+        "launch:balanced-delegate",
+        "validation:review-first",
+        "review:issue-review",
+      ])
+    );
+    expect(evalPlane.modelReleasePlaybook).toHaveLength(3);
+    expect(evalPlane.summary).toContain("upgrade-stable eval cases");
   });
 
   it("builds triage and delegation summaries with a single next operator action", () => {

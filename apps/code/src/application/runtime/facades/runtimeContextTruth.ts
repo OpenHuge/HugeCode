@@ -1,13 +1,20 @@
 import type {
   AgentTaskSourceSummary,
+  HugeCodeExecutionProfile,
+  RuntimeCapabilityCatalogV2,
+  RuntimeCapabilityDescriptorV2,
+  RuntimeContextArtifactRefV2,
   RuntimeContextSourceFamilyV2,
+  RuntimeContextPlaneV2,
   RuntimeContextTruthSourceV2,
   RuntimeContextTruthV2,
   RuntimeDelegationContractV2,
+  RuntimeEvalPlaneV2,
   RuntimeGuidanceLayerV2,
   RuntimeGuidanceStackV2,
   RuntimeReviewIntentV2,
   RuntimeRunPrepareV2Response,
+  RuntimeToolingPlaneV2,
   RuntimeTriageSummaryV2,
 } from "@ku0/code-runtime-host-contract";
 import type { ResolvedRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionContract";
@@ -44,6 +51,32 @@ type BuildRuntimeDelegationContractInput = {
   nextOperatorAction?: string | null;
   blocked?: boolean;
 };
+
+type BuildRuntimeToolingPlaneInput = {
+  selectedExecutionProfile: Pick<
+    HugeCodeExecutionProfile,
+    | "id"
+    | "name"
+    | "accessMode"
+    | "networkPolicy"
+    | "toolPosture"
+    | "approvalSensitivity"
+    | "validationPresetId"
+  >;
+  preferredBackendIds?: string[] | null;
+  routedProvider?: string | null;
+  reviewProfileId?: string | null;
+  validationPresetId?: string | null;
+};
+
+type BuildRuntimeEvalPlaneInput = Pick<
+  BuildRuntimeContextTruthInput,
+  "taskSource" | "repositoryDefaults"
+> &
+  Pick<
+    BuildRuntimeToolingPlaneInput,
+    "selectedExecutionProfile" | "reviewProfileId" | "validationPresetId"
+  >;
 
 function readOptionalText(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -306,6 +339,287 @@ export function buildRuntimeContextTruth(
     ownerSummary: `${ownerSummary} stays accountable; the runtime agent executes the delegated work.`,
     sourceMetadata,
     consumers: ["run", "review_pack", "takeover", "follow_up"],
+  };
+}
+
+export function buildRuntimeContextPlane(
+  input: BuildRuntimeContextTruthInput
+): RuntimeContextPlaneV2 {
+  const source = buildRuntimeContextTruthSource(input.taskSource);
+  const repoInstructionCount = input.repositoryDefaults.repoInstructions.length;
+  const memoryRefs: RuntimeContextPlaneV2["memoryRefs"] = [];
+  const artifactRefs: RuntimeContextArtifactRefV2[] = [];
+
+  if (input.hasRepoInstructions || repoInstructionCount > 0) {
+    memoryRefs.push({
+      id: "repo-guidance",
+      label: "Repo guidance memory",
+      kind: "repo_instruction_surface",
+      summary:
+        repoInstructionCount > 0
+          ? `Keep ${repoInstructionCount} repo instruction entries available outside the live window.`
+          : "Keep repository guidance surfaces available outside the live window.",
+      storage: "workspace_manifest",
+      persistenceScope: "workspace",
+      sourceRef: readOptionalText(input.contractLabel) ?? "AGENTS.md",
+    });
+  }
+
+  if (source) {
+    memoryRefs.push({
+      id: "task-source-digest",
+      label: source.label,
+      kind: "task_source_digest",
+      summary: "Persist the normalized task source digest across launch, review, and follow-up.",
+      storage: source.canonicalUrl ? "external_reference" : "runtime_memory",
+      persistenceScope: "run",
+      sourceRef: source.canonicalUrl ?? source.reference,
+    });
+    artifactRefs.push({
+      id: "task-source-snapshot",
+      label: `${source.label} snapshot`,
+      kind: "task_source_snapshot",
+      summary: "Reference the source snapshot without replaying the full launch transcript.",
+      mimeType: "application/json",
+      locator: source.canonicalUrl,
+      sourceRef: source.reference ?? source.kind,
+    });
+  }
+
+  const reviewProfileId = readOptionalText(input.repositoryDefaults.reviewProfileId);
+  if (reviewProfileId) {
+    memoryRefs.push({
+      id: "review-guidance",
+      label: `Review profile ${reviewProfileId}`,
+      kind: "review_guidance",
+      summary: "Preserve review guidance separately from the live prompt window.",
+      storage: "workspace_manifest",
+      persistenceScope: "workspace",
+      sourceRef: reviewProfileId,
+    });
+  }
+
+  const validationPresetId = readOptionalText(input.repositoryDefaults.validationPresetId);
+  if (validationPresetId) {
+    artifactRefs.push({
+      id: `validation-plan:${validationPresetId}`,
+      label: `Validation preset ${validationPresetId}`,
+      kind: "validation_plan",
+      summary: "Carry validation defaults as a reusable artifact for launch and continuation.",
+      mimeType: "application/json",
+      sourceRef: validationPresetId,
+    });
+  }
+
+  return {
+    summary:
+      source === null
+        ? "Manual launch context stays compact by separating workspace memory from replayable artifacts."
+        : `Runtime can preserve ${source.family} context through stable memory and artifact references.`,
+    memoryRefs,
+    artifactRefs,
+    compactionSummary: {
+      triggered: false,
+      executed: false,
+      source: "runtime_prepare_v2",
+    },
+    workingSetPolicy: {
+      selectionStrategy: "balanced",
+      toolExposureProfile: "slim",
+      tokenBudgetTarget: 1500,
+      refreshMode: "on_prepare",
+      retentionMode: memoryRefs.length > 0 ? "window_and_memory" : "window_only",
+      preferColdFetch: true,
+      compactBeforeDelegation: true,
+    },
+  };
+}
+
+function buildRuntimeCapabilityCatalog(
+  input: BuildRuntimeToolingPlaneInput
+): RuntimeCapabilityCatalogV2 {
+  const capabilities: RuntimeCapabilityDescriptorV2[] = [
+    {
+      id: "workspace.read",
+      label: "Workspace read",
+      summary: "Read repository files and runtime evidence inside the selected workspace.",
+      kind: "workspace_read",
+      readiness: "ready",
+      safetyLevel: "read",
+      source: input.selectedExecutionProfile.id,
+    },
+  ];
+
+  if (input.selectedExecutionProfile.accessMode !== "read-only") {
+    capabilities.push({
+      id: "workspace.write",
+      label: "Workspace write",
+      summary:
+        input.selectedExecutionProfile.accessMode === "on-request"
+          ? "Mutation is available behind operator approval."
+          : "Mutation is available directly in the selected sandbox.",
+      kind: "workspace_write",
+      readiness: input.selectedExecutionProfile.accessMode === "on-request" ? "attention" : "ready",
+      safetyLevel: "write",
+      source: input.selectedExecutionProfile.id,
+    });
+  }
+
+  capabilities.push({
+    id: "network.fetch",
+    label: "Network fetch",
+    summary:
+      input.selectedExecutionProfile.networkPolicy === "offline"
+        ? "Network access is blocked by the execution profile."
+        : input.selectedExecutionProfile.networkPolicy === "restricted"
+          ? "Network access is available with runtime restrictions."
+          : "Network access follows the default execution profile policy.",
+    kind: "network_fetch",
+    readiness:
+      input.selectedExecutionProfile.networkPolicy === "offline"
+        ? "blocked"
+        : input.selectedExecutionProfile.networkPolicy === "restricted"
+          ? "attention"
+          : "ready",
+    safetyLevel: "read",
+    source: input.selectedExecutionProfile.id,
+  });
+
+  const validationPresetId =
+    readOptionalText(input.validationPresetId) ??
+    readOptionalText(input.selectedExecutionProfile.validationPresetId);
+  if (validationPresetId) {
+    capabilities.push({
+      id: `validation:${validationPresetId}`,
+      label: "Validation plan",
+      summary: `Validation preset ${validationPresetId} is attached to the governed run.`,
+      kind: "validation",
+      readiness: "ready",
+      safetyLevel: "read",
+      source: validationPresetId,
+    });
+  }
+
+  const reviewProfileId = readOptionalText(input.reviewProfileId);
+  if (reviewProfileId) {
+    capabilities.push({
+      id: `review:${reviewProfileId}`,
+      label: "Review skill lane",
+      summary: `Review profile ${reviewProfileId} remains available as a bounded review capability.`,
+      kind: "review_skill",
+      readiness: "ready",
+      safetyLevel: "read",
+      source: reviewProfileId,
+    });
+  }
+
+  return {
+    summary: `Execution profile ${input.selectedExecutionProfile.id} exposes ${capabilities.length} governed launch capabilities.`,
+    catalogId: `launch:${input.selectedExecutionProfile.id}`,
+    generatedAt: null,
+    capabilities,
+  };
+}
+
+export function buildRuntimeToolingPlane(
+  input: BuildRuntimeToolingPlaneInput
+): RuntimeToolingPlaneV2 {
+  const preferredBackendIds = readNonEmptyList(input.preferredBackendIds ?? []);
+  const routedProvider = readOptionalText(input.routedProvider);
+  const capabilityCatalog = buildRuntimeCapabilityCatalog(input);
+  return {
+    summary:
+      "Launch inherits a stable capability catalog and sandbox contract; runtime can later refine it with live invocation truth without changing the interface.",
+    capabilityCatalog,
+    sandboxRef: {
+      id: `sandbox:${input.selectedExecutionProfile.id}`,
+      label: `${input.selectedExecutionProfile.name} sandbox`,
+      summary:
+        routedProvider === null
+          ? "Runtime will resolve provider placement using the selected execution profile and backend preferences."
+          : `Runtime will route this launch through provider ${routedProvider}.`,
+      accessMode: input.selectedExecutionProfile.accessMode,
+      executionProfileId: input.selectedExecutionProfile.id,
+      preferredBackendIds,
+      routedProvider,
+      networkPolicy: input.selectedExecutionProfile.networkPolicy,
+      filesystemPolicy:
+        input.selectedExecutionProfile.accessMode === "read-only"
+          ? "read_only"
+          : "workspace_scoped",
+      toolPosture: input.selectedExecutionProfile.toolPosture,
+      approvalSensitivity: input.selectedExecutionProfile.approvalSensitivity,
+    },
+    mcpSources: [],
+    toolCallRefs: [],
+    toolResultRefs: [],
+  };
+}
+
+export function buildRuntimeEvalPlane(input: BuildRuntimeEvalPlaneInput): RuntimeEvalPlaneV2 {
+  const taskFamily = input.taskSource?.kind ?? "manual";
+  const executionProfileName = readOptionalText(input.selectedExecutionProfile.name) ?? "Runtime";
+  const validationPresetId =
+    readOptionalText(input.validationPresetId) ??
+    readOptionalText(input.selectedExecutionProfile.validationPresetId);
+  const reviewProfileId = readOptionalText(input.reviewProfileId);
+  const evalCases: RuntimeEvalPlaneV2["evalCases"] = [
+    {
+      id: `launch:${input.selectedExecutionProfile.id}`,
+      label: `${executionProfileName} launch baseline`,
+      taskFamily,
+      summary: "Keep governed launch preparation stable across model upgrades and route changes.",
+      successEnvelope:
+        "Prepare should keep task/run/review semantics stable while preserving validation and routing visibility.",
+      modelBaseline: `${executionProfileName} execution profile`,
+      regressionBudget:
+        "No regression in launch plan shape, validation attachment, or backend inspectability.",
+      source: "runtime_prepare",
+      trackedWorkarounds: [],
+    },
+  ];
+
+  if (validationPresetId) {
+    evalCases.push({
+      id: `validation:${validationPresetId}`,
+      label: `Validation preset ${validationPresetId}`,
+      taskFamily: "validation",
+      summary: "Validation defaults stay attached as durable governed evidence.",
+      successEnvelope:
+        "Validation commands, preset identity, and review handoff remain reusable across model releases.",
+      modelBaseline: validationPresetId,
+      regressionBudget: "No regression in validation-plan publication or attachment semantics.",
+      source: "repository_contract",
+      trackedWorkarounds: [],
+    });
+  }
+
+  if (reviewProfileId) {
+    evalCases.push({
+      id: `review:${reviewProfileId}`,
+      label: `Review profile ${reviewProfileId}`,
+      taskFamily: "review",
+      summary:
+        "Review evidence should remain compact and artifact-backed rather than transcript-bound.",
+      successEnvelope:
+        "Review Pack inputs, review focus, and continuation handoff stay stable when models improve.",
+      modelBaseline: reviewProfileId,
+      regressionBudget:
+        "No regression in review artifact publication or review-actionability hints.",
+      source: "repository_contract",
+      trackedWorkarounds: [],
+    });
+  }
+
+  return {
+    summary:
+      "Runtime publishes upgrade-stable eval cases so model improvements delete workarounds instead of redefining product contracts.",
+    evalCases,
+    modelReleasePlaybook: [
+      "Re-run governed eval cases before adopting a new default model or route.",
+      "Delete model-specific prompt or orchestration workarounds that the new baseline makes unnecessary.",
+      "Only widen product behavior after the eval plane shows stable launch, validation, and review evidence.",
+    ],
   };
 }
 

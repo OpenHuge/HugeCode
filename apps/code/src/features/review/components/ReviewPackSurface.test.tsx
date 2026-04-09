@@ -244,6 +244,14 @@ describe("ReviewPackSurface", () => {
           ledger: undefined,
           checkpoint: undefined,
           executionContext: undefined,
+          executionLifecycle: {
+            summary: "Runtime completed the delegated execution path.",
+            details: ["Lifecycle stage: completed.", "Runtime rerouted the execution path."],
+          },
+          executionEvidence: {
+            summary: "Runtime published review-ready evidence for this run.",
+            details: ["Validation checks: 2.", "Artifacts: 3."],
+          },
           missionBrief: undefined,
           relaunchContext: undefined,
           compactEvidenceInput: null,
@@ -303,6 +311,13 @@ describe("ReviewPackSurface", () => {
       screen.getAllByText(/Runtime live skill is unavailable for this workspace/).length
     ).toBeGreaterThan(0);
     expect(screen.getByText("Operator approval required")).toBeTruthy();
+    expect(screen.getByText("Execution summary")).toBeTruthy();
+    expect(
+      screen.getByText("Lifecycle: Runtime completed the delegated execution path.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Evidence: Runtime published review-ready evidence for this run.")
+    ).toBeTruthy();
   });
 
   it("shows a manual-ready bounded autofix preview and approval action inside Review Pack", async () => {
@@ -1068,7 +1083,7 @@ describe("ReviewPackSurface", () => {
               checkpointState: "awaiting",
               contextBoundary: {
                 boundaryId: "boundary-1",
-                trigger: "spawn",
+                trigger: "sub_agent_spawn",
                 phase: "spawn",
                 status: "active",
               },
@@ -1411,6 +1426,14 @@ describe("ReviewPackSurface", () => {
             summary: "Balanced Delegate via backend-review-a",
             details: ["Execution profile: Balanced Delegate"],
           },
+          executionLifecycle: {
+            summary: "Runtime validated and started the active execution path.",
+            details: ["Lifecycle stage: started.", "Validation preflight completed."],
+          },
+          executionEvidence: {
+            summary: "Runtime has partial evidence while the mission is still active.",
+            details: ["Validation checks: 1.", "Changed paths: 2."],
+          },
           missionBrief: undefined,
           relaunchContext: undefined,
           autoDriveSummary: [],
@@ -1435,6 +1458,12 @@ describe("ReviewPackSurface", () => {
     expect(
       cockpit.compareDocumentPosition(screen.getByText("Validation evidence")) &
         Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Lifecycle: Runtime validated and started the active execution path.")
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Evidence: Runtime has partial evidence while the mission is still active.")
     ).toBeTruthy();
   });
 
@@ -1576,8 +1605,16 @@ describe("ReviewPackSurface", () => {
               parentRunId: "run-1",
               scopeProfile: "review",
               status: "awaiting_approval",
+              delegationScope: null,
+              toolAccessProfile: null,
+              budgetInheritance: null,
+              knowledgeAccess: null,
               approvalState: "pending",
               checkpointState: "awaiting",
+              contextBoundary: null,
+              contextProjection: null,
+              resultSummary: null,
+              failureClass: null,
               summary: "Sub-agent is waiting for approval.",
               timedOutReason: null,
               interruptedReason: null,

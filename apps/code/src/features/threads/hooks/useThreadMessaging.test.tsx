@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/runtimeJobs";
@@ -19,6 +20,8 @@ const runtimeSessionCommandMocks = vi.hoisted(() => ({
   compactThread: vi.fn(),
   canStartReviewInCurrentHost: vi.fn(() => true),
 }));
+const publishInvocationCatalog = vi.hoisted(() => vi.fn());
+const invokeRuntimeInvocation = vi.hoisted(() => vi.fn());
 
 const sendUserMessageService = runtimeSessionCommandMocks.sendUserMessage;
 const steerTurnService = runtimeSessionCommandMocks.steerTurn;
@@ -107,6 +110,19 @@ vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks",
   }),
 }));
 
+vi.mock("../../../application/runtime/facades/runtimeInvocationCatalogFacadeHooks", () => ({
+  useRuntimeInvocationCatalogResolver: () => (workspaceId: string) => ({
+    publishActiveCatalog: (input: Record<string, unknown>) =>
+      publishInvocationCatalog(workspaceId, input),
+  }),
+}));
+
+vi.mock("../../../application/runtime/facades/runtimeInvocationExecuteFacadeHooks", () => ({
+  useRuntimeInvocationExecuteResolver: () => (workspaceId: string) => ({
+    invoke: (input: Record<string, unknown>) => invokeRuntimeInvocation(workspaceId, input),
+  }),
+}));
+
 vi.mock("./useReviewPrompt", () => ({
   useReviewPrompt: () => ({
     reviewPrompt: null,
@@ -146,6 +162,14 @@ describe("useThreadMessaging telemetry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(canStartReviewInCurrentHost).mockReturnValue(true);
+    publishInvocationCatalog.mockResolvedValue({ items: [] });
+    invokeRuntimeInvocation.mockResolvedValue({
+      ok: true,
+      kind: "session_message_sent",
+      payload: null,
+      message: null,
+      evidence: null,
+    });
     vi.mocked(sendUserMessageService).mockResolvedValue({
       result: {
         turn: { id: "turn-1" },
@@ -1190,6 +1214,246 @@ describe("useThreadMessaging telemetry", () => {
         appMentions: expect.anything(),
       })
     );
+  });
+
+  it("routes runtime prompt overlays through invocation execute before turn/start", async () => {
+    const invocation: InvocationDescriptor = {
+      id: "session:prompt:prompt.summarize",
+      title: "summarize",
+      summary: "Summarize a target",
+      description: "Summarize a target",
+      kind: "session_command",
+      source: {
+        kind: "session_command",
+        contributionType: "session_scoped",
+        authority: "workspace",
+        label: "Runtime prompt library",
+        sourceId: "prompt.summarize",
+        workspaceId: "ws-1",
+        provenance: null,
+      },
+      runtimeTool: null,
+      argumentSchema: null,
+      aliases: [],
+      tags: ["prompt_overlay"],
+      safety: {
+        level: "read",
+        readOnly: true,
+        destructive: false,
+        openWorld: false,
+        idempotent: true,
+      },
+      exposure: {
+        operatorVisible: true,
+        modelVisible: false,
+        requiresReadiness: false,
+        hiddenReason: null,
+      },
+      readiness: {
+        state: "ready",
+        available: true,
+        reason: null,
+        warnings: [],
+        checkedAt: null,
+      },
+      metadata: {
+        promptOverlay: {
+          promptId: "prompt.summarize",
+          scope: "workspace",
+        },
+        slashCommand: {
+          primaryTrigger: "/summarize",
+          legacyAliases: [],
+          insertText: 'summarize TARGET=""',
+          cursorOffset: 18,
+          hint: "TARGET=",
+          shadowedByBuiltin: false,
+        },
+      },
+    };
+    publishInvocationCatalog.mockResolvedValue({ items: [invocation] });
+    invokeRuntimeInvocation.mockResolvedValue({
+      ok: true,
+      kind: "compose_patch_resolved",
+      payload: {
+        text: "Summarize diff",
+      },
+      message: null,
+      evidence: null,
+    });
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "on-request",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage: vi.fn(),
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(
+        workspace,
+        "thread-1",
+        '/summarize TARGET="diff"',
+        []
+      );
+    });
+
+    expect(invokeRuntimeInvocation).toHaveBeenCalledWith("ws-1", {
+      invocationId: "session:prompt:prompt.summarize",
+      arguments: {
+        TARGET: "diff",
+      },
+      context: {
+        threadId: "thread-1",
+        telemetrySource: "thread_messaging",
+      },
+      caller: "operator",
+    });
+    expect(sendUserMessageService).toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      "Summarize diff",
+      expect.any(Object)
+    );
+    expect(sendUserMessageService).not.toHaveBeenCalledWith(
+      "ws-1",
+      "thread-1",
+      '/summarize TARGET="diff"',
+      expect.anything()
+    );
+  });
+
+  it("surfaces blocked runtime prompt overlay execution without sending raw slash text", async () => {
+    const pushThreadErrorMessage = vi.fn();
+    const invocation: InvocationDescriptor = {
+      id: "session:prompt:prompt.summarize",
+      title: "summarize",
+      summary: "Summarize a target",
+      description: "Summarize a target",
+      kind: "session_command",
+      source: {
+        kind: "session_command",
+        contributionType: "session_scoped",
+        authority: "workspace",
+        label: "Runtime prompt library",
+        sourceId: "prompt.summarize",
+        workspaceId: "ws-1",
+        provenance: null,
+      },
+      runtimeTool: null,
+      argumentSchema: null,
+      aliases: [],
+      tags: ["prompt_overlay"],
+      safety: {
+        level: "read",
+        readOnly: true,
+        destructive: false,
+        openWorld: false,
+        idempotent: true,
+      },
+      exposure: {
+        operatorVisible: true,
+        modelVisible: false,
+        requiresReadiness: false,
+        hiddenReason: null,
+      },
+      readiness: {
+        state: "ready",
+        available: true,
+        reason: null,
+        warnings: [],
+        checkedAt: null,
+      },
+      metadata: {
+        promptOverlay: {
+          promptId: "prompt.summarize",
+          scope: "workspace",
+        },
+        slashCommand: {
+          primaryTrigger: "/summarize",
+          legacyAliases: [],
+          insertText: 'summarize TARGET=""',
+          cursorOffset: 18,
+          hint: "TARGET=",
+          shadowedByBuiltin: false,
+        },
+      },
+    };
+    publishInvocationCatalog.mockResolvedValue({ items: [invocation] });
+    invokeRuntimeInvocation.mockResolvedValue({
+      ok: false,
+      kind: "blocked",
+      payload: null,
+      message: "Missing required args for prompt `summarize`: TARGET.",
+      evidence: null,
+    });
+
+    const { result } = renderHook(() =>
+      useThreadMessaging({
+        activeWorkspace: workspace,
+        activeThreadId: "thread-1",
+        accessMode: "on-request",
+        model: null,
+        effort: null,
+        collaborationMode: null,
+        reviewDeliveryMode: "inline",
+        steerEnabled: false,
+        customPrompts: [],
+        threadStatusById: {},
+        activeTurnIdByThread: {},
+        rateLimitsByWorkspace: {},
+        pendingInterruptsRef: { current: new Set<string>() },
+        dispatch: vi.fn(),
+        getCustomName: vi.fn(() => undefined),
+        markProcessing: vi.fn(),
+        markReviewing: vi.fn(),
+        setActiveTurnId: vi.fn(),
+        recordThreadActivity: vi.fn(),
+        safeMessageActivity: vi.fn(),
+        onDebug: vi.fn(),
+        pushThreadErrorMessage,
+        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
+        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
+        refreshThread: vi.fn(async () => null),
+        forkThreadForWorkspace: vi.fn(async () => null),
+        updateThreadParent: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current.sendUserMessageToThread(workspace, "thread-1", "/summarize", []);
+    });
+
+    expect(pushThreadErrorMessage).toHaveBeenCalledWith(
+      "thread-1",
+      "Missing required args for prompt `summarize`: TARGET."
+    );
+    expect(sendUserMessageService).not.toHaveBeenCalled();
   });
 
   it("uses turn/steer when steer mode is enabled and an active turn is present", async () => {

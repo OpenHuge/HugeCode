@@ -121,6 +121,26 @@ describe("reviewPackSurfaceModel", () => {
             summary: "Restore the missing repo policy validation.",
             status: "available",
           },
+          lifecycleSummary: {
+            stage: "completed",
+            summary: "Runtime completed the delegated execution path.",
+            blocked: false,
+            rerouted: true,
+            validated: true,
+            readyForReview: true,
+            updatedAt: 10,
+          },
+          evidenceSummary: {
+            state: "ready_for_review",
+            summary: "Runtime published review-ready evidence for this run.",
+            validationCount: 2,
+            artifactCount: 3,
+            warningCount: 1,
+            changedPathCount: 4,
+            authoritativeTraceId: "trace-runtime-88",
+            authoritativeCheckpointId: "checkpoint-runtime-88",
+            reviewStatus: "ready",
+          },
         },
       ],
       reviewPacks: [
@@ -140,6 +160,26 @@ describe("reviewPackSurfaceModel", () => {
           checksPerformed: [],
           recommendedNextAction: "Review the evidence and accept or retry.",
           createdAt: 10,
+          lifecycleSummary: {
+            stage: "completed",
+            summary: "Runtime completed the delegated execution path.",
+            blocked: false,
+            rerouted: true,
+            validated: true,
+            readyForReview: true,
+            updatedAt: 10,
+          },
+          evidenceSummary: {
+            state: "ready_for_review",
+            summary: "Runtime published review-ready evidence for this run.",
+            validationCount: 2,
+            artifactCount: 3,
+            warningCount: 1,
+            changedPathCount: 4,
+            authoritativeTraceId: "trace-runtime-88",
+            authoritativeCheckpointId: "checkpoint-runtime-88",
+            reviewStatus: "ready",
+          },
         },
       ],
     });
@@ -212,6 +252,17 @@ describe("reviewPackSurfaceModel", () => {
         expect.objectContaining({ skillId: "repo-policy-check", status: "suggested" }),
       ])
     );
+    expect(detail.executionLifecycle?.summary).toBe(
+      "Runtime completed the delegated execution path."
+    );
+    expect(detail.executionLifecycle?.details).toContain("Lifecycle stage: completed.");
+    expect(detail.executionLifecycle?.details).toContain("Runtime rerouted the execution path.");
+    expect(detail.executionEvidence?.summary).toBe(
+      "Runtime published review-ready evidence for this run."
+    );
+    expect(detail.executionEvidence?.details).toContain("Validation checks: 2.");
+    expect(detail.executionEvidence?.details).toContain("Artifacts: 3.");
+    expect(detail.executionEvidence?.details).toContain("Authoritative trace: trace-runtime-88.");
   });
 
   it("falls back to the newest review pack in the active workspace when the requested pack is missing", () => {
@@ -3139,6 +3190,26 @@ describe("reviewPackSurfaceModel", () => {
               interruptedReason: null,
             },
           ],
+          lifecycleSummary: {
+            stage: "blocked",
+            summary: "Runtime blocked the mission until operator input arrives.",
+            blocked: true,
+            rerouted: false,
+            validated: true,
+            readyForReview: false,
+            updatedAt: 10,
+          },
+          evidenceSummary: {
+            state: "incomplete",
+            summary: "Runtime evidence is still incomplete for this run.",
+            validationCount: 1,
+            artifactCount: 0,
+            warningCount: 0,
+            changedPathCount: 1,
+            authoritativeTraceId: "trace-run-2",
+            authoritativeCheckpointId: null,
+            reviewStatus: "incomplete_evidence",
+          },
         },
       ],
       reviewPacks: [],
@@ -3162,6 +3233,11 @@ describe("reviewPackSurfaceModel", () => {
     if (detail && detail.kind === "mission_run") {
       expect(detail.subAgentSummary[0].sessionId).toBe("agent-2");
       expect(detail.subAgentSummary[0].timedOutReason).toBe("Too long");
+      expect(detail.executionLifecycle?.summary).toBe(
+        "Runtime blocked the mission until operator input arrives."
+      );
+      expect(detail.executionEvidence?.details).toContain("Changed paths: 1.");
+      expect(detail.executionEvidence?.details).toContain("Review state: evidence incomplete.");
     }
   });
 

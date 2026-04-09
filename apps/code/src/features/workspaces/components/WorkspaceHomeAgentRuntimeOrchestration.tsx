@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { WorkspaceInfo } from "../../../types";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
+import { buildRuntimeAiWebLabSourceDraft } from "../../../application/runtime/facades/runtimeAiWebLabSourceDraft";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type {
@@ -75,6 +76,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     resumeRecoverableTasks,
     runtimeLaunchPreparation,
     runtimeLaunchPreparationContextTruth,
+    runtimeLaunchPreparationContextPlane,
+    runtimeLaunchPreparationEvalPlane,
     runtimeLaunchPreparationGuidanceStack,
     runtimeLaunchPreparationTriageSummary,
     runtimeLaunchPreparationDelegationContract,
@@ -86,6 +89,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeLaunchPlanVersion,
     approveRuntimeLaunchPlan,
     clearRuntimeLaunchPlanApproval,
+    runtimeLaunchPreparationToolingPlane,
     runtimeLaunchPreparationTruthSourceLabel,
     runtimeDraftInstruction,
     runtimeDraftProfileId,
@@ -101,6 +105,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeStatusFilter,
     selectedExecutionProfile,
     selectedProviderRoute,
+    applyRuntimeSourceDraft,
     setPollSeconds,
     setRuntimeDraftInstruction,
     selectRuntimeDraftProfile,
@@ -190,6 +195,46 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const runtimePlan = runtimeLaunchPreparation?.plan ?? null;
   const runtimePlanNeedsApproval =
     runtimeLaunchPlanApprovalRequired && runtimeLaunchPlanVersion !== null;
+  const runtimeLaunchContextPlaneSummary = runtimeLaunchPreparationContextPlane
+    ? [
+        `Memory refs: ${runtimeLaunchPreparationContextPlane.memoryRefs.length}`,
+        `Artifacts: ${runtimeLaunchPreparationContextPlane.artifactRefs.length}`,
+        `Retention: ${runtimeLaunchPreparationContextPlane.workingSetPolicy.retentionMode}`,
+        runtimeLaunchPreparationContextPlane.compactionSummary
+          ? `Compaction: ${runtimeLaunchPreparationContextPlane.compactionSummary}`
+          : null,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ")
+    : null;
+  const runtimeLaunchToolingSandbox = runtimeLaunchPreparationToolingPlane?.sandboxRef ?? null;
+  const runtimeLaunchToolingPlaneSummary = runtimeLaunchPreparationToolingPlane
+    ? [
+        `Capabilities: ${
+          runtimeLaunchPreparationToolingPlane.capabilityCatalog?.capabilities.length ?? 0
+        }`,
+        runtimeLaunchToolingSandbox
+          ? `Tool posture: ${runtimeLaunchToolingSandbox.toolPosture}`
+          : null,
+        runtimeLaunchToolingSandbox
+          ? `Approval sensitivity: ${runtimeLaunchToolingSandbox.approvalSensitivity}`
+          : null,
+        `MCP sources: ${runtimeLaunchPreparationToolingPlane.mcpSources.length}`,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ")
+    : null;
+  const runtimeLaunchEvalPlaneSummary = runtimeLaunchPreparationEvalPlane
+    ? [
+        `Eval cases: ${runtimeLaunchPreparationEvalPlane.evalCases.length}`,
+        runtimeLaunchPreparationEvalPlane.evalCases[0]
+          ? `Baseline: ${runtimeLaunchPreparationEvalPlane.evalCases[0].modelBaseline}`
+          : null,
+        `Playbook steps: ${runtimeLaunchPreparationEvalPlane.modelReleasePlaybook.length}`,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .join(" | ")
+    : null;
 
   useEffect(() => {
     for (const entry of visibleRuntimeRuns.slice(0, 8)) {
@@ -288,10 +333,16 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         <WorkspaceHomeAiWebLabSection
           workspace={workspace}
           onApplyArtifactToDraft={(artifact) => {
-            setRuntimeDraftInstruction(artifact.content ?? "");
-            if (runtimeDraftTitle.trim().length === 0) {
-              setRuntimeDraftTitle(artifact.pageTitle?.trim() || `AI Web Lab - ${workspace.name}`);
+            const nextDraft = buildRuntimeAiWebLabSourceDraft({
+              artifact,
+              workspace,
+              profileId: selectedExecutionProfile.id,
+              draftTitle: runtimeDraftTitle,
+            });
+            if (!nextDraft) {
+              return;
             }
+            applyRuntimeSourceDraft(nextDraft);
           }}
         />
       ) : null}
@@ -706,6 +757,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   {runtimeLaunchPreparationContextTruth ? (
                     <span>Context truth: {runtimeLaunchPreparationContextTruth.summary}</span>
                   ) : null}
+                  {runtimeLaunchContextPlaneSummary ? (
+                    <span>Context plane: {runtimeLaunchContextPlaneSummary}</span>
+                  ) : null}
                   {runtimeLaunchPreparationDelegationContract ? (
                     <span>
                       Delegation: {runtimeLaunchPreparationDelegationContract.summary} Next:{" "}
@@ -733,6 +787,12 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   ) : null}
                   {runtimeLaunchPreparationTriageSummary ? (
                     <span>Triage: {runtimeLaunchPreparationTriageSummary.summary}</span>
+                  ) : null}
+                  {runtimeLaunchToolingPlaneSummary ? (
+                    <span>Tooling plane: {runtimeLaunchToolingPlaneSummary}</span>
+                  ) : null}
+                  {runtimeLaunchEvalPlaneSummary ? (
+                    <span>Eval plane: {runtimeLaunchEvalPlaneSummary}</span>
                   ) : null}
                   <span>
                     Context strategy:{" "}
@@ -820,6 +880,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   .join(" | ")}
               </div>
             ) : null}
+            {runtimeLaunchContextPlaneSummary ? (
+              <div className={controlStyles.sectionMeta}>{runtimeLaunchContextPlaneSummary}</div>
+            ) : null}
             {runtimeLaunchPreparationTriageSummary ? (
               <div className={controlStyles.sectionMeta}>
                 {[
@@ -848,6 +911,12 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                   .map((layer) => `${layer.scope}: ${layer.summary}`)
                   .join(" | ")}
               </div>
+            ) : null}
+            {runtimeLaunchToolingPlaneSummary ? (
+              <div className={controlStyles.sectionMeta}>{runtimeLaunchToolingPlaneSummary}</div>
+            ) : null}
+            {runtimeLaunchEvalPlaneSummary ? (
+              <div className={controlStyles.sectionMeta}>{runtimeLaunchEvalPlaneSummary}</div>
             ) : null}
             {runtimeLaunchPreparation?.delegationPlan?.batches.length ? (
               <div className={controlStyles.sectionMeta}>
@@ -947,9 +1016,13 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           <div className="workspace-home-code-runtime-item">
             <div className="workspace-home-code-runtime-item-main">
               <strong>
-                Intervention draft from {runtimeSourceDraft.title || runtimeSourceDraft.taskId}
+                {runtimeSourceDraft.kind === "intervention"
+                  ? `Intervention draft from ${runtimeSourceDraft.title || runtimeSourceDraft.taskId}`
+                  : `Source-linked draft from ${runtimeSourceDraft.title || runtimeSourceDraft.taskId}`}
               </strong>
-              <span>Intent: {runtimeSourceDraft.intent.replaceAll("_", " ")}</span>
+              {runtimeSourceDraft.intent ? (
+                <span>Intent: {runtimeSourceDraft.intent.replaceAll("_", " ")}</span>
+              ) : null}
               {runtimeSourceDraft.taskSource?.label ? (
                 <span>Source-linked launch: {runtimeSourceDraft.taskSource.label}</span>
               ) : null}
@@ -987,11 +1060,17 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               <span>
                 Access source: {runtimeSourceDraft.fieldOrigins.accessMode.replaceAll("_", " ")}
               </span>
-              <span>Review the profile and route below, then relaunch.</span>
+              <span>
+                {runtimeSourceDraft.kind === "intervention"
+                  ? "Review the profile and route below, then relaunch."
+                  : "Review the profile and route below, then launch with the linked source."}
+              </span>
             </div>
             <div className="workspace-home-code-runtime-item-actions">
               <button type="button" onClick={() => setRuntimeSourceDraft(null)}>
-                Clear intervention draft
+                {runtimeSourceDraft.kind === "intervention"
+                  ? "Clear intervention draft"
+                  : "Clear source draft"}
               </button>
             </div>
           </div>
