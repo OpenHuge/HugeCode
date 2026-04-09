@@ -78,11 +78,9 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
     graph,
     capabilityEnabled: distributedGraphCapabilityEnabled,
     actionsEnabled: distributedGraphActionsEnabled,
-    retryEnabled: distributedGraphRetryEnabled,
     disabledReason,
     interruptNode: handleInterruptNode,
     interruptSubtree: handleInterruptSubtree,
-    retryNode: handleRetryNode,
   } = useRuntimeDistributedTaskGraph({
     graphId: plan?.distributedGraph?.graphId ?? null,
     fallbackGraph: plan?.distributedGraph ?? null,
@@ -166,12 +164,10 @@ export function PlanPanel({ plan, isProcessing, activeArtifact = null }: PlanPan
         graph={distributedGraphCapabilityEnabled ? graph : null}
         capabilityEnabled={distributedGraphCapabilityEnabled}
         actionsEnabled={distributedGraphActionsEnabled}
-        retryEnabled={distributedGraphRetryEnabled}
         disabledReason={disabledReason}
         diagnosticsMessage={distributedDiagnosticsMessage}
         onInterruptNode={handleInterruptNode}
         onInterruptSubtree={handleInterruptSubtree}
-        onRetryNode={handleRetryNode}
       />
     </aside>
   );

@@ -5,7 +5,7 @@ import {
   MissionOverviewPanel,
   type MissionOverviewItem,
 } from "../../../missions/components/MissionOverviewPanel";
-import type { MissionReviewEntry } from "../../../missions/utils/missionControlPresentation";
+import type { MissionReviewEntry } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import {
   InspectorSection,
   InspectorSectionBody,

@@ -12,7 +12,7 @@ import {
   type MissionRunDetailModel,
   type ReviewPackDetailModel,
   type ReviewPackSelectionState,
-} from "../utils/reviewPackSurfaceModel";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import { ReviewPackSurface, type ReviewPackSurfaceProps } from "./ReviewPackSurface";
 
 export type ReviewPackSurfaceFromProjectionProps = Omit<

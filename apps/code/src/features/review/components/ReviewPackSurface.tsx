@@ -13,8 +13,8 @@ import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import type {
   MissionControlFreshnessState,
   MissionNavigationTarget,
-} from "../../missions/utils/missionControlPresentation";
-import type { MissionReviewEntry } from "../../missions/utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
+import type { MissionReviewEntry } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { ReviewQueuePanel } from "./ReviewQueuePanel";
 import * as styles from "./ReviewPackSurface.css";
 import { CompactReviewEvidenceCard } from "./CompactReviewEvidenceCard";
@@ -25,7 +25,7 @@ import type {
   MissionSurfaceDetailModel,
   ReviewPackDetailModel,
   ReviewPackSelectionState,
-} from "../utils/reviewPackSurfaceModel";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import type { ReviewPackDecisionSubmissionState } from "../hooks/useReviewPackDecisionActions";
 import type { MissionInterventionDraft } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
 import type { RuntimeWorkspaceSkillCatalogState } from "../../../application/runtime/facades/runtimeReviewIntelligenceFacade";

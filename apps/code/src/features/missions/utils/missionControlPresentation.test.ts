@@ -6,7 +6,7 @@ import {
   buildMissionOverviewItemsFromProjection,
   buildMissionReviewEntriesFromProjection,
   formatMissionOverviewStateLabel,
-} from "./missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 
 function createProjection(): HugeCodeMissionControlSnapshot {
   return {

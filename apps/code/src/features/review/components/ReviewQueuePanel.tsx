@@ -20,7 +20,7 @@ import {
   type MissionControlFreshnessState,
   type MissionNavigationTarget,
   type MissionReviewEntry,
-} from "../../missions/utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { resolveMissionEntryActionLabel } from "../../missions/utils/missionNavigation";
 import { buildCompactReviewEvidenceDescriptor } from "../utils/compactReviewEvidence";
 import * as styles from "./ReviewQueuePanel.css";

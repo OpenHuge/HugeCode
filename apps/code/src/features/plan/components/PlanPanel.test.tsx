@@ -209,7 +209,7 @@ describe("PlanPanel", () => {
     expect(interruptNode).toHaveBeenCalledWith("task-node-1");
   });
 
-  it("exposes retry capability to the graph surface when runtime intervention is available", () => {
+  it("keeps retry controls hidden from the plan panel graph surface", () => {
     mockDistributedTaskGraphState({
       capabilityEnabled: true,
       actionsEnabled: true,
@@ -232,7 +232,7 @@ describe("PlanPanel", () => {
       />
     );
 
-    expect(screen.getByTestId("distributed-graph-retry").textContent).toBe("retry-enabled");
+    expect(screen.getByTestId("distributed-graph-retry").textContent).toBe("retry-disabled");
   });
 
   it("renders remote-first diagnostics warning when graph summary includes distributed context", () => {

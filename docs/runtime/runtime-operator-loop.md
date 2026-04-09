@@ -29,8 +29,8 @@ Phase 1 uses one shared truth helper in
 
 Primary consumers:
 
-- `apps/code/src/application/runtime/facades/runtimeMissionControlSurfaceModel.ts`
-- `apps/code/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts`
+- `packages/code-application/src/runtime-control-plane/missionControlSurfaceModel.ts`
+- `packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts`
 - `apps/code/src/application/runtime/facades/runtimeReviewPackDecisionActionsFacade.ts`
 - `apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts`
 - `packages/code-workspace-client/src/workspace-shell/sharedMissionControlSummary.ts`

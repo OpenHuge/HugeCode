@@ -1,7 +1,7 @@
 import type { RecentThreadStatus } from "../../../app/components/RecentThreadStrip";
 import { getApprovalRequestThreadId } from "../../../messages/utils/approvalPresentation";
 import { resolveActivePlanArtifact } from "../../../messages/utils/planArtifact";
-import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { resolveThreadVisualState } from "../../../threads/utils/threadExecutionState";
 import type { LayoutNodesFieldRegistry } from "./types";
 

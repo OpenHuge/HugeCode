@@ -1,4 +1,4 @@
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 
 export type LatestAgentRun = {
   message: string;

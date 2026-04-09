@@ -10,7 +10,7 @@ import {
 } from "../../../design-system";
 import ShieldAlert from "lucide-react/dist/esm/icons/shield-alert";
 import { useEffect, useMemo } from "react";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { resolveMissionEntryActionLabel } from "../../missions/utils/missionNavigation";
 import type { ApprovalRequest, WorkspaceInfo } from "../../../types";
 import { getApprovalCommandInfo } from "../../../utils/approvalRules";

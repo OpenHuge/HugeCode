@@ -9,6 +9,57 @@ vi.mock("../../shared/productAnalytics", () => ({
   trackProductAnalyticsEvent: vi.fn(async () => undefined),
 }));
 
+vi.mock("../../../application/runtime/facades/runtimeRemoteExecutionFacade", () => ({
+  resolvePreferredBackendIdsForRuntimeRunLaunch: async (
+    preferredBackendIds: string[] | null | undefined
+  ) => (preferredBackendIds && preferredBackendIds.length > 0 ? preferredBackendIds : null),
+}));
+
+vi.mock("./ReviewPackBrowserVerificationSection", () => ({
+  ReviewPackBrowserVerificationSection: () => null,
+  useReviewPackBrowserVerificationLane: (
+    detail:
+      | {
+          kind?: string;
+          artifacts?: unknown[];
+          reproductionGuidance?: string[];
+          limitations?: string[];
+          decisionActionability?: unknown;
+        }
+      | null
+      | undefined
+  ) => ({
+    attachments: [],
+    pendingCandidate: null,
+    displayedArtifacts: detail?.artifacts ?? [],
+    displayedReproductionGuidance:
+      detail?.kind !== "mission_run" ? (detail?.reproductionGuidance ?? []) : [],
+    displayedLimitations: detail?.limitations ?? [],
+    displayedDecisionActionability:
+      detail?.kind !== "mission_run" ? (detail?.decisionActionability ?? null) : null,
+    browserReadiness: {
+      headline: "Browser verification unavailable in unit tests.",
+      detail: "Browser runtime hooks are mocked in this suite.",
+      recommendedAction: "Use dedicated browser verification tests for runtime coverage.",
+    },
+    browserExtraction: {
+      input: { sourceUrl: "", selector: "" },
+      setSourceUrl: () => undefined,
+      setSelector: () => undefined,
+      canExtract: false,
+      canReviewLastResult: false,
+      extracting: false,
+      reviewingLastResult: false,
+      loading: false,
+      notice: null,
+      extract: async () => undefined,
+      reviewLastResult: async () => undefined,
+    },
+    attachPendingEvidence: () => undefined,
+    ignorePendingEvidence: () => undefined,
+  }),
+}));
+
 function buildEmptyReviewMetadata() {
   return {
     reviewProfileId: null,

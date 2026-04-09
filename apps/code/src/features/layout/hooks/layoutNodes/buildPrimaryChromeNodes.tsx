@@ -9,7 +9,7 @@ import {
   buildMissionOverviewItemsFromProjection,
   mapThreadVisualStateToMissionOverviewState,
   type MissionNavigationTarget,
-} from "../../../missions/utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { openMissionTargetFromDesktopShell } from "../../../missions/utils/missionNavigation";
 import { ErrorToasts } from "../../../notifications/components/ErrorToasts";
 import { UpdateToast } from "../../../update/components/UpdateToast";

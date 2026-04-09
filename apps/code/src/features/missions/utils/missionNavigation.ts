@@ -1,8 +1,8 @@
 import type {
   ReviewPackSelectionRequest,
   ReviewPackSelectionSource,
-} from "../../review/utils/reviewPackSurfaceModel";
-import type { MissionNavigationTarget } from "./missionControlPresentation";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 
 export type DesktopMissionReviewSource = Exclude<ReviewPackSelectionSource, "system">;
 

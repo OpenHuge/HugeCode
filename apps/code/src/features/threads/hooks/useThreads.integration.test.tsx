@@ -123,6 +123,29 @@ vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
   detectRuntimeMode: vi.fn(() => "electron-bridge"),
 }));
 
+vi.mock("../../../application/runtime/facades/runtimeInvocationExecuteFacadeHooks", () => ({
+  useRuntimeInvocationExecuteResolver: () => () => ({
+    invoke: vi.fn(async () => ({
+      invocationId: "session:respond-to-approval",
+      kind: "blocked",
+      ok: false,
+      payload: null,
+      message: "Runtime invocation execution is not configured in useThreads integration tests.",
+      evidence: null,
+    })),
+  }),
+}));
+
+vi.mock("../../../application/runtime/facades/runtimeInvocationCatalogFacadeHooks", () => ({
+  useRuntimeInvocationCatalogResolver: () => () => ({
+    publishActiveCatalog: vi.fn(async () => ({
+      revision: 0,
+      items: [],
+      source: "none",
+    })),
+  }),
+}));
+
 vi.mock("../../../application/runtime/facades/runtimeSessionCommandFacadeHooks", () => ({
   useRuntimeSessionCommandsResolver: () => (workspaceId: string) => ({
     sendMessage: ({ threadId, text, options }: Record<string, unknown>) => {

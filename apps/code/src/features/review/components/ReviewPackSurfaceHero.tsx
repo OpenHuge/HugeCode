@@ -5,7 +5,7 @@ import {
   getReviewStatusTone,
   getValidationOutcomeTone,
 } from "../../../utils/reviewPackLabels";
-import type { ReviewPackDetailModel } from "../utils/reviewPackSurfaceModel";
+import type { ReviewPackDetailModel } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import * as styles from "./ReviewPackSurface.css";
 import {
   ReviewLoopHeader,

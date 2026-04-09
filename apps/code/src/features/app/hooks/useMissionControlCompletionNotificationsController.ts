@@ -1,6 +1,6 @@
 import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-contract";
 import type { DebugEntry } from "../../../types";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { useWindowFocusState } from "../../layout/hooks/useWindowFocusState";
 import { useMissionControlCompletionNotifications } from "../../notifications/hooks/useMissionControlCompletionNotifications";
 

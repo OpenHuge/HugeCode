@@ -204,7 +204,7 @@ describe("runtimeMissionControlReviewPack", () => {
           output: null,
           metadata: {
             safety: {
-              path: "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts",
+              path: "packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts",
             },
           },
           startedAt: 1,
@@ -271,7 +271,7 @@ describe("runtimeMissionControlReviewPack", () => {
     });
 
     expect(deriveRunChangedPaths(task)).toEqual([
-      "apps/code/src/features/review/utils/reviewPackSurfaceModel.ts",
+      "packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts",
       "packages/code-runtime-host-contract/src/hugeCodeMissionControl.ts",
     ]);
     expect(buildReviewPackFileChanges(deriveRunChangedPaths(task))).toMatchObject({

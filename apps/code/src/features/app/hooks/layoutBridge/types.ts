@@ -1,4 +1,4 @@
-import type { ReviewPackSelectionRequest } from "../../../review/utils/reviewPackSurfaceModel";
+import type { ReviewPackSelectionRequest } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import type { UseMainAppLayoutNodesStateParams } from "../../types/mainAppLayoutContracts";
 import type { useMainAppLayoutNodesBridge } from "../useMainAppLayoutNodesBridge";
 
