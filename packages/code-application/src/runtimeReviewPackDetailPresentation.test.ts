@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMissionBriefDetail } from "./runtimeReviewPackDetailPresentation";
+import { buildMissionBriefDetail } from "./runtime-control-plane/runtimeReviewPackDetailPresentation";
 
 describe("runtimeReviewPackDetailPresentation", () => {
   it("surfaces mission brief constraints for governed GitHub source reviews", () => {

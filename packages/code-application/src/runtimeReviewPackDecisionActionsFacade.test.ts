@@ -3,7 +3,7 @@ import {
   buildRuntimeReviewPackFollowUpState,
   buildRuntimeReviewPackDecisionActions,
   buildRuntimeReviewPackInterventionDecisionActions,
-} from "./runtimeReviewPackDecisionActionsFacade";
+} from "./runtime-control-plane/runtimeReviewPackDecisionActionsFacade";
 
 describe("runtimeReviewPackDecisionActionsFacade", () => {
   it("builds registry-driven intervention actions with clarify-specific instructions", () => {

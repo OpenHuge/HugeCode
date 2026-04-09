@@ -31,7 +31,7 @@ Primary consumers:
 
 - `packages/code-application/src/runtime-control-plane/missionControlSurfaceModel.ts`
 - `packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts`
-- `apps/code/src/application/runtime/facades/runtimeReviewPackDecisionActionsFacade.ts`
+- `packages/code-application/src/runtime-control-plane/runtimeReviewPackDecisionActionsFacade.ts`
 - `apps/code/src/application/runtime/facades/runtimeContinuityReadiness.ts`
 - `packages/code-workspace-client/src/workspace-shell/sharedMissionControlSummary.ts`
 

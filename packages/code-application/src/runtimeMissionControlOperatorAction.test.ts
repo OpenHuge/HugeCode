@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveMissionOperatorAction } from "./runtimeMissionControlOperatorAction";
+import { resolveMissionOperatorAction } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
 
 describe("runtimeMissionControlOperatorAction", () => {
   it("keeps mission context when canonical continuation points at the mission thread", () => {
@@ -173,6 +173,7 @@ describe("runtimeMissionControlOperatorAction", () => {
           recommendedAction: "Resume mission",
           target: null,
         },
+        continuation: null,
       } as never,
       run: null,
       missionTarget,
@@ -219,8 +220,8 @@ describe("runtimeMissionControlOperatorAction", () => {
         takeoverBundle: {
           state: "ready",
           pathKind: "review",
-          primaryAction: "open_review_pack",
           summary: "Review continuation should start from the delegated thread.",
+          primaryAction: "open_review_pack",
           recommendedAction: "Open review from the delegated thread first.",
           target: {
             kind: "thread",
