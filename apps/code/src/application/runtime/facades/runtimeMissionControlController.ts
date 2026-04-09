@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RuntimeAgentTaskInterventionInput } from "../types/webMcpBridge";
 import { readBrowserReadiness } from "../ports/browserCapability";
 import { useWorkspaceRuntimeAgentControl } from "../ports/runtimeAgentControl";
-import { readRuntimeErrorCode, readRuntimeErrorMessage } from "../ports/runtimeErrorClassifier";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import { listRunExecutionProfiles } from "./runtimeMissionControlFacade";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
@@ -27,38 +26,26 @@ import {
 } from "./runtimeMissionControlActions";
 import { useRuntimeMissionControlDraftState } from "./runtimeMissionControlDraftState";
 import {
-  formatRuntimeError,
-  resolveRuntimeErrorLabel,
   useRuntimeMissionControlSnapshot,
   type RuntimeDurabilityWarningState,
 } from "./runtimeMissionControlSnapshot";
 import { useRuntimeBrowserAssessmentOperator } from "./runtimeBrowserAssessmentOperator";
 import { buildRuntimeBrowserAssessmentPluginDescriptor } from "./runtimeBrowserAssessmentPlugin";
 import { useRuntimeBrowserExtractionOperator } from "./runtimeBrowserExtractionOperator";
+import {
+  buildMissionInterventionInfoMessage,
+  buildRuntimePluginControlPlaneSurface,
+} from "./runtimeMissionControlControllerHelpers";
+import {
+  buildRuntimeManagedTaskStartInfo,
+  buildRuntimeResumeBatchOutcome,
+  buildRuntimeTaskResumeFeedback,
+  readStalePendingApprovalInterruptInfo,
+  resolvePrepareRunLauncherProfileId,
+} from "./runtimeMissionControlControllerActionHelpers";
+import { formatRuntimeError } from "./runtimeMissionControlErrorPresentation";
 
 export type { RuntimeDurabilityWarningState };
-
-function buildMissionInterventionInfoMessage(
-  action: RuntimeAgentTaskInterventionInput["action"],
-  taskId: string
-) {
-  switch (action) {
-    case "replan_scope":
-      return `Mission replan requested for ${taskId}.`;
-    case "drop_feature":
-      return `Feature drop requested for ${taskId}.`;
-    case "insert_feature":
-      return `Feature insertion requested for ${taskId}.`;
-    case "change_validation_lane":
-      return `Validation lane change requested for ${taskId}.`;
-    case "change_backend_preference":
-      return `Backend preference change requested for ${taskId}.`;
-    case "mark_blocked_with_reason":
-      return `Blocked state recorded for ${taskId}.`;
-    default:
-      return `Mission intervention ${action} submitted for ${taskId}.`;
-  }
-}
 
 export function useWorkspaceRuntimeMissionControlController(workspaceId: string) {
   const runtimeControl = useWorkspaceRuntimeAgentControl(workspaceId);
@@ -123,17 +110,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     ];
   }, [browserAssessment.result, browserReadiness, snapshot.runtimePlugins]);
   const runtimePluginControlPlaneSurface = useMemo(
-    () => ({
-      plugins: runtimePlugins,
-      pluginsError: snapshot.runtimePluginsError,
-      profiles: snapshot.runtimeCompositionProfiles,
-      activeProfileId: snapshot.runtimeCompositionActiveProfileId,
-      activeProfile: snapshot.runtimeCompositionActiveProfile,
-      resolution: snapshot.runtimeCompositionResolution,
-      snapshot: snapshot.runtimeCompositionSnapshot,
-      compositionError: snapshot.runtimeCompositionError,
-      registryError: snapshot.runtimePluginRegistryError,
-    }),
+    () => buildRuntimePluginControlPlaneSurface(snapshot, runtimePlugins),
     [
       runtimePlugins,
       snapshot.runtimePluginsError,
@@ -314,7 +291,13 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
           setApprovedRuntimePlanVersion(null);
           setRuntimeError(null);
           setRuntimeInfo(
-            `Parallel dispatch ${dispatch.sessionId} started with ${dispatchPlan.tasks.length} chunk(s).`
+            buildRuntimeManagedTaskStartInfo({
+              dispatchPlanTaskCount: dispatchPlan.tasks.length,
+              dispatchSessionId: dispatch.sessionId,
+              executionProfileName: selectedExecutionProfile.name,
+              routedProvider,
+              selectedProviderRouteLabel: selectedProviderRoute?.label ?? null,
+            })
           );
           return;
         }
@@ -323,7 +306,13 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
         setApprovedRuntimePlanVersion(null);
         setRuntimeError(null);
         setRuntimeInfo(
-          `Mission run started with ${selectedExecutionProfile.name}${routedProvider ? ` via ${selectedProviderRoute?.label ?? routedProvider}` : ""}.`
+          buildRuntimeManagedTaskStartInfo({
+            dispatchPlanTaskCount: null,
+            dispatchSessionId: null,
+            executionProfileName: selectedExecutionProfile.name,
+            routedProvider,
+            selectedProviderRouteLabel: selectedProviderRoute?.label ?? null,
+          })
         );
         await snapshot.refreshRuntimeTasks();
       } catch (error) {
@@ -376,17 +365,9 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       try {
         const ack = await resumeTask({ taskId });
         await snapshot.refreshRuntimeTasks();
-        if (ack.accepted) {
-          const checkpointSuffix =
-            typeof ack.checkpointId === "string" && ack.checkpointId.trim().length > 0
-              ? ` (checkpoint ${ack.checkpointId})`
-              : "";
-          setRuntimeError(null);
-          setRuntimeInfo(`Run ${taskId} resumed${checkpointSuffix}.`);
-        } else {
-          setRuntimeInfo(null);
-          setRuntimeError(ack.message || `Run ${taskId} could not be resumed.`);
-        }
+        const feedback = buildRuntimeTaskResumeFeedback(taskId, ack);
+        setRuntimeError(feedback.error);
+        setRuntimeInfo(feedback.info);
       } catch (error) {
         setRuntimeError(formatRuntimeError(error));
       } finally {
@@ -494,28 +475,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
           resumeTask({ taskId: task.taskId })
         )
       );
-      const outcomes: RuntimeResumeBatchOutcome[] = responses.map((entry) => {
-        if (entry.status === "fulfilled") {
-          if (entry.value.accepted) {
-            return { status: "accepted" };
-          }
-          return {
-            status: "rejected",
-            errorLabel: resolveRuntimeErrorLabel(entry.value),
-          };
-        }
-        const failureCode = readRuntimeErrorCode(entry.reason);
-        const failureMessage = readRuntimeErrorMessage(entry.reason);
-        return {
-          status: "failed",
-          errorLabel:
-            failureCode ??
-            failureMessage ??
-            (typeof entry.reason === "string" && entry.reason.trim().length > 0
-              ? entry.reason.trim()
-              : null),
-        };
-      });
+      const outcomes: RuntimeResumeBatchOutcome[] = responses.map(buildRuntimeResumeBatchOutcome);
       const summary = summarizeResumeBatchResults(outcomes);
       await snapshot.refreshRuntimeTasks();
       setRuntimeInfo(summary.info);
@@ -528,14 +488,15 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
   }, [missionControlProjection.continuity, runtimeControl, setRuntimeError, snapshot]);
 
   const interruptStalePendingApprovals = useCallback(async () => {
-    if (missionControlProjection.approvalPressure.staleTasks.length === 0) {
-      setRuntimeInfo("No stale pending approvals to interrupt.");
+    const staleTasks = missionControlProjection.approvalPressure.staleTasks;
+    if (staleTasks.length === 0) {
+      setRuntimeInfo(readStalePendingApprovalInterruptInfo(staleTasks));
       return;
     }
     setRuntimeActionLoading(true);
     try {
       await Promise.all(
-        missionControlProjection.approvalPressure.staleTasks.map((task) =>
+        staleTasks.map((task) =>
           runtimeControl.interruptTask({
             taskId: task.taskId,
             reason: "ui:webmcp-runtime-stale-approval-interrupt",
@@ -544,9 +505,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       );
       await snapshot.refreshRuntimeTasks();
       setRuntimeError(null);
-      setRuntimeInfo(
-        `Interrupted ${missionControlProjection.approvalPressure.staleTasks.length} stale pending approval task(s).`
-      );
+      setRuntimeInfo(readStalePendingApprovalInterruptInfo(staleTasks));
     } catch (error) {
       setRuntimeError(formatRuntimeError(error));
     } finally {
@@ -568,10 +527,11 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
       const result = draft.prepareRunLauncher({
         task,
         intent,
-        executionProfileId:
-          options.profileId?.trim() ||
-          missionControlProjection.runList.projectedRunsByTaskId.get(task.taskId)?.executionProfile
-            ?.id,
+        executionProfileId: resolvePrepareRunLauncherProfileId({
+          taskId: task.taskId,
+          profileId: options.profileId,
+          projectedRunsByTaskId: missionControlProjection.runList.projectedRunsByTaskId,
+        }),
         fallbackProfileId: "balanced-delegate",
         repositoryExecutionContract,
       });

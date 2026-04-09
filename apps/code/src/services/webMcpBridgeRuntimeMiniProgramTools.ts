@@ -12,29 +12,20 @@ import type {
   RuntimeAgentControl,
   WebMcpAgent,
 } from "@ku0/code-runtime-webmcp-client/webMcpBridgeTypes";
+import type {
+  RuntimeMiniProgramAction,
+  RuntimeMiniProgramActionRunRequest,
+  RuntimeMiniProgramActionRunResponse,
+  RuntimeMiniProgramStatusResponse,
+} from "@ku0/code-runtime-host-contract";
 
 type RuntimeMiniProgramControl = RuntimeAgentControl & {
-  getRuntimeMiniProgramStatus?: (input: { workspaceId: string }) => Promise<unknown>;
-  runRuntimeMiniProgramAction?: (input: {
+  getRuntimeMiniProgramStatus?: (input: {
     workspaceId: string;
-    action:
-      | "open_project"
-      | "refresh_project"
-      | "build_npm"
-      | "preview"
-      | "upload"
-      | "reset_file_watch";
-    compileType?: "miniprogram" | "plugin" | null;
-    compileCondition?: {
-      pathName?: string | null;
-      query?: string | null;
-      scene?: number | null;
-    } | null;
-    version?: string | null;
-    desc?: string | null;
-    qrOutputMode?: "none" | "terminal" | "base64" | "image" | null;
-    infoOutputMode?: "none" | "inline" | null;
-  }) => Promise<unknown>;
+  }) => Promise<RuntimeMiniProgramStatusResponse>;
+  runRuntimeMiniProgramAction?: (
+    input: RuntimeMiniProgramActionRunRequest
+  ) => Promise<RuntimeMiniProgramActionRunResponse>;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -60,11 +51,9 @@ function asRecord(value: unknown): JsonRecord | null {
   return value as JsonRecord;
 }
 
-function normalizeCompileCondition(value: unknown): {
-  pathName?: string | null;
-  query?: string | null;
-  scene?: number | null;
-} | null {
+function normalizeCompileCondition(
+  value: unknown
+): RuntimeMiniProgramActionRunRequest["compileCondition"] {
   if (value == null) {
     return null;
   }
@@ -91,13 +80,7 @@ function normalizeCompileCondition(value: unknown): {
 
 async function runMiniProgramAction(
   input: {
-    action:
-      | "open_project"
-      | "refresh_project"
-      | "build_npm"
-      | "preview"
-      | "upload"
-      | "reset_file_watch";
+    action: RuntimeMiniProgramAction;
     title: string;
     approvalPrompt: string;
     toolName: string;

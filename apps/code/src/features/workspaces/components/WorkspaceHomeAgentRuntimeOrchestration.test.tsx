@@ -15,6 +15,7 @@ import type {
   RuntimeCompositionProfileSummaryV2,
   RuntimeCompositionResolution,
   RuntimeCompositionResolveV2Response,
+  RuntimeCompositionSnapshotPublishResponse,
   RuntimeProviderCatalogEntry,
 } from "@ku0/code-runtime-host-contract";
 import {
@@ -148,6 +149,17 @@ const runtimeCompositionApplyV2Mock = vi.hoisted(() =>
 );
 const runtimeCompositionPublishMock = vi.hoisted(() =>
   vi.fn<RuntimeKernelCompositionFacade["publishActiveResolutionV1"]>(async () => null as never)
+);
+const runtimeCompositionPublishSnapshotMock = vi.hoisted(() =>
+  vi.fn<() => Promise<RuntimeCompositionSnapshotPublishResponse>>(async () => ({
+    authorityState: "published",
+    freshnessState: "current",
+    authorityRevision: 1,
+    lastAcceptedRevision: 1,
+    lastPublishAttemptAt: 1_771_331_697_000,
+    publishedAt: 1_771_331_697_000,
+    publisherSessionId: "publisher-session",
+  }))
 );
 
 function createRuntimeCompositionProfileFixture(): RuntimeCompositionProfile {
@@ -1076,7 +1088,7 @@ function createRuntimeKernelValue(): RuntimeKernel {
           return profiles.find((profile) => profile.id === profileId) ?? null;
         }),
         resolveV2: runtimeCompositionResolutionV2Mock,
-        publishSnapshotV1: runtimeCompositionPublishMock,
+        publishSnapshotV1: runtimeCompositionPublishSnapshotMock,
         getSettings: vi.fn(async () => ({
           selection: {
             profileId: null,
@@ -1913,12 +1925,22 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     );
 
     const pluginSection = section;
-    expect(pluginSection).toBeTruthy();
-    expect(within(pluginSection as HTMLElement).getByText("Composition profiles")).toBeTruthy();
+    if (!pluginSection) {
+      throw new Error("Expected plugin operator actions section to render");
+    }
+
+    expect(within(pluginSection).getByText("Composition profiles")).toBeTruthy();
     expect(screen.getAllByText("Needs action").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Inventory", { selector: "strong" }).length).toBeGreaterThan(0);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Remote Search Tools: Install" }));
+    const installButton = await screen.findByRole("button", {
+      name: "Remote Search Tools: Install",
+    });
+    await waitFor(() => {
+      expect((installButton as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(installButton);
 
     await waitFor(() => {
       expect(runtimePluginRegistryInstallMock).toHaveBeenCalledWith({
@@ -2188,7 +2210,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    const retryButton = screen.getByRole("button", { name: "Retry" });
+    await waitFor(() => {
+      expect((retryButton as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(retryButton);
 
     await waitFor(() => {
       expect(
@@ -2463,7 +2490,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Oldest pending: Old approval")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Approve oldest request" }));
+    const approveOldestButton = screen.getByRole("button", { name: "Approve oldest request" });
+    await waitFor(() => {
+      expect((approveOldestButton as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(approveOldestButton);
 
     await waitFor(() => {
       expect(submitTaskApprovalDecision).toHaveBeenCalledWith({
@@ -2572,7 +2604,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Need approval")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    const approveButton = screen.getByRole("button", { name: "Approve" });
+    await waitFor(() => {
+      expect((approveButton as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(approveButton);
 
     await waitFor(() => {
       expect(submitTaskApprovalDecision).toHaveBeenCalledWith({
@@ -2903,7 +2940,22 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Trace agent-task:runtime-recovered-1")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    const recoveredTaskCard = screen
+      .getByText("Recovered task")
+      .closest(".workspace-home-code-runtime-item");
+    if (!recoveredTaskCard) {
+      throw new Error("Expected recovered task card to render");
+    }
+
+    const recoveredTaskCardElement = recoveredTaskCard as HTMLElement;
+    const resumeButton = within(recoveredTaskCardElement).getByRole("button", {
+      name: "Resume",
+    });
+    await waitFor(() => {
+      expect((resumeButton as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(resumeButton);
 
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledWith({ runId: "runtime-recovered-1" });
@@ -3003,7 +3055,21 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Recovered runs awaiting resume: 2")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Resume recoverable runs (2)" }));
+    await waitFor(() => {
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Resume recoverable runs (2)",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false);
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Resume recoverable runs (2)",
+      })
+    );
 
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledTimes(2);
@@ -3047,7 +3113,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByText("Rejected recovery")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    const resumeRejectedButton = screen.getByRole("button", { name: "Resume" });
+    await waitFor(() => {
+      expect((resumeRejectedButton as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    fireEvent.click(resumeRejectedButton);
 
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledWith({ runId: "runtime-rejected-1" });
@@ -3109,7 +3180,21 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("button", { name: "Resume recoverable runs (3)" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Resume recoverable runs (3)" }));
+    await waitFor(() => {
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Resume recoverable runs (3)",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false);
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Resume recoverable runs (3)",
+      })
+    );
 
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledTimes(3);
@@ -3159,7 +3244,21 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       expect(screen.getByRole("button", { name: "Resume recoverable runs (1)" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Resume recoverable runs (1)" }));
+    await waitFor(() => {
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Resume recoverable runs (1)",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(false);
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Resume recoverable runs (1)",
+      })
+    );
 
     await waitFor(() => {
       expect(resumeAgentTask).toHaveBeenCalledWith({ runId: "runtime-batch-nested" });

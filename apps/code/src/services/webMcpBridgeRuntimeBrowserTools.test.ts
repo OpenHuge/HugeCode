@@ -98,6 +98,7 @@ describe("webMcpBridgeRuntimeBrowserTools", () => {
       "get-runtime-browser-debug-status",
       "inspect-runtime-browser",
       "run-runtime-browser-automation",
+      "run-provider-decision-lab",
       "run-chatgpt-decision-lab",
     ]);
 
@@ -388,6 +389,7 @@ describe("webMcpBridgeRuntimeBrowserTools", () => {
             summary: "Tighten validation and preserve confidence before widening scope.",
           },
         ],
+        providerId: "chatgpt",
         constraints: ["Do not widen scope", "Keep runtime boundaries intact"],
         allowLiveWebResearch: false,
         chatgptUrl: null,
