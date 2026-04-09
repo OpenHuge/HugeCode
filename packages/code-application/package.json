@@ -97,6 +97,10 @@
       "types": "./src/runtime-control-plane/runtimeMissionControlProvenance.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlProvenance.ts"
     },
+    "./runtimeMissionControlPluginCatalog": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlPluginCatalog.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlPluginCatalog.ts"
+    },
     "./runtimeReviewPackDecisionActionsFacade": {
       "types": "./src/runtime-control-plane/runtimeReviewPackDecisionActionsFacade.ts",
       "default": "./src/runtime-control-plane/runtimeReviewPackDecisionActionsFacade.ts"
