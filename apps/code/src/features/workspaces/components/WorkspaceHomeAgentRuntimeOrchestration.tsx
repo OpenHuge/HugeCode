@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { WorkspaceInfo } from "../../../types";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
 import { buildRuntimeAiWebLabSourceDraft } from "../../../application/runtime/facades/runtimeAiWebLabSourceDraft";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
@@ -49,12 +50,14 @@ type WorkspaceHomeAgentRuntimeOrchestrationProps = {
   workspaceId: string;
   workspace?: WorkspaceInfo | null;
   intent?: AgentIntentState;
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void;
 };
 
 export function WorkspaceHomeAgentRuntimeOrchestration({
   workspaceId,
   workspace = null,
   intent = DEFAULT_INTENT,
+  onOpenMissionTarget,
 }: WorkspaceHomeAgentRuntimeOrchestrationProps) {
   const [runtimeDraftBatchConfig, setRuntimeDraftBatchConfig] = useState(
     DEFAULT_RUNTIME_BATCH_PREVIEW_CONFIG
@@ -116,6 +119,8 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     startRuntimeManagedTask,
     interruptAllActiveTasks,
     interruptRuntimeTaskById,
+    interruptRuntimeSubAgentSessionById,
+    closeRuntimeSubAgentSessionById,
     interruptStalePendingApprovals,
     resumeRuntimeTaskById,
     interveneRuntimeTaskById,
@@ -1177,6 +1182,9 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         runtimeLoading={runtimeLoading}
         refreshRuntimeTasks={refreshRuntimeTasks}
         interruptRuntimeTaskById={interruptRuntimeTaskById}
+        interruptRuntimeSubAgentSessionById={interruptRuntimeSubAgentSessionById}
+        closeRuntimeSubAgentSessionById={closeRuntimeSubAgentSessionById}
+        onOpenMissionTarget={onOpenMissionTarget}
         resumeRuntimeTaskById={resumeRuntimeTaskById}
         interveneRuntimeTaskById={interveneRuntimeTaskById}
         prepareRunLauncher={prepareRunLauncher}

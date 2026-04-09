@@ -7070,6 +7070,137 @@ exit 1
     }
 
     #[tokio::test]
+    async fn runtime_run_start_v2_materializes_parallel_safe_sub_agent_lanes() {
+        let app = test_router();
+        let prepare_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_runtime_run_prepare_v2",
+                "params": {
+                    "workspaceId": "workspace-web",
+                    "title": "Parallel safe delegation mission",
+                    "executionProfileId": "balanced-delegate",
+                    "steps": [
+                        {
+                            "kind": "read",
+                            "input": "Inspect the runtime sub-agent contract."
+                        },
+                        {
+                            "kind": "diagnostics",
+                            "input": "Validate the mission-control boundary.",
+                            "requiresApproval": true,
+                            "approvalReason": "delegated diagnostics needs approval"
+                        }
+                    ]
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(prepare_payload["ok"], Value::Bool(true));
+        let approved_plan_version = prepare_payload["result"]["plan"]["planVersion"]
+            .as_str()
+            .expect("prepare plan version")
+            .to_string();
+
+        let start_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_runtime_run_start_v2",
+                "params": {
+                    "workspaceId": "workspace-web",
+                    "title": "Parallel safe delegation mission",
+                    "executionProfileId": "balanced-delegate",
+                    "approvedPlanVersion": approved_plan_version,
+                    "steps": [
+                        {
+                            "kind": "read",
+                            "input": "Inspect the runtime sub-agent contract."
+                        },
+                        {
+                            "kind": "diagnostics",
+                            "input": "Validate the mission-control boundary.",
+                            "requiresApproval": true,
+                            "approvalReason": "delegated diagnostics needs approval"
+                        }
+                    ]
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(start_payload["ok"], Value::Bool(true), "payload: {start_payload:#}");
+        let run_id = start_payload["result"]["run"]["taskId"]
+            .as_str()
+            .expect("runtime run id")
+            .to_string();
+        let sub_agents = start_payload["result"]["missionRun"]["subAgents"]
+            .as_array()
+            .expect("mission run sub agents");
+        assert_eq!(sub_agents.len(), 2);
+        assert!(sub_agents.iter().any(|entry| {
+            entry["scopeProfile"] == Value::String("research".to_string())
+                && entry["parentRunId"] == Value::String(run_id.clone())
+                && entry["sessionId"].as_str().is_some_and(|value| !value.trim().is_empty())
+        }));
+        let review_session_id = sub_agents
+            .iter()
+            .find(|entry| {
+                entry["scopeProfile"] == Value::String("review".to_string())
+                    && entry["parentRunId"] == Value::String(run_id.clone())
+                    && entry["sessionId"].as_str().is_some_and(|value| !value.trim().is_empty())
+            })
+            .and_then(|entry| entry["sessionId"].as_str())
+            .expect("review delegated session id")
+            .to_string();
+        let review_task_id = tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                let status_payload = send_rpc_request(
+                    app.clone(),
+                    json!({
+                        "method":"code_sub_agent_status",
+                        "params":{
+                            "sessionId": review_session_id,
+                        }
+                    }),
+                )
+                .await;
+                if let Some(task_id) = status_payload["result"]["lastTaskId"]
+                    .as_str()
+                    .filter(|value| !value.trim().is_empty())
+                {
+                    break task_id.to_string();
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        })
+        .await
+        .expect("review delegated session should publish a child task id");
+        let review_task_payload = wait_for_agent_task_terminal_status(
+            app.clone(),
+            review_task_id.as_str(),
+            &["awaiting_approval"],
+        )
+        .await;
+        assert_eq!(
+            review_task_payload["result"]["status"],
+            Value::String("awaiting_approval".to_string())
+        );
+        assert!(review_task_payload["result"]["pendingApprovalId"]
+            .as_str()
+            .is_some_and(|value| !value.trim().is_empty()));
+        assert_eq!(
+            review_task_payload["result"]["steps"][0]["metadata"]["approval"]["requestSource"],
+            Value::String("explicit_override".to_string())
+        );
+        assert!(sub_agents.iter().any(|entry| {
+            entry["scopeProfile"] == Value::String("review".to_string())
+                && entry["parentRunId"] == Value::String(run_id.clone())
+                && entry["sessionId"].as_str().is_some_and(|value| !value.trim().is_empty())
+        }));
+    }
+
+    #[tokio::test]
     async fn mission_control_snapshot_reports_runtime_fallback_placement() {
         let app = test_router();
         let _ = send_rpc_request(

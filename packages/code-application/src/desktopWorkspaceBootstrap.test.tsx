@@ -84,6 +84,14 @@ describe("desktopWorkspaceBootstrap", () => {
           interveneRuntimeRun: vi.fn(),
           submitRuntimeJobApprovalDecision: vi.fn(),
         },
+        subAgents: {
+          spawn: vi.fn(),
+          send: vi.fn(),
+          wait: vi.fn(),
+          status: vi.fn(),
+          interrupt: vi.fn(),
+          close: vi.fn(),
+        },
         threads: {
           listThreads: vi.fn(async () => []),
           createThread: vi.fn(),

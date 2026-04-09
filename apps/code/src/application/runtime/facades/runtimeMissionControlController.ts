@@ -427,6 +427,48 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     [runtimeControl, setRuntimeError, snapshot]
   );
 
+  const interruptRuntimeSubAgentSessionById = useCallback(
+    async (sessionId: string, reason: string | null) => {
+      if (typeof runtimeControl.interruptSubAgentSession !== "function") {
+        setRuntimeError("Runtime does not currently support delegated-session interruption.");
+        return;
+      }
+      setRuntimeActionLoading(true);
+      try {
+        await runtimeControl.interruptSubAgentSession({ sessionId, reason });
+        setRuntimeError(null);
+        setRuntimeInfo(`Delegated session ${sessionId} interruption submitted.`);
+        await snapshot.refreshRuntimeTasks();
+      } catch (error) {
+        setRuntimeError(formatRuntimeError(error));
+      } finally {
+        setRuntimeActionLoading(false);
+      }
+    },
+    [runtimeControl, setRuntimeError, snapshot]
+  );
+
+  const closeRuntimeSubAgentSessionById = useCallback(
+    async (sessionId: string, reason: string | null, force = false) => {
+      if (typeof runtimeControl.closeSubAgentSession !== "function") {
+        setRuntimeError("Runtime does not currently support delegated-session closure.");
+        return;
+      }
+      setRuntimeActionLoading(true);
+      try {
+        await runtimeControl.closeSubAgentSession({ sessionId, reason, force });
+        setRuntimeError(null);
+        setRuntimeInfo(`Delegated session ${sessionId} closed.`);
+        await snapshot.refreshRuntimeTasks();
+      } catch (error) {
+        setRuntimeError(formatRuntimeError(error));
+      } finally {
+        setRuntimeActionLoading(false);
+      }
+    },
+    [runtimeControl, setRuntimeError, snapshot]
+  );
+
   const interruptAllActiveTasks = useCallback(async () => {
     const activeTasks = collectInterruptibleRuntimeTasks(snapshot.runtimeTasks);
     if (activeTasks.length === 0) {
@@ -607,8 +649,10 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimeStatusFilter,
     interruptAllActiveTasks,
     interruptRuntimeTaskById,
+    interruptRuntimeSubAgentSessionById,
     interruptStalePendingApprovals,
     resumeRuntimeTaskById,
+    closeRuntimeSubAgentSessionById,
     interveneRuntimeTaskById,
     decideRuntimeApproval,
   };

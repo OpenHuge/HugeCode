@@ -12,6 +12,7 @@ import type { RuntimeAgentTaskInterventionInput } from "../../../application/run
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";
 import {
   CoreLoopMetaRail,
@@ -70,6 +71,13 @@ type MissionControlRunListSectionProps = {
   runtimeLoading: boolean;
   refreshRuntimeTasks: () => Promise<void>;
   interruptRuntimeTaskById: (taskId: string, reason: string) => Promise<void>;
+  interruptRuntimeSubAgentSessionById: (sessionId: string, reason: string) => Promise<void>;
+  closeRuntimeSubAgentSessionById: (
+    sessionId: string,
+    reason: string,
+    force?: boolean
+  ) => Promise<void>;
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void;
   resumeRuntimeTaskById: (taskId: string) => Promise<void>;
   interveneRuntimeTaskById: (
     taskId: string,
@@ -91,6 +99,9 @@ export function MissionControlRunListSection({
   runtimeLoading,
   refreshRuntimeTasks,
   interruptRuntimeTaskById,
+  interruptRuntimeSubAgentSessionById,
+  closeRuntimeSubAgentSessionById,
+  onOpenMissionTarget,
   resumeRuntimeTaskById,
   interveneRuntimeTaskById,
   prepareRunLauncher,
@@ -135,10 +146,20 @@ export function MissionControlRunListSection({
                 runtimeLoading={runtimeLoading}
                 onRefresh={refreshRuntimeTasks}
                 onInterrupt={(reason) => interruptRuntimeTaskById(task.taskId, reason)}
+                onSubAgentInterrupt={(sessionId, reason) =>
+                  interruptRuntimeSubAgentSessionById(sessionId, reason)
+                }
+                onSubAgentClose={(sessionId, reason, force) =>
+                  closeRuntimeSubAgentSessionById(sessionId, reason, force)
+                }
+                onOpenMissionTarget={onOpenMissionTarget}
                 onResume={() => resumeRuntimeTaskById(task.taskId)}
                 onIntervene={(input) => interveneRuntimeTaskById(task.taskId, input)}
                 onPrepareLauncher={(intent) => prepareRunLauncher(task, intent)}
                 onApproval={(decision) => decideRuntimeApproval(task.pendingApprovalId!, decision)}
+                onSubAgentApproval={(approvalId, decision) =>
+                  decideRuntimeApproval(approvalId, decision)
+                }
               />
             );
           })}

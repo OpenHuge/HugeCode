@@ -48,6 +48,26 @@ vi.mock("../ports/runtimeJobs", () => ({
   submitRuntimeJobApprovalDecision: vi.fn(),
 }));
 
+vi.mock("../ports/runtimeSubAgents", () => ({
+  closeSubAgentSession: vi.fn(async (input) => ({ closed: true, sessionId: input.sessionId })),
+  getSubAgentSessionStatus: vi.fn(async () => null),
+  interruptSubAgentSession: vi.fn(async (input) => ({
+    accepted: true,
+    sessionId: input.sessionId,
+  })),
+  sendSubAgentInstruction: vi.fn(async (input) => ({
+    session: { sessionId: input.sessionId },
+    task: null,
+  })),
+  spawnSubAgentSession: vi.fn(async (input) => ({ sessionId: "session-1", ...input })),
+  waitSubAgentSession: vi.fn(async (input) => ({
+    session: { sessionId: input.sessionId },
+    task: null,
+    done: true,
+    timedOut: false,
+  })),
+}));
+
 vi.mock("../ports/runtimeThreads", () => ({
   archiveRuntimeThread: vi.fn(),
   createRuntimeThread: vi.fn(),
@@ -258,6 +278,50 @@ vi.mock("./runtimeWorkspaceSkillManifests", () => ({
 }));
 
 describe("createWorkspaceClientRuntimeBindings", () => {
+  it("exposes shared sub-agent bindings through the runtime workspace client surface", async () => {
+    const { createWorkspaceClientRuntimeBindings } =
+      await import("./createWorkspaceClientRuntimeBindings");
+    const {
+      spawnSubAgentSession,
+      sendSubAgentInstruction,
+      waitSubAgentSession,
+      getSubAgentSessionStatus,
+      interruptSubAgentSession,
+      closeSubAgentSession,
+    } = await import("../ports/runtimeSubAgents");
+
+    const runtime = createWorkspaceClientRuntimeBindings({
+      readMissionControlSnapshot: async () =>
+        ({
+          source: "runtime_snapshot_v1",
+          generatedAt: 0,
+          workspaces: [],
+          tasks: [],
+          runs: [],
+          reviewPacks: [],
+        }) satisfies HugeCodeMissionControlSnapshot,
+      bootstrapKernelProjection: vi.fn(),
+      subscribeKernelProjection: vi.fn(() => () => undefined),
+    });
+
+    await runtime.subAgents.spawn({ workspaceId: "workspace-1" });
+    await runtime.subAgents.send({ sessionId: "session-1", instruction: "Inspect runtime truth." });
+    await runtime.subAgents.wait({ sessionId: "session-1" });
+    await runtime.subAgents.status({ sessionId: "session-1" });
+    await runtime.subAgents.interrupt({ sessionId: "session-1" });
+    await runtime.subAgents.close({ sessionId: "session-1" });
+
+    expect(spawnSubAgentSession).toHaveBeenCalledWith({ workspaceId: "workspace-1" });
+    expect(sendSubAgentInstruction).toHaveBeenCalledWith({
+      sessionId: "session-1",
+      instruction: "Inspect runtime truth.",
+    });
+    expect(waitSubAgentSession).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(getSubAgentSessionStatus).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(interruptSubAgentSession).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(closeSubAgentSession).toHaveBeenCalledWith({ sessionId: "session-1" });
+  });
+
   it("exposes composition bindings and workspace-scoped composition settings", async () => {
     const { createWorkspaceClientRuntimeBindings } =
       await import("./createWorkspaceClientRuntimeBindings");

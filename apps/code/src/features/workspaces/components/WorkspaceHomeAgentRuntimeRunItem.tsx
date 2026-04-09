@@ -4,6 +4,7 @@ import type {
   HugeCodeRunSummary,
   RuntimeExecutionEvidenceSummary,
 } from "@ku0/code-runtime-host-contract";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { projectAgentTaskStatusToRunState } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import {
   buildRuntimeAutonomyContextDetails,
@@ -35,6 +36,10 @@ import {
   buildMissionRunSupervisionSignals,
   formatMissionRunStateLabel,
 } from "./runtimeMissionControlPresentation";
+import {
+  resolveSubAgentContinuationLabel,
+  resolveSubAgentContinuationTarget,
+} from "./runtimeSubAgentNavigation";
 import * as styles from "./WorkspaceHomeAgentRuntimeRunItem.css";
 import {
   formatRuntimeTimestamp,
@@ -50,6 +55,13 @@ type WorkspaceHomeAgentRuntimeRunItemProps = {
   runtimeLoading: boolean;
   onRefresh: () => Promise<void> | void;
   onInterrupt: (reason: string) => Promise<void> | void;
+  onSubAgentApproval?: (
+    approvalId: string,
+    decision: "approved" | "rejected"
+  ) => Promise<void> | void;
+  onSubAgentInterrupt?: (sessionId: string, reason: string) => Promise<void> | void;
+  onSubAgentClose?: (sessionId: string, reason: string, force?: boolean) => Promise<void> | void;
+  onOpenMissionTarget?: (target: MissionNavigationTarget) => void;
   onResume: () => Promise<void> | void;
   onIntervene: (input: Omit<RuntimeAgentTaskInterventionInput, "taskId">) => Promise<void> | void;
   onPrepareLauncher: (intent: RuntimeTaskLauncherInterventionIntent) => void;
@@ -115,6 +127,20 @@ function formatCompactLabel(value: string | null | undefined): string {
   }
   const normalized = value.replaceAll("_", " ").trim();
   return normalized.length > 0 ? normalized[0]!.toUpperCase() + normalized.slice(1) : "Unknown";
+}
+
+function isSubAgentSessionTerminal(status: string | null | undefined): boolean {
+  return (
+    status === "completed" ||
+    status === "failed" ||
+    status === "cancelled" ||
+    status === "interrupted" ||
+    status === "closed"
+  );
+}
+
+function isPendingSubAgentApprovalStatus(status: string | null | undefined): boolean {
+  return status === "pending" || status === "requested" || status === "pending_decision";
 }
 
 function formatExecutionEvidenceReviewStatusLabel(
@@ -218,6 +244,10 @@ export function WorkspaceHomeAgentRuntimeRunItem({
   runtimeLoading,
   onRefresh,
   onInterrupt,
+  onSubAgentApproval,
+  onSubAgentInterrupt,
+  onSubAgentClose,
+  onOpenMissionTarget,
   onResume,
   onIntervene,
   onPrepareLauncher,
@@ -830,19 +860,53 @@ export function WorkspaceHomeAgentRuntimeRunItem({
             ) : (
               <div className={styles.subAgentList}>
                 {subAgents.map((agent) => {
+                  const approvalState = agent.approvalState ?? null;
                   const checkpointSummary =
                     agent.checkpointState?.summary ??
                     (agent.checkpointState?.checkpointId
                       ? `Checkpoint ${agent.checkpointState.checkpointId}`
                       : null);
                   const takeoverSummary = agent.takeoverBundle?.summary ?? null;
-                  const approvalSummary =
-                    agent.approvalState?.status === "pending"
-                      ? (agent.approvalState.reason ?? "Runtime is waiting for approval.")
-                      : null;
+                  const takeoverRecommendedAction = agent.takeoverBundle?.recommendedAction ?? null;
+                  const approvalSummary = isPendingSubAgentApprovalStatus(approvalState?.status)
+                    ? (approvalState?.reason ?? "Runtime is waiting for approval.")
+                    : null;
+                  const resultSummary = agent.resultSummary?.summary ?? null;
+                  const resultNextAction = agent.resultSummary?.nextAction ?? null;
+                  const contextProjectionSummary =
+                    agent.contextProjection?.workingSetSummary ?? null;
+                  const knowledgeSummaries =
+                    agent.contextProjection?.knowledgeItems
+                      ?.map((item) => item.summary?.trim())
+                      .filter((item): item is string => Boolean(item))
+                      .slice(0, 3) ?? [];
                   const sessionNodeCount = graphNodes.filter(
                     (node) => node.executorSessionId === agent.sessionId
                   ).length;
+                  const pendingApprovalId = isPendingSubAgentApprovalStatus(approvalState?.status)
+                    ? (approvalState?.approvalId ?? null)
+                    : null;
+                  const canApproveSubAgent =
+                    !runtimeLoading &&
+                    pendingApprovalId !== null &&
+                    typeof onSubAgentApproval === "function";
+                  const canInterruptSubAgent =
+                    !runtimeLoading &&
+                    typeof onSubAgentInterrupt === "function" &&
+                    !isSubAgentSessionTerminal(agent.status);
+                  const canCloseSubAgent =
+                    !runtimeLoading &&
+                    typeof onSubAgentClose === "function" &&
+                    (isSubAgentSessionTerminal(agent.status) || Boolean(agent.timedOutReason));
+                  const continuationTarget = resolveSubAgentContinuationTarget({
+                    task: effectiveTask,
+                    run: effectiveRun,
+                    takeoverBundle: agent.takeoverBundle,
+                  });
+                  const canOpenSubAgentContinuation =
+                    !runtimeLoading &&
+                    typeof onOpenMissionTarget === "function" &&
+                    continuationTarget !== null;
                   return (
                     <article key={agent.sessionId} className={styles.subAgentCard}>
                       <div className={styles.subAgentCardHeader}>
@@ -863,17 +927,123 @@ export function WorkspaceHomeAgentRuntimeRunItem({
                         {agent.approvalState?.status ? (
                           <span>Approval: {formatCompactLabel(agent.approvalState.status)}</span>
                         ) : null}
+                        {agent.failureClass && agent.failureClass !== "none" ? (
+                          <span>Failure: {formatCompactLabel(agent.failureClass)}</span>
+                        ) : null}
                         {agent.timedOutReason ? <span>Timeout: {agent.timedOutReason}</span> : null}
                         {agent.interruptedReason ? (
                           <span>Interrupted: {agent.interruptedReason}</span>
                         ) : null}
                       </div>
-                      {approvalSummary || checkpointSummary || takeoverSummary ? (
+                      {approvalSummary ||
+                      checkpointSummary ||
+                      takeoverSummary ||
+                      resultSummary ||
+                      resultNextAction ||
+                      contextProjectionSummary ||
+                      knowledgeSummaries.length > 0 ||
+                      takeoverRecommendedAction ? (
                         <ul className={styles.detailList}>
                           {approvalSummary ? <li>{approvalSummary}</li> : null}
+                          {resultSummary ? <li>Result: {resultSummary}</li> : null}
+                          {resultNextAction ? <li>Next action: {resultNextAction}</li> : null}
+                          {contextProjectionSummary ? (
+                            <li>Context: {contextProjectionSummary}</li>
+                          ) : null}
+                          {knowledgeSummaries.length > 0 ? (
+                            <li>Knowledge: {knowledgeSummaries.join(" | ")}</li>
+                          ) : null}
                           {checkpointSummary ? <li>{checkpointSummary}</li> : null}
                           {takeoverSummary ? <li>{takeoverSummary}</li> : null}
+                          {takeoverRecommendedAction &&
+                          takeoverRecommendedAction !== takeoverSummary &&
+                          takeoverRecommendedAction !== resultNextAction ? (
+                            <li>Continuation: {takeoverRecommendedAction}</li>
+                          ) : null}
                         </ul>
+                      ) : null}
+                      {canApproveSubAgent ||
+                      canInterruptSubAgent ||
+                      canCloseSubAgent ||
+                      canOpenSubAgentContinuation ? (
+                        <div className={styles.subAgentCardActions}>
+                          {canOpenSubAgentContinuation ? (
+                            <button
+                              type="button"
+                              className={styles.actionButtonSecondary}
+                              onClick={() =>
+                                continuationTarget
+                                  ? onOpenMissionTarget?.(continuationTarget)
+                                  : undefined
+                              }
+                            >
+                              {resolveSubAgentContinuationLabel({
+                                pathKind: agent.takeoverBundle!.pathKind,
+                                target: continuationTarget,
+                              })}
+                            </button>
+                          ) : null}
+                          {canApproveSubAgent ? (
+                            <>
+                              <button
+                                type="button"
+                                className={styles.actionButtonAffirm}
+                                onClick={() =>
+                                  pendingApprovalId
+                                    ? void onSubAgentApproval?.(pendingApprovalId, "approved")
+                                    : undefined
+                                }
+                              >
+                                Approve child
+                              </button>
+                              <button
+                                type="button"
+                                className={joinClassNames(
+                                  styles.actionButtonSecondary,
+                                  styles.actionButtonDanger
+                                )}
+                                onClick={() =>
+                                  pendingApprovalId
+                                    ? void onSubAgentApproval?.(pendingApprovalId, "rejected")
+                                    : undefined
+                                }
+                              >
+                                Reject child
+                              </button>
+                            </>
+                          ) : null}
+                          {canInterruptSubAgent ? (
+                            <button
+                              type="button"
+                              className={styles.actionButtonSecondary}
+                              onClick={() =>
+                                void onSubAgentInterrupt?.(
+                                  agent.sessionId,
+                                  "ui:webmcp-runtime-sub-agent-interrupt"
+                                )
+                              }
+                            >
+                              Interrupt child
+                            </button>
+                          ) : null}
+                          {canCloseSubAgent ? (
+                            <button
+                              type="button"
+                              className={styles.actionButtonSecondary}
+                              onClick={() =>
+                                void onSubAgentClose?.(
+                                  agent.sessionId,
+                                  agent.timedOutReason
+                                    ? "ui:webmcp-runtime-sub-agent-timeout-close"
+                                    : "ui:webmcp-runtime-sub-agent-close",
+                                  Boolean(agent.timedOutReason)
+                                )
+                              }
+                            >
+                              Close child
+                            </button>
+                          ) : null}
+                        </div>
                       ) : null}
                     </article>
                   );

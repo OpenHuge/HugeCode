@@ -15,15 +15,26 @@ vi.mock("../../../application/runtime/ports/runtimeJobs", () => ({
   subscribeRuntimeRunV2: subscribeRuntimeRunV2Mock,
 }));
 
-function buildTask(overrides: Partial<RuntimeAgentTaskSummary> = {}): RuntimeAgentTaskSummary {
+type RuntimeAgentTaskFixture = RuntimeAgentTaskSummary & {
+  requestId: string | null;
+} & RuntimeRunGetV2Response["run"];
+
+function buildTask(overrides: Partial<RuntimeAgentTaskFixture> = {}): RuntimeAgentTaskFixture {
   const now = 1_700_000_000_000;
   return {
     taskId: "runtime-task-1",
     workspaceId: "workspace-1",
     threadId: null,
+    requestId: null,
     title: "Delegated runtime task",
     status: "running",
     accessMode: "on-request",
+    provider: null,
+    modelId: null,
+    routedProvider: null,
+    routedModelId: null,
+    routedPool: null,
+    routedSource: null,
     distributedStatus: null,
     currentStep: 1,
     createdAt: now,
@@ -33,6 +44,7 @@ function buildTask(overrides: Partial<RuntimeAgentTaskSummary> = {}): RuntimeAge
     errorCode: null,
     errorMessage: null,
     pendingApprovalId: null,
+    steps: [],
     ...overrides,
   };
 }
@@ -95,7 +107,10 @@ async function renderAndFlush(element: Parameters<typeof render>[0]) {
     view = render(element);
     await flushAsyncEffects();
   });
-  return view as ReturnType<typeof render>;
+  if (!view) {
+    throw new Error("renderAndFlush did not produce a render result.");
+  }
+  return view;
 }
 
 async function rerenderAndFlush(
@@ -189,13 +204,14 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
         })}
         run={buildRun({
           approval: {
-            state: "pending_decision",
+            status: "pending_decision",
+            approvalId: "approval-review-1",
             label: "Approval required",
             summary: "Runtime is waiting for approval before continuing.",
-            blocking: true,
           },
           nextAction: {
             label: "Approve delegated review",
+            action: "review",
             detail: "A delegated reviewer is waiting for approval before continuing.",
           },
           subAgents: [
@@ -204,7 +220,7 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
               status: "awaiting_approval",
               summary: "Reviewer session is paused for approval.",
               approvalState: {
-                status: "pending",
+                status: "requested",
                 approvalId: "approval-review-1",
                 reason: "Approve reviewer escalation to continue.",
                 at: 1_700_000_100_000,
@@ -242,13 +258,14 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
     const blockingRun = buildRun({
       updatedAt: 1_700_000_100_000,
       approval: {
-        state: "pending_decision",
+        status: "pending_decision",
+        approvalId: "approval-review-1",
         label: "Approval required",
         summary: "Runtime is waiting for approval before continuing.",
-        blocking: true,
       },
       nextAction: {
         label: "Approve delegated review",
+        action: "review",
         detail: "A delegated reviewer is waiting for approval before continuing.",
       },
       subAgents: [
@@ -451,6 +468,128 @@ describe("WorkspaceHomeAgentRuntimeRunItem", () => {
       preferredBackendIds: ["backend-b", "backend-c"],
       approvedPlanVersion: "plan-2026",
     });
+  });
+
+  it("dispatches child-session approval, interrupt, and close actions from runtime truth", async () => {
+    const noop = vi.fn();
+    const onSubAgentApproval = vi.fn();
+    const onSubAgentInterrupt = vi.fn();
+    const onSubAgentClose = vi.fn();
+
+    await renderAndFlush(
+      <WorkspaceHomeAgentRuntimeRunItem
+        task={buildTask({
+          status: "awaiting_approval",
+          pendingApprovalId: "approval-parent-1",
+        })}
+        run={buildRun({
+          subAgents: [
+            {
+              sessionId: "session-review",
+              status: "awaiting_approval",
+              summary: "Reviewer session is paused for approval.",
+              approvalState: {
+                status: "pending",
+                approvalId: "approval-review-1",
+                reason: "Approve reviewer escalation to continue.",
+                at: 1_700_000_100_000,
+              },
+              resultSummary: {
+                summary: "Reviewer summarized the remaining risk.",
+                nextAction: "Approve the delegated reviewer to continue.",
+              },
+              contextProjection: {
+                boundaryId: "boundary-review",
+                workingSetSummary: "Review scope is narrowed to runtime approval evidence.",
+                knowledgeItems: [
+                  {
+                    id: "knowledge-review-1",
+                    kind: "delegation_hint",
+                    scope: "sub_agent",
+                    summary: "Approval context was inherited from the parent run.",
+                    provenance: ["runtime"],
+                  },
+                ],
+              },
+            },
+            {
+              sessionId: "session-impl",
+              status: "running",
+              summary: "Implementation session is still executing.",
+            },
+            {
+              sessionId: "session-timeout",
+              status: "failed",
+              summary: "Timed-out diagnostics lane.",
+              timedOutReason: "runtime_watchdog_timeout",
+              failureClass: "budget",
+              takeoverBundle: {
+                state: "attention",
+                pathKind: "resume",
+                primaryAction: "resume",
+                summary: "Resume the lane from its last checkpoint.",
+                recommendedAction: "Close the timed-out session and relaunch from parent control.",
+              },
+            },
+          ],
+        })}
+        continuityItem={null}
+        runtimeLoading={false}
+        onRefresh={noop}
+        onInterrupt={noop}
+        onSubAgentApproval={onSubAgentApproval}
+        onSubAgentInterrupt={onSubAgentInterrupt}
+        onSubAgentClose={onSubAgentClose}
+        onResume={noop}
+        onIntervene={noop}
+        onPrepareLauncher={noop}
+        onApproval={noop}
+      />
+    );
+
+    const observability = screen.getByRole("region", { name: "Sub-agent observability" });
+    expect(
+      within(observability).getByText("Result: Reviewer summarized the remaining risk.")
+    ).toBeTruthy();
+    expect(
+      within(observability).getByText(
+        "Context: Review scope is narrowed to runtime approval evidence."
+      )
+    ).toBeTruthy();
+    expect(
+      within(observability).getByText(
+        "Knowledge: Approval context was inherited from the parent run."
+      )
+    ).toBeTruthy();
+    expect(within(observability).getByText("Failure: Budget")).toBeTruthy();
+    expect(
+      within(observability).getByText(
+        "Continuation: Close the timed-out session and relaunch from parent control."
+      )
+    ).toBeTruthy();
+
+    const reviewCard = screen.getByText("session-review").closest("article");
+    const timeoutCard = screen.getByText("session-timeout").closest("article");
+
+    expect(reviewCard).toBeTruthy();
+    expect(timeoutCard).toBeTruthy();
+
+    fireEvent.click(within(reviewCard!).getByRole("button", { name: "Approve child" }));
+    fireEvent.click(within(reviewCard!).getByRole("button", { name: "Reject child" }));
+    fireEvent.click(within(reviewCard!).getByRole("button", { name: "Interrupt child" }));
+    fireEvent.click(within(timeoutCard!).getByRole("button", { name: "Close child" }));
+
+    expect(onSubAgentApproval).toHaveBeenNthCalledWith(1, "approval-review-1", "approved");
+    expect(onSubAgentApproval).toHaveBeenNthCalledWith(2, "approval-review-1", "rejected");
+    expect(onSubAgentInterrupt).toHaveBeenCalledWith(
+      "session-review",
+      "ui:webmcp-runtime-sub-agent-interrupt"
+    );
+    expect(onSubAgentClose).toHaveBeenCalledWith(
+      "session-timeout",
+      "ui:webmcp-runtime-sub-agent-timeout-close",
+      true
+    );
   });
 
   it("shows runtime autonomy and wake policy context for delegated runs", async () => {

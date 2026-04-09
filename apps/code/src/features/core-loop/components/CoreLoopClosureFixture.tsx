@@ -402,6 +402,8 @@ export function CoreLoopClosureFixture() {
                   runtimeLoading={false}
                   refreshRuntimeTasks={async () => undefined}
                   interruptRuntimeTaskById={async () => undefined}
+                  interruptRuntimeSubAgentSessionById={async () => undefined}
+                  closeRuntimeSubAgentSessionById={async () => undefined}
                   resumeRuntimeTaskById={async () => undefined}
                   interveneRuntimeTaskById={async () => undefined}
                   prepareRunLauncher={noop}

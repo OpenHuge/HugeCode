@@ -477,6 +477,16 @@ export const subAgentCardMeta = style({
   },
 });
 
+export const subAgentCardActions = style({
+  "@layer": {
+    [layers.features]: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "6px",
+    },
+  },
+});
+
 export const detailList = style({
   "@layer": {
     [layers.features]: {

@@ -231,6 +231,26 @@ export function createBindings(options?: {
           throw new Error("not implemented");
         },
       },
+      subAgents: {
+        spawn: async () => {
+          throw new Error("not implemented");
+        },
+        send: async () => {
+          throw new Error("not implemented");
+        },
+        wait: async () => {
+          throw new Error("not implemented");
+        },
+        status: async () => {
+          throw new Error("not implemented");
+        },
+        interrupt: async () => {
+          throw new Error("not implemented");
+        },
+        close: async () => {
+          throw new Error("not implemented");
+        },
+      },
       threads: {
         listThreads: async () => [],
         createThread: async () => ({
