@@ -14,10 +14,10 @@ import {
 } from "../../../../application/runtime/ports/git";
 import { pushErrorToast } from "../../../../application/runtime/ports/toasts";
 import { DEFAULT_RUNTIME_WORKSPACE_ID } from "../../../../utils/runtimeWorkspaceIds";
-import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { useReviewPackDecisionActions } from "../../../review/hooks/useReviewPackDecisionActions";
 import { useReviewPackSelectionState } from "../../../review/hooks/useReviewPackSelectionState";
-import type { ReviewPackSelectionRequest } from "../../../review/utils/reviewPackSurfaceModel";
+import type { ReviewPackSelectionRequest } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import { launchReviewInterventionDraft } from "../reviewInterventionLauncher";
 import type { MainAppLayoutGitReviewBridgeDomainInput } from "./types";
 

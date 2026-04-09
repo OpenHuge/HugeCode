@@ -1,6 +1,6 @@
 import type { RuntimeReviewGetV2Response } from "@ku0/code-runtime-host-contract";
 import type { MissionControlProjection } from "./runtimeMissionControlFacade";
-import type { ReviewPackSelectionState } from "./runtimeReviewPackSurfaceFacade";
+import type { ReviewPackSelectionState } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import { useRuntimeReviewTruth } from "./runtimeRunTruthStore";
 
 export type RuntimeReviewPackRuntimeTruthState = {

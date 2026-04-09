@@ -8,7 +8,7 @@ import {
   Surface,
 } from "../../../design-system";
 import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
-import { describeMissionRunRouteDetail } from "../../missions/utils/missionControlPresentation";
+import { describeMissionRunRouteDetail } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { HomeListRow } from "./HomeScaffold";
 import { markFeatureVisible } from "../../shared/featurePerformance";
 import * as styles from "./Home.styles.css";

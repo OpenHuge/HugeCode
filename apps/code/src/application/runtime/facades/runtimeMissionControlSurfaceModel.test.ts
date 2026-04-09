@@ -4,7 +4,7 @@ import {
   buildLatestMissionRunsFromProjection,
   buildMissionReviewEntriesFromProjection,
   summarizeMissionControlSignals,
-} from "./runtimeMissionControlSurfaceModel";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 
 function createProjection(): HugeCodeMissionControlSnapshot {
   return {

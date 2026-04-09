@@ -3,7 +3,7 @@ import type { MissionControlProjection } from "../../../application/runtime/faca
 import {
   resolveReviewPackSelection,
   type ReviewPackSelectionRequest,
-} from "../utils/reviewPackSurfaceModel";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 
 type UseReviewPackSelectionStateParams = {
   projection: MissionControlProjection | null;

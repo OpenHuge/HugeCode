@@ -203,9 +203,9 @@ const VIOLATION_RULES = [
   {
     id: "runtime-control-plane-shared-package",
     description:
-      "UI code must consume Mission Control / Review Pack surface models through `@ku0/code-application`, not the app-local compatibility facades",
+      "UI code must consume Mission Control / Review Pack surface models through `@ku0/code-application`, not app-local compatibility facades/projections",
     pattern:
-      /(?:from\s+["'][^"']*\/application\/runtime\/facades\/(?:runtimeMissionControlSurfaceModel|runtimeReviewPackSurfaceFacade)["']|import\(\s*["'][^"']*\/application\/runtime\/facades\/(?:runtimeMissionControlSurfaceModel|runtimeReviewPackSurfaceFacade)["'])/u,
+      /(?:from\s+["'][^"']*\/application\/runtime\/facades\/(?:runtimeMissionControlSurfaceModel|runtimeReviewPackSurfaceFacade|runtimeMissionControlRunProjection|runtimeMissionControlReviewPackProjection)["']|import\(\s*["'][^"']*\/application\/runtime\/facades\/(?:runtimeMissionControlSurfaceModel|runtimeReviewPackSurfaceFacade|runtimeMissionControlRunProjection|runtimeMissionControlReviewPackProjection)["'])/u,
     appliesTo: (filePath) => isUiBoundaryFile(filePath) && !isUiTestFile(filePath),
   },
   {

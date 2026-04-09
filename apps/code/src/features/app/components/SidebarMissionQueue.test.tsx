@@ -2,7 +2,7 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { MissionOverviewEntry } from "../../missions/utils/missionControlPresentation";
+import type { MissionOverviewEntry } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { SidebarMissionQueue } from "./SidebarMissionQueue";
 
 function createMissionOverviewEntry(

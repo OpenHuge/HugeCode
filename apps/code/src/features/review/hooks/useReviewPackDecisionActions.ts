@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useWorkspaceRuntimeAgentControl } from "../../../application/runtime/ports/runtimeAgentControl";
 import { DEFAULT_RUNTIME_WORKSPACE_ID } from "../../../utils/runtimeWorkspaceIds";
-import type { ReviewPackDetailModel } from "../utils/reviewPackSurfaceModel";
+import type { ReviewPackDetailModel } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 
 export type ReviewPackDecisionSubmissionState = {
   reviewPackId: string | null;

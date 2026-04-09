@@ -2,7 +2,7 @@ import type { AtlasDetailLevel, AtlasLongTermMemoryDigest } from "../../atlas/ut
 import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
 import type { useAutoDriveController } from "../../autodrive/hooks/useAutoDriveController";
 import type { useDebugLog } from "../../debug/hooks/useDebugLog";
-import type { ReviewPackSelectionRequest } from "../../review/utils/reviewPackSurfaceModel";
+import type { ReviewPackSelectionRequest } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import type { useThreads } from "../../threads/hooks/useThreads";
 import type { AccountCenterState } from "../hooks/useAccountCenterState";
 import type { useGitCommitController } from "../hooks/useGitCommitController";

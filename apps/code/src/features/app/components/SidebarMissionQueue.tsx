@@ -3,7 +3,7 @@ import type {
   MissionNavigationTarget,
   MissionOverviewEntry,
   MissionOverviewState,
-} from "../../missions/utils/missionControlPresentation";
+} from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import type { ThreadVisualState } from "../../threads/utils/threadExecutionState";
 import { SidebarRow, SidebarSection } from "./SidebarScaffold";
 

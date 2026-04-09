@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { WorkspaceInfo } from "../../../types";
 import type { AppTab } from "../../shell/types/shellRoute";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
-import type { ReviewPackSelectionRequest } from "../../review/utils/reviewPackSurfaceModel";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
+import type { ReviewPackSelectionRequest } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 
 type ThreadDeepLink = {
   kind: "thread";

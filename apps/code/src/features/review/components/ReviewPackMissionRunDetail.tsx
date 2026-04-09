@@ -7,11 +7,11 @@ import {
   type StatusBadgeTone,
 } from "../../../design-system";
 import { formatRelativeTime } from "../../../utils/time";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { CompactReviewEvidenceCard } from "./CompactReviewEvidenceCard";
 import * as styles from "./ReviewPackSurface.css";
 import { buildCompactReviewEvidenceDescriptor } from "../utils/compactReviewEvidence";
-import type { MissionRunDetailModel } from "../utils/reviewPackSurfaceModel";
+import type { MissionRunDetailModel } from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import type { RuntimeWorkspaceSkillCatalogState } from "../../../application/runtime/facades/runtimeReviewIntelligenceFacade";
 import {
   getNavigationTargetButtonLabel,

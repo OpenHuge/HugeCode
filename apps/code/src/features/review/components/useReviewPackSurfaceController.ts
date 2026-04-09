@@ -5,7 +5,7 @@ import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import type {
   MissionSurfaceDetailModel,
   ReviewPackDetailModel,
-} from "../utils/reviewPackSurfaceModel";
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 
 export type PreparedInterventionDraft = {
   workspaceId: string;

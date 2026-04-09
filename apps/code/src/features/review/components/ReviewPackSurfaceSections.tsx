@@ -14,7 +14,10 @@ import { buildReviewPackReviewIntelligenceTruth } from "../utils/reviewPackRevie
 import { getSubAgentTone } from "../../../utils/subAgentStatus";
 import { formatRelativeTime } from "../../../utils/time";
 import { resolveMissionEntryActionLabel } from "../../missions/utils/missionNavigation";
-import type { MissionRunDetailModel, ReviewPackDetailModel } from "../utils/reviewPackSurfaceModel";
+import type {
+  MissionRunDetailModel,
+  ReviewPackDetailModel,
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import type { ReviewPackDecisionSubmissionState } from "../hooks/useReviewPackDecisionActions";
 import * as styles from "./ReviewPackSurface.css";
 

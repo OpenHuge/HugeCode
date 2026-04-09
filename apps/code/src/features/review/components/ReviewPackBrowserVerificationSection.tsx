@@ -12,7 +12,10 @@ import {
   type RuntimeBrowserVerificationAttachment,
   type RuntimeBrowserVerificationCandidate,
 } from "../../../application/runtime/facades/runtimeBrowserVerificationEvidence";
-import type { MissionRunDetailModel, ReviewPackDetailModel } from "../utils/reviewPackSurfaceModel";
+import type {
+  MissionRunDetailModel,
+  ReviewPackDetailModel,
+} from "@ku0/code-application/runtimeReviewPackSurfaceModel";
 import * as styles from "./ReviewPackSurface.css";
 import { ReviewDetailSection } from "./ReviewPackSurfaceSections";
 

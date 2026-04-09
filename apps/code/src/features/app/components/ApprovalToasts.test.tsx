@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { MissionNavigationTarget } from "../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import type { ApprovalRequest, WorkspaceInfo } from "../../../types";
 import { ApprovalToasts } from "./ApprovalToasts";
 

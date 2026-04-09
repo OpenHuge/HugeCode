@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import type { MissionNavigationTarget } from "../../../missions/utils/missionControlPresentation";
+import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { openMissionTargetFromDesktopShell } from "../../../missions/utils/missionNavigation";
 import type { LayoutNodesOptions, LayoutNodesResult } from "./types";
 

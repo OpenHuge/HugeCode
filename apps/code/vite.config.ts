@@ -63,10 +63,10 @@ const WORKSPACE_THREAD_DOMAIN_CHUNK_PATTERNS = [
 const RUNTIME_GOVERNED_CONTEXT_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeContextTruth.ts",
   "/src/application/runtime/facades/runtimeMissionControlProvenance.ts",
-  "/src/application/runtime/facades/runtimeMissionControlSurfaceModel.ts",
   "/src/application/runtime/facades/runtimeReviewContinuationFacade.ts",
   "/src/application/runtime/facades/runtimeReviewIntelligenceSummary.ts",
-  "/src/application/runtime/facades/runtimeReviewPackSurfaceFacade.ts",
+  "/packages/code-application/src/runtime-control-plane/missionControlSurfaceModel.ts",
+  "/packages/code-application/src/runtime-control-plane/reviewPackSurfaceModel.ts",
 ] as const;
 const RUNTIME_WORKSPACE_FLOW_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeControlPlaneRouting.ts",
@@ -101,6 +101,8 @@ const RUNTIME_MISSION_CONTROL_CHUNK_PATTERNS = [
   "/src/application/runtime/facades/runtimeTaskInterventionDraftFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceLaunchDefaultsFacade.ts",
   "/src/application/runtime/facades/runtimeWorkspaceMissionControlProjection.ts",
+  "/packages/code-application/src/runtimeMissionControlRunProjection.ts",
+  "/packages/code-application/src/runtimeMissionControlReviewPackProjection.ts",
   "/src/application/runtime/ports/runtimeDiagnostics.ts",
 ] as const;
 const RUNTIME_AUTODRIVE_CHUNK_PATTERNS = [
