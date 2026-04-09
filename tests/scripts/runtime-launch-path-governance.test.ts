@@ -211,6 +211,16 @@ describe("runtime launch path governance", () => {
     expect(legacyRunStartHits).toBe("");
   });
 
+  it("keeps mission navigation/control-plane wiring on shared package imports", () => {
+    const legacyMissionPresentationHits = grepProductLaunchSources("missionControlPresentation");
+    const legacyControlPlaneCompatHits = grepProductLaunchSources(
+      "application/runtime/facades/runtimeMission(ControlOperatorAction|ControlTakeoverAction|ControlNavigationTarget|NavigationTarget|NavigationTypes)"
+    );
+
+    expect(legacyMissionPresentationHits).toBe("");
+    expect(legacyControlPlaneCompatHits).toBe("");
+  });
+
   it("keeps raw app-server event subscriptions isolated to approved compatibility consumers", () => {
     expect(listProductLaunchFiles("subscribeAppServerEvents\\(")).toEqual([
       "apps/code/src/features/app/hooks/useAppServerEvents.ts",

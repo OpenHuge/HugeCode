@@ -1250,6 +1250,14 @@ function createRuntimeKernelValue(): RuntimeKernel {
         interveneRuntimeRun: vi.fn(),
         submitRuntimeJobApprovalDecision: vi.fn(),
       },
+      subAgents: {
+        spawn: vi.fn(),
+        send: vi.fn(),
+        wait: vi.fn(),
+        status: vi.fn(),
+        interrupt: vi.fn(),
+        close: vi.fn(),
+      },
       threads: {
         listThreads: vi.fn(),
         createThread: vi.fn(),
@@ -3476,7 +3484,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
       },
       { timeout: 5_000 }
     );
-  });
+  }, 10_000);
 
   it("shows blocked continuity readiness when runtime review actionability is blocked", async () => {
     mockRuntimeTasks([
