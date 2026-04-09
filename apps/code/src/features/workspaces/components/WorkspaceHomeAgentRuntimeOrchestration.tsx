@@ -908,14 +908,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
                 {runtimeLaunchPreparationGuidanceStack.layers
                   .slice()
                   .sort((left, right) => right.priority - left.priority)
-                  .map((layer) => {
-                    const instructions = layer.instructions
-                      .map((instruction) => instruction.trim())
-                      .filter((instruction) => instruction.length > 0);
-                    return instructions.length > 0
-                      ? `${layer.scope}: ${layer.summary} | instructions: ${instructions.join(" / ")}`
-                      : `${layer.scope}: ${layer.summary}`;
-                  })
+                  .map((layer) => `${layer.scope}: ${layer.summary}`)
                   .join(" | ")}
               </div>
             ) : null}

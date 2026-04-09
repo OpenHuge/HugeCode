@@ -256,18 +256,14 @@ export function buildRuntimeGuidanceStack(
       skillIds: input.repositoryDefaults.reviewProfile.allowedSkillIds,
     });
   }
-  const explicitInstruction = readOptionalText(input.explicitInstruction);
-  if (explicitInstruction) {
+  if (readOptionalText(input.explicitInstruction)) {
     layers.push({
       id: "launch-guidance",
       scope: "launch",
-      summary: `Operator launch instruction: ${explicitInstruction}`,
+      summary: "The explicit task instruction is the highest-precedence launch guidance.",
       source: "launch_instruction",
       priority: 100,
-      instructions: [
-        explicitInstruction,
-        "Favor the operator's explicit objective when guidance layers conflict.",
-      ],
+      instructions: ["Favor the operator's explicit objective when guidance layers conflict."],
       skillIds: [],
     });
   }

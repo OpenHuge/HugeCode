@@ -703,29 +703,6 @@ describe("useQueuedSend", () => {
     expect(options.clearActiveImages).not.toHaveBeenCalled();
   });
 
-  it("blocks slash commands when runtime slash catalog lookup fails", async () => {
-    const options = makeOptions();
-    publishInvocationCatalog.mockRejectedValueOnce(new Error("catalog unavailable"));
-
-    const { result } = renderHook((props) => useQueuedSend(props), {
-      initialProps: options,
-    });
-
-    let sendResult: Awaited<ReturnType<typeof result.current.handleSend>> | undefined;
-    await act(async () => {
-      sendResult = await result.current.handleSend('/summarize TARGET="src/features"', ["img-1"]);
-    });
-
-    expect(sendResult).toBe(false);
-    expect(options.sendUserMessage).not.toHaveBeenCalled();
-    expect(invokeRuntimeInvocation).not.toHaveBeenCalled();
-    expect(pushErrorToast).toHaveBeenCalledWith({
-      title: "Slash command unavailable",
-      message: "Runtime slash command catalog is unavailable. Retry after runtime reconnects.",
-    });
-    expect(options.clearActiveImages).not.toHaveBeenCalled();
-  });
-
   it("flushes queued runtime prompt overlays through invocation execute", async () => {
     const onComposePatchResolved = vi.fn();
     const options = makeOptions({

@@ -4,9 +4,6 @@ import type { WorkspaceInfo } from "../../../types";
 import { resolveInvocationSlashCommandText } from "../../../utils/slashCommands";
 import type { SendMessageOptions } from "./useThreadMessagingHelpers";
 
-const RUNTIME_SLASH_CATALOG_UNAVAILABLE_MESSAGE =
-  "Runtime slash command catalog is unavailable. Retry after runtime reconnects.";
-
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -44,18 +41,10 @@ export async function dispatchThreadRuntimeInvocationSlashCommand(input: {
     return false;
   }
 
-  let catalog: Awaited<
-    ReturnType<ReturnType<typeof input.resolveInvocationCatalog>["publishActiveCatalog"]>
-  > | null = null;
-  try {
-    catalog = await input.resolveInvocationCatalog(workspace.id).publishActiveCatalog({
-      audience: "operator",
-    });
-  } catch {
-    input.pushThreadErrorMessage(threadId, RUNTIME_SLASH_CATALOG_UNAVAILABLE_MESSAGE);
-    input.safeMessageActivity();
-    return true;
-  }
+  const catalog = await input
+    .resolveInvocationCatalog(workspace.id)
+    .publishActiveCatalog({ audience: "operator" })
+    .catch(() => null);
   const slashInvocations =
     catalog?.items.filter(
       (item) => item.kind === "session_command" && Boolean(item.metadata?.slashCommand)

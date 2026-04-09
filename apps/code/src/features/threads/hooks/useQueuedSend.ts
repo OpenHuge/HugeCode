@@ -48,8 +48,6 @@ type UseQueuedSendResult = {
 
 type SlashCommandKind = "compact" | "fork" | "mcp" | "new" | "resume" | "review" | "status";
 type QueuedSendDispatchResult = "blocked" | "compose_patch" | "handled" | "processing";
-const RUNTIME_SLASH_CATALOG_UNAVAILABLE_MESSAGE =
-  "Runtime slash command catalog is unavailable. Retry after runtime reconnects.";
 
 function parseSlashCommand(text: string): SlashCommandKind | null {
   return parseBuiltInSlashCommand(text);
@@ -181,20 +179,9 @@ export function useQueuedSend({
       if (!trimmed.startsWith("/") || !activeWorkspace) {
         return null;
       }
-      let catalog: Awaited<
-        ReturnType<ReturnType<typeof resolveInvocationCatalog>["publishActiveCatalog"]>
-      > | null = null;
-      try {
-        catalog = await resolveInvocationCatalog(activeWorkspace.id).publishActiveCatalog({
-          audience: "operator",
-        });
-      } catch {
-        pushErrorToast({
-          title: "Slash command unavailable",
-          message: RUNTIME_SLASH_CATALOG_UNAVAILABLE_MESSAGE,
-        });
-        return "blocked";
-      }
+      const catalog = await resolveInvocationCatalog(activeWorkspace.id)
+        .publishActiveCatalog({ audience: "operator" })
+        .catch(() => null);
       const slashInvocations =
         catalog?.items.filter(
           (item) => item.kind === "session_command" && Boolean(item.metadata?.slashCommand)

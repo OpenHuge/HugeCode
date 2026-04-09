@@ -1456,61 +1456,6 @@ describe("useThreadMessaging telemetry", () => {
     expect(sendUserMessageService).not.toHaveBeenCalled();
   });
 
-  it("blocks slash send when runtime invocation catalog lookup fails", async () => {
-    const pushThreadErrorMessage = vi.fn();
-    const safeMessageActivity = vi.fn();
-    publishInvocationCatalog.mockRejectedValueOnce(new Error("catalog unavailable"));
-
-    const { result } = renderHook(() =>
-      useThreadMessaging({
-        activeWorkspace: workspace,
-        activeThreadId: "thread-1",
-        accessMode: "on-request",
-        model: null,
-        effort: null,
-        collaborationMode: null,
-        reviewDeliveryMode: "inline",
-        steerEnabled: false,
-        customPrompts: [],
-        threadStatusById: {},
-        activeTurnIdByThread: {},
-        rateLimitsByWorkspace: {},
-        pendingInterruptsRef: { current: new Set<string>() },
-        dispatch: vi.fn(),
-        getCustomName: vi.fn(() => undefined),
-        markProcessing: vi.fn(),
-        markReviewing: vi.fn(),
-        setActiveTurnId: vi.fn(),
-        recordThreadActivity: vi.fn(),
-        safeMessageActivity,
-        onDebug: vi.fn(),
-        pushThreadErrorMessage,
-        ensureThreadForActiveWorkspace: vi.fn(async () => "thread-1"),
-        ensureThreadForWorkspace: vi.fn(async () => "thread-1"),
-        refreshThread: vi.fn(async () => null),
-        forkThreadForWorkspace: vi.fn(async () => null),
-        updateThreadParent: vi.fn(),
-      })
-    );
-
-    await act(async () => {
-      await result.current.sendUserMessageToThread(
-        workspace,
-        "thread-1",
-        '/summarize TARGET="diff"',
-        []
-      );
-    });
-
-    expect(pushThreadErrorMessage).toHaveBeenCalledWith(
-      "thread-1",
-      "Runtime slash command catalog is unavailable. Retry after runtime reconnects."
-    );
-    expect(safeMessageActivity).toHaveBeenCalled();
-    expect(sendUserMessageService).not.toHaveBeenCalled();
-    expect(invokeRuntimeInvocation).not.toHaveBeenCalled();
-  });
-
   it("uses turn/steer when steer mode is enabled and an active turn is present", async () => {
     const { result } = renderHook(() =>
       useThreadMessaging({

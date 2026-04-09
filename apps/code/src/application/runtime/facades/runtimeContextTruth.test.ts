@@ -149,13 +149,6 @@ describe("runtimeContextTruth", () => {
     expect(guidanceStack.layers.find((layer) => layer.scope === "source")?.skillIds).toEqual([
       "discussion-triage",
     ]);
-    expect(guidanceStack.layers.find((layer) => layer.scope === "launch")?.summary).toBe(
-      "Operator launch instruction: Turn this into a governed run."
-    );
-    expect(guidanceStack.layers.find((layer) => layer.scope === "launch")?.instructions).toEqual([
-      "Turn this into a governed run.",
-      "Favor the operator's explicit objective when guidance layers conflict.",
-    ]);
   });
 
   it("builds a context plane with stable memory and artifact references", () => {
