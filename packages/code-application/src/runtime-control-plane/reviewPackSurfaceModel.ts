@@ -78,6 +78,11 @@ import {
   REVIEW_PACK_EMPTY_SECTION_LABELS,
 } from "./runtimeReviewPackEmptySectionLabels";
 import type { CompactReviewEvidenceInput } from "./runtimeReviewEvidenceModel";
+import {
+  buildExecutionEvidenceDetail,
+  buildExecutionLifecycleDetail,
+  type SummaryDetail,
+} from "./reviewPackExecutionSummaryDetails";
 import { buildMissionSecondaryLabel } from "./runtimeMissionSecondaryLabel";
 import {
   buildMissionRouteAudit,
@@ -144,11 +149,6 @@ type ReviewPackContinuitySummary = Pick<
   | "continuityOverview"
 > & {
   state: RuntimeContinuityReadinessState;
-};
-
-type SummaryDetail = {
-  summary: string;
-  details: string[];
 };
 
 type ReviewPackWithExtras = MissionControlProjection["reviewPacks"][number];
@@ -258,6 +258,8 @@ export type ReviewPackDetailModel = {
   ledger?: SummaryDetail;
   checkpoint?: SummaryDetail;
   executionContext?: SummaryDetail;
+  executionLifecycle?: SummaryDetail;
+  executionEvidence?: SummaryDetail;
   missionBrief?: SummaryDetail;
   relaunchContext?: SummaryDetail;
   compactEvidenceInput?: CompactReviewEvidenceInput | null;
@@ -320,6 +322,8 @@ export type MissionRunDetailModel = {
   ledger?: SummaryDetail;
   checkpoint?: SummaryDetail;
   executionContext?: SummaryDetail;
+  executionLifecycle?: SummaryDetail;
+  executionEvidence?: SummaryDetail;
   missionBrief?: SummaryDetail;
   relaunchContext?: SummaryDetail;
   compactEvidenceInput?: CompactReviewEvidenceInput | null;
@@ -963,6 +967,8 @@ export function buildReviewPackDetailModel(input: {
             false) ||
           Boolean(run.nextAction),
       }),
+      executionLifecycle: buildExecutionLifecycleDetail(run.lifecycleSummary ?? null),
+      executionEvidence: buildExecutionEvidenceDetail(run.evidenceSummary ?? null),
       missionBrief: buildMissionBriefDetail(run.missionBrief ?? null),
       relaunchContext,
       autoDriveSummary: buildAutoDriveSummary(run.autoDrive ?? null),
@@ -1269,6 +1275,12 @@ export function buildReviewPackDetailModel(input: {
       fieldOrigins: reviewContinuationDefaults?.fieldOrigins,
       inheritFollowUpDefaults: followUpDefaultsAvailable,
     }),
+    executionLifecycle: buildExecutionLifecycleDetail(
+      reviewPack.lifecycleSummary ?? run?.lifecycleSummary ?? null
+    ),
+    executionEvidence: buildExecutionEvidenceDetail(
+      reviewPack.evidenceSummary ?? run?.evidenceSummary ?? null
+    ),
     missionBrief: buildMissionBriefDetail(run?.missionBrief ?? null),
     relaunchContext,
     decisionActionability,

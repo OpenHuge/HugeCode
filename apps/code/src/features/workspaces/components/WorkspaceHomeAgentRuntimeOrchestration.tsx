@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { WorkspaceInfo } from "../../../types";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
+import { buildRuntimeAiWebLabSourceDraft } from "../../../application/runtime/facades/runtimeAiWebLabSourceDraft";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
 import { primeRuntimeRunTruth } from "../../../application/runtime/facades/runtimeRunTruthStore";
 import type {
@@ -101,6 +102,7 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
     runtimeStatusFilter,
     selectedExecutionProfile,
     selectedProviderRoute,
+    applyRuntimeSourceDraft,
     setPollSeconds,
     setRuntimeDraftInstruction,
     selectRuntimeDraftProfile,
@@ -288,10 +290,16 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         <WorkspaceHomeAiWebLabSection
           workspace={workspace}
           onApplyArtifactToDraft={(artifact) => {
-            setRuntimeDraftInstruction(artifact.content ?? "");
-            if (runtimeDraftTitle.trim().length === 0) {
-              setRuntimeDraftTitle(artifact.pageTitle?.trim() || `AI Web Lab - ${workspace.name}`);
+            const nextDraft = buildRuntimeAiWebLabSourceDraft({
+              artifact,
+              workspace,
+              profileId: selectedExecutionProfile.id,
+              draftTitle: runtimeDraftTitle,
+            });
+            if (!nextDraft) {
+              return;
             }
+            applyRuntimeSourceDraft(nextDraft);
           }}
         />
       ) : null}
@@ -947,9 +955,13 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
           <div className="workspace-home-code-runtime-item">
             <div className="workspace-home-code-runtime-item-main">
               <strong>
-                Intervention draft from {runtimeSourceDraft.title || runtimeSourceDraft.taskId}
+                {runtimeSourceDraft.kind === "intervention"
+                  ? `Intervention draft from ${runtimeSourceDraft.title || runtimeSourceDraft.taskId}`
+                  : `Source-linked draft from ${runtimeSourceDraft.title || runtimeSourceDraft.taskId}`}
               </strong>
-              <span>Intent: {runtimeSourceDraft.intent.replaceAll("_", " ")}</span>
+              {runtimeSourceDraft.intent ? (
+                <span>Intent: {runtimeSourceDraft.intent.replaceAll("_", " ")}</span>
+              ) : null}
               {runtimeSourceDraft.taskSource?.label ? (
                 <span>Source-linked launch: {runtimeSourceDraft.taskSource.label}</span>
               ) : null}
@@ -987,11 +999,17 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
               <span>
                 Access source: {runtimeSourceDraft.fieldOrigins.accessMode.replaceAll("_", " ")}
               </span>
-              <span>Review the profile and route below, then relaunch.</span>
+              <span>
+                {runtimeSourceDraft.kind === "intervention"
+                  ? "Review the profile and route below, then relaunch."
+                  : "Review the profile and route below, then launch with the linked source."}
+              </span>
             </div>
             <div className="workspace-home-code-runtime-item-actions">
               <button type="button" onClick={() => setRuntimeSourceDraft(null)}>
-                Clear intervention draft
+                {runtimeSourceDraft.kind === "intervention"
+                  ? "Clear intervention draft"
+                  : "Clear source draft"}
               </button>
             </div>
           </div>

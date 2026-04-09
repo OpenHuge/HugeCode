@@ -1313,6 +1313,75 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     });
   });
 
+  it("attaches AI Web Lab artifacts through a source-linked runtime draft", async () => {
+    const workspace: WorkspaceInfo = {
+      id: "ws-ai-web-lab",
+      name: "AI Web Lab Workspace",
+      path: "/tmp/ws-ai-web-lab",
+      connected: true,
+      kind: "main",
+      parentId: null,
+      worktree: null,
+      settings: {
+        sidebarCollapsed: false,
+      },
+    };
+    mockRuntimeTasks([]);
+
+    render(
+      <WorkspaceHomeAgentRuntimeOrchestration workspaceId={workspace.id} workspace={workspace} />
+    );
+
+    await waitFor(() => {
+      expect(workspaceHomeAiWebLabSectionSpy).toHaveBeenCalled();
+    });
+
+    const props = workspaceHomeAiWebLabSectionSpy.mock.calls.at(-1)?.[0] as {
+      onApplyArtifactToDraft: (artifact: {
+        artifactKind: "prompt_markdown";
+        content: string;
+        entrypointId: string;
+        errorMessage: null;
+        extractedAt: string;
+        format: "markdown";
+        pageTitle: string;
+        providerId: "chatgpt";
+        sourceUrl: string;
+        status: "succeeded";
+      }) => void;
+    };
+
+    await act(async () => {
+      props.onApplyArtifactToDraft({
+        artifactKind: "prompt_markdown",
+        content: "Promote the artifact through the canonical source-linked launch path.",
+        entrypointId: "prompt_refinement",
+        errorMessage: null,
+        extractedAt: "2026-04-09T00:00:00.000Z",
+        format: "markdown",
+        pageTitle: "ChatGPT prompt refinement",
+        providerId: "chatgpt",
+        sourceUrl: "https://chatgpt.com/c/source-linked-launch",
+        status: "succeeded",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Source-linked draft from ChatGPT prompt refinement")).toBeTruthy();
+    });
+
+    expect(screen.getByText("Source-linked launch: AI Web Lab")).toBeTruthy();
+    expect(
+      screen.getByText("Review the profile and route below, then launch with the linked source.")
+    ).toBeTruthy();
+    expect(screen.getByDisplayValue("ChatGPT prompt refinement")).toBeTruthy();
+    expect(
+      screen.getByDisplayValue(
+        "Promote the artifact through the canonical source-linked launch path."
+      )
+    ).toBeTruthy();
+  });
+
   it("republishes live runtime run evidence into persistent flow state when mission control opens", async () => {
     const runtimeTask = {
       ...buildTask("task-running", "running", "Ship UI"),

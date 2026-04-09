@@ -1,8 +1,30 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import type { InvocationDescriptor } from "@ku0/code-runtime-host-contract";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WorkspaceInfo } from "../../../types";
 import { useQueuedSend } from "./useQueuedSend";
+
+const publishInvocationCatalog = vi.hoisted(() => vi.fn());
+const invokeRuntimeInvocation = vi.hoisted(() => vi.fn());
+const pushErrorToast = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../application/runtime/facades/runtimeInvocationCatalogFacadeHooks", () => ({
+  useRuntimeInvocationCatalogResolver: () => (workspaceId: string) => ({
+    publishActiveCatalog: (input: Record<string, unknown>) =>
+      publishInvocationCatalog(workspaceId, input),
+  }),
+}));
+
+vi.mock("../../../application/runtime/facades/runtimeInvocationExecuteFacadeHooks", () => ({
+  useRuntimeInvocationExecuteResolver: () => (workspaceId: string) => ({
+    invoke: (input: Record<string, unknown>) => invokeRuntimeInvocation(workspaceId, input),
+  }),
+}));
+
+vi.mock("../../../application/runtime/ports/toasts", () => ({
+  pushErrorToast,
+}));
 
 const workspace: WorkspaceInfo = {
   id: "workspace-1",
@@ -30,10 +52,16 @@ const makeOptions = (overrides: Partial<Parameters<typeof useQueuedSend>[0]> = {
   startMcp: vi.fn().mockResolvedValue(undefined),
   startStatus: vi.fn().mockResolvedValue(undefined),
   clearActiveImages: vi.fn(),
+  onComposePatchResolved: vi.fn(),
   ...overrides,
 });
 
 describe("useQueuedSend", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    publishInvocationCatalog.mockResolvedValue({ items: [] });
+  });
+
   it("sends queued messages one at a time after processing completes", async () => {
     const options = makeOptions();
     const { result, rerender } = renderHook((props) => useQueuedSend(props), {
@@ -492,5 +520,283 @@ describe("useQueuedSend", () => {
 
     expect(options.sendUserMessage).toHaveBeenCalledTimes(1);
     expect(options.sendUserMessage).toHaveBeenCalledWith("Held", []);
+  });
+
+  it("routes runtime prompt overlay slash commands through invocation execute", async () => {
+    const onComposePatchResolved = vi.fn();
+    const options = makeOptions({ onComposePatchResolved });
+    const invocation: InvocationDescriptor = {
+      id: "session:prompt:prompt.summarize",
+      title: "summarize",
+      summary: "Summarize a target",
+      description: "Summarize a target",
+      kind: "session_command",
+      source: {
+        kind: "session_command",
+        contributionType: "session_scoped",
+        authority: "workspace",
+        label: "Runtime prompt library",
+        sourceId: "prompt.summarize",
+        workspaceId: "workspace-1",
+        provenance: null,
+      },
+      runtimeTool: null,
+      argumentSchema: null,
+      aliases: [],
+      tags: ["prompt_overlay"],
+      safety: {
+        level: "read",
+        readOnly: true,
+        destructive: false,
+        openWorld: false,
+        idempotent: true,
+      },
+      exposure: {
+        operatorVisible: true,
+        modelVisible: false,
+        requiresReadiness: false,
+        hiddenReason: null,
+      },
+      readiness: {
+        state: "ready",
+        available: true,
+        reason: null,
+        warnings: [],
+        checkedAt: null,
+      },
+      metadata: {
+        promptOverlay: {
+          promptId: "prompt.summarize",
+          scope: "workspace",
+        },
+        slashCommand: {
+          primaryTrigger: "/summarize",
+          legacyAliases: [],
+          insertText: 'summarize TARGET=""',
+          cursorOffset: 18,
+          hint: "TARGET=",
+          shadowedByBuiltin: false,
+        },
+      },
+    };
+    publishInvocationCatalog.mockResolvedValue({ items: [invocation] });
+    invokeRuntimeInvocation.mockResolvedValue({
+      ok: true,
+      kind: "compose_patch_resolved",
+      payload: {
+        text: "Summarize src/features",
+      },
+      message: null,
+      evidence: null,
+    });
+
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    let sendResult: Awaited<ReturnType<typeof result.current.handleSend>> | undefined;
+    await act(async () => {
+      sendResult = await result.current.handleSend('/summarize TARGET="src/features"', ["img-1"]);
+    });
+
+    expect(sendResult).toBe(false);
+    expect(invokeRuntimeInvocation).toHaveBeenCalledWith("workspace-1", {
+      invocationId: "session:prompt:prompt.summarize",
+      arguments: {
+        TARGET: "src/features",
+      },
+      context: {
+        threadId: "thread-1",
+        turnId: "turn-1",
+        telemetrySource: "thread_slash_command",
+      },
+      caller: "operator",
+    });
+    expect(onComposePatchResolved).toHaveBeenCalledWith({
+      invocationId: "session:prompt:prompt.summarize",
+      text: "Summarize src/features",
+    });
+    expect(options.sendUserMessage).not.toHaveBeenCalled();
+    expect(options.clearActiveImages).toHaveBeenCalled();
+  });
+
+  it("surfaces blocked runtime slash commands without sending raw text", async () => {
+    const options = makeOptions();
+    const invocation: InvocationDescriptor = {
+      id: "session:prompt:prompt.review",
+      title: "summarize",
+      summary: "Summarize a target",
+      description: "Summarize a target",
+      kind: "session_command",
+      source: {
+        kind: "session_command",
+        contributionType: "session_scoped",
+        authority: "workspace",
+        label: "Runtime prompt library",
+        sourceId: "prompt.review",
+        workspaceId: "workspace-1",
+        provenance: null,
+      },
+      runtimeTool: null,
+      argumentSchema: null,
+      aliases: [],
+      tags: ["prompt_overlay"],
+      safety: {
+        level: "read",
+        readOnly: true,
+        destructive: false,
+        openWorld: false,
+        idempotent: true,
+      },
+      exposure: {
+        operatorVisible: true,
+        modelVisible: false,
+        requiresReadiness: false,
+        hiddenReason: null,
+      },
+      readiness: {
+        state: "ready",
+        available: true,
+        reason: null,
+        warnings: [],
+        checkedAt: null,
+      },
+      metadata: {
+        promptOverlay: {
+          promptId: "prompt.review",
+          scope: "workspace",
+        },
+        slashCommand: {
+          primaryTrigger: "/summarize",
+          legacyAliases: [],
+          insertText: 'summarize TARGET=""',
+          cursorOffset: 18,
+          hint: "TARGET=",
+          shadowedByBuiltin: false,
+        },
+      },
+    };
+    publishInvocationCatalog.mockResolvedValue({ items: [invocation] });
+    invokeRuntimeInvocation.mockResolvedValue({
+      ok: false,
+      kind: "blocked",
+      payload: null,
+      message: "Missing required args for prompt `summarize`: TARGET.",
+      evidence: null,
+    });
+
+    const { result } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    let sendResult: Awaited<ReturnType<typeof result.current.handleSend>> | undefined;
+    await act(async () => {
+      sendResult = await result.current.handleSend("/summarize", ["img-1"]);
+    });
+
+    expect(sendResult).toBe(false);
+    expect(options.sendUserMessage).not.toHaveBeenCalled();
+    expect(pushErrorToast).toHaveBeenCalledWith({
+      title: "Slash command blocked",
+      message: "Missing required args for prompt `summarize`: TARGET.",
+    });
+    expect(options.clearActiveImages).not.toHaveBeenCalled();
+  });
+
+  it("flushes queued runtime prompt overlays through invocation execute", async () => {
+    const onComposePatchResolved = vi.fn();
+    const options = makeOptions({
+      isProcessing: true,
+      steerEnabled: false,
+      onComposePatchResolved,
+    });
+    const invocation: InvocationDescriptor = {
+      id: "session:prompt:prompt.summarize",
+      title: "summarize",
+      summary: "Summarize a target",
+      description: "Summarize a target",
+      kind: "session_command",
+      source: {
+        kind: "session_command",
+        contributionType: "session_scoped",
+        authority: "workspace",
+        label: "Runtime prompt library",
+        sourceId: "prompt.summarize",
+        workspaceId: "workspace-1",
+        provenance: null,
+      },
+      runtimeTool: null,
+      argumentSchema: null,
+      aliases: [],
+      tags: ["prompt_overlay"],
+      safety: {
+        level: "read",
+        readOnly: true,
+        destructive: false,
+        openWorld: false,
+        idempotent: true,
+      },
+      exposure: {
+        operatorVisible: true,
+        modelVisible: false,
+        requiresReadiness: false,
+        hiddenReason: null,
+      },
+      readiness: {
+        state: "ready",
+        available: true,
+        reason: null,
+        warnings: [],
+        checkedAt: null,
+      },
+      metadata: {
+        promptOverlay: {
+          promptId: "prompt.summarize",
+          scope: "workspace",
+        },
+        slashCommand: {
+          primaryTrigger: "/summarize",
+          legacyAliases: [],
+          insertText: 'summarize TARGET=""',
+          cursorOffset: 18,
+          hint: "TARGET=",
+          shadowedByBuiltin: false,
+        },
+      },
+    };
+    publishInvocationCatalog.mockResolvedValue({ items: [invocation] });
+    invokeRuntimeInvocation.mockResolvedValue({
+      ok: true,
+      kind: "compose_patch_resolved",
+      payload: {
+        text: "Summarize src/features",
+      },
+      message: null,
+      evidence: null,
+    });
+
+    const { result, rerender } = renderHook((props) => useQueuedSend(props), {
+      initialProps: options,
+    });
+
+    await act(async () => {
+      await result.current.handleSend('/summarize TARGET="src/features"');
+    });
+
+    expect(result.current.activeQueue).toHaveLength(1);
+
+    await act(async () => {
+      rerender({ ...options, isProcessing: false });
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(onComposePatchResolved).toHaveBeenCalledWith({
+      invocationId: "session:prompt:prompt.summarize",
+      text: "Summarize src/features",
+    });
+    expect(options.sendUserMessage).not.toHaveBeenCalled();
+    expect(result.current.activeQueue).toHaveLength(0);
   });
 });

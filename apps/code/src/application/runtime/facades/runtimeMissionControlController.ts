@@ -595,6 +595,7 @@ export function useWorkspaceRuntimeMissionControlController(workspaceId: string)
     runtimePluginControlPlaneSurface,
     runtimeSourceDraft: draft.runtimeSourceDraft,
     setPollSeconds,
+    applyRuntimeSourceDraft: draft.applyRuntimeSourceDraft,
     setRuntimeSourceDraft: draft.setRuntimeSourceDraft,
     selectedExecutionProfile,
     selectedProviderRoute,

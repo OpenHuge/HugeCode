@@ -232,7 +232,7 @@ export function useRuntimeAiWebLabController({
       return;
     }
     onApplyArtifactToDraft(artifact);
-    setNote("AI Web Lab artifact attached to the mission draft.");
+    setNote("AI Web Lab artifact attached to the mission draft as a source-linked launch.");
     setError(null);
   }, [lastArtifact, onApplyArtifactToDraft, state?.lastArtifact]);
 
@@ -255,7 +255,9 @@ export function useRuntimeAiWebLabController({
       setError(artifact.status === "succeeded" ? null : (artifact.errorMessage ?? null));
       if (artifact.status === "succeeded" && settings.autoAttachArtifact) {
         onApplyArtifactToDraft(artifact);
-        setNote("AI Web Lab artifact extracted and attached to the mission draft.");
+        setNote(
+          "AI Web Lab artifact extracted and attached to the mission draft as a source-linked launch."
+        );
       }
     } catch (nextError) {
       setNote(null);
