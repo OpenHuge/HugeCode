@@ -12,6 +12,10 @@ Transport-neutral source of truth for the HugeCode code runtime host contract.
   review (`code_runtime_run_prepare_v2`, `code_runtime_run_start_v2`,
   `code_runtime_run_get_v2`, `code_runtime_review_get_v2`, and companion
   resume/intervene/subscribe methods)
+- Long-lived launch interfaces for `contextPlane`, `toolingPlane`, and
+  `evalPlane` so context management, sandbox policy, capability exposure, and
+  model-release regression tracking do not depend on model-specific prompt
+  workarounds
 
 ## Start Here
 

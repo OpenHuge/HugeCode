@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRuntimeInvocationCatalogResolver } from "../../../application/runtime/facades/runtimeInvocationCatalogFacadeHooks";
+import { useRuntimeInvocationExecuteResolver } from "../../../application/runtime/facades/runtimeInvocationExecuteFacadeHooks";
+import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import type { QueuedMessage, WorkspaceInfo } from "../../../types";
-import { parseBuiltInSlashCommand } from "../../../utils/slashCommands";
+import {
+  parseBuiltInSlashCommand,
+  resolveInvocationSlashCommandText,
+} from "../../../utils/slashCommands";
 
 type UseQueuedSendOptions = {
   activeThreadId: string | null;
@@ -29,6 +35,7 @@ type UseQueuedSendOptions = {
   startMcp: (text: string) => Promise<void>;
   startStatus: (text: string) => Promise<void>;
   clearActiveImages: () => void;
+  onComposePatchResolved?: (input: { invocationId: string; text: string }) => void;
 };
 
 type UseQueuedSendResult = {
@@ -40,9 +47,22 @@ type UseQueuedSendResult = {
 };
 
 type SlashCommandKind = "compact" | "fork" | "mcp" | "new" | "resume" | "review" | "status";
+type QueuedSendDispatchResult = "blocked" | "compose_patch" | "handled" | "processing";
 
 function parseSlashCommand(text: string): SlashCommandKind | null {
   return parseBuiltInSlashCommand(text);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readComposePatchText(payload: unknown): string | null {
+  const record = asRecord(payload);
+  const text = record?.text;
+  return typeof text === "string" && text.trim().length > 0 ? text : null;
 }
 
 export function useQueuedSend({
@@ -64,9 +84,10 @@ export function useQueuedSend({
   startMcp,
   startStatus,
   clearActiveImages,
+  onComposePatchResolved,
 }: UseQueuedSendOptions): UseQueuedSendResult {
-  // Steering no longer requires an active turn id; keep the input for compatibility.
-  void activeTurnId;
+  const resolveInvocationCatalog = useRuntimeInvocationCatalogResolver();
+  const resolveInvocationExecute = useRuntimeInvocationExecuteResolver();
   const [queuedByThread, setQueuedByThread] = useState<Record<string, QueuedMessage[]>>({});
   const [inFlightByThread, setInFlightByThread] = useState<Record<string, QueuedMessage | null>>(
     {}
@@ -107,29 +128,29 @@ export function useQueuedSend({
   }, []);
 
   const runSlashCommand = useCallback(
-    async (command: SlashCommandKind, trimmed: string): Promise<void | false> => {
+    async (command: SlashCommandKind, trimmed: string): Promise<QueuedSendDispatchResult> => {
       if (command === "fork") {
         await startFork(trimmed);
-        return;
+        return "handled";
       }
       if (command === "review") {
-        return await startReview(trimmed);
+        return (await startReview(trimmed)) === false ? "blocked" : "processing";
       }
       if (command === "resume") {
         await startResume(trimmed);
-        return;
+        return "handled";
       }
       if (command === "compact") {
         await startCompact(trimmed);
-        return;
+        return "handled";
       }
       if (command === "mcp") {
         await startMcp(trimmed);
-        return;
+        return "handled";
       }
       if (command === "status") {
         await startStatus(trimmed);
-        return;
+        return "handled";
       }
       if (command === "new" && activeWorkspace) {
         const threadId = await startThreadForWorkspace(activeWorkspace.id);
@@ -138,6 +159,7 @@ export function useQueuedSend({
           await sendUserMessageToThread(activeWorkspace, threadId, rest, []);
         }
       }
+      return "handled";
     },
     [
       activeWorkspace,
@@ -150,6 +172,91 @@ export function useQueuedSend({
       startStatus,
       startThreadForWorkspace,
     ]
+  );
+
+  const runInvocationSlashCommand = useCallback(
+    async (trimmed: string): Promise<QueuedSendDispatchResult | null> => {
+      if (!trimmed.startsWith("/") || !activeWorkspace) {
+        return null;
+      }
+      const catalog = await resolveInvocationCatalog(activeWorkspace.id)
+        .publishActiveCatalog({ audience: "operator" })
+        .catch(() => null);
+      const slashInvocations =
+        catalog?.items.filter(
+          (item) => item.kind === "session_command" && Boolean(item.metadata?.slashCommand)
+        ) ?? [];
+      const resolved = resolveInvocationSlashCommandText(trimmed, slashInvocations);
+      if (!resolved) {
+        return null;
+      }
+      if ("error" in resolved) {
+        pushErrorToast({
+          title: "Slash command blocked",
+          message: resolved.error,
+        });
+        return "blocked";
+      }
+
+      const execution = await resolveInvocationExecute(activeWorkspace.id).invoke({
+        invocationId: resolved.invocationId,
+        arguments: resolved.arguments,
+        context: {
+          threadId: activeThreadId,
+          turnId: activeTurnId,
+          telemetrySource: "thread_slash_command",
+        },
+        caller: "operator",
+      });
+      if (!execution.ok) {
+        pushErrorToast({
+          title: "Slash command blocked",
+          message: execution.message,
+        });
+        return "blocked";
+      }
+      if (execution.kind === "compose_patch_resolved") {
+        const text = readComposePatchText(execution.payload);
+        if (!text) {
+          pushErrorToast({
+            title: "Slash command failed",
+            message: `Invocation \`${resolved.invocationId}\` returned an invalid compose patch payload.`,
+          });
+          return "blocked";
+        }
+        onComposePatchResolved?.({
+          invocationId: resolved.invocationId,
+          text,
+        });
+        return "compose_patch";
+      }
+      return execution.kind === "session_message_sent" ? "processing" : "handled";
+    },
+    [
+      activeThreadId,
+      activeTurnId,
+      activeWorkspace,
+      onComposePatchResolved,
+      resolveInvocationCatalog,
+      resolveInvocationExecute,
+    ]
+  );
+
+  const dispatchMessage = useCallback(
+    async (text: string, images: string[] = []): Promise<QueuedSendDispatchResult> => {
+      const trimmed = text.trim();
+      const command = parseSlashCommand(trimmed);
+      if (command) {
+        return await runSlashCommand(command, trimmed);
+      }
+      const invocationResult = await runInvocationSlashCommand(trimmed);
+      if (invocationResult) {
+        return invocationResult;
+      }
+      await sendUserMessage(trimmed, images);
+      return "processing";
+    },
+    [runInvocationSlashCommand, runSlashCommand, sendUserMessage]
   );
 
   const handleSend = useCallback(
@@ -180,14 +287,7 @@ export function useQueuedSend({
       if (activeWorkspace && !activeWorkspace.connected) {
         await connectWorkspace(activeWorkspace);
       }
-      if (command) {
-        const commandResult = await runSlashCommand(command, trimmed);
-        if (commandResult === false) {
-          return false;
-        }
-        clearActiveImages();
-        return;
-      }
+
       const directSendThreadId = activeThreadId;
       if (directSendThreadId) {
         optimisticInFlightByThreadRef.current[directSendThreadId] = true;
@@ -205,13 +305,34 @@ export function useQueuedSend({
           [directSendThreadId]: isProcessing,
         }));
       }
+      let dispatchResult: QueuedSendDispatchResult;
       try {
-        await sendUserMessage(trimmed, nextImages);
+        dispatchResult = await dispatchMessage(trimmed, nextImages);
       } catch (error) {
         if (directSendThreadId) {
           clearInFlight(directSendThreadId);
         }
         throw error;
+      }
+      if (dispatchResult === "blocked") {
+        if (directSendThreadId) {
+          clearInFlight(directSendThreadId);
+        }
+        return false;
+      }
+      if (dispatchResult === "compose_patch") {
+        if (directSendThreadId) {
+          clearInFlight(directSendThreadId);
+        }
+        clearActiveImages();
+        return false;
+      }
+      if (dispatchResult === "handled") {
+        if (directSendThreadId) {
+          clearInFlight(directSendThreadId);
+        }
+        clearActiveImages();
+        return;
       }
       clearActiveImages();
     },
@@ -221,12 +342,11 @@ export function useQueuedSend({
       clearActiveImages,
       clearInFlight,
       connectWorkspace,
+      dispatchMessage,
       enqueueMessage,
       isProcessing,
       isReviewing,
       steerEnabled,
-      runSlashCommand,
-      sendUserMessage,
     ]
   );
 
@@ -277,14 +397,7 @@ export function useQueuedSend({
       setInFlightByThread((prev) => ({ ...prev, [activeThreadId]: null }));
       setHasStartedByThread((prev) => ({ ...prev, [activeThreadId]: false }));
     }
-  }, [
-    activeThreadId,
-    clearInFlight,
-    hasStartedByThread,
-    inFlightByThread,
-    isProcessing,
-    isReviewing,
-  ]);
+  }, [activeThreadId, hasStartedByThread, inFlightByThread, isProcessing, isReviewing]);
 
   useEffect(() => {
     if (!activeThreadId || isProcessing || isReviewing || queueFlushPaused) {
@@ -308,29 +421,25 @@ export function useQueuedSend({
     }));
     (async () => {
       try {
-        const trimmed = nextItem.text.trim();
-        const command = parseSlashCommand(trimmed);
-        if (command) {
-          await runSlashCommand(command, trimmed);
-        } else {
-          await sendUserMessage(nextItem.text, nextItem.images ?? []);
+        const dispatchResult = await dispatchMessage(nextItem.text, nextItem.images ?? []);
+        if (dispatchResult !== "processing") {
+          clearInFlight(threadId);
         }
       } catch {
-        setInFlightByThread((prev) => ({ ...prev, [threadId]: null }));
-        setHasStartedByThread((prev) => ({ ...prev, [threadId]: false }));
+        clearInFlight(threadId);
         prependQueuedMessage(threadId, nextItem);
       }
     })();
   }, [
     activeThreadId,
+    clearInFlight,
+    dispatchMessage,
     inFlightByThread,
     isProcessing,
     isReviewing,
-    queueFlushPaused,
     prependQueuedMessage,
+    queueFlushPaused,
     queuedByThread,
-    runSlashCommand,
-    sendUserMessage,
   ]);
 
   return {

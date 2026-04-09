@@ -186,6 +186,10 @@ function promptArgumentNames(content: string): string[] {
   const names: string[] = [];
   const seen = new Set<string>();
   for (const match of content.matchAll(/\$[A-Z][A-Z0-9_]*/g)) {
+    const index = match.index ?? 0;
+    if (index > 0 && content[index - 1] === "$") {
+      continue;
+    }
     const name = match[0].slice(1);
     if (name === "ARGUMENTS" || seen.has(name)) {
       continue;

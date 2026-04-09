@@ -8,16 +8,18 @@ import {
 } from "./runtimeReviewContinuationFacade";
 
 export type RuntimeTaskLauncherInterventionIntent = ReviewContinuationIntent;
+export type RuntimeTaskLauncherSourceDraftKind = "intervention" | "source_launch";
 
 export type MissionInterventionDraft = ReviewContinuationDraft & {
   relaunchContext?: AgentTaskRelaunchContext | null;
 };
 
 export type RuntimeTaskLauncherSourceDraft = {
+  kind: RuntimeTaskLauncherSourceDraftKind;
   taskId: string;
   title: string | null;
   instruction: string;
-  intent: RuntimeTaskLauncherInterventionIntent;
+  intent?: RuntimeTaskLauncherInterventionIntent | null;
   profileId: string;
   preferredBackendIds?: string[];
   reviewProfileId: string | null;
@@ -224,6 +226,7 @@ export function prepareRuntimeTaskLauncherDraft(
     draft: {
       ...interventionDraft,
       sourceDraft: {
+        kind: "intervention",
         taskId: input.task.taskId,
         title: input.task.title ?? null,
         instruction: nextInstruction,

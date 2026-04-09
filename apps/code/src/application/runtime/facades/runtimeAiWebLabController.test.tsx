@@ -134,7 +134,7 @@ describe("runtimeAiWebLabController", () => {
       })
     );
     expect(result.current.note).toBe(
-      "AI Web Lab artifact extracted and attached to the mission draft."
+      "AI Web Lab artifact extracted and attached to the mission draft as a source-linked launch."
     );
   });
 

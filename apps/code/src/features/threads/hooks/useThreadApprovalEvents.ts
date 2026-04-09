@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
-import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
+import { useRuntimeInvocationExecuteResolver } from "../../../application/runtime/facades/runtimeInvocationExecuteFacadeHooks";
 import type { ApprovalRequest } from "../../../types";
 import { getApprovalCommandInfo, matchesCommandPrefix } from "../../../utils/approvalRules";
 import type { ThreadAction } from "./useThreadsReducer";
@@ -14,21 +14,34 @@ export function useThreadApprovalEvents({
   dispatch,
   approvalAllowlistRef,
 }: UseThreadApprovalEventsOptions) {
-  const resolveRuntimeSessionCommands = useRuntimeSessionCommandsResolver();
+  const resolveRuntimeInvocationExecute = useRuntimeInvocationExecuteResolver();
 
   return useCallback(
     (approval: ApprovalRequest) => {
       const commandInfo = getApprovalCommandInfo(approval.params ?? {});
       const allowlist = approvalAllowlistRef.current[approval.workspace_id] ?? [];
       if (commandInfo && matchesCommandPrefix(commandInfo.tokens, allowlist)) {
-        void resolveRuntimeSessionCommands(approval.workspace_id).respondToApproval({
-          requestId: approval.request_id,
-          decision: "accept",
-        });
+        void resolveRuntimeInvocationExecute(approval.workspace_id)
+          .invoke({
+            invocationId: "session:respond-to-approval",
+            arguments: {
+              requestId: approval.request_id,
+              decision: "accept",
+            },
+            caller: "operator",
+          })
+          .then((result) => {
+            if (!result.ok) {
+              dispatch({ type: "addApproval", approval });
+            }
+          })
+          .catch(() => {
+            dispatch({ type: "addApproval", approval });
+          });
         return;
       }
       dispatch({ type: "addApproval", approval });
     },
-    [approvalAllowlistRef, dispatch, resolveRuntimeSessionCommands]
+    [approvalAllowlistRef, dispatch, resolveRuntimeInvocationExecute]
   );
 }

@@ -140,6 +140,7 @@ describe("runtimeTaskInterventionDraftFacade", () => {
         sourceRunId: "run-1",
         sourceReviewPackId: "review-pack:run-1",
         sourceDraft: {
+          kind: "intervention",
           taskId: "task-1",
           title: "Investigate runtime issue",
           instruction: "Investigate runtime issue\n\nInspect runtime orchestration state.",
@@ -194,6 +195,7 @@ describe("runtimeTaskInterventionDraftFacade", () => {
         sourceRunId: "run-1",
         sourceReviewPackId: null,
         sourceDraft: {
+          kind: "intervention",
           taskId: "task-1",
           title: "Investigate runtime issue",
           instruction:

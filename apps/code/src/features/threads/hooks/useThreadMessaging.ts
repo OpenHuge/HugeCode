@@ -1,7 +1,8 @@
 import type { HugeCodeTaskMode } from "@ku0/code-runtime-host-contract";
 import type { Dispatch, MutableRefObject } from "react";
 import { useCallback } from "react";
-import type { RuntimeSessionCommandFacade } from "../../../application/runtime/facades/runtimeSessionCommandFacade";
+import { useRuntimeInvocationCatalogResolver } from "../../../application/runtime/facades/runtimeInvocationCatalogFacadeHooks";
+import { useRuntimeInvocationExecuteResolver } from "../../../application/runtime/facades/runtimeInvocationExecuteFacadeHooks";
 import { useRuntimeSessionCommandsResolver } from "../../../application/runtime/facades/runtimeSessionCommandFacadeHooks";
 import { prepareRuntimeRunV2 as prepareRuntimeRunV2Service } from "../../../application/runtime/ports/runtimeJobs";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
@@ -47,6 +48,8 @@ import {
   type SendMessageOptions,
 } from "./useThreadMessagingHelpers";
 import { mapDraftToRuntimeAutoDriveState } from "../../autodrive/hooks/autoDriveRuntimeSnapshotAdapter";
+import { dispatchThreadRuntimeInvocationSlashCommand } from "./threadRuntimeInvocationDispatch";
+import { invokeSteerTurnRequest } from "./threadRuntimeSteerRequest";
 import type { useThreadCodexParams } from "./useThreadCodexParams";
 import type { ThreadAction, ThreadState } from "./useThreadsReducer";
 
@@ -114,61 +117,6 @@ type UseThreadMessagingOptions = {
   ) => AtlasLongTermMemoryDigest | null | undefined;
   getThreadCodexParams?: ReturnType<typeof useThreadCodexParams>["getThreadCodexParams"];
 };
-
-async function invokeSteerTurnRequest(
-  runtimeSessionCommands: RuntimeSessionCommandFacade,
-  params: {
-    threadId: string;
-    activeTurnId: string;
-    text: string;
-    images: string[];
-    contextPrefix: string | null;
-    provider: string | null | undefined;
-    model: string | null | undefined;
-    effort: string | null | undefined;
-    fastMode: boolean;
-    collaborationMode: Record<string, unknown> | null;
-    accessMode: AccessMode | undefined;
-    executionMode: ComposerExecutionMode;
-    missionMode: HugeCodeTaskMode | null;
-    executionProfileId: string | null;
-    preferredBackendIds: string[] | null;
-    codexBin: string | null;
-    codexArgs: string[] | null;
-    autoDrive?: ReturnType<typeof mapDraftToRuntimeAutoDriveState> | null;
-    autonomyRequest?: import("@ku0/code-runtime-host-contract").RuntimeAutonomyRequestV2 | null;
-  }
-): Promise<Record<string, unknown>> {
-  const serviceTier = params.fastMode ? "fast" : null;
-  const steerOptions = {
-    provider: params.provider,
-    model: params.model,
-    effort: params.effort,
-    serviceTier,
-    collaborationMode: params.collaborationMode,
-    accessMode: params.accessMode,
-    executionMode: params.executionMode,
-    missionMode: params.missionMode,
-    executionProfileId: params.executionProfileId,
-    preferredBackendIds: params.preferredBackendIds,
-    codexBin: params.codexBin,
-    codexArgs: params.codexArgs,
-    telemetrySource: "thread_messaging",
-    ...(params.autoDrive ? { autoDrive: params.autoDrive } : {}),
-    ...(params.autonomyRequest ? { autonomyRequest: params.autonomyRequest } : {}),
-  };
-  const steerInput = {
-    threadId: params.threadId,
-    turnId: params.activeTurnId,
-    text: params.text,
-    images: params.images,
-    options: steerOptions,
-    ...(params.contextPrefix ? { contextPrefix: params.contextPrefix } : {}),
-  };
-  return (await runtimeSessionCommands.steerTurn({
-    ...steerInput,
-  })) as Record<string, unknown>;
-}
 
 function resolveInterruptFailureMessage(response: unknown): string {
   if (response && typeof response === "object") {
@@ -241,6 +189,8 @@ export function useThreadMessaging({
   getAtlasLongTermMemoryDigest,
   getThreadCodexParams,
 }: UseThreadMessagingOptions) {
+  const resolveRuntimeInvocationCatalog = useRuntimeInvocationCatalogResolver();
+  const resolveRuntimeInvocationExecute = useRuntimeInvocationExecuteResolver();
   const resolveRuntimeSessionCommands = useRuntimeSessionCommandsResolver();
 
   const reportReviewUnavailable = useCallback(() => {
@@ -286,6 +236,22 @@ export function useThreadMessaging({
       const runtimeSessionCommands = resolveRuntimeSessionCommands(workspace.id);
       const messageText = text.trim();
       if (!messageText && images.length === 0) {
+        return;
+      }
+      if (
+        await dispatchThreadRuntimeInvocationSlashCommand({
+          workspace,
+          threadId,
+          messageText,
+          images,
+          options,
+          resolveInvocationCatalog: resolveRuntimeInvocationCatalog,
+          resolveInvocationExecute: resolveRuntimeInvocationExecute,
+          pushThreadErrorMessage,
+          safeMessageActivity,
+          sendMessageToThread,
+        })
+      ) {
         return;
       }
       const expandedMessage = resolveExpandedMessageText(
@@ -696,6 +662,8 @@ export function useThreadMessaging({
       onUserMessageCreated,
       preferredBackendIds,
       pushThreadErrorMessage,
+      resolveRuntimeInvocationCatalog,
+      resolveRuntimeInvocationExecute,
       resolveRuntimeSessionCommands,
       recordThreadActivity,
       safeMessageActivity,
@@ -723,29 +691,12 @@ export function useThreadMessaging({
       if (!messageText && images.length === 0) {
         return;
       }
-      const expandedMessage = resolveExpandedMessageText(messageText, false, customPrompts);
-      if (expandedMessage.errorMessage) {
-        if (currentActiveThreadId) {
-          pushThreadErrorMessage(currentActiveThreadId, expandedMessage.errorMessage);
-          safeMessageActivity();
-        } else {
-          onDebug?.({
-            id: `${Date.now()}-client-prompt-expand-error`,
-            timestamp: Date.now(),
-            source: "error",
-            label: "prompt/expand error",
-            payload: expandedMessage.errorMessage,
-          });
-        }
-        return;
-      }
-      const finalText = expandedMessage.finalText;
       const shouldUsePendingDraftMessage = !currentActiveThreadId;
       const pendingDraftMessage: ConversationItem = {
         id: `pending-draft-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         kind: "message",
         role: "user",
-        text: finalText,
+        text: messageText,
         images: images.length > 0 ? images : undefined,
       };
       if (shouldUsePendingDraftMessage) {
@@ -759,8 +710,7 @@ export function useThreadMessaging({
         return;
       }
       try {
-        await sendMessageToThread(activeWorkspace, threadId, finalText, images, {
-          skipPromptExpansion: true,
+        await sendMessageToThread(activeWorkspace, threadId, messageText, images, {
           optimisticMessageId: shouldUsePendingDraftMessage ? pendingDraftMessage.id : undefined,
         });
       } finally {
@@ -773,12 +723,8 @@ export function useThreadMessaging({
       activeThreadId,
       activeThreadIdRef,
       activeWorkspace,
-      customPrompts,
       ensureThreadForActiveWorkspace,
-      onDebug,
       setPendingDraftUserMessage,
-      pushThreadErrorMessage,
-      safeMessageActivity,
       sendMessageToThread,
     ]
   );

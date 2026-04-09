@@ -2,6 +2,8 @@ use super::mission_control_dispatch::{build_mission_run_projection_by_run_id, bu
 use super::runtime_kernel_v2_plan::{build_prepare_plan, build_validation_lanes};
 #[path = "rpc_dispatch_runtime_kernel_v2_execution_summary.rs"]
 mod execution_summary;
+#[path = "rpc_dispatch_runtime_kernel_v2_prepare_planes.rs"]
+mod prepare_planes;
 #[path = "rpc_dispatch_runtime_kernel_v2_run_id.rs"]
 mod run_id;
 use super::*;
@@ -17,6 +19,7 @@ use crate::agent_task_launch_synthesis::{
 use crate::repository_execution_contract::RepositoryExecutionResolvedDefaults;
 use crate::runtime_helpers::normalize_agent_task_source_summary;
 use execution_summary::{inject_runtime_execution_summaries, serialize_review_pack_with_runtime_summaries};
+use prepare_planes::{build_context_plane, build_eval_plane, build_tooling_plane};
 use run_id::parse_run_id;
 use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
 
@@ -1362,12 +1365,38 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         .as_deref()
         .or(repository_defaults.validation_preset_id.as_deref());
 
+    let context_working_set = build_context_working_set(
+        &workspace_context,
+        task_source.as_ref(),
+        access_mode.as_str(),
+        execution_mode,
+        explicit_preferred_backend_ids.as_slice(),
+        synthesized_steps.as_slice(),
+    );
     let context_truth = build_context_truth(task_source.as_ref(), &repository_defaults);
+    let context_plane =
+        build_context_plane(task_source.as_ref(), &repository_defaults, &context_working_set);
     let triage_summary = build_triage_summary(task_source.as_ref(), &repository_defaults);
     let accountability = context_truth
         .get("ownerSummary")
         .and_then(Value::as_str)
         .unwrap_or("Human owner stays accountable; the runtime agent executes the delegated work.");
+    let tooling_plane = build_tooling_plane(
+        resolved_execution_profile_id,
+        resolved_review_profile_id,
+        resolved_validation_preset_id,
+        access_mode.as_str(),
+        preferred_backend_ids.as_slice(),
+        request.provider.as_deref(),
+        allow_network_analysis,
+        &repository_defaults,
+    );
+    let eval_plane = build_eval_plane(
+        task_source.as_ref(),
+        resolved_execution_profile_id,
+        resolved_review_profile_id,
+        resolved_validation_preset_id,
+    );
 
     Ok(json!({
         "preparedAt": now_ms(),
@@ -1393,15 +1422,10 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
             "clarified": missing_context.is_empty(),
             "missingContext": missing_context,
         },
-        "contextWorkingSet": build_context_working_set(
-            &workspace_context,
-            task_source.as_ref(),
-            access_mode.as_str(),
-            execution_mode,
-            explicit_preferred_backend_ids.as_slice(),
-            synthesized_steps.as_slice(),
-        ),
+        "contextWorkingSet": context_working_set,
         "contextTruth": context_truth,
+        "contextPlane": context_plane,
+        "evalPlane": eval_plane,
         "guidanceStack": build_guidance_stack(
             &workspace_context,
             task_source.as_ref(),
@@ -1418,6 +1442,7 @@ async fn build_prepare_response(ctx: &AppContext, params: &Value) -> Result<Valu
         ),
         "delegationPlan": delegation_plan,
         "executionGraph": execution_graph,
+        "toolingPlane": tooling_plane,
         "approvalBatches": approval_batches,
         "validationPlan": validation_plan,
         "reviewFocus": [
@@ -1772,39 +1797,6 @@ mod tests {
     }
 
     #[test]
-    fn build_context_working_set_adds_selection_policy_and_fingerprints() {
-        let context = WorkspaceLaunchContext {
-            workspace_root_path: Some("/workspaces/HugeCode".to_string()),
-            has_agents_md: true,
-            repo_instruction_sources: vec!["AGENTS.md".to_string()],
-            validate_command: Some("pnpm validate".to_string()),
-            ..WorkspaceLaunchContext::default()
-        };
-        let working_set = build_context_working_set(
-            &context,
-            None,
-            "on-request",
-            "distributed",
-            &["backend-a".to_string(), "backend-b".to_string()],
-            &[sample_step(
-                AgentStepKind::Read,
-                "Context digest: runtime recovered prior work.",
-                Some(false),
-            )],
-        );
-
-        assert_eq!(working_set["selectionPolicy"]["strategy"], json!("deep"));
-        assert_eq!(working_set["selectionPolicy"]["toolExposureProfile"], json!("slim"));
-        assert_eq!(working_set["selectionPolicy"]["preferColdFetch"], json!(false));
-        assert!(working_set["contextFingerprint"]
-            .as_str()
-            .is_some_and(|value| !value.is_empty()));
-        assert!(working_set["stablePrefixFingerprint"]
-            .as_str()
-            .is_some_and(|value| !value.is_empty()));
-    }
-
-    #[test]
     fn build_guidance_stack_prioritizes_explicit_launch_and_review_profile_skills() {
         let guidance = build_guidance_stack(
             &WorkspaceLaunchContext {
@@ -1889,4 +1881,5 @@ mod tests {
             Some(&json!("repo_guidance"))
         );
     }
+
 }

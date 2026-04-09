@@ -83,6 +83,14 @@ export function useComposerController({
     startMcp,
     startStatus,
     clearActiveImages,
+    onComposePatchResolved: ({ invocationId, text }) => {
+      const now = Date.now();
+      setComposerInsert({
+        id: `runtime-invocation-${invocationId}-${now}`,
+        text,
+        createdAt: now,
+      });
+    },
   });
 
   const activeDraft = useMemo(

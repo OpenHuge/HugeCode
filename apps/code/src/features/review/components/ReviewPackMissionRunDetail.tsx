@@ -275,6 +275,29 @@ export function ReviewPackMissionRunDetail(props: {
         </ul>
       </ReviewDetailSection>
 
+      {detail.executionLifecycle || detail.executionEvidence ? (
+        <ReviewDetailSection title="Execution summary">
+          {detail.executionLifecycle ? (
+            <>
+              <div className={styles.bodyText}>Lifecycle: {detail.executionLifecycle.summary}</div>
+              {renderCopyList(
+                detail.executionLifecycle.details,
+                "Runtime did not publish lifecycle detail for this mission run."
+              )}
+            </>
+          ) : null}
+          {detail.executionEvidence ? (
+            <>
+              <div className={styles.bodyText}>Evidence: {detail.executionEvidence.summary}</div>
+              {renderCopyList(
+                detail.executionEvidence.details,
+                "Runtime did not publish evidence detail for this mission run."
+              )}
+            </>
+          ) : null}
+        </ReviewDetailSection>
+      ) : null}
+
       {detail.executionContext ? (
         <ReviewDetailSection title="Execution context">
           <div className={styles.bodyText}>{detail.executionContext.summary}</div>

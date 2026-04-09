@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type {
   HugeCodeExecutionNodeSummary,
   HugeCodeRunSummary,
+  RuntimeExecutionEvidenceSummary,
 } from "@ku0/code-runtime-host-contract";
 import { projectAgentTaskStatusToRunState } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import {
@@ -114,6 +115,39 @@ function formatCompactLabel(value: string | null | undefined): string {
   }
   const normalized = value.replaceAll("_", " ").trim();
   return normalized.length > 0 ? normalized[0]!.toUpperCase() + normalized.slice(1) : "Unknown";
+}
+
+function formatExecutionEvidenceReviewStatusLabel(
+  reviewStatus: NonNullable<RuntimeExecutionEvidenceSummary["reviewStatus"]>
+): string {
+  switch (reviewStatus) {
+    case "ready":
+      return "Review ready";
+    case "action_required":
+      return "Action required";
+    case "incomplete_evidence":
+      return "Evidence incomplete";
+    default:
+      return "Unknown";
+  }
+}
+
+function buildExecutionEvidenceCountsLabel(
+  evidenceSummary: HugeCodeRunSummary["evidenceSummary"]
+): string | null {
+  if (!evidenceSummary) {
+    return null;
+  }
+  const counts = [
+    `validations ${evidenceSummary.validationCount}`,
+    `artifacts ${evidenceSummary.artifactCount}`,
+    `warnings ${evidenceSummary.warningCount}`,
+    `changed paths ${evidenceSummary.changedPathCount}`,
+  ];
+  if (evidenceSummary.reviewStatus) {
+    counts.push(`review ${formatExecutionEvidenceReviewStatusLabel(evidenceSummary.reviewStatus)}`);
+  }
+  return counts.join(" | ");
 }
 
 function mapSubAgentToneToBadgeTone(
@@ -232,6 +266,11 @@ export function WorkspaceHomeAgentRuntimeRunItem({
     effectiveRun?.publishHandoff?.summary?.trim() ||
     effectiveTask.publishHandoff?.summary?.trim() ||
     null;
+  const executionLifecycleSummary =
+    effectiveReviewPack?.lifecycleSummary ?? effectiveRun?.lifecycleSummary ?? null;
+  const executionEvidenceSummary =
+    effectiveReviewPack?.evidenceSummary ?? effectiveRun?.evidenceSummary ?? null;
+  const executionEvidenceCountsLabel = buildExecutionEvidenceCountsLabel(executionEvidenceSummary);
   const currentMilestone =
     missionPlan?.milestones?.find((milestone) => milestone.id === missionPlan.currentMilestoneId) ??
     missionPlan?.milestones?.find((milestone) => milestone.status === "active") ??
@@ -427,6 +466,15 @@ export function WorkspaceHomeAgentRuntimeRunItem({
           ) : null}
           {effectiveRun?.nextAction && !richObservabilityAvailable ? (
             <span>Next: {effectiveRun.nextAction.label}</span>
+          ) : null}
+          {executionLifecycleSummary?.summary ? (
+            <span>Execution: {executionLifecycleSummary.summary}</span>
+          ) : null}
+          {executionEvidenceSummary?.summary ? (
+            <span>Evidence: {executionEvidenceSummary.summary}</span>
+          ) : null}
+          {executionEvidenceCountsLabel ? (
+            <span>Evidence counts: {executionEvidenceCountsLabel}</span>
           ) : null}
           {reviewSummary ? <span>Review: {reviewSummary}</span> : null}
           {publishHandoffSummary ? <span>Publish handoff: {publishHandoffSummary}</span> : null}
@@ -966,6 +1014,15 @@ export function WorkspaceHomeAgentRuntimeRunItem({
               {effectiveRun?.nextAction?.detail ? <li>{effectiveRun.nextAction.detail}</li> : null}
               {effectiveRun?.approval?.summary ? (
                 <li>Approval: {effectiveRun.approval.summary}</li>
+              ) : null}
+              {executionLifecycleSummary?.summary ? (
+                <li>Execution: {executionLifecycleSummary.summary}</li>
+              ) : null}
+              {executionEvidenceSummary?.summary ? (
+                <li>Evidence: {executionEvidenceSummary.summary}</li>
+              ) : null}
+              {executionEvidenceCountsLabel ? (
+                <li>Evidence counts: {executionEvidenceCountsLabel}</li>
               ) : null}
               {formatRuntimeAutonomyProfileLabel(runtimeAutonomyProfile) ? (
                 <li>Autonomy: {formatRuntimeAutonomyProfileLabel(runtimeAutonomyProfile)}</li>
