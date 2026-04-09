@@ -17,9 +17,9 @@ export function resolveRuntimeRecommendedAction(input: {
   operatorAction?: RuntimeOperatorActionLike | null;
   fallbacks: Array<string | null | undefined>;
 }) {
-  const operatorActionText = readRuntimeOperatorActionText(input.operatorAction);
-  if (operatorActionText) {
-    return operatorActionText;
+  const operatorActionDetail = readOptionalText(input.operatorAction?.detail);
+  if (operatorActionDetail) {
+    return operatorActionDetail;
   }
   for (const fallback of input.fallbacks) {
     const text = readOptionalText(fallback);
@@ -27,5 +27,5 @@ export function resolveRuntimeRecommendedAction(input: {
       return text;
     }
   }
-  return null;
+  return readOptionalText(input.operatorAction?.label);
 }

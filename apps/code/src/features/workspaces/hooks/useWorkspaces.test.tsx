@@ -87,7 +87,7 @@ vi.mock("../../../application/runtime/ports/logger", () => ({
 }));
 
 vi.mock("../../../application/runtime/ports/runtimeClientMode", () => ({
-  detectRuntimeMode: vi.fn(() => "desktop-compat"),
+  detectRuntimeMode: vi.fn(() => "electron-bridge"),
 }));
 
 const runtimeUpdatedHarness = createRuntimeUpdatedSubscriptionHarness();
@@ -101,7 +101,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.history.replaceState({}, "", "/");
   clearWorkspaceRouteRestoreSelection();
-  vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+  vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
   vi.mocked(isDesktopHostRuntime).mockReturnValue(true);
   vi.mocked(readPersistedActiveWorkspaceId).mockResolvedValue(null);
   vi.mocked(writePersistedActiveWorkspaceId).mockResolvedValue(true);
@@ -838,7 +838,7 @@ describe("useWorkspaces.active workspace persistence", () => {
   });
 
   it("mirrors active workspace changes into app settings in desktop-compat mode", async () => {
-    vi.mocked(detectRuntimeMode).mockReturnValue("desktop-compat");
+    vi.mocked(detectRuntimeMode).mockReturnValue("electron-bridge");
     vi.mocked(listWorkspaces).mockResolvedValue([workspaceOne, workspaceTwo]);
     const onUpdateAppSettings = vi.fn(async (next: AppSettings) => next);
 
@@ -859,7 +859,11 @@ describe("useWorkspaces.active workspace persistence", () => {
       result.current.setActiveWorkspaceId(workspaceTwo.id);
     });
 
-    expect(onUpdateAppSettings).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(onUpdateAppSettings).toHaveBeenCalledWith({
+        lastActiveWorkspaceId: workspaceTwo.id,
+      });
+    });
   });
 
   it("persists active workspace changes through native persistence", async () => {

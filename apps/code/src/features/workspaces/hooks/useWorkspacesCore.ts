@@ -88,6 +88,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     appSettingsLoading = false,
     onUpdateAppSettings,
   } = options;
+  const supportsLegacyAppSettingsMirror = detectRuntimeMode() !== "runtime-gateway-web";
   const {
     workspaceGroups,
     workspaceGroupById,
@@ -233,6 +234,21 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         payload: error instanceof Error ? error.message : String(error),
       });
     });
+    if (!appSettings || !onUpdateAppSettings || !supportsLegacyAppSettingsMirror) {
+      return;
+    }
+    void onUpdateAppSettings({
+      ...appSettings,
+      lastActiveWorkspaceId: nextActiveWorkspaceId,
+    }).catch((error) => {
+      onDebug?.({
+        id: `${Date.now()}-client-persist-active-workspace-error`,
+        timestamp: Date.now(),
+        source: "error",
+        label: "workspace/active/persist error",
+        payload: error instanceof Error ? error.message : String(error),
+      });
+    });
   }, [
     activeWorkspaceId,
     appSettingsLoading,
@@ -240,6 +256,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
     onDebug,
     persistedActiveWorkspaceReady,
     routeSelection.kind,
+    supportsLegacyAppSettingsMirror,
   ]);
 
   const addWorkspaceFromPath = useCallback(

@@ -1,14 +1,8 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { retryDistributedTaskGraphNode } from "../../../application/runtime/facades/runtimeDistributedTaskGraphControlFacade";
-import type { AgentTaskSummary } from "@ku0/code-runtime-host-contract";
-import type { DistributedTaskGraphSnapshot } from "../types/distributedGraph";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { DistributedTaskGraphSnapshot } from "../../../application/runtime/types/distributedTaskGraph";
 import { DistributedTaskGraphPanel } from "./DistributedTaskGraphPanel";
-
-vi.mock("../../../application/runtime/facades/runtimeDistributedTaskGraphControlFacade", () => ({
-  retryDistributedTaskGraphNode: vi.fn(),
-}));
 
 function buildGraph(nodeCount = 4): DistributedTaskGraphSnapshot {
   return {
@@ -41,47 +35,10 @@ function buildGraph(nodeCount = 4): DistributedTaskGraphSnapshot {
   };
 }
 
-function buildRuntimeRun(taskId: string): AgentTaskSummary {
-  return {
-    taskId,
-    workspaceId: "workspace-1",
-    threadId: null,
-    requestId: null,
-    title: taskId,
-    status: "queued",
-    accessMode: "on-request",
-    provider: null,
-    modelId: null,
-    routedProvider: null,
-    routedModelId: null,
-    routedPool: null,
-    routedSource: null,
-    currentStep: null,
-    createdAt: 1,
-    updatedAt: 1,
-    startedAt: null,
-    completedAt: null,
-    errorCode: null,
-    errorMessage: null,
-    pendingApprovalId: null,
-    steps: [],
-  };
-}
-
 describe("DistributedTaskGraphPanel", () => {
-  const retryDistributedTaskGraphNodeMock = vi.mocked(retryDistributedTaskGraphNode);
-
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
-  });
-
-  beforeEach(() => {
-    retryDistributedTaskGraphNodeMock.mockResolvedValue({
-      run: buildRuntimeRun("node-2-retry"),
-      missionRun: {} as never,
-      reviewPack: null,
-    });
   });
 
   it("renders grouped graph rows and summary", () => {
@@ -134,8 +91,8 @@ describe("DistributedTaskGraphPanel", () => {
     expect(screen.getByText("No distributed subtask graph available yet.")).toBeTruthy();
   });
 
-  it("routes retry through the runtime-owned control facade and refreshes the graph", async () => {
-    const onRefreshGraph = vi.fn(async () => undefined);
+  it("routes retry through the runtime-owned parent handler", async () => {
+    const onRetryNode = vi.fn(async () => undefined);
 
     render(
       <DistributedTaskGraphPanel
@@ -143,7 +100,7 @@ describe("DistributedTaskGraphPanel", () => {
         capabilityEnabled
         actionsEnabled
         retryEnabled
-        onRefreshGraph={onRefreshGraph}
+        onRetryNode={onRetryNode}
       />
     );
 
@@ -151,10 +108,7 @@ describe("DistributedTaskGraphPanel", () => {
     fireEvent.click(screen.getByText("Retry"));
 
     await waitFor(() => {
-      expect(retryDistributedTaskGraphNodeMock).toHaveBeenCalledWith("node-2");
-    });
-    await waitFor(() => {
-      expect(onRefreshGraph).toHaveBeenCalledWith("node-2-retry");
+      expect(onRetryNode).toHaveBeenCalledWith("node-2");
     });
   });
 });

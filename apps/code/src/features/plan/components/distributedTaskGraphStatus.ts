@@ -1,4 +1,4 @@
-import type { DistributedTaskGraphNode } from "../types/distributedGraph";
+import type { DistributedTaskGraphNode } from "../../../application/runtime/types/distributedTaskGraph";
 
 type DistributedTaskGraphStatusTone = "default" | "progress" | "success" | "warning" | "error";
 

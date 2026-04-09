@@ -471,6 +471,7 @@ function createAppServerEventHub() {
   const listeners = new Set<Listener<AppServerEvent>>();
   let unlisten: Unsubscribe | null = null;
   let listenPromise: Promise<Unsubscribe> | null = null;
+  let stopRequestedWhileListening = false;
   let startupOptions: SubscriptionOptions | undefined;
 
   const restartScheduler = createExponentialRetryScheduler({
@@ -515,6 +516,7 @@ function createAppServerEventHub() {
     if (unlisten || listenPromise || listeners.size === 0) {
       return;
     }
+    stopRequestedWhileListening = false;
     updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
       label: "App server bridge",
       transport: isDesktopHostRuntimeRuntime() ? "electron-bridge" : "bridge",
@@ -532,7 +534,8 @@ function createAppServerEventHub() {
       .then((handler) => {
         listenPromise = null;
         restartScheduler.reset();
-        if (listeners.size === 0) {
+        if (listeners.size === 0 || stopRequestedWhileListening) {
+          stopRequestedWhileListening = false;
           handler();
           updateRuntimeEventChannelDiagnostics(APP_SERVER_BRIDGE_CHANNEL_ID, {
             label: "App server bridge",
@@ -572,6 +575,9 @@ function createAppServerEventHub() {
 
   const stop = () => {
     restartScheduler.reset();
+    if (listenPromise) {
+      stopRequestedWhileListening = true;
+    }
     if (unlisten) {
       try {
         unlisten();
@@ -615,6 +621,7 @@ function createAppServerEventHub() {
       unlisten = null;
     }
     listenPromise = null;
+    stopRequestedWhileListening = false;
     startupOptions = undefined;
   };
 
@@ -625,6 +632,7 @@ function createEventHub<T>(eventName: string) {
   const listeners = new Set<Listener<T>>();
   let unlisten: Unsubscribe | null = null;
   let listenPromise: Promise<Unsubscribe> | null = null;
+  let stopRequestedWhileListening = false;
   let startupOptions: SubscriptionOptions | undefined;
   const restartScheduler = createExponentialRetryScheduler({
     baseDelayMs: EVENT_HUB_LISTEN_RETRY_BASE_MS,
@@ -648,6 +656,7 @@ function createEventHub<T>(eventName: string) {
     if (unlisten || listenPromise || listeners.size === 0) {
       return;
     }
+    stopRequestedWhileListening = false;
     if (!isDesktopHostRuntimeRuntime()) {
       return;
     }
@@ -664,7 +673,8 @@ function createEventHub<T>(eventName: string) {
       .then((handler) => {
         listenPromise = null;
         restartScheduler.reset();
-        if (listeners.size === 0) {
+        if (listeners.size === 0 || stopRequestedWhileListening) {
+          stopRequestedWhileListening = false;
           handler();
           startupOptions = undefined;
           return;
@@ -684,6 +694,9 @@ function createEventHub<T>(eventName: string) {
 
   const stop = () => {
     restartScheduler.reset();
+    if (listenPromise) {
+      stopRequestedWhileListening = true;
+    }
     if (unlisten) {
       try {
         unlisten();
@@ -718,6 +731,7 @@ function createEventHub<T>(eventName: string) {
       unlisten = null;
     }
     listenPromise = null;
+    stopRequestedWhileListening = false;
     startupOptions = undefined;
   };
 

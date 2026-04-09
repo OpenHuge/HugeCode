@@ -4,23 +4,25 @@ import type { HugeCodeMissionControlSnapshot } from "@ku0/code-runtime-host-cont
 import type { WorkspaceClientRuntimeMode } from "@ku0/code-workspace-client";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useRuntimeDistributedTaskGraphSupport } from "../../../application/runtime/facades/useRuntimeDistributedTaskGraphSupport";
 import { RuntimeKernelProvider } from "../../../application/runtime/kernel/RuntimeKernelContext";
 import type { RuntimeKernel } from "../../../application/runtime/kernel/runtimeKernelTypes";
 import type { RuntimeClientMode } from "../../../application/runtime/ports/runtimeClient";
-import { getRuntimeCapabilitiesSummary } from "../../../application/runtime/ports/runtime";
 import type { TurnPlan, WorkspaceInfo } from "../../../types";
 import { useLocalUsage } from "../../home/hooks/useLocalUsage";
 import type { ThreadStatusSummary } from "../../threads/utils/threadExecutionState";
 import { useMainAppHomeState } from "./useMainAppHomeState";
 
-vi.mock("../../../application/runtime/ports/runtime", () => ({
-  getRuntimeCapabilitiesSummary: vi.fn(),
+vi.mock("../../../application/runtime/facades/useRuntimeDistributedTaskGraphSupport", () => ({
+  useRuntimeDistributedTaskGraphSupport: vi.fn(),
 }));
 vi.mock("../../home/hooks/useLocalUsage", () => ({
   useLocalUsage: vi.fn(),
 }));
 
-const mockedGetRuntimeCapabilitiesSummary = vi.mocked(getRuntimeCapabilitiesSummary);
+const mockedUseRuntimeDistributedTaskGraphSupport = vi.mocked(
+  useRuntimeDistributedTaskGraphSupport
+);
 const mockedUseLocalUsage = vi.mocked(useLocalUsage);
 
 function createRuntimeKernelValue(input?: {
@@ -77,9 +79,11 @@ function createRuntimeKernelValue(input?: {
       agentControl: {
         prepareRuntimeRun: vi.fn(),
         startRuntimeRun: vi.fn(),
-        cancelRuntimeRun: vi.fn(),
-        resumeRuntimeRun: vi.fn(),
-        interveneRuntimeRun: vi.fn(),
+        cancelRuntimeJob: vi.fn(),
+        resumeRuntimeJob: vi.fn(),
+        interveneRuntimeJob: vi.fn(),
+        subscribeRuntimeJob: vi.fn(),
+        listRuntimeJobs: vi.fn(),
         submitRuntimeJobApprovalDecision: vi.fn(),
       },
       threads: {
@@ -235,7 +239,7 @@ function createParams(
 }
 
 function mockHomeStateDefaults(input?: {
-  capabilities?: Awaited<ReturnType<typeof getRuntimeCapabilitiesSummary>>;
+  distributedGraphSupport?: ReturnType<typeof useRuntimeDistributedTaskGraphSupport>;
 }) {
   mockedUseLocalUsage.mockReturnValue({
     snapshot: null,
@@ -243,13 +247,13 @@ function mockHomeStateDefaults(input?: {
     error: null,
     refresh: vi.fn(),
   });
-  mockedGetRuntimeCapabilitiesSummary.mockResolvedValue(
-    input?.capabilities ?? {
-      mode: "runtime-gateway-web",
-      methods: [],
-      features: [],
-      wsEndpointPath: "/ws",
-      error: null,
+  mockedUseRuntimeDistributedTaskGraphSupport.mockReturnValue(
+    input?.distributedGraphSupport ?? {
+      capabilityEnabled: false,
+      interruptEnabled: false,
+      retryEnabled: false,
+      actionsEnabled: false,
+      readOnlyReason: null,
     }
   );
 }
@@ -263,9 +267,6 @@ async function renderMainAppHomeState(overrides: Parameters<typeof createParams>
   await waitFor(() => {
     expect(hook.result.current.missionControlFreshness.status).toBe("ready");
   });
-  await waitFor(() => {
-    expect(mockedGetRuntimeCapabilitiesSummary).toHaveBeenCalledTimes(1);
-  });
   return { ...hook, kernel };
 }
 
@@ -273,12 +274,6 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
-
-async function waitForStartupEffects() {
-  await waitFor(() => {
-    expect(mockedGetRuntimeCapabilitiesSummary).toHaveBeenCalled();
-  });
-}
 
 describe("useMainAppHomeState", () => {
   it("keeps plan panel collapsed when no active plan and no distributed capability", async () => {
@@ -299,17 +294,16 @@ describe("useMainAppHomeState", () => {
     expect(
       kernel.workspaceClientRuntime.missionControl.readMissionControlSnapshot
     ).toHaveBeenCalledTimes(1);
-    expect(mockedGetRuntimeCapabilitiesSummary).toHaveBeenCalledTimes(1);
   });
 
   it("keeps plan panel expanded when distributed graph capability is available", async () => {
     mockHomeStateDefaults({
-      capabilities: {
-        mode: "runtime-gateway-web",
-        methods: ["code_distributed_task_graph"],
-        features: ["distributed_subtask_graph_v1"],
-        wsEndpointPath: "/ws",
-        error: null,
+      distributedGraphSupport: {
+        capabilityEnabled: true,
+        interruptEnabled: false,
+        retryEnabled: false,
+        actionsEnabled: false,
+        readOnlyReason: null,
       },
     });
 
@@ -322,12 +316,12 @@ describe("useMainAppHomeState", () => {
 
   it("keeps plan panel expanded even without an active thread when distributed graph is available", async () => {
     mockHomeStateDefaults({
-      capabilities: {
-        mode: "runtime-gateway-web",
-        methods: ["code_distributed_task_graph"],
-        features: ["distributed_subtask_graph_v1"],
-        wsEndpointPath: "/ws",
-        error: null,
+      distributedGraphSupport: {
+        capabilityEnabled: true,
+        interruptEnabled: false,
+        retryEnabled: false,
+        actionsEnabled: false,
+        readOnlyReason: null,
       },
     });
 
@@ -336,7 +330,6 @@ describe("useMainAppHomeState", () => {
     await waitFor(() => {
       expect(result.current.hasActivePlan).toBe(true);
     });
-    expect(mockedGetRuntimeCapabilitiesSummary).toHaveBeenCalledTimes(1);
   });
 
   it("hides home while creating the first thread for the active workspace", async () => {
@@ -346,8 +339,6 @@ describe("useMainAppHomeState", () => {
       activeThreadId: null,
       startingDraftThreadWorkspaceId: "ws-1",
     });
-
-    await waitForStartupEffects();
 
     expect(result.current.isStartingDraftThread).toBe(true);
     expect(result.current.showHome).toBe(false);
@@ -362,8 +353,6 @@ describe("useMainAppHomeState", () => {
       startingDraftThreadWorkspaceId: "ws-1",
     });
 
-    await waitForStartupEffects();
-
     expect(result.current.isStartingDraftThread).toBe(false);
   });
 
@@ -375,8 +364,6 @@ describe("useMainAppHomeState", () => {
       hasPendingDraftUserMessages: true,
     });
 
-    await waitForStartupEffects();
-
     expect(result.current.showHome).toBe(false);
     expect(result.current.showComposer).toBe(true);
   });
@@ -385,8 +372,6 @@ describe("useMainAppHomeState", () => {
     mockHomeStateDefaults();
 
     const { result } = await renderMainAppHomeState({ activeThreadId: null });
-
-    await waitForStartupEffects();
 
     expect(result.current.showHome).toBe(false);
     expect(result.current.showComposer).toBe(true);
@@ -692,6 +677,5 @@ describe("useMainAppHomeState", () => {
     await waitFor(() => {
       expect(result.current.missionControlFreshness.status).toBe("idle");
     });
-    expect(mockedGetRuntimeCapabilitiesSummary).toHaveBeenCalledTimes(1);
   });
 });

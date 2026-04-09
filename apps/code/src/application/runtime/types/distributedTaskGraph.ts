@@ -360,3 +360,60 @@ export function collectDistributedTaskGraphNodeDependencies(
     node.metadata?.dependencies ?? node.metadata?.dependsOn ?? node.metadata?.depends_on
   );
 }
+
+export function collectDistributedTaskGraphSubtreeTaskIds(
+  graph: DistributedTaskGraphSnapshot | null,
+  nodeId: string
+): string[] {
+  const trimmedNodeId = nodeId.trim();
+  if (!trimmedNodeId) {
+    return [];
+  }
+
+  if (!graph) {
+    return [trimmedNodeId];
+  }
+
+  const adjacency = new Map<string, Set<string>>();
+  const link = (parentId: string, childId: string) => {
+    const normalizedParentId = parentId.trim();
+    const normalizedChildId = childId.trim();
+    if (!normalizedParentId || !normalizedChildId) {
+      return;
+    }
+    const children = adjacency.get(normalizedParentId) ?? new Set<string>();
+    children.add(normalizedChildId);
+    adjacency.set(normalizedParentId, children);
+  };
+
+  for (const node of graph.nodes) {
+    if (node.parentId) {
+      link(node.parentId, node.id);
+    }
+  }
+
+  for (const edge of graph.edges) {
+    link(edge.fromId, edge.toId);
+  }
+
+  const visited = new Set<string>();
+  const queue: string[] = [trimmedNodeId];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+    const children = adjacency.get(current);
+    if (!children) {
+      continue;
+    }
+    for (const childId of children) {
+      if (!visited.has(childId)) {
+        queue.push(childId);
+      }
+    }
+  }
+
+  return [...visited];
+}
