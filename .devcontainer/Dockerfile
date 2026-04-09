@@ -14,7 +14,6 @@ RUN apt-get update \
     fonts-unifont \
     fonts-wqy-zenhei \
     libasound2 \
-    libayatana-appindicator3-dev \
     libatk-bridge2.0-0 \
     libatk1.0-0 \
     libatspi2.0-0 \
@@ -36,7 +35,6 @@ RUN apt-get update \
     libnss3 \
     libpango-1.0-0 \
     libssl-dev \
-    libwebkit2gtk-4.1-dev \
     libx264-164 \
     libx11-6 \
     libxcb1 \
