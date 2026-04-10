@@ -890,7 +890,13 @@ function createRuntimeLaunchPreparationFixture() {
           summary: "Review evidence template for governed coding runs.",
         },
       ],
-      compactionSummary: "Compaction keeps repo guidance and validation artifacts durable.",
+      compactionSummary: {
+        triggered: true,
+        executed: true,
+        source: "runtime_prepare_v2",
+        compressedSteps: 2,
+        bytesReduced: 640,
+      },
       workingSetPolicy: {
         retentionMode: "window_and_memory" as const,
         refreshTrigger: "run_prepare" as const,
@@ -2325,12 +2331,12 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "Context plane: Memory refs: 1 | Artifacts: 2 | Retention: window_and_memory | Compaction: Compaction keeps repo guidance and validation artifacts durable."
+        "Context plane: Memory refs: 1 | Artifacts: 2 | Retention: window_and_memory | Compaction: executed, 2 step(s), 640B reduced"
       )
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "Tooling plane: Capabilities: 3 | Invocation bindings: 1 | Invocation requirements: 1 | Tool posture: workspace_safe | Approval sensitivity: standard | MCP sources: 1"
+        "Tooling plane: Capabilities: 3 | Invocation bindings: 1 (1 ready) | Invocation requirements: 1 | Tool posture: workspace_safe | Approval sensitivity: standard | MCP sources: 1"
       )
     ).toBeTruthy();
     expect(
