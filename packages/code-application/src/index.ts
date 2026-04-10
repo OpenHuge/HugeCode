@@ -120,6 +120,10 @@ export {
 } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
 export { resolveMissionTakeoverOperatorAction } from "./runtime-control-plane/runtimeMissionControlTakeoverAction";
 export {
+  buildRuntimeLaunchPreparationContextPlaneSummary,
+  buildRuntimeLaunchPreparationEvalPlaneSummary,
+  buildRuntimeLaunchPreparationInvocationSummary,
+  buildRuntimeLaunchPreparationToolingPlaneSummary,
   buildRuntimeMissionControlCompositionSummary,
   buildRuntimeMissionControlPolicyIndicator,
   buildRuntimeMissionControlSummaryCounts,
@@ -194,6 +198,7 @@ export type {
 } from "./runtime-control-plane/missionControlSurfaceModel";
 export type { MissionOperatorActionModel } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
 export type {
+  RuntimeLaunchPreparationInvocationSummary,
   RuntimeMissionControlCompositionSummary,
   RuntimeMissionControlPolicyCapability,
   RuntimeMissionControlPolicyIndicator,

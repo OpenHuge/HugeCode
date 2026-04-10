@@ -7,8 +7,8 @@ import type {
   SettingsAutomationScheduleDraft,
   SettingsAutomationScheduleSummary,
   SettingsAutomationSectionProps,
-} from "./SettingsAutomationSection";
-import { SettingsAutomationSection } from "./SettingsAutomationSection";
+} from "@ku0/code-workspace-client/settings-shell";
+import { SettingsAutomationSection } from "@ku0/code-workspace-client/settings-shell";
 
 function createOperability(
   overrides: Partial<NonNullable<SettingsAutomationSectionProps["operability"]>> = {}

@@ -1,6 +1,11 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { WorkspaceInfo } from "../../../types";
 import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
+import {
+  buildRuntimeLaunchPreparationContextPlaneSummary,
+  buildRuntimeLaunchPreparationEvalPlaneSummary,
+  buildRuntimeLaunchPreparationToolingPlaneSummary,
+} from "@ku0/code-application/runtimeMissionControlProjectionSummaries";
 import { useWorkspaceRuntimeMissionControlController } from "../../../application/runtime/facades/runtimeMissionControlController";
 import { buildRuntimeAiWebLabSourceDraft } from "../../../application/runtime/facades/runtimeAiWebLabSourceDraft";
 import { useWorkspacePersistentFlowState } from "../../../application/runtime/facades/runtimePersistentFlowState";
@@ -200,46 +205,15 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
   const runtimePlan = runtimeLaunchPreparation?.plan ?? null;
   const runtimePlanNeedsApproval =
     runtimeLaunchPlanApprovalRequired && runtimeLaunchPlanVersion !== null;
-  const runtimeLaunchContextPlaneSummary = runtimeLaunchPreparationContextPlane
-    ? [
-        `Memory refs: ${runtimeLaunchPreparationContextPlane.memoryRefs.length}`,
-        `Artifacts: ${runtimeLaunchPreparationContextPlane.artifactRefs.length}`,
-        `Retention: ${runtimeLaunchPreparationContextPlane.workingSetPolicy.retentionMode}`,
-        runtimeLaunchPreparationContextPlane.compactionSummary
-          ? `Compaction: ${runtimeLaunchPreparationContextPlane.compactionSummary}`
-          : null,
-      ]
-        .filter((value): value is string => Boolean(value))
-        .join(" | ")
-    : null;
-  const runtimeLaunchToolingSandbox = runtimeLaunchPreparationToolingPlane?.sandboxRef ?? null;
-  const runtimeLaunchToolingPlaneSummary = runtimeLaunchPreparationToolingPlane
-    ? [
-        `Capabilities: ${
-          runtimeLaunchPreparationToolingPlane.capabilityCatalog?.capabilities.length ?? 0
-        }`,
-        runtimeLaunchToolingSandbox
-          ? `Tool posture: ${runtimeLaunchToolingSandbox.toolPosture}`
-          : null,
-        runtimeLaunchToolingSandbox
-          ? `Approval sensitivity: ${runtimeLaunchToolingSandbox.approvalSensitivity}`
-          : null,
-        `MCP sources: ${runtimeLaunchPreparationToolingPlane.mcpSources.length}`,
-      ]
-        .filter((value): value is string => Boolean(value))
-        .join(" | ")
-    : null;
-  const runtimeLaunchEvalPlaneSummary = runtimeLaunchPreparationEvalPlane
-    ? [
-        `Eval cases: ${runtimeLaunchPreparationEvalPlane.evalCases.length}`,
-        runtimeLaunchPreparationEvalPlane.evalCases[0]
-          ? `Baseline: ${runtimeLaunchPreparationEvalPlane.evalCases[0].modelBaseline}`
-          : null,
-        `Playbook steps: ${runtimeLaunchPreparationEvalPlane.modelReleasePlaybook.length}`,
-      ]
-        .filter((value): value is string => Boolean(value))
-        .join(" | ")
-    : null;
+  const runtimeLaunchContextPlaneSummary = buildRuntimeLaunchPreparationContextPlaneSummary(
+    runtimeLaunchPreparationContextPlane
+  );
+  const runtimeLaunchToolingPlaneSummary = buildRuntimeLaunchPreparationToolingPlaneSummary(
+    runtimeLaunchPreparationToolingPlane
+  );
+  const runtimeLaunchEvalPlaneSummary = buildRuntimeLaunchPreparationEvalPlaneSummary(
+    runtimeLaunchPreparationEvalPlane
+  );
 
   useEffect(() => {
     for (const entry of visibleRuntimeRuns.slice(0, 8)) {

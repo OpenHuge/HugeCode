@@ -1,4 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerCompactSelectProps,
+  type SettingsServerOperabilityState,
+} from "@ku0/code-workspace-client/settings-shell";
 import { Button, Input, Select, type SelectOption } from "../../../../../design-system";
 import type {
   NetbirdDaemonCommandPreview,
@@ -11,12 +17,6 @@ import type {
 } from "../../../../../types";
 import { SettingsField, SettingsFieldGroup } from "../../SettingsSectionGrammar";
 import { SettingsMobileConnectFieldGroup } from "./SettingsMobileConnectFieldGroup";
-import {
-  resolveSettingsServerOperabilityBlockedReason,
-  resolveSettingsServerOperabilityNotice,
-  type SettingsServerCompactSelectProps,
-  type SettingsServerOperabilityState,
-} from "./shared";
 
 type SettingsTcpTransportSectionsProps = {
   activeRemoteProvider: RemoteBackendProvider;

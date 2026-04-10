@@ -1,16 +1,19 @@
-import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
 import { useMemo, useState } from "react";
-import { Button } from "../../../../design-system";
-import type { BackendPoolBootstrapPreview, BackendPoolDiagnostics } from "../../../../types";
-import { SettingsFieldGroup, SettingsFooterBar } from "../SettingsSectionGrammar";
-import type { BackendPoolSnapshot } from "../../types/backendPool";
-import { AcpProbeStatusSummary } from "./settings-backend-pool/AcpProbeStatusSummary";
+import { Button } from "@ku0/design-system";
+import SlidersHorizontal from "lucide-react/dist/esm/icons/sliders-horizontal";
+import { SettingsFieldGroup, SettingsFooterBar } from "./SettingsSectionGrammar";
+import type {
+  SettingsServerBackendPoolBootstrapPreview,
+  SettingsServerBackendPoolDiagnostics,
+  SettingsServerBackendPoolEntry,
+  SettingsServerBackendPoolSnapshot,
+} from "./serverControlPlaneTypes";
 
 type BackendAction = "drain" | "disable" | "enable" | "remove";
 type PendingBackendAction = BackendAction | "probe";
 
-type SettingsBackendPoolSectionProps = {
-  backendPool: BackendPoolSnapshot | null;
+export type SettingsBackendPoolSectionProps = {
+  backendPool: SettingsServerBackendPoolSnapshot | null;
   loading?: boolean;
   error?: string | null;
   readOnlyReason?: string | null;
@@ -19,9 +22,9 @@ type SettingsBackendPoolSectionProps = {
   upsertEnabled?: boolean;
   probeEnabled?: boolean;
   editEnabled?: boolean;
-  bootstrapPreview?: BackendPoolBootstrapPreview | null;
+  bootstrapPreview?: SettingsServerBackendPoolBootstrapPreview | null;
   bootstrapPreviewError?: string | null;
-  diagnostics?: BackendPoolDiagnostics | null;
+  diagnostics?: SettingsServerBackendPoolDiagnostics | null;
   diagnosticsError?: string | null;
   showFieldGroup?: boolean;
   onRefresh?: () => void;
@@ -85,7 +88,7 @@ function formatBackendClassLabel(value: "primary" | "burst" | "specialized"): st
 }
 
 function formatBackendPolicySummary(
-  policy: BackendPoolSnapshot["backends"][number]["policy"]
+  policy: SettingsServerBackendPoolEntry["policy"]
 ): string | null {
   if (!policy) {
     return null;
@@ -95,6 +98,41 @@ function formatBackendPolicySummary(
   const approvalPolicy = policy.approvalPolicy ?? "checkpoint-required";
   const allowedToolClasses = policy.allowedToolClasses?.join(", ") ?? "read, write";
   return `Policy: ${trustTier} / ${dataSensitivity} / ${approvalPolicy} / ${allowedToolClasses}`;
+}
+
+function formatProbeTimestamp(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "Not probed yet";
+  }
+  return new Date(value).toLocaleString();
+}
+
+function AcpProbeStatusSummary({
+  healthy,
+  lastError,
+  lastProbeAt,
+  emptyLabel = "No ACP probe has completed yet.",
+}: {
+  healthy?: boolean | null;
+  lastError?: string | null;
+  lastProbeAt?: number | null;
+  emptyLabel?: string;
+}) {
+  const hasProbe = lastProbeAt !== null && lastProbeAt !== undefined;
+
+  if (!hasProbe && !lastError) {
+    return <div className="settings-help">{emptyLabel}</div>;
+  }
+
+  return (
+    <>
+      <div className="settings-help">
+        Probe: {healthy === false ? "unhealthy" : "healthy"}. Last probe:{" "}
+        {formatProbeTimestamp(lastProbeAt)}
+      </div>
+      {lastError ? <div className="settings-help settings-help-error">{lastError}</div> : null}
+    </>
+  );
 }
 
 export function SettingsBackendPoolSection({
@@ -155,7 +193,6 @@ export function SettingsBackendPoolSection({
     try {
       confirmAction = globalThis.confirm?.(formatActionConfirmation(action, backendLabel));
     } catch {
-      // jsdom may not implement window.confirm; default to proceed in non-browser tests.
       confirmAction = true;
     }
     if (confirmAction === false) {
@@ -168,7 +205,6 @@ export function SettingsBackendPoolSection({
     try {
       await onBackendAction({ backendId, action });
     } catch {
-      // Roll back optimistic pending state immediately when action fails.
       setActionError(`Failed to ${action} backend '${backendLabel}'.`);
     } finally {
       setPendingActionByBackend((previous) => {

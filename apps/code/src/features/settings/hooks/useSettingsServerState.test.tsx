@@ -2,7 +2,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppSettings } from "../../../types";
-import type { SettingsAutomationScheduleDraft } from "../components/sections/SettingsAutomationSection";
+import type { SettingsAutomationScheduleDraft } from "@ku0/code-workspace-client/settings-shell";
 import { useSettingsServerState } from "./useSettingsServerState";
 
 const pushErrorToastMock = vi.hoisted(() => vi.fn());
