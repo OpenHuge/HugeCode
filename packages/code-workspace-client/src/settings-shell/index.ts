@@ -15,3 +15,29 @@ export type {
 } from "./SettingsScaffold";
 export { SettingsViewShell } from "./SettingsViewShell";
 export type { SettingsViewShellProps } from "./SettingsViewShell";
+export {
+  SettingsAutomationSection,
+  SettingsBackendPoolSection,
+  SettingsRuntimeCompositionFieldGroup,
+  SettingsServerControlPlaneSection,
+} from "./SettingsServerControlPlaneSection";
+export type {
+  SettingsAutomationScheduleAction,
+  SettingsAutomationScheduleActionAvailability,
+  SettingsAutomationScheduleDraft,
+  SettingsAutomationScheduleStatus,
+  SettingsAutomationScheduleSummary,
+  SettingsServerBackendPoolBootstrapPreview,
+  SettingsServerBackendPoolDiagnostics,
+  SettingsServerBackendPoolEntry,
+  SettingsServerBackendPoolSnapshot,
+  SettingsServerCompactSelectProps,
+  SettingsServerControlPlaneSectionProps,
+  SettingsServerMissionNavigationTarget,
+  SettingsServerOperabilityState,
+} from "./serverControlPlaneTypes";
+export {
+  createSettingsServerOperabilityState,
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+} from "./serverControlPlaneTypes";

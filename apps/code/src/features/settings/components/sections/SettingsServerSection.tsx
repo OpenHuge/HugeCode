@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Select, type SelectOption } from "../../../../design-system";
+import { SettingsServerControlPlaneSection } from "@ku0/code-workspace-client/settings-shell";
+import { type SelectOption } from "../../../../design-system";
 import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import type {
   AppSettings,
@@ -14,10 +15,9 @@ import type {
   TailscaleStatus,
   TcpDaemonStatus,
 } from "../../../../types";
-import { SettingsField, SettingsFieldGroup, SettingsSectionFrame } from "../SettingsSectionGrammar";
+import { SettingsSectionFrame } from "../SettingsSectionGrammar";
 import * as controlStyles from "../SettingsFormControls.css";
 import {
-  SettingsAutomationSection,
   type SettingsAutomationScheduleAction,
   type SettingsAutomationScheduleActionAvailability,
   type SettingsAutomationScheduleDraft,
@@ -25,9 +25,7 @@ import {
 } from "./SettingsAutomationSection";
 import type { BackendPoolSnapshot } from "../../types/backendPool";
 import { buildSettingsServerSectionViewModel } from "./settingsServerSectionViewModel";
-import { SettingsBackendPoolSection } from "./SettingsBackendPoolSection";
 import { SettingsRemoteProfilesFieldGroup } from "./settings-server-section/SettingsRemoteProfilesFieldGroup";
-import { SettingsRuntimeCompositionFieldGroup } from "./settings-server-section/SettingsRuntimeCompositionFieldGroup";
 import { SettingsTransportModeFieldGroup } from "./settings-server-section/SettingsTransportModeFieldGroup";
 import { SettingsTcpTransportSections } from "./settings-server-section/SettingsTcpTransportSections";
 import { SettingsWebRuntimeGatewayFieldGroup } from "./settings-server-section/SettingsWebRuntimeGatewayFieldGroup";
@@ -353,13 +351,6 @@ export function SettingsServerSection({
     optionClassName: controlStyles.selectOption,
     triggerDensity: "compact" as const,
   } satisfies SettingsServerCompactSelectProps;
-  const defaultExecutionBackendSelectOptions: SelectOption[] = [
-    { value: "", label: "Automatic runtime routing" },
-    ...remoteExecutionBackendOptions.map((option) => ({
-      value: option.id,
-      label: option.label,
-    })),
-  ];
   const gatewayAuthModeOptions: SelectOption[] = [
     { value: "none", label: "No gateway auth" },
     { value: "token", label: "Token auth" },
@@ -379,85 +370,42 @@ export function SettingsServerSection({
 
   return (
     <SettingsSectionFrame title="Execution routing & transport" subtitle={sectionSubtitle}>
-      {!isMobileSimplified && (
-        <SettingsFieldGroup
-          title="Execution routing defaults"
-          subtitle="Choose the default backend route first. Transport and daemon controls stay below as advanced maintenance settings, and backend pool status remains observability rather than execution truth."
-        >
-          {remoteExecutionBackendOptions.length > 0 ? (
-            <SettingsField
-              label="Default execution backend"
-              help="This backend is applied by the application runtime facade whenever a task starts without an explicit backend preference. It sets routing intent, not confirmed placement truth; Mission Control and Review show the runtime-resolved backend, source, and routing health for each run."
-            >
-              <Select
-                {...compactSelectProps}
-                ariaLabel="Default execution backend"
-                options={defaultExecutionBackendSelectOptions}
-                value={defaultRemoteExecutionBackendId ?? ""}
-                onValueChange={(value) => {
-                  void onSetDefaultExecutionBackend(value || null);
-                }}
-              />
-            </SettingsField>
-          ) : null}
-        </SettingsFieldGroup>
-      )}
-
-      {!isMobileSimplified ? (
-        <SettingsRuntimeCompositionFieldGroup
-          workspaceOptions={workspaceOptions}
-          remoteExecutionBackendOptions={remoteExecutionBackendOptions}
-          defaultRemoteExecutionBackendId={defaultRemoteExecutionBackendId}
-          compactSelectProps={compactSelectProps}
-        />
-      ) : null}
-
-      {!isMobileSimplified && backendPoolVisible ? (
-        <SettingsFieldGroup
-          title="Backend pool state"
-          subtitle="Observe backend health, onboarding, and diagnostics here. This explains routing capacity, degraded state, and self-host next steps without replacing runtime-confirmed placement."
-        >
-          <SettingsBackendPoolSection
-            backendPool={backendPool}
-            loading={backendPoolLoading}
-            error={backendPoolError}
-            readOnlyReason={backendPoolReadOnlyReason}
-            stateActionsEnabled={backendPoolStateActionsEnabled}
-            removeEnabled={backendPoolRemoveEnabled}
-            upsertEnabled={backendPoolUpsertEnabled}
-            probeEnabled={backendPoolProbeEnabled}
-            editEnabled={backendPoolEditEnabled}
-            bootstrapPreview={backendPoolBootstrapPreview}
-            bootstrapPreviewError={backendPoolBootstrapPreviewError}
-            diagnostics={backendPoolDiagnostics}
-            diagnosticsError={backendPoolDiagnosticsError}
-            showFieldGroup={false}
-            onRefresh={onRefreshBackendPool}
-            onBackendAction={onBackendPoolAction}
-            onBackendUpsert={onBackendPoolUpsert}
-            onNativeBackendEdit={onNativeBackendEdit}
-            onAcpBackendUpsert={onAcpBackendUpsert}
-            onAcpBackendEdit={onAcpBackendEdit}
-            onAcpBackendProbe={onAcpBackendProbe}
-          />
-        </SettingsFieldGroup>
-      ) : null}
-
-      {!isMobileSimplified ? (
-        <SettingsAutomationSection
-          backendOptions={remoteExecutionBackendOptions}
-          workspaceOptions={workspaceOptions}
-          defaultBackendId={defaultRemoteExecutionBackendId}
-          schedules={automationSchedules}
-          operability={automationSchedulesOperability}
-          actionAvailability={automationScheduleActionAvailability}
-          onRefreshSchedules={onRefreshAutomationSchedules}
-          onCreateSchedule={onCreateAutomationSchedule}
-          onUpdateSchedule={onUpdateAutomationSchedule}
-          onScheduleAction={onAutomationScheduleAction}
-          onOpenMissionTarget={onOpenMissionTarget}
-        />
-      ) : null}
+      <SettingsServerControlPlaneSection
+        isMobileSimplified={isMobileSimplified}
+        remoteExecutionBackendOptions={remoteExecutionBackendOptions}
+        defaultRemoteExecutionBackendId={defaultRemoteExecutionBackendId}
+        onSetDefaultExecutionBackend={onSetDefaultExecutionBackend}
+        workspaceOptions={workspaceOptions}
+        backendPoolVisible={backendPoolVisible}
+        backendPool={backendPool}
+        backendPoolLoading={backendPoolLoading}
+        backendPoolError={backendPoolError}
+        backendPoolReadOnlyReason={backendPoolReadOnlyReason}
+        backendPoolStateActionsEnabled={backendPoolStateActionsEnabled}
+        backendPoolRemoveEnabled={backendPoolRemoveEnabled}
+        backendPoolUpsertEnabled={backendPoolUpsertEnabled}
+        backendPoolProbeEnabled={backendPoolProbeEnabled}
+        backendPoolEditEnabled={backendPoolEditEnabled}
+        backendPoolBootstrapPreview={backendPoolBootstrapPreview}
+        backendPoolBootstrapPreviewError={backendPoolBootstrapPreviewError}
+        backendPoolDiagnostics={backendPoolDiagnostics}
+        backendPoolDiagnosticsError={backendPoolDiagnosticsError}
+        onRefreshBackendPool={onRefreshBackendPool}
+        onBackendPoolAction={onBackendPoolAction}
+        onBackendPoolUpsert={onBackendPoolUpsert}
+        onNativeBackendEdit={onNativeBackendEdit}
+        onAcpBackendUpsert={onAcpBackendUpsert}
+        onAcpBackendEdit={onAcpBackendEdit}
+        onAcpBackendProbe={onAcpBackendProbe}
+        automationSchedules={automationSchedules}
+        automationSchedulesOperability={automationSchedulesOperability}
+        automationScheduleActionAvailability={automationScheduleActionAvailability}
+        onRefreshAutomationSchedules={onRefreshAutomationSchedules}
+        onCreateAutomationSchedule={onCreateAutomationSchedule}
+        onUpdateAutomationSchedule={onUpdateAutomationSchedule}
+        onAutomationScheduleAction={onAutomationScheduleAction}
+        onOpenMissionTarget={onOpenMissionTarget}
+      />
 
       <SettingsRemoteProfilesFieldGroup
         isMobileSimplified={isMobileSimplified}
