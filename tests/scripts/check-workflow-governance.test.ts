@@ -228,6 +228,82 @@ jobs:
     expect(result.stderr).toContain("Playwright install commands must use a workspace-scoped");
   });
 
+  it("allows Nightly Robustness to install Playwright through the shared setup action", async () => {
+    const tempRoot = await mkdtemp(path.join(tmpdir(), "workflow-governance-nightly-"));
+    tempRoots.push(tempRoot);
+
+    await mkdir(path.join(tempRoot, ".github", "actions", "setup-playwright"), {
+      recursive: true,
+    });
+    await mkdir(path.join(tempRoot, ".github", "workflows"), { recursive: true });
+    await mkdir(path.join(tempRoot, "scripts"), { recursive: true });
+    await cp(governanceScriptPath, path.join(tempRoot, "scripts", "check-workflow-governance.mjs"));
+    await cp(
+      path.join(repoRoot, ".github", "actions", "setup-playwright", "action.yml"),
+      path.join(tempRoot, ".github", "actions", "setup-playwright", "action.yml")
+    );
+    await writeFile(
+      path.join(tempRoot, ".github", "workflows", "ci.yml"),
+      `name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            repo_sot:
+              - '.devcontainer/**'
+              - '.github/**'
+              - 'docs/**'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'rust-toolchain.toml'
+              - 'scripts/**'
+`,
+      "utf8"
+    );
+    await writeFile(
+      path.join(tempRoot, ".github", "workflows", "nightly.yml"),
+      `name: Nightly Robustness
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  runtime_proving_lane:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/setup-playwright
+      - run: pnpm runtime:prove
+`,
+      "utf8"
+    );
+
+    const result = runWorkflowGovernance(tempRoot);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Workflow governance check passed.");
+  });
+
   it("fails when a workflow uses a deprecated pnpm script alias", async () => {
     const tempRoot = await createBaseRepo();
 
