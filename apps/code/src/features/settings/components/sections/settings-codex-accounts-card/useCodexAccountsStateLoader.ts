@@ -131,103 +131,116 @@ export function useCodexAccountsStateLoader({
         return refreshInFlightRef.current;
       }
       const refreshPromise = (async () => {
-        const refreshVersion = refreshVersionRef.current + 1;
-        refreshVersionRef.current = refreshVersion;
-        setBusyAction("refresh");
-        setError(null);
-        try {
-          const [
-            { nextAccounts, nextPools, nextPoolMembersByPoolId, nextCodexPrimaryAccount },
-            nextCodexAuthRequired,
-          ] = await Promise.all([readOAuthStateSnapshot(usageRefresh), readCodexAuthRequired()]);
-          if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
-            return;
-          }
-          setCodexAuthRequired(nextCodexAuthRequired);
-          setCodexPrimaryAccount(nextCodexPrimaryAccount);
-          setAccounts(
-            nextAccounts
-              .slice()
-              .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))
-          );
-          const sortedPools = nextPools
-            .slice()
-            .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0));
-          setPools(sortedPools);
-          setPoolDrafts((previous) => {
-            const nextDrafts = buildPoolDrafts(
-              sortedPools,
-              nextAccounts,
-              nextPoolMembersByPoolId,
-              previous
-            );
-            const codexPrimaryPoolDraft = nextDrafts[CODEX_PRIMARY_POOL_ID];
-            if (codexPrimaryPoolDraft) {
-              nextDrafts[CODEX_PRIMARY_POOL_ID] = {
-                ...codexPrimaryPoolDraft,
-                preferredAccountId: resolvePrimaryRouteAccountId(nextCodexPrimaryAccount) ?? "",
-              };
-            }
-            const protectedStatuses = new Set<PoolSaveState["status"]>([
-              "dirty",
-              "saving",
-              "error",
+        let pendingUsageRefresh: OAuthUsageRefreshMode | null = usageRefresh;
+        while (true) {
+          refreshQueuedRef.current = false;
+          refreshQueuedUsageModeRef.current = null;
+          const refreshVersion = refreshVersionRef.current + 1;
+          refreshVersionRef.current = refreshVersion;
+          setBusyAction("refresh");
+          setError(null);
+          try {
+            const [
+              { nextAccounts, nextPools, nextPoolMembersByPoolId, nextCodexPrimaryAccount },
+              nextCodexAuthRequired,
+            ] = await Promise.all([
+              readOAuthStateSnapshot(pendingUsageRefresh),
+              readCodexAuthRequired(),
             ]);
-            for (const pool of sortedPools) {
-              const poolId = pool.poolId;
-              const state = poolSaveStateByIdRef.current[poolId];
-              if (!state || !protectedStatuses.has(state.status)) {
-                continue;
-              }
-              if (previous[poolId]) {
-                nextDrafts[poolId] = previous[poolId];
-              }
+            if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
+              return;
             }
-            return nextDrafts;
-          });
-          setPoolSaveStateById((previous) => {
-            const nextPoolIdSet = new Set(sortedPools.map((pool) => pool.poolId));
-            return Object.fromEntries(
-              Object.entries(previous).filter(([poolId]) => nextPoolIdSet.has(poolId))
+            setCodexAuthRequired(nextCodexAuthRequired);
+            setCodexPrimaryAccount(nextCodexPrimaryAccount);
+            setAccounts(
+              nextAccounts
+                .slice()
+                .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))
             );
-          });
-          setSelectedAccountIds((previous) => {
-            const accountIdSet = new Set(nextAccounts.map((account) => account.accountId));
-            return previous.filter((accountId) => accountIdSet.has(accountId));
-          });
-          setSelectedPoolIds((previous) => {
-            const poolIdSet = new Set(sortedPools.map((pool) => pool.poolId));
-            return previous.filter((poolId) => poolIdSet.has(poolId));
-          });
-          setPoolSelectionPreviewById((previous) =>
-            Object.fromEntries(
-              Object.entries(previous).filter(([poolId]) =>
-                sortedPools.some((entry) => entry.poolId === poolId)
+            const sortedPools = nextPools
+              .slice()
+              .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0));
+            setPools(sortedPools);
+            setPoolDrafts((previous) => {
+              const nextDrafts = buildPoolDrafts(
+                sortedPools,
+                nextAccounts,
+                nextPoolMembersByPoolId,
+                previous
+              );
+              const codexPrimaryPoolDraft = nextDrafts[CODEX_PRIMARY_POOL_ID];
+              if (codexPrimaryPoolDraft) {
+                nextDrafts[CODEX_PRIMARY_POOL_ID] = {
+                  ...codexPrimaryPoolDraft,
+                  preferredAccountId: resolvePrimaryRouteAccountId(nextCodexPrimaryAccount) ?? "",
+                };
+              }
+              const protectedStatuses = new Set<PoolSaveState["status"]>([
+                "dirty",
+                "saving",
+                "error",
+              ]);
+              for (const pool of sortedPools) {
+                const poolId = pool.poolId;
+                const state = poolSaveStateByIdRef.current[poolId];
+                if (!state || !protectedStatuses.has(state.status)) {
+                  continue;
+                }
+                if (previous[poolId]) {
+                  nextDrafts[poolId] = previous[poolId];
+                }
+              }
+              return nextDrafts;
+            });
+            setPoolSaveStateById((previous) => {
+              const nextPoolIdSet = new Set(sortedPools.map((pool) => pool.poolId));
+              return Object.fromEntries(
+                Object.entries(previous).filter(([poolId]) => nextPoolIdSet.has(poolId))
+              );
+            });
+            setSelectedAccountIds((previous) => {
+              const accountIdSet = new Set(nextAccounts.map((account) => account.accountId));
+              return previous.filter((accountId) => accountIdSet.has(accountId));
+            });
+            setSelectedPoolIds((previous) => {
+              const poolIdSet = new Set(sortedPools.map((pool) => pool.poolId));
+              return previous.filter((poolId) => poolIdSet.has(poolId));
+            });
+            setPoolSelectionPreviewById((previous) =>
+              Object.fromEntries(
+                Object.entries(previous).filter(([poolId]) =>
+                  sortedPools.some((entry) => entry.poolId === poolId)
+                )
               )
-            )
-          );
-          setProviderOptions(buildProviderOptionsFromState(nextAccounts, sortedPools));
-          void getProvidersCatalog()
-            .then((nextProvidersCatalog) => {
-              if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
-                return;
-              }
-              const nextOptions = buildProviderOptionsFromCatalog(nextProvidersCatalog);
-              if (nextOptions.length > 0) {
-                setProviderOptions(nextOptions);
-              }
-            })
-            .catch(() => undefined);
-        } catch (nextError) {
-          if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
+            );
+            setProviderOptions(buildProviderOptionsFromState(nextAccounts, sortedPools));
+            void getProvidersCatalog()
+              .then((nextProvidersCatalog) => {
+                if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
+                  return;
+                }
+                const nextOptions = buildProviderOptionsFromCatalog(nextProvidersCatalog);
+                if (nextOptions.length > 0) {
+                  setProviderOptions(nextOptions);
+                }
+              })
+              .catch(() => undefined);
+          } catch (nextError) {
+            if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
+              return;
+            }
+            setCodexAuthRequired(null);
+            setError(formatError(nextError, "Unable to load account/provider settings."));
+          } finally {
+            if (isMountedRef.current && refreshVersion === refreshVersionRef.current) {
+              setBusyAction(null);
+            }
+          }
+
+          if (!refreshQueuedRef.current || !isMountedRef.current) {
             return;
           }
-          setCodexAuthRequired(null);
-          setError(formatError(nextError, "Unable to load account/provider settings."));
-        } finally {
-          if (isMountedRef.current && refreshVersion === refreshVersionRef.current) {
-            setBusyAction(null);
-          }
+          pendingUsageRefresh = refreshQueuedUsageModeRef.current;
         }
       })();
       refreshInFlightRef.current = refreshPromise;
@@ -236,12 +249,6 @@ export function useCodexAccountsStateLoader({
       } finally {
         if (refreshInFlightRef.current === refreshPromise) {
           refreshInFlightRef.current = null;
-        }
-        if (refreshQueuedRef.current && isMountedRef.current) {
-          refreshQueuedRef.current = false;
-          const queuedUsageRefresh = refreshQueuedUsageModeRef.current;
-          refreshQueuedUsageModeRef.current = null;
-          await refreshOAuthState({ usageRefresh: queuedUsageRefresh });
         }
       }
     },

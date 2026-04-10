@@ -100,46 +100,56 @@ export function useAccountPools() {
       return refreshInFlightRef.current;
     }
     const refreshPromise = (async () => {
-      const refreshVersion = refreshVersionRef.current + 1;
-      refreshVersionRef.current = refreshVersion;
-      setBusyAction("refresh");
-      setError(null);
-      try {
-        const { nextAccounts, nextPools, nextPoolMembersByPoolId } = await readOAuthStateSnapshot();
-        if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
-          return;
-        }
-        setAccounts(
-          nextAccounts.slice().sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))
-        );
-        const sortedPools = nextPools
-          .slice()
-          .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0));
-        setPools(sortedPools);
-        setPoolDrafts((previous) =>
-          buildPoolDrafts(sortedPools, nextAccounts, nextPoolMembersByPoolId, previous)
-        );
+      while (true) {
+        refreshQueuedRef.current = false;
+        const refreshVersion = refreshVersionRef.current + 1;
+        refreshVersionRef.current = refreshVersion;
+        setBusyAction("refresh");
+        setError(null);
+        try {
+          const { nextAccounts, nextPools, nextPoolMembersByPoolId } =
+            await readOAuthStateSnapshot();
+          if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
+            return;
+          }
+          setAccounts(
+            nextAccounts
+              .slice()
+              .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0))
+          );
+          const sortedPools = nextPools
+            .slice()
+            .sort((left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0));
+          setPools(sortedPools);
+          setPoolDrafts((previous) =>
+            buildPoolDrafts(sortedPools, nextAccounts, nextPoolMembersByPoolId, previous)
+          );
 
-        setProviderOptions(buildProviderOptionsFromState(nextAccounts, sortedPools));
-        void getProvidersCatalog()
-          .then((nextProvidersCatalog) => {
-            if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
-              return;
-            }
-            const nextOptions = buildProviderOptionsFromCatalog(nextProvidersCatalog);
-            if (nextOptions.length > 0) {
-              setProviderOptions(nextOptions);
-            }
-          })
-          .catch(() => undefined);
-      } catch (nextError) {
-        if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
-          return;
+          setProviderOptions(buildProviderOptionsFromState(nextAccounts, sortedPools));
+          void getProvidersCatalog()
+            .then((nextProvidersCatalog) => {
+              if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
+                return;
+              }
+              const nextOptions = buildProviderOptionsFromCatalog(nextProvidersCatalog);
+              if (nextOptions.length > 0) {
+                setProviderOptions(nextOptions);
+              }
+            })
+            .catch(() => undefined);
+        } catch (nextError) {
+          if (!isMountedRef.current || refreshVersion !== refreshVersionRef.current) {
+            return;
+          }
+          setError(formatError(nextError, "Unable to load account/provider settings."));
+        } finally {
+          if (isMountedRef.current && refreshVersion === refreshVersionRef.current) {
+            setBusyAction(null);
+          }
         }
-        setError(formatError(nextError, "Unable to load account/provider settings."));
-      } finally {
-        if (isMountedRef.current && refreshVersion === refreshVersionRef.current) {
-          setBusyAction(null);
+
+        if (!refreshQueuedRef.current || !isMountedRef.current) {
+          return;
         }
       }
     })();
@@ -149,10 +159,6 @@ export function useAccountPools() {
     } finally {
       if (refreshInFlightRef.current === refreshPromise) {
         refreshInFlightRef.current = null;
-      }
-      if (refreshQueuedRef.current && isMountedRef.current) {
-        refreshQueuedRef.current = false;
-        await refreshOAuthState();
       }
     }
   }, [readOAuthStateSnapshot]);
