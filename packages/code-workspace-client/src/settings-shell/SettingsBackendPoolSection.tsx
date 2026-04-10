@@ -12,6 +12,31 @@ import type {
 type BackendAction = "drain" | "disable" | "enable" | "remove";
 type PendingBackendAction = BackendAction | "probe";
 
+export type SettingsBackendPoolSectionProps = {
+  backendPool: SettingsServerBackendPoolSnapshot | null;
+  loading?: boolean;
+  error?: string | null;
+  readOnlyReason?: string | null;
+  stateActionsEnabled?: boolean;
+  removeEnabled?: boolean;
+  upsertEnabled?: boolean;
+  probeEnabled?: boolean;
+  editEnabled?: boolean;
+  bootstrapPreview?: SettingsServerBackendPoolBootstrapPreview | null;
+  bootstrapPreviewError?: string | null;
+  diagnostics?: SettingsServerBackendPoolDiagnostics | null;
+  diagnosticsError?: string | null;
+  showFieldGroup?: boolean;
+  onRefresh?: () => void;
+  onOpenControlDrawer?: (backendId: string) => void;
+  onBackendAction?: (request: { backendId: string; action: BackendAction }) => Promise<void>;
+  onBackendUpsert?: () => void | Promise<void>;
+  onNativeBackendEdit?: (backendId: string) => void;
+  onAcpBackendUpsert?: () => void | Promise<void>;
+  onAcpBackendProbe?: (backendId: string) => Promise<void>;
+  onAcpBackendEdit?: (backendId: string) => void;
+};
+
 function formatStateLabel(state: string): string {
   if (!state) {
     return "Unknown";
@@ -133,30 +158,7 @@ export function SettingsBackendPoolSection({
   onAcpBackendUpsert,
   onAcpBackendProbe,
   onAcpBackendEdit,
-}: {
-  backendPool: SettingsServerBackendPoolSnapshot | null;
-  loading?: boolean;
-  error?: string | null;
-  readOnlyReason?: string | null;
-  stateActionsEnabled?: boolean;
-  removeEnabled?: boolean;
-  upsertEnabled?: boolean;
-  probeEnabled?: boolean;
-  editEnabled?: boolean;
-  bootstrapPreview?: SettingsServerBackendPoolBootstrapPreview | null;
-  bootstrapPreviewError?: string | null;
-  diagnostics?: SettingsServerBackendPoolDiagnostics | null;
-  diagnosticsError?: string | null;
-  showFieldGroup?: boolean;
-  onRefresh?: () => void;
-  onOpenControlDrawer?: (backendId: string) => void;
-  onBackendAction?: (request: { backendId: string; action: BackendAction }) => Promise<void>;
-  onBackendUpsert?: () => void | Promise<void>;
-  onNativeBackendEdit?: (backendId: string) => void;
-  onAcpBackendUpsert?: () => void | Promise<void>;
-  onAcpBackendProbe?: (backendId: string) => Promise<void>;
-  onAcpBackendEdit?: (backendId: string) => void;
-}) {
+}: SettingsBackendPoolSectionProps) {
   const [pendingActionByBackend, setPendingActionByBackend] = useState<
     Record<string, PendingBackendAction>
   >({});

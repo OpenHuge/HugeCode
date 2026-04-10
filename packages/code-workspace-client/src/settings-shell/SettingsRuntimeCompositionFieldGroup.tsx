@@ -14,6 +14,8 @@ type SettingsRuntimeCompositionFieldGroupProps = {
   compactSelectProps?: SettingsServerCompactSelectProps;
 };
 
+export type { SettingsRuntimeCompositionFieldGroupProps };
+
 function resolveInitialWorkspaceId(
   workspaceOptions: Array<{ id: string; label: string }>,
   routeWorkspaceId: string | null
@@ -41,6 +43,21 @@ function summarizeResolution(input: {
       input.appliedLayerOrder.length > 0 ? input.appliedLayerOrder.join(" -> ") : "runtime default",
     countsSummary: `Selected plugins ${input.selectedPluginCount}, blocked plugins ${input.blockedPluginCount}, route candidates ${input.routeCandidateCount}.`,
   };
+}
+
+function formatTimestamp(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "Not recorded";
+  }
+  return new Date(value).toLocaleString();
+}
+
+function formatSelectorDecisions(selectorDecisions: Record<string, string>): string {
+  const entries = Object.entries(selectorDecisions);
+  if (entries.length === 0) {
+    return "Runtime defaults";
+  }
+  return entries.map(([key, value]) => `${key}: ${value}`).join(" | ");
 }
 
 export function SettingsRuntimeCompositionFieldGroup({
@@ -86,6 +103,7 @@ function SettingsRuntimeCompositionFieldGroupContent({
   );
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionInfo, setActionInfo] = useState<string | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
   const runtimeComposition = useSharedRuntimeCompositionState({
     workspaceId: selectedWorkspaceId,
     enabled: selectedWorkspaceId !== null,
@@ -143,7 +161,32 @@ function SettingsRuntimeCompositionFieldGroupContent({
   const authoritySummary = runtimeComposition.snapshot
     ? `${runtimeComposition.snapshot.authorityState} / ${runtimeComposition.snapshot.freshnessState}`
     : "unavailable";
-  const actionBusy = runtimeComposition.isLoading || runtimeComposition.isMutating;
+  const persistence = runtimeComposition.settings?.persistence ?? null;
+  const previewSummary = runtimeComposition.previewResolution
+    ? summarizeResolution({
+        selectedPluginCount: runtimeComposition.previewResolution.selectedPlugins.length,
+        blockedPluginCount: runtimeComposition.previewResolution.blockedPlugins.length,
+        routeCandidateCount: runtimeComposition.previewResolution.selectedRouteCandidates.length,
+        backendCandidates: runtimeComposition.previewResolution.selectedBackendCandidates.map(
+          (candidate) => candidate.backendId
+        ),
+        appliedLayerOrder: runtimeComposition.previewResolution.provenance.appliedLayerOrder ?? [],
+      })
+    : null;
+  const previewProfileOptions: SelectOption[] = [
+    { value: "", label: "No preview" },
+    ...runtimeComposition.profiles.map((profile) => ({
+      value: profile.id,
+      label: `${profile.name} (${profile.scope})`,
+    })),
+  ];
+  const activeSelectorDecisions = formatSelectorDecisions(
+    runtimeComposition.resolution?.provenance.selectorDecisions ?? {}
+  );
+  const previewSelectorDecisions = formatSelectorDecisions(
+    runtimeComposition.previewResolution?.provenance.selectorDecisions ?? {}
+  );
+  const actionBusy = runtimeComposition.isLoading || runtimeComposition.isMutating || previewBusy;
 
   async function handleProfileChange(profileId: string) {
     setActionError(null);
@@ -227,6 +270,29 @@ function SettingsRuntimeCompositionFieldGroupContent({
     }
   }
 
+  async function handlePreviewChange(profileId: string) {
+    setActionError(null);
+    setActionInfo(null);
+    setPreviewBusy(true);
+    try {
+      if (!profileId) {
+        runtimeComposition.clearPreview();
+        setActionInfo("Cleared the previewed runtime composition profile.");
+        return;
+      }
+      await runtimeComposition.previewProfile(profileId);
+      setActionInfo(`Previewed runtime composition profile ${profileId}.`);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Unable to preview the runtime composition profile."
+      );
+    } finally {
+      setPreviewBusy(false);
+    }
+  }
+
   return (
     <SettingsFieldGroup
       title="Workspace composition & routing"
@@ -303,6 +369,71 @@ function SettingsRuntimeCompositionFieldGroupContent({
         </div>
       </SettingsField>
 
+      <SettingsField
+        label="Selector provenance"
+        help="Inspect the active layer order and selector decisions from the shared runtime resolver instead of inferring effective routing locally."
+      >
+        <div>
+          <div>Layer order: {resolutionSummary.layerSummary}</div>
+          <div>Selector decisions: {activeSelectorDecisions}</div>
+        </div>
+      </SettingsField>
+
+      <SettingsField
+        label="Published persistence"
+        help="These durable settings track which session last published authority and which revision the workspace accepted."
+      >
+        <div>
+          <div>Publisher session: {persistence?.publisherSessionId ?? "Not published yet"}</div>
+          <div>
+            Accepted authority revision:{" "}
+            {persistence?.lastAcceptedAuthorityRevision ?? "Not recorded"}
+          </div>
+          <div>Last publish attempt: {formatTimestamp(persistence?.lastPublishAttemptAt)}</div>
+          <div>Last published: {formatTimestamp(persistence?.lastPublishedAt)}</div>
+        </div>
+      </SettingsField>
+
+      <SettingsField
+        label="Preview profile"
+        help="Preview another workspace profile and inspect its effective routing and provenance before applying it."
+      >
+        <Select
+          {...compactSelectProps}
+          ariaLabel="Preview profile"
+          options={previewProfileOptions}
+          value={runtimeComposition.previewProfileId ?? ""}
+          disabled={actionBusy}
+          onValueChange={(value) => {
+            void handlePreviewChange(value);
+          }}
+        />
+      </SettingsField>
+
+      {previewSummary ? (
+        <SettingsField
+          label="Previewed effective state"
+          help={`Preview layer order: ${previewSummary.layerSummary}.`}
+        >
+          <div>
+            <div>
+              Preview profile:{" "}
+              {runtimeComposition.previewSnapshot?.activeProfile?.name ??
+                runtimeComposition.previewProfileId}
+            </div>
+            <div>{previewSummary.countsSummary}</div>
+            <div>Backend candidates: {previewSummary.backendSummary}.</div>
+            <div>Selector decisions: {previewSelectorDecisions}</div>
+            <div>
+              Preview authority:{" "}
+              {runtimeComposition.previewSnapshot
+                ? `${runtimeComposition.previewSnapshot.authorityState} / ${runtimeComposition.previewSnapshot.freshnessState}`
+                : "unavailable"}
+            </div>
+          </div>
+        </SettingsField>
+      ) : null}
+
       {runtimeComposition.error ? (
         <div className="settings-help settings-help-error">{runtimeComposition.error}</div>
       ) : null}
@@ -319,6 +450,18 @@ function SettingsRuntimeCompositionFieldGroupContent({
           }}
         >
           Refresh composition
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={actionBusy || runtimeComposition.previewProfileId === null}
+          onClick={() => {
+            runtimeComposition.clearPreview();
+            setActionError(null);
+            setActionInfo("Cleared the previewed runtime composition profile.");
+          }}
+        >
+          Clear preview
         </Button>
         <Button
           variant="secondary"

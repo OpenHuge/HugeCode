@@ -15,6 +15,9 @@ export type {
 } from "./SettingsScaffold";
 export { SettingsViewShell } from "./SettingsViewShell";
 export type { SettingsViewShellProps } from "./SettingsViewShell";
+export type { SettingsAutomationSectionProps } from "./SettingsAutomationSection";
+export type { SettingsBackendPoolSectionProps } from "./SettingsBackendPoolSection";
+export type { SettingsRuntimeCompositionFieldGroupProps } from "./SettingsRuntimeCompositionFieldGroup";
 export {
   SettingsAutomationSection,
   SettingsBackendPoolSection,

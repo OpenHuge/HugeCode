@@ -152,11 +152,13 @@ export type {
 } from "./workspace-shell";
 export type {
   CodexSection,
+  SettingsAutomationSectionProps,
   SettingsAutomationScheduleAction,
   SettingsAutomationScheduleActionAvailability,
   SettingsAutomationScheduleDraft,
   SettingsAutomationScheduleStatus,
   SettingsAutomationScheduleSummary,
+  SettingsBackendPoolSectionProps,
   SettingsServerBackendPoolBootstrapPreview,
   SettingsServerBackendPoolDiagnostics,
   SettingsServerBackendPoolEntry,
@@ -165,6 +167,7 @@ export type {
   SettingsServerControlPlaneSectionProps,
   SettingsServerMissionNavigationTarget,
   SettingsServerOperabilityState,
+  SettingsRuntimeCompositionFieldGroupProps,
   SettingsShellFraming,
   SettingsSidebarNavProps,
   SettingsViewShellProps,

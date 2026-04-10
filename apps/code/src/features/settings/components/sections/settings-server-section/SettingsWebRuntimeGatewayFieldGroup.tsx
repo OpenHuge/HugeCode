@@ -1,4 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerCompactSelectProps,
+  type SettingsServerOperabilityState,
+} from "@ku0/code-workspace-client/settings-shell";
 import { Input, Select, type SelectOption } from "../../../../../design-system";
 import {
   SettingsControlRow,
@@ -6,12 +12,6 @@ import {
   SettingsFieldGroup,
 } from "../../SettingsSectionGrammar";
 import { SettingsToggleControl } from "../../SettingsToggleControl";
-import {
-  resolveSettingsServerOperabilityBlockedReason,
-  resolveSettingsServerOperabilityNotice,
-  type SettingsServerCompactSelectProps,
-  type SettingsServerOperabilityState,
-} from "./shared";
 
 type SettingsWebRuntimeGatewayFieldGroupProps = {
   isMobileSimplified: boolean;

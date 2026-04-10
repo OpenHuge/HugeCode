@@ -29,7 +29,7 @@ import {
   type SettingsServerOperabilityState,
 } from "./serverControlPlaneTypes";
 
-type SettingsAutomationSectionProps = {
+export type SettingsAutomationSectionProps = {
   backendOptions?: Array<{ id: string; label: string }>;
   workspaceOptions?: Array<{ id: string; label: string }>;
   defaultBackendId?: string | null;

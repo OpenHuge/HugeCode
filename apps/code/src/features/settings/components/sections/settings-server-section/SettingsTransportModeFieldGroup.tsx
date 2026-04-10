@@ -1,3 +1,9 @@
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerCompactSelectProps,
+  type SettingsServerOperabilityState,
+} from "@ku0/code-workspace-client/settings-shell";
 import { Select, type SelectOption } from "../../../../../design-system";
 import type { AppSettings, RemoteBackendProvider } from "../../../../../types";
 import {
@@ -6,12 +12,6 @@ import {
   SettingsFieldGroup,
 } from "../../SettingsSectionGrammar";
 import { SettingsToggleControl } from "../../SettingsToggleControl";
-import {
-  resolveSettingsServerOperabilityBlockedReason,
-  resolveSettingsServerOperabilityNotice,
-  type SettingsServerCompactSelectProps,
-  type SettingsServerOperabilityState,
-} from "./shared";
 
 type SettingsTransportModeFieldGroupProps = {
   appSettings: AppSettings;

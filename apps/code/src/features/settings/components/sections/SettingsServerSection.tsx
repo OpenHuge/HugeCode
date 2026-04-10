@@ -1,5 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
-import { SettingsServerControlPlaneSection } from "@ku0/code-workspace-client/settings-shell";
+import {
+  SettingsServerControlPlaneSection,
+  type SettingsAutomationScheduleAction,
+  type SettingsAutomationScheduleActionAvailability,
+  type SettingsAutomationScheduleDraft,
+  type SettingsAutomationScheduleSummary,
+  type SettingsServerCompactSelectProps,
+  type SettingsServerOperabilityState,
+} from "@ku0/code-workspace-client/settings-shell";
 import { type SelectOption } from "../../../../design-system";
 import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import type {
@@ -17,12 +25,6 @@ import type {
 } from "../../../../types";
 import { SettingsSectionFrame } from "../SettingsSectionGrammar";
 import * as controlStyles from "../SettingsFormControls.css";
-import {
-  type SettingsAutomationScheduleAction,
-  type SettingsAutomationScheduleActionAvailability,
-  type SettingsAutomationScheduleDraft,
-  type SettingsAutomationScheduleSummary,
-} from "./SettingsAutomationSection";
 import type { BackendPoolSnapshot } from "../../types/backendPool";
 import { buildSettingsServerSectionViewModel } from "./settingsServerSectionViewModel";
 import { SettingsRemoteProfilesFieldGroup } from "./settings-server-section/SettingsRemoteProfilesFieldGroup";
@@ -30,10 +32,6 @@ import { SettingsTransportModeFieldGroup } from "./settings-server-section/Setti
 import { SettingsTcpTransportSections } from "./settings-server-section/SettingsTcpTransportSections";
 import { SettingsWebRuntimeGatewayFieldGroup } from "./settings-server-section/SettingsWebRuntimeGatewayFieldGroup";
 import { SettingsOrbitTransportSections } from "./settings-server-section/SettingsOrbitTransportSections";
-import type {
-  SettingsServerCompactSelectProps,
-  SettingsServerOperabilityState,
-} from "./settings-server-section/shared";
 
 type SettingsServerSectionProps = {
   appSettings: AppSettings;

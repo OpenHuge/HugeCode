@@ -3,9 +3,9 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SettingsBackendPoolSection } from "@ku0/code-workspace-client/settings-shell";
 import type { BackendPoolBootstrapPreview, BackendPoolDiagnostics } from "../../../../types";
 import type { BackendPoolSnapshot } from "../../types/backendPool";
-import { SettingsBackendPoolSection } from "./SettingsBackendPoolSection";
 
 function createSnapshot(): BackendPoolSnapshot {
   return {

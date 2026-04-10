@@ -7,10 +7,15 @@ import { describe, expect, it, vi } from "vitest";
 const mockRuntimeComposition = {
   profiles: [{ id: "profile-1", name: "Workspace Default", scope: "workspace" }],
   settings: {
-    workspaceId: "workspace-1",
     selection: {
       profileId: "profile-1",
       preferredBackendIds: ["backend-1"],
+    },
+    persistence: {
+      publisherSessionId: "publisher-session-1",
+      lastAcceptedAuthorityRevision: 9,
+      lastPublishAttemptAt: 1_710_000_000_000,
+      lastPublishedAt: 1_710_000_100_000,
     },
   },
   resolution: {
@@ -19,24 +24,59 @@ const mockRuntimeComposition = {
     selectedRouteCandidates: [{ routeId: "route-1" }],
     selectedBackendCandidates: [{ backendId: "backend-1" }],
     provenance: {
-      appliedLayerOrder: ["workspace", "runtime"],
+      appliedLayerOrder: ["built_in", "workspace"],
+      selectorDecisions: {
+        profile: "workspace-default",
+      },
     },
   },
   snapshot: {
     authorityState: "published",
-    freshnessState: "fresh",
+    freshnessState: "current",
   },
   activeProfile: {
     id: "profile-1",
     name: "Workspace Default",
   },
+  previewProfileId: null,
+  previewResolution: null,
+  previewSnapshot: null,
   isLoading: false,
   isMutating: false,
   error: null,
+  previewProfile: vi.fn(async (profileId: string) => {
+    mockRuntimeComposition.previewProfileId = profileId;
+    mockRuntimeComposition.previewResolution = {
+      selectedPlugins: [{ id: "plugin-preview" }],
+      blockedPlugins: [],
+      selectedRouteCandidates: [{ routeId: "route-preview" }],
+      selectedBackendCandidates: [{ backendId: "backend-2" }],
+      provenance: {
+        appliedLayerOrder: ["built_in", "user", "workspace"],
+        selectorDecisions: {
+          profile: profileId,
+        },
+      },
+    };
+    mockRuntimeComposition.previewSnapshot = {
+      activeProfile: {
+        id: profileId,
+        name: "Workspace Default",
+      },
+      authorityState: "stale",
+      freshnessState: "pending_publish",
+    };
+    return mockRuntimeComposition.previewSnapshot;
+  }),
   applyProfile: vi.fn(async () => undefined),
   saveSettings: vi.fn(async () => undefined),
   refresh: vi.fn(async () => undefined),
   publishActiveResolution: vi.fn(async () => undefined),
+  clearPreview: vi.fn(() => {
+    mockRuntimeComposition.previewProfileId = null;
+    mockRuntimeComposition.previewResolution = null;
+    mockRuntimeComposition.previewSnapshot = null;
+  }),
 };
 
 vi.mock("@ku0/design-system", () => ({
@@ -269,6 +309,13 @@ describe("SettingsServerControlPlaneSection", () => {
       expect(mockRuntimeComposition.publishActiveResolution).toHaveBeenCalled();
     });
 
+    fireEvent.change(screen.getByLabelText("Preview profile"), {
+      target: { value: "profile-1" },
+    });
+    await waitFor(() => {
+      expect(mockRuntimeComposition.previewProfile).toHaveBeenCalledWith("profile-1");
+    });
+
     fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
     expect(onRefreshBackendPool).toHaveBeenCalled();
 
@@ -287,5 +334,12 @@ describe("SettingsServerControlPlaneSection", () => {
       reviewPackId: "review-1",
       limitation: "thread_unavailable",
     });
+
+    expect(screen.getByText(/Publisher session: publisher-session-1/)).toBeTruthy();
+    expect(screen.getByText(/Selector decisions: profile: workspace-default/)).toBeTruthy();
+    expect(screen.getByText(/Preview authority: stale \/ pending_publish/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear preview" }));
+    expect(mockRuntimeComposition.clearPreview).toHaveBeenCalled();
   });
 });
