@@ -89,6 +89,10 @@
       "types": "./src/runtime-control-plane/runtimeMissionControlExecutionProfiles.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlExecutionProfiles.ts"
     },
+    "./runtimeMissionControlLoop": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlLoop.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlLoop.ts"
+    },
     "./runtimeMissionControlFormatting": {
       "types": "./src/runtime-control-plane/runtimeMissionControlFormatting.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlFormatting.ts"

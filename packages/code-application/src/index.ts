@@ -130,6 +130,12 @@ export {
   resolveExecutionProfile,
 } from "./runtime-control-plane/runtimeMissionControlExecutionProfiles";
 export { projectAgentTaskStatusToRunState } from "./runtime-control-plane/runtimeMissionControlTaskStatus";
+export {
+  buildMissionControlLoopItems,
+  buildMissionControlLoopItems as buildRuntimeMissionControlLoopItems,
+  buildMissionRunSummary,
+  buildMissionRunSummary as buildRuntimeMissionRunSummary,
+} from "./runtime-control-plane/runtimeMissionControlLoop";
 export { buildMissionSecondaryLabel } from "./runtime-control-plane/runtimeMissionSecondaryLabel";
 export {
   summarizeReviewContinuationActionability,
@@ -220,6 +226,10 @@ export type {
   ReviewPackSelectionState,
 } from "./runtime-control-plane/reviewPackSurfaceModel";
 export type { MissionReviewFilterTag } from "./runtime-control-plane/runtimeMissionReviewTriage";
+export type {
+  MissionControlLoopItem,
+  MissionRunSummary,
+} from "./runtime-control-plane/runtimeMissionControlLoop";
 export type {
   RuntimeCompositionProfileLaunchOverride,
   RuntimeCompositionProfileUpdates,

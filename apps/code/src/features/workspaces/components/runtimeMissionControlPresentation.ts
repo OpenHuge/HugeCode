@@ -1,10 +1,10 @@
 import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
-import { projectAgentTaskStatusToRunState } from "@ku0/code-application/runtimeMissionControlTaskStatus";
 import {
   buildMissionControlLoopItems,
   buildMissionRunSummary,
   type MissionControlLoopItem,
-} from "../../../application/runtime/facades/runtimeMissionControlLoop";
+} from "@ku0/code-application/runtimeMissionControlLoop";
+import { projectAgentTaskStatusToRunState } from "@ku0/code-application/runtimeMissionControlTaskStatus";
 import { formatHugeCodeRunStateLabel } from "../../../application/runtime/facades/runtimeMissionControlRunState";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 

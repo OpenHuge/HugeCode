@@ -7,6 +7,7 @@ const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
 const IMPORT_PATTERN = /(?:from\s+["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\))/gu;
 const FEATURE_RUNTIME_CONTROL_PLANE_FACADES = new Set([
   "apps/code/src/application/runtime/facades/runtimeMissionControlFacade",
+  "apps/code/src/application/runtime/facades/runtimeMissionControlLoop",
   "apps/code/src/application/runtime/facades/runtimeContinuityReadiness",
   "apps/code/src/application/runtime/facades/runtimeReviewContinuationFacade",
 ]);
