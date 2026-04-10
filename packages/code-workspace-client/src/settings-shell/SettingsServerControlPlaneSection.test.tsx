@@ -2,7 +2,7 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockRuntimeComposition = {
   profiles: [{ id: "profile-1", name: "Workspace Default", scope: "workspace" }],
@@ -78,6 +78,13 @@ const mockRuntimeComposition = {
     mockRuntimeComposition.previewSnapshot = null;
   }),
 };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockRuntimeComposition.previewProfileId = null;
+  mockRuntimeComposition.previewResolution = null;
+  mockRuntimeComposition.previewSnapshot = null;
+});
 
 vi.mock("@ku0/design-system", () => ({
   Button: ({
@@ -341,5 +348,36 @@ describe("SettingsServerControlPlaneSection", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Clear preview" }));
     expect(mockRuntimeComposition.clearPreview).toHaveBeenCalled();
+  });
+
+  it("clears preview state when switching workspaces", async () => {
+    render(
+      <SettingsServerControlPlaneSection
+        remoteExecutionBackendOptions={[
+          { id: "backend-1", label: "Backend One" },
+          { id: "backend-2", label: "Backend Two" },
+        ]}
+        defaultRemoteExecutionBackendId="backend-1"
+        workspaceOptions={[
+          { id: "workspace-1", label: "Workspace One" },
+          { id: "workspace-2", label: "Workspace Two" },
+        ]}
+      />
+    );
+
+    fireEvent.change(screen.getByLabelText("Preview profile"), {
+      target: { value: "profile-1" },
+    });
+    await waitFor(() => {
+      expect(mockRuntimeComposition.previewProfile).toHaveBeenCalledWith("profile-1");
+    });
+
+    fireEvent.change(screen.getByLabelText("Workspace composition workspace"), {
+      target: { value: "workspace-2" },
+    });
+
+    await waitFor(() => {
+      expect(mockRuntimeComposition.clearPreview).toHaveBeenCalledTimes(1);
+    });
   });
 });

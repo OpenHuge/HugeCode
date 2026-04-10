@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RuntimeCompositionSettingsEntry } from "@ku0/code-platform-interfaces";
 import { Button, Select, type SelectOption } from "@ku0/design-system";
 import { useSharedRuntimeCompositionState } from "../settings-state";
@@ -108,6 +108,7 @@ function SettingsRuntimeCompositionFieldGroupContent({
     workspaceId: selectedWorkspaceId,
     enabled: selectedWorkspaceId !== null,
   });
+  const previousWorkspaceIdRef = useRef<string | null>(selectedWorkspaceId);
 
   useEffect(() => {
     setSelectedWorkspaceId((currentWorkspaceId) => {
@@ -125,6 +126,15 @@ function SettingsRuntimeCompositionFieldGroupContent({
     setActionError(null);
     setActionInfo(null);
   }, [selectedWorkspaceId]);
+
+  useEffect(() => {
+    if (previousWorkspaceIdRef.current === selectedWorkspaceId) {
+      return;
+    }
+    previousWorkspaceIdRef.current = selectedWorkspaceId;
+    setPreviewBusy(false);
+    runtimeComposition.clearPreview();
+  }, [runtimeComposition, selectedWorkspaceId]);
 
   if (!selectedWorkspaceId) {
     return null;
