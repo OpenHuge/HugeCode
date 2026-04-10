@@ -15,6 +15,7 @@ import type {
 } from "./agentExecution.js";
 import type { AccessMode, ModelProvider, ReasonEffort, TurnExecutionMode } from "./foundation.js";
 import type { HugeCodeReviewPackSummary, HugeCodeRunSummary } from "../hugeCodeMissionControl.js";
+import type { ActiveInvocationCatalogExecutionPlane } from "../runtimeInvocationPlane.js";
 
 export type DistributedTaskGraphRequest = {
   taskId: string;
@@ -341,9 +342,18 @@ export type RuntimeToolResultRefV2 = {
   sourceCallId?: string | null;
 };
 
+export type RuntimeInvocationCatalogRefV2 = {
+  catalogId: string | null;
+  summary: string;
+  generatedAt: number | null;
+  execution: ActiveInvocationCatalogExecutionPlane;
+  provenance: string[];
+};
+
 export type RuntimeToolingPlaneV2 = {
   summary: string;
   capabilityCatalog: RuntimeCapabilityCatalogV2 | null;
+  invocationCatalogRef?: RuntimeInvocationCatalogRefV2 | null;
   sandboxRef: RuntimeSandboxRefV2 | null;
   mcpSources: RuntimeMcpSourceV2[];
   toolCallRefs: RuntimeToolCallRefV2[];

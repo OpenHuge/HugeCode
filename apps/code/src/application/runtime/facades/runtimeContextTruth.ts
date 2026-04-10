@@ -1,4 +1,5 @@
 import type {
+  ActiveInvocationCatalogExecutionPlane,
   AgentTaskSourceSummary,
   HugeCodeExecutionProfile,
   RuntimeCapabilityCatalogV2,
@@ -521,16 +522,48 @@ function buildRuntimeCapabilityCatalog(
   };
 }
 
+function buildRuntimeToolingInvocationCatalogRef(input: {
+  executionProfileId: string;
+}): NonNullable<RuntimeToolingPlaneV2["invocationCatalogRef"]> {
+  const execution: ActiveInvocationCatalogExecutionPlane = {
+    bindings: [
+      {
+        bindingKind: "runtime_run",
+        host: "runtime",
+        count: 1,
+        readyCount: 1,
+        blockedCount: 0,
+        notRequiredCount: 0,
+        requirementKeys: ["runtime_service"],
+      },
+    ],
+    requirements: [{ key: "runtime_service", count: 1 }],
+  };
+
+  return {
+    catalogId: `launch:${input.executionProfileId}`,
+    summary:
+      "Launch-scoped invocation catalog publishes the canonical runtime run dispatch path and its host requirements before execution begins.",
+    generatedAt: null,
+    execution,
+    provenance: ["runtime_prepare", "execution_profile"],
+  };
+}
+
 export function buildRuntimeToolingPlane(
   input: BuildRuntimeToolingPlaneInput
 ): RuntimeToolingPlaneV2 {
   const preferredBackendIds = readNonEmptyList(input.preferredBackendIds ?? []);
   const routedProvider = readOptionalText(input.routedProvider);
   const capabilityCatalog = buildRuntimeCapabilityCatalog(input);
+  const invocationCatalogRef = buildRuntimeToolingInvocationCatalogRef({
+    executionProfileId: input.selectedExecutionProfile.id,
+  });
   return {
     summary:
       "Launch inherits a stable capability catalog and sandbox contract; runtime can later refine it with live invocation truth without changing the interface.",
     capabilityCatalog,
+    invocationCatalogRef,
     sandboxRef: {
       id: `sandbox:${input.selectedExecutionProfile.id}`,
       label: `${input.selectedExecutionProfile.name} sandbox`,

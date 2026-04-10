@@ -213,11 +213,19 @@ export function WorkspaceHomeAgentRuntimeOrchestration({
         .join(" | ")
     : null;
   const runtimeLaunchToolingSandbox = runtimeLaunchPreparationToolingPlane?.sandboxRef ?? null;
+  const runtimeLaunchInvocationCatalogRef =
+    runtimeLaunchPreparationToolingPlane?.invocationCatalogRef ?? null;
   const runtimeLaunchToolingPlaneSummary = runtimeLaunchPreparationToolingPlane
     ? [
         `Capabilities: ${
           runtimeLaunchPreparationToolingPlane.capabilityCatalog?.capabilities.length ?? 0
         }`,
+        runtimeLaunchInvocationCatalogRef
+          ? `Invocation bindings: ${runtimeLaunchInvocationCatalogRef.execution.bindings.reduce((total, entry) => total + entry.count, 0)}`
+          : null,
+        runtimeLaunchInvocationCatalogRef
+          ? `Invocation requirements: ${runtimeLaunchInvocationCatalogRef.execution.requirements.length}`
+          : null,
         runtimeLaunchToolingSandbox
           ? `Tool posture: ${runtimeLaunchToolingSandbox.toolPosture}`
           : null,

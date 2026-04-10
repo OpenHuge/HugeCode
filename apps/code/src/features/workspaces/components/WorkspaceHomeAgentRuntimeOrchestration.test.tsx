@@ -939,6 +939,27 @@ function createRuntimeLaunchPreparationFixture() {
           },
         ],
       },
+      invocationCatalogRef: {
+        catalogId: "launch:balanced-delegate",
+        summary:
+          "Launch-scoped invocation catalog publishes the canonical runtime run dispatch path and its host requirements before execution begins.",
+        generatedAt: 1_710_000_000_000,
+        execution: {
+          bindings: [
+            {
+              bindingKind: "runtime_run" as const,
+              host: "runtime" as const,
+              count: 1,
+              readyCount: 1,
+              blockedCount: 0,
+              notRequiredCount: 0,
+              requirementKeys: ["runtime_service" as const],
+            },
+          ],
+          requirements: [{ key: "runtime_service" as const, count: 1 }],
+        },
+        provenance: ["runtime_prepare", "execution_profile"],
+      },
       sandboxRef: {
         postureId: "balanced-delegate",
         label: "Balanced Delegate",
@@ -2309,7 +2330,7 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "Tooling plane: Capabilities: 3 | Tool posture: workspace_safe | Approval sensitivity: standard | MCP sources: 1"
+        "Tooling plane: Capabilities: 3 | Invocation bindings: 1 | Invocation requirements: 1 | Tool posture: workspace_safe | Approval sensitivity: standard | MCP sources: 1"
       )
     ).toBeTruthy();
     expect(
