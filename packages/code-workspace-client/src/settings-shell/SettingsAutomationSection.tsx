@@ -4,86 +4,30 @@ import {
   Input,
   Select,
   StatusBadge,
+  Switch,
   Textarea,
   type SelectOption,
-} from "../../../../design-system";
+} from "@ku0/design-system";
+import * as controlStyles from "./SettingsFormControls.css";
 import {
+  SettingsControlRow,
   SettingsField,
   SettingsFieldGroup,
   SettingsFooterBar,
-  SettingsControlRow,
-} from "../SettingsSectionGrammar";
-import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
-import * as controlStyles from "../SettingsFormControls.css";
-import * as grammar from "../SettingsSectionGrammar.css";
-import { SettingsToggleControl } from "../SettingsToggleControl";
+} from "./SettingsSectionGrammar";
+import * as grammar from "./SettingsSectionGrammar.css";
+import { settingsServerCompactSelectProps } from "./settingsServerControlPlaneShared";
 import {
   createSettingsServerOperabilityState,
   resolveSettingsServerOperabilityNotice,
+  type SettingsAutomationScheduleAction,
+  type SettingsAutomationScheduleActionAvailability,
+  type SettingsAutomationScheduleDraft,
+  type SettingsAutomationScheduleStatus,
+  type SettingsAutomationScheduleSummary,
+  type SettingsServerMissionNavigationTarget,
   type SettingsServerOperabilityState,
-} from "./settings-server-section/shared";
-
-export type SettingsAutomationScheduleStatus = "active" | "paused" | "running" | "blocked";
-
-export type SettingsAutomationScheduleAction = "pause" | "resume" | "run-now" | "cancel-run";
-
-export type SettingsAutomationScheduleSummary = {
-  id: string;
-  name: string;
-  prompt: string;
-  workspaceId: string | null;
-  cadenceLabel: string;
-  status: SettingsAutomationScheduleStatus;
-  nextRunAtMs: number | null;
-  lastRunAtMs: number | null;
-  lastOutcomeLabel: string | null;
-  backendId: string | null;
-  backendLabel: string | null;
-  reviewProfileId: string | null;
-  reviewProfileLabel: string | null;
-  validationPresetId: string | null;
-  validationPresetLabel: string | null;
-  triggerSourceLabel: string | null;
-  blockingReason: string | null;
-  safeFollowUp: boolean | null;
-  autonomyProfile: string | null;
-  sourceScope: string | null;
-  wakePolicy: string | null;
-  researchPolicy: string | null;
-  queueBudget: number | null;
-  currentTaskId: string | null;
-  currentTaskStatus: string | null;
-  currentRunId: string | null;
-  lastTriggeredTaskId: string | null;
-  lastTriggeredTaskStatus: string | null;
-  lastTriggeredRunId: string | null;
-  reviewPackId: string | null;
-  reviewActionabilityState: string | null;
-};
-
-export type SettingsAutomationScheduleDraft = {
-  name: string;
-  prompt: string;
-  workspaceId: string;
-  cadence: string;
-  backendId: string;
-  reviewProfileId: string;
-  validationPresetId: string;
-  enabled: boolean;
-  autonomyProfile: string;
-  sourceScope: string;
-  wakePolicy: string;
-  researchPolicy: string;
-  queueBudget: string;
-  safeFollowUp: boolean;
-};
-
-export type SettingsAutomationScheduleActionAvailability = {
-  createEnabled?: boolean;
-  updateEnabled?: boolean;
-  runNowEnabled?: boolean;
-  cancelRunEnabled?: boolean;
-};
+} from "./serverControlPlaneTypes";
 
 export type SettingsAutomationSectionProps = {
   backendOptions?: Array<{ id: string; label: string }>;
@@ -102,7 +46,7 @@ export type SettingsAutomationSectionProps = {
     scheduleId: string;
     action: SettingsAutomationScheduleAction;
   }) => void | Promise<void>;
-  onOpenMissionTarget?: (target: MissionNavigationTarget) => void | Promise<void>;
+  onOpenMissionTarget?: (target: SettingsServerMissionNavigationTarget) => void | Promise<void>;
 };
 
 type ScheduleFieldValue = string | number | null | undefined;
@@ -265,7 +209,7 @@ function readScheduleLinkageValue(value: string | null): string | null {
 
 function resolveScheduleNavigationTarget(
   summary: SettingsAutomationScheduleSummary
-): MissionNavigationTarget | null {
+): SettingsServerMissionNavigationTarget | null {
   const workspaceId = readScheduleLinkageValue(summary.workspaceId);
   if (!workspaceId) {
     return null;
@@ -309,7 +253,7 @@ function resolveScheduleNavigationTarget(
   };
 }
 
-function resolveScheduleNavigationLabel(target: MissionNavigationTarget): string {
+function resolveScheduleNavigationLabel(target: SettingsServerMissionNavigationTarget): string {
   return target.kind === "review" ? "Open review" : "Open mission";
 }
 
@@ -333,13 +277,7 @@ export function SettingsAutomationSection({
     cancelRunEnabled = true,
   } = actionAvailability ?? {};
   const compactInputFieldClassName = `${controlStyles.inputField} ${controlStyles.inputFieldCompact}`;
-  const compactSelectProps = {
-    className: controlStyles.selectRoot,
-    triggerClassName: controlStyles.selectTrigger,
-    menuClassName: controlStyles.selectMenu,
-    optionClassName: controlStyles.selectOption,
-    triggerDensity: "compact" as const,
-  };
+  const compactSelectProps = settingsServerCompactSelectProps;
   const defaultWorkspaceId =
     workspaceOptions.length === 1 ? (workspaceOptions[0]?.id ?? null) : null;
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(
@@ -700,9 +638,9 @@ export function SettingsAutomationSection({
             title="Enabled"
             subtitle="Pause/resume state is still runtime-owned; this only seeds the draft."
             control={
-              <SettingsToggleControl
+              <Switch
                 checked={draft.enabled}
-                ariaLabel="Toggle schedule enabled"
+                aria-label="Toggle schedule enabled"
                 onCheckedChange={() =>
                   setDraft((previous) => ({ ...previous, enabled: !previous.enabled }))
                 }
@@ -897,9 +835,9 @@ export function SettingsAutomationSection({
             title="Allow safe follow-up"
             subtitle="The runtime still decides whether continuation is eligible."
             control={
-              <SettingsToggleControl
+              <Switch
                 checked={draft.safeFollowUp}
-                ariaLabel="Toggle safe follow-up"
+                aria-label="Toggle safe follow-up"
                 onCheckedChange={() =>
                   setDraft((previous) => ({ ...previous, safeFollowUp: !previous.safeFollowUp }))
                 }

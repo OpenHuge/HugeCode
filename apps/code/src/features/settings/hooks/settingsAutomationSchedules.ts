@@ -1,8 +1,8 @@
-import type { RuntimeAutomationScheduleRecord } from "../../../application/runtime/ports/runtimeAutomationSchedules";
 import type {
   SettingsAutomationScheduleDraft,
   SettingsAutomationScheduleSummary,
-} from "../components/sections/SettingsAutomationSection";
+} from "@ku0/code-workspace-client/settings-shell";
+import type { RuntimeAutomationScheduleRecord } from "../../../application/runtime/ports/runtimeAutomationSchedules";
 
 function normalizeScheduleText(value: unknown): string | null {
   if (typeof value !== "string") {

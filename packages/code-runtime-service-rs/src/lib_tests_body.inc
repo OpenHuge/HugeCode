@@ -6916,6 +6916,10 @@ exit 1
                 .iter()
                 .any(|entry| entry.get("id").and_then(Value::as_str) == Some("runtime.tooling"))
         );
+        assert_eq!(
+            prepare_payload["result"]["toolingPlane"]["invocationCatalogRef"]["execution"]["bindings"][0]["bindingKind"],
+            Value::String("runtime_run".to_string())
+        );
         assert!(
             prepare_payload["result"]["contextPlane"]["artifactRefs"]
                 .as_array()

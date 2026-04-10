@@ -1,4 +1,9 @@
 import type { Dispatch, SetStateAction } from "react";
+import {
+  resolveSettingsServerOperabilityBlockedReason,
+  resolveSettingsServerOperabilityNotice,
+  type SettingsServerOperabilityState,
+} from "@ku0/code-workspace-client/settings-shell";
 import { Button, Input } from "../../../../../design-system";
 import type { AppSettings, RemoteBackendProvider } from "../../../../../types";
 import {
@@ -8,11 +13,6 @@ import {
 } from "../../SettingsSectionGrammar";
 import { SettingsToggleControl } from "../../SettingsToggleControl";
 import { SettingsMobileConnectFieldGroup } from "./SettingsMobileConnectFieldGroup";
-import {
-  resolveSettingsServerOperabilityBlockedReason,
-  resolveSettingsServerOperabilityNotice,
-  type SettingsServerOperabilityState,
-} from "./shared";
 
 type SettingsOrbitTransportSectionsProps = {
   appSettings: AppSettings;

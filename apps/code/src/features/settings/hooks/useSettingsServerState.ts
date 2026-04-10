@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createSettingsServerOperabilityState,
+  type SettingsAutomationScheduleAction,
+  type SettingsAutomationScheduleDraft,
+  type SettingsServerOperabilityState,
+} from "@ku0/code-workspace-client/settings-shell";
 import { useRuntimeAutomationSchedulesFacade } from "../../../application/runtime/facades/runtimeAutomationSchedulesFacade";
 import { useRuntimeBackendPoolFacade } from "../../../application/runtime/facades/runtimeBackendPoolFacade";
 import { useRuntimeOverlayConnectivityFacade } from "../../../application/runtime/facades/runtimeOverlayConnectivityFacade";
@@ -35,20 +41,12 @@ import {
   type NativeBackendFormMode,
   type NativeBackendFormState,
 } from "../components/sections/settings-backend-pool/nativeBackendForm";
-import type {
-  SettingsAutomationScheduleAction,
-  SettingsAutomationScheduleDraft,
-} from "../components/sections/SettingsAutomationSection";
 import {
   buildNativeSchedulePayload,
   mapNativeScheduleToDraft,
   mapNativeScheduleToSummary,
   readScheduleText,
 } from "./settingsAutomationSchedules";
-import {
-  createSettingsServerOperabilityState,
-  type SettingsServerOperabilityState,
-} from "../components/sections/settings-server-section/shared";
 
 type UseSettingsServerStateOptions = {
   activeSection: CodexSection;

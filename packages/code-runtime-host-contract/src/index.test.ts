@@ -8,6 +8,7 @@ import {
   type ActiveInvocationCatalogExecutionPlane,
   type InvocationExecutionEvidence,
   type InvocationExecutionPlan,
+  type RuntimeInvocationCatalogRefV2,
   type RuntimeExecutionEvidenceSummary,
   type RuntimeExecutionLifecycleSummary,
   type RuntimeExtensionActivationSnapshot,
@@ -164,6 +165,32 @@ describe("code runtime host event envelope", () => {
 
     expect(executionPlane.bindings[0]?.bindingKind).toBe("runtime_run");
     expect(executionPlane.requirements[0]?.key).toBe("runtime_service");
+  });
+
+  it("re-exports runtime tooling invocation catalog references", () => {
+    const invocationCatalogRef: RuntimeInvocationCatalogRefV2 = {
+      catalogId: "launch:balanced-delegate",
+      summary: "Launch-scoped invocation catalog.",
+      generatedAt: 1,
+      execution: {
+        bindings: [
+          {
+            bindingKind: "runtime_run",
+            host: "runtime",
+            count: 1,
+            readyCount: 1,
+            blockedCount: 0,
+            notRequiredCount: 0,
+            requirementKeys: ["runtime_service"],
+          },
+        ],
+        requirements: [{ key: "runtime_service", count: 1 }],
+      },
+      provenance: ["runtime_prepare", "execution_profile"],
+    };
+
+    expect(invocationCatalogRef.execution.bindings[0]?.bindingKind).toBe("runtime_run");
+    expect(invocationCatalogRef.provenance).toContain("runtime_prepare");
   });
 
   it("accepts turn.completed payloads with responseModelId metadata", () => {
