@@ -28,22 +28,6 @@ function resolveInitialWorkspaceId(
   return workspaceOptions[0]?.id ?? null;
 }
 
-function summarizeResolution(input: {
-  selectedPluginCount: number;
-  blockedPluginCount: number;
-  routeCandidateCount: number;
-  backendCandidates: string[];
-  appliedLayerOrder: string[];
-}) {
-  return {
-    backendSummary:
-      input.backendCandidates.length > 0 ? input.backendCandidates.join(", ") : "runtime fallback",
-    layerSummary:
-      input.appliedLayerOrder.length > 0 ? input.appliedLayerOrder.join(" -> ") : "runtime default",
-    countsSummary: `Selected plugins ${input.selectedPluginCount}, blocked plugins ${input.blockedPluginCount}, route candidates ${input.routeCandidateCount}.`,
-  };
-}
-
 export function SettingsRuntimeCompositionFieldGroup({
   workspaceOptions,
   remoteExecutionBackendOptions,
@@ -130,19 +114,8 @@ function SettingsRuntimeCompositionFieldGroupContent({
   const backendPreferenceHelp = defaultRemoteExecutionBackendId
     ? `This persists a workspace-specific routing hint. Leaving it automatic falls back to shared runtime routing, starting from the current default backend ${defaultRemoteExecutionBackendId} when no narrower runtime choice applies.`
     : "This persists a workspace-specific routing hint. Leaving it automatic falls back to shared runtime routing and runtime-selected placement.";
-  const resolutionSummary = summarizeResolution({
-    selectedPluginCount: runtimeComposition.resolution?.selectedPlugins.length ?? 0,
-    blockedPluginCount: runtimeComposition.resolution?.blockedPlugins.length ?? 0,
-    routeCandidateCount: runtimeComposition.resolution?.selectedRouteCandidates.length ?? 0,
-    backendCandidates:
-      runtimeComposition.resolution?.selectedBackendCandidates.map(
-        (candidate) => candidate.backendId
-      ) ?? [],
-    appliedLayerOrder: runtimeComposition.resolution?.provenance.appliedLayerOrder ?? [],
-  });
-  const authoritySummary = runtimeComposition.snapshot
-    ? `${runtimeComposition.snapshot.authorityState} / ${runtimeComposition.snapshot.freshnessState}`
-    : "unavailable";
+  const resolutionSummary = runtimeComposition.summary;
+  const authoritySummary = runtimeComposition.authoritySummary;
   const actionBusy = runtimeComposition.isLoading || runtimeComposition.isMutating;
 
   async function handleProfileChange(profileId: string) {

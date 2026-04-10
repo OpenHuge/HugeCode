@@ -241,7 +241,7 @@ export function useCodexAccountsStateLoader({
           refreshQueuedRef.current = false;
           const queuedUsageRefresh = refreshQueuedUsageModeRef.current;
           refreshQueuedUsageModeRef.current = null;
-          void refreshOAuthState({ usageRefresh: queuedUsageRefresh });
+          await refreshOAuthState({ usageRefresh: queuedUsageRefresh });
         }
       }
     },

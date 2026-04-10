@@ -1,5 +1,6 @@
 import { memo, useDeferredValue, type ReactNode } from "react";
 import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import type { RuntimeContinuityReadinessSummary } from "@ku0/code-application/runtimeContinuityReadiness";
 import {
   describeRuntimeToolLifecycleEvent,
   describeRuntimeToolLifecycleHookCheckpoint,
@@ -10,7 +11,6 @@ import {
 import { formatRuntimeSessionCheckpointSessionLabel } from "../../../application/runtime/facades/runtimeSessionCheckpointPresentation";
 import type { RuntimeAgentTaskInterventionInput } from "../../../application/runtime/types/webMcpBridge";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
-import type { RuntimeContinuityReadinessSummary } from "../../../application/runtime/facades/runtimeContinuityReadiness";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
 import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { useWorkspaceRuntimeSessionCheckpoint } from "../../shared/hooks/useWorkspaceRuntimeSessionCheckpoint";

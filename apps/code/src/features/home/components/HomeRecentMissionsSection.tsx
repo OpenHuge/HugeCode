@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import {
   CardDescription,
   CardTitle,
@@ -7,7 +8,6 @@ import {
   type StatusBadgeTone,
   Surface,
 } from "../../../design-system";
-import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import { describeMissionRunRouteDetail } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { HomeListRow } from "./HomeScaffold";
 import { markFeatureVisible } from "../../shared/featurePerformance";

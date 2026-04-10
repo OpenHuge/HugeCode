@@ -1,4 +1,4 @@
-import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import { type SelectOption, type StatusBadgeTone } from "../../../design-system";
 import { normalizePathForDisplay } from "../../../utils/platformPaths";
 import type { ApprovalRequest, RequestUserInputRequest } from "../../../types";

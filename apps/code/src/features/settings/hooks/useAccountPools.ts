@@ -152,7 +152,7 @@ export function useAccountPools() {
       }
       if (refreshQueuedRef.current && isMountedRef.current) {
         refreshQueuedRef.current = false;
-        void refreshOAuthState();
+        await refreshOAuthState();
       }
     }
   }, [readOAuthStateSnapshot]);

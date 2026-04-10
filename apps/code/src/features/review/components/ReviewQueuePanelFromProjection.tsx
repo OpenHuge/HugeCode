@@ -3,7 +3,7 @@ import {
   buildReviewEvidenceInputGate,
   type CompactReviewEvidenceInput,
 } from "../../../application/runtime/facades/runtimeReviewEvidenceModel";
-import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import type { RepositoryExecutionContract } from "../../../application/runtime/facades/runtimeRepositoryExecutionContract";
 import { buildMissionReviewEntriesFromProjection } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
 import { ReviewQueuePanel, type ReviewQueuePanelProps } from "./ReviewQueuePanel";

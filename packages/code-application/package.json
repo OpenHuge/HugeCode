@@ -29,6 +29,10 @@
       "types": "./src/runtimeInvocationExecution.ts",
       "default": "./src/runtimeInvocationExecution.ts"
     },
+    "./runtimeAutonomyPresentation": {
+      "types": "./src/runtime-control-plane/runtimeAutonomyPresentation.ts",
+      "default": "./src/runtime-control-plane/runtimeAutonomyPresentation.ts"
+    },
     "./runtimeBackendPreferences": {
       "types": "./src/runtimeBackendPreferences.ts",
       "default": "./src/runtimeBackendPreferences.ts"
@@ -65,6 +69,30 @@
       "types": "./src/runtime-control-plane/missionControlSurfaceModel.ts",
       "default": "./src/runtime-control-plane/missionControlSurfaceModel.ts"
     },
+    "./runtimeContinuityReadiness": {
+      "types": "./src/runtime-control-plane/runtimeContinuityReadiness.ts",
+      "default": "./src/runtime-control-plane/runtimeContinuityReadiness.ts"
+    },
+    "./runtimeMissionControlCheckpoint": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlCheckpoint.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlCheckpoint.ts"
+    },
+    "./runtimeMissionControlContinuation": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlContinuation.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlContinuation.ts"
+    },
+    "./runtimeMissionControlContinuationSummary": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlContinuationSummary.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlContinuationSummary.ts"
+    },
+    "./runtimeMissionControlExecutionProfiles": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlExecutionProfiles.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlExecutionProfiles.ts"
+    },
+    "./runtimeMissionControlFormatting": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlFormatting.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlFormatting.ts"
+    },
     "./runtimeReviewPackSurfaceModel": {
       "types": "./src/runtime-control-plane/reviewPackSurfaceModel.ts",
       "default": "./src/runtime-control-plane/reviewPackSurfaceModel.ts"
@@ -89,6 +117,18 @@
       "types": "./src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlProjectionSummaries.ts"
     },
+    "./runtimeMissionControlRouteDetail": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlRouteDetail.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlRouteDetail.ts"
+    },
+    "./runtimeMissionControlRunState": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlRunState.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlRunState.ts"
+    },
+    "./runtimeMissionControlTaskStatus": {
+      "types": "./src/runtime-control-plane/runtimeMissionControlTaskStatus.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionControlTaskStatus.ts"
+    },
     "./runtimeMissionControlTaskSourceProjector": {
       "types": "./src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts"
@@ -100,6 +140,34 @@
     "./runtimeMissionControlPluginCatalog": {
       "types": "./src/runtime-control-plane/runtimeMissionControlPluginCatalog.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlPluginCatalog.ts"
+    },
+    "./runtimeMissionReviewTriage": {
+      "types": "./src/runtime-control-plane/runtimeMissionReviewTriage.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionReviewTriage.ts"
+    },
+    "./runtimeMissionSecondaryLabel": {
+      "types": "./src/runtime-control-plane/runtimeMissionSecondaryLabel.ts",
+      "default": "./src/runtime-control-plane/runtimeMissionSecondaryLabel.ts"
+    },
+    "./runtimeRepositoryExecutionDefaults": {
+      "types": "./src/runtime-control-plane/runtimeRepositoryExecutionDefaults.ts",
+      "default": "./src/runtime-control-plane/runtimeRepositoryExecutionDefaults.ts"
+    },
+    "./runtimeReviewContinuationFacade": {
+      "types": "./src/runtime-control-plane/runtimeReviewContinuationFacade.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewContinuationFacade.ts"
+    },
+    "./runtimeReviewEvidenceModel": {
+      "types": "./src/runtime-control-plane/runtimeReviewEvidenceModel.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewEvidenceModel.ts"
+    },
+    "./runtimeReviewIntelligenceSummary": {
+      "types": "./src/runtime-control-plane/runtimeReviewIntelligenceSummary.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewIntelligenceSummary.ts"
+    },
+    "./runtimeReviewInterventionInstruction": {
+      "types": "./src/runtime-control-plane/runtimeReviewInterventionInstruction.ts",
+      "default": "./src/runtime-control-plane/runtimeReviewInterventionInstruction.ts"
     },
     "./runtimeReviewPackDecisionActionsFacade": {
       "types": "./src/runtime-control-plane/runtimeReviewPackDecisionActionsFacade.ts",

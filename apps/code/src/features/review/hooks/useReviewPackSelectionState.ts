@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import {
   resolveReviewPackSelection,
   type ReviewPackSelectionRequest,

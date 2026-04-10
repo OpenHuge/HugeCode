@@ -6,6 +6,8 @@ import type {
   InvocationExecutionEvidence,
   InvocationExecutionOutcome,
   InvocationExecutionPlan,
+  InvocationExecutionPlacementRationale,
+  InvocationExecutionProvenance,
   InvocationHostRequirement,
 } from "@ku0/code-runtime-host-contract";
 
@@ -18,6 +20,27 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function readString(record: Record<string, unknown> | null, key: string): string | null {
   const value = record?.[key];
   return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function readStringArray(record: Record<string, unknown> | null, key: string): string[] {
+  const value = record?.[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const entries: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "string") {
+      continue;
+    }
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    entries.push(trimmed);
+  }
+  return entries;
 }
 
 function buildHostRequirements(binding: InvocationExecutionBinding): InvocationHostRequirement[] {
@@ -82,6 +105,17 @@ function buildPreflight(descriptor: InvocationDescriptor): InvocationExecutionPl
     state: "blocked",
     summary:
       descriptor.readiness.reason ?? `Invocation \`${descriptor.id}\` is blocked by readiness.`,
+  };
+}
+
+function buildPreflightOutcome(
+  descriptor: InvocationDescriptor,
+  preflight: InvocationExecutionPlan["preflight"]
+): InvocationExecutionPlan["preflightOutcome"] {
+  return {
+    ...preflight,
+    required: descriptor.exposure.requiresReadiness,
+    readinessState: descriptor.readiness.state,
   };
 }
 
@@ -158,14 +192,94 @@ function inferBinding(descriptor: InvocationDescriptor): InvocationExecutionBind
   };
 }
 
+function buildInvocationProvenance(
+  descriptor: InvocationDescriptor,
+  execution: InvocationExecutionPlan
+): InvocationExecutionProvenance {
+  return {
+    descriptorKind: descriptor.kind,
+    bindingKind: execution.binding.kind,
+    sourceKind: descriptor.source.kind,
+    sourceId: descriptor.source.sourceId,
+    sourceAuthority: descriptor.source.authority,
+    executionHost: execution.binding.host,
+    toolName: execution.binding.toolName ?? descriptor.runtimeTool?.toolName ?? null,
+    extensionId: execution.binding.extensionId ?? null,
+    promptId: execution.binding.promptId ?? null,
+  };
+}
+
+function buildPlacementRationale(
+  descriptor: InvocationDescriptor,
+  execution: InvocationExecutionPlan
+): InvocationExecutionPlacementRationale {
+  switch (execution.binding.kind) {
+    case "runtime_run":
+      return {
+        summary:
+          "Dispatches through the runtime-run path so launch placement, approvals, and lifecycle stay runtime-owned.",
+        reason: descriptor.readiness.reason,
+      };
+    case "runtime_live_skill":
+      return {
+        summary:
+          "Dispatches through the canonical runtime live-skill path so execution remains inside runtime governance.",
+        reason: descriptor.readiness.reason,
+      };
+    case "runtime_extension_tool":
+      return {
+        summary:
+          "Dispatches through the runtime extension bridge because this invocation targets a runtime-owned extension tool.",
+        reason: descriptor.readiness.reason,
+      };
+    case "session_message":
+      return {
+        summary:
+          "Dispatches through the session facade because this invocation targets the current thread context.",
+        reason: descriptor.readiness.reason,
+      };
+    case "approval_response":
+      return {
+        summary:
+          "Dispatches through the session approval path because this invocation resolves an active operator approval.",
+        reason: descriptor.readiness.reason,
+      };
+    case "prompt_overlay":
+      return {
+        summary:
+          "Resolves through the workspace prompt library because this invocation contributes a prompt overlay rather than a runtime tool call.",
+        reason: descriptor.readiness.reason,
+      };
+    case "unsupported":
+      return {
+        summary:
+          "No canonical execution host is available yet for this invocation descriptor; treat it as non-executable control-plane metadata.",
+        reason: descriptor.readiness.reason,
+      };
+  }
+}
+
+function readToolCallIds(descriptor: InvocationDescriptor): string[] {
+  const metadata = asRecord(descriptor.metadata);
+  const toolCallIds = readStringArray(metadata, "toolCallIds");
+  const singularToolCallId = readString(metadata, "toolCallId");
+  return singularToolCallId && !toolCallIds.includes(singularToolCallId)
+    ? [...toolCallIds, singularToolCallId]
+    : toolCallIds;
+}
+
 export function buildInvocationExecutionPlan(
   descriptor: InvocationDescriptor
 ): InvocationExecutionPlan {
   const binding = inferBinding(descriptor);
+  const hostRequirements = buildHostRequirements(binding);
+  const preflight = buildPreflight(descriptor);
   return {
     binding,
-    hostRequirements: buildHostRequirements(binding),
-    preflight: buildPreflight(descriptor),
+    hostRequirements,
+    hostCapabilityRequirements: hostRequirements.map((requirement) => ({ ...requirement })),
+    preflight,
+    preflightOutcome: buildPreflightOutcome(descriptor, preflight),
   };
 }
 
@@ -194,7 +308,14 @@ export function buildInvocationExecutionEvidence(input: {
     },
     binding: { ...execution.binding },
     hostRequirements: execution.hostRequirements.map((requirement) => ({ ...requirement })),
+    hostCapabilityRequirements: execution.hostCapabilityRequirements.map((requirement) => ({
+      ...requirement,
+    })),
     preflight: { ...execution.preflight },
+    preflightOutcome: { ...execution.preflightOutcome },
+    invocationProvenance: buildInvocationProvenance(input.descriptor, execution),
+    placementRationale: buildPlacementRationale(input.descriptor, execution),
+    toolCallIds: readToolCallIds(input.descriptor),
     outcome: { ...input.outcome },
   };
 }

@@ -5,6 +5,11 @@ import path from "node:path";
 
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx"]);
 const IMPORT_PATTERN = /(?:from\s+["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\))/gu;
+const FEATURE_RUNTIME_CONTROL_PLANE_FACADES = new Set([
+  "apps/code/src/application/runtime/facades/runtimeMissionControlFacade",
+  "apps/code/src/application/runtime/facades/runtimeContinuityReadiness",
+  "apps/code/src/application/runtime/facades/runtimeReviewContinuationFacade",
+]);
 
 function toPosixPath(input) {
   return input.split(path.sep).join("/");
@@ -78,6 +83,14 @@ function normalizePathImport(specifier) {
   return toPosixPath(path.normalize(specifier));
 }
 
+function isTestLikeFile(relativeFilePath) {
+  return /\.(?:test|spec)\.[jt]sx?$/u.test(relativeFilePath);
+}
+
+function stripKnownExtension(relativeFilePath) {
+  return relativeFilePath.replace(/\.(?:ts|tsx|js|jsx)$/u, "");
+}
+
 function findViolations(repoRoot) {
   const scanRoots = [
     path.join(repoRoot, "apps"),
@@ -122,6 +135,21 @@ function findViolations(repoRoot) {
         }
 
         const targetAppId = targetMatch[1];
+        if (
+          relativeFilePath.startsWith("apps/code/src/features/") &&
+          !isTestLikeFile(relativeFilePath) &&
+          FEATURE_RUNTIME_CONTROL_PLANE_FACADES.has(stripKnownExtension(relativeTargetPath))
+        ) {
+          violations.push({
+            filePath: relativeFilePath,
+            line: getLineNumber(content, match.index ?? 0),
+            specifier,
+            target: relativeTargetPath,
+            kind: "feature-to-app control-plane facade import",
+          });
+          continue;
+        }
+
         if (sourceAppId && targetAppId === sourceAppId) {
           continue;
         }
