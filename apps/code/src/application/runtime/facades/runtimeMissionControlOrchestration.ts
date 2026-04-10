@@ -14,10 +14,7 @@ import {
   type RuntimeLaunchReadinessSummary,
 } from "./runtimeLaunchReadiness";
 import { normalizeRuntimeTaskForProjection } from "./runtimeMissionControlProjectionNormalization";
-import {
-  projectAgentTaskSummaryToRunSummary,
-  type RunProjectionRoutingContext,
-} from "./runtimeMissionControlFacade";
+import type { RunProjectionRoutingContext } from "./runtimeMissionControlFacade";
 
 export type RuntimeMissionControlVisibleRun = {
   task: RuntimeAgentTaskSummary;
@@ -79,19 +76,19 @@ export function buildRuntimeMissionControlOrchestrationState({
   stalePendingApprovalMs,
   now = Date.now,
 }: BuildRuntimeMissionControlOrchestrationStateInput): RuntimeMissionControlOrchestrationState {
-  const resolveRunSummary = (task: RuntimeAgentTaskSummary): HugeCodeRunSummary =>
-    task.runSummary ??
-    projectAgentTaskSummaryToRunSummary(normalizeRuntimeTaskForProjection(task), {
-      routingContext,
-    });
+  void routingContext;
+  const runtimeTasksWithRunSummary = runtimeTasks.filter(
+    (task): task is RuntimeAgentTaskSummary & { runSummary: HugeCodeRunSummary } =>
+      task.runSummary !== undefined && task.runSummary !== null
+  );
   const projectedRunsByTaskId = new Map(
-    runtimeTasks.map((task) => [task.taskId, resolveRunSummary(task)])
+    runtimeTasksWithRunSummary.map((task) => [task.taskId, task.runSummary])
   );
 
   const continuityReadiness = buildRuntimeContinuityReadiness({
-    candidates: runtimeTasks.map((task) => ({
+    candidates: runtimeTasksWithRunSummary.map((task) => ({
       task: normalizeRuntimeTaskForProjection(task),
-      run: projectedRunsByTaskId.get(task.taskId)!,
+      run: task.runSummary,
     })),
     durabilityWarning,
   });

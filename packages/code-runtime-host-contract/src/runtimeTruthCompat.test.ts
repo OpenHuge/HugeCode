@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRuntimeTruthCompatInputFromRunReviewPair,
   resolveCanonicalRuntimeTruth,
+  resolveCanonicalRuntimeTruthFromRunReviewPair,
   resolveRuntimeContinuation,
   resolveRuntimeNextOperatorAction,
   resolveRuntimeSessionBoundary,
@@ -325,6 +327,240 @@ describe("runtimeTruthCompat", () => {
     expect(truth.nextOperatorAction).toMatchObject({
       action: "open_review_pack",
       detail: "Open the published review continuation.",
+    });
+  });
+
+  it("builds canonical compat input from a review-pack-first run pair", () => {
+    const compatInput = buildRuntimeTruthCompatInputFromRunReviewPair({
+      run: {
+        id: "run-1",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        state: "review_ready",
+        reviewPackId: "review-pack:run-1",
+        approval: null,
+        reviewDecision: null,
+        nextAction: {
+          action: "review",
+          label: "Open review",
+          detail: "Legacy next action should not win.",
+        },
+        checkpoint: {
+          state: "paused",
+          lifecycleState: "paused",
+          checkpointId: "checkpoint-run",
+          traceId: "trace-run",
+          recovered: true,
+          updatedAt: 1,
+          resumeReady: false,
+          recoveredAt: 1,
+          summary: "Run checkpoint summary.",
+        },
+        missionLinkage: {
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:run-1",
+          checkpointId: "checkpoint-run",
+          traceId: "trace-run",
+          threadId: "thread-1",
+          requestId: null,
+          missionTaskId: "task-1",
+          taskEntityKind: "thread",
+          recoveryPath: "thread",
+          navigationTarget: {
+            kind: "thread",
+            workspaceId: "ws-1",
+            threadId: "thread-1",
+          },
+          summary: "Run mission linkage.",
+        },
+        actionability: {
+          state: "blocked",
+          summary: "Run actionability should not win.",
+          degradedReasons: [],
+          actions: [],
+        },
+        publishHandoff: {
+          jsonPath: ".hugecode/runs/run-1/publish/handoff.json",
+          markdownPath: ".hugecode/runs/run-1/publish/handoff.md",
+          summary: "Run publish handoff.",
+          branchName: "main",
+          reviewTitle: "Review handoff",
+          details: [],
+        },
+        takeoverBundle: null,
+        sessionBoundary: null,
+        continuation: null,
+        nextOperatorAction: null,
+      },
+      reviewPack: {
+        id: "review-pack:run-1",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewStatus: "action_required",
+        reviewDecision: {
+          status: "pending",
+          reviewPackId: "review-pack:run-1",
+          label: "Decision pending",
+          summary: "Awaiting review decision.",
+          decidedAt: null,
+        },
+        checkpoint: {
+          state: "completed",
+          lifecycleState: "completed",
+          checkpointId: "checkpoint-review",
+          traceId: "trace-review",
+          recovered: false,
+          updatedAt: 2,
+          resumeReady: false,
+          recoveredAt: null,
+          summary: "Review-pack checkpoint summary.",
+        },
+        missionLinkage: {
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:run-1",
+          checkpointId: "checkpoint-review",
+          traceId: "trace-review",
+          threadId: "thread-1",
+          requestId: null,
+          missionTaskId: "task-1",
+          taskEntityKind: "thread",
+          recoveryPath: "thread",
+          navigationTarget: {
+            kind: "thread",
+            workspaceId: "ws-1",
+            threadId: "thread-1",
+          },
+          summary: "Review mission linkage.",
+        },
+        actionability: {
+          state: "blocked",
+          summary: "Review actionability wins.",
+          degradedReasons: [],
+          actions: [],
+        },
+        publishHandoff: {
+          jsonPath: ".hugecode/runs/run-1/publish/review-handoff.json",
+          markdownPath: ".hugecode/runs/run-1/publish/review-handoff.md",
+          summary: "Review publish handoff wins.",
+          branchName: "main",
+          reviewTitle: "Review handoff",
+          details: [],
+        },
+        takeoverBundle: {
+          state: "ready",
+          pathKind: "review",
+          primaryAction: "open_review_pack",
+          summary: "Review takeover bundle wins.",
+          recommendedAction: "Open the review pack from the takeover bundle.",
+          reviewPackId: "review-pack:run-1",
+        },
+        sessionBoundary: null,
+        continuation: null,
+        nextOperatorAction: null,
+      },
+    });
+
+    expect(compatInput.reviewPackId).toBe("review-pack:run-1");
+    expect(compatInput.reviewStatus).toBe("action_required");
+    expect(compatInput.checkpoint?.checkpointId).toBe("checkpoint-review");
+    expect(compatInput.actionability?.summary).toBe("Review actionability wins.");
+    expect(compatInput.publishHandoff?.summary).toBe("Review publish handoff wins.");
+    expect(compatInput.takeoverBundle?.summary).toBe("Review takeover bundle wins.");
+    expect(compatInput.state).toBe("review_ready");
+  });
+
+  it("resolves canonical truth from a run/review pair with review-pack precedence", () => {
+    const truth = resolveCanonicalRuntimeTruthFromRunReviewPair({
+      run: {
+        id: "run-1",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        state: "review_ready",
+        reviewPackId: "review-pack:run-1",
+        approval: null,
+        reviewDecision: null,
+        nextAction: null,
+        checkpoint: null,
+        missionLinkage: null,
+        actionability: {
+          state: "blocked",
+          summary: "Run actionability should not win.",
+          degradedReasons: [],
+          actions: [],
+        },
+        publishHandoff: null,
+        takeoverBundle: null,
+        sessionBoundary: null,
+        continuation: null,
+        nextOperatorAction: null,
+      },
+      reviewPack: {
+        id: "review-pack:run-1",
+        workspaceId: "ws-1",
+        taskId: "task-1",
+        runId: "run-1",
+        reviewStatus: "action_required",
+        reviewDecision: {
+          status: "pending",
+          reviewPackId: "review-pack:run-1",
+          label: "Decision pending",
+          summary: "Awaiting review decision.",
+          decidedAt: null,
+        },
+        checkpoint: null,
+        missionLinkage: {
+          workspaceId: "ws-1",
+          taskId: "task-1",
+          runId: "run-1",
+          reviewPackId: "review-pack:run-1",
+          checkpointId: null,
+          traceId: null,
+          threadId: "thread-1",
+          requestId: null,
+          missionTaskId: "task-1",
+          taskEntityKind: "thread",
+          recoveryPath: "thread",
+          navigationTarget: {
+            kind: "thread",
+            workspaceId: "ws-1",
+            threadId: "thread-1",
+          },
+          summary: "Review mission linkage.",
+        },
+        actionability: {
+          state: "blocked",
+          summary: "Review actionability wins.",
+          degradedReasons: [],
+          actions: [],
+        },
+        publishHandoff: null,
+        takeoverBundle: {
+          state: "ready",
+          pathKind: "review",
+          primaryAction: "open_review_pack",
+          summary: "Review takeover bundle wins.",
+          recommendedAction: "Open the review pack from the takeover bundle.",
+          reviewPackId: "review-pack:run-1",
+        },
+        sessionBoundary: null,
+        continuation: null,
+        nextOperatorAction: null,
+      },
+    });
+
+    expect(truth.continuation).toMatchObject({
+      source: "takeover_bundle",
+      summary: "Review takeover bundle wins.",
+      recommendedAction: "Open the review pack from the takeover bundle.",
+    });
+    expect(truth.nextOperatorAction).toMatchObject({
+      action: "open_review_pack",
+      source: "review_pack",
     });
   });
 });

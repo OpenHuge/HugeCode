@@ -118,7 +118,21 @@ export {
   resolveCheckpointHandoffLabel,
   resolveMissionOperatorAction,
 } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
+export { resolveMissionContinuationActionability } from "./runtime-control-plane/runtimeMissionControlContinuation";
 export { resolveMissionTakeoverOperatorAction } from "./runtime-control-plane/runtimeMissionControlTakeoverAction";
+export {
+  buildMissionOverviewOperatorSignal as buildMissionOverviewContinuationSignal,
+  resolveCanonicalMissionReviewContinuation,
+  resolveLegacyReviewPackNextAction,
+  resolveMissionReviewContinuationData,
+} from "./runtime-control-plane/runtimeMissionControlContinuationSummary";
+export { buildRuntimeContinuityReadiness } from "./runtime-control-plane/runtimeContinuityReadiness";
+export {
+  prepareReviewContinuationDraft,
+  resolveReviewContinuationDefaults,
+  resolveRuntimeFollowUpPreferredBackendIds,
+  summarizeReviewContinuationActionability,
+} from "./runtime-control-plane/runtimeReviewContinuationFacade";
 export {
   buildRuntimeLaunchPreparationContextPlaneSummary,
   buildRuntimeLaunchPreparationEvalPlaneSummary,
@@ -197,6 +211,9 @@ export type {
   ThreadVisualState,
 } from "./runtime-control-plane/missionControlSurfaceModel";
 export type { MissionOperatorActionModel } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
+export type * from "./runtime-control-plane/runtimeMissionControlContinuationSummary";
+export type * from "./runtime-control-plane/runtimeContinuityReadiness";
+export type * from "./runtime-control-plane/runtimeReviewContinuationFacade";
 export type {
   RuntimeLaunchPreparationInvocationSummary,
   RuntimeMissionControlCompositionSummary,

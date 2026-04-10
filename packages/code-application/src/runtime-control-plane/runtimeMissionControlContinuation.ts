@@ -1,4 +1,7 @@
-import type { HugeCodeReviewPackSummary } from "@ku0/code-runtime-host-contract";
+import {
+  buildRuntimeTruthCompatInputFromRunReviewPair,
+  type HugeCodeReviewPackSummary,
+} from "@ku0/code-runtime-host-contract";
 import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import {
   summarizeReviewContinuationActionability,
@@ -9,14 +12,15 @@ export function resolveMissionContinuationActionability(input: {
   reviewPack: HugeCodeReviewPackSummary | null;
   run: MissionControlProjection["runs"][number] | null;
 }): ReviewContinuationActionabilitySummary {
+  const compatInput = buildRuntimeTruthCompatInputFromRunReviewPair(input);
   return summarizeReviewContinuationActionability({
-    runState: input.run?.state ?? null,
-    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
-    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
-    actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
-    missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
-    publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
-    reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
-    continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
+    runState: compatInput.state ?? null,
+    checkpoint: compatInput.checkpoint ?? null,
+    takeoverBundle: compatInput.takeoverBundle ?? null,
+    actionability: compatInput.actionability ?? null,
+    missionLinkage: compatInput.missionLinkage ?? null,
+    publishHandoff: compatInput.publishHandoff ?? null,
+    reviewPackId: compatInput.reviewPackId ?? null,
+    continuation: compatInput.continuation ?? null,
   });
 }

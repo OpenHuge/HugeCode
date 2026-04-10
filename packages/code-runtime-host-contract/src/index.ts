@@ -1114,11 +1114,19 @@ export {
   resolveCodeRuntimeRpcMethod,
 } from "./codeRuntimeRpcCompat.js";
 export {
+  buildRuntimeTruthCompatInputFromRunReviewPair,
   resolveCanonicalRuntimeTruth,
+  resolveCanonicalRuntimeTruthFromRunReviewPair,
   resolveRuntimeContinuation,
   resolveRuntimeNextOperatorAction,
   resolveRuntimeSessionBoundary,
 } from "./runtimeTruthCompat.js";
+export type * from "./runtimeTruthCompat.js";
+export type * from "./runtimeRunPrepareCompat.js";
+export {
+  isRuntimeRunPrepareV2DegradedCompatibleError,
+  resolveCanonicalRuntimeRunPrepareSurface,
+} from "./runtimeRunPrepareCompat.js";
 export type * from "./runtimeContinuationFacade.js";
 export {
   buildRuntimeContinuationAggregate,

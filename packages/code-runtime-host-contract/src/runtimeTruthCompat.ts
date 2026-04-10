@@ -2,12 +2,14 @@ import type {
   HugeCodeCheckpointSummary,
   HugeCodeContinuationState,
   HugeCodeContinuationSummary,
+  HugeCodeReviewPackSummary,
   HugeCodeMissionLinkageSummary,
   HugeCodeMissionNavigationTarget,
   HugeCodeNextOperatorAction,
   HugeCodePublishHandoffReference,
   HugeCodeReviewActionabilitySummary,
   HugeCodeReviewDecisionSummary,
+  HugeCodeRunSummary,
   HugeCodeReviewStatus,
   HugeCodeRunApprovalSummary,
   HugeCodeRunNextAction,
@@ -41,6 +43,45 @@ export type CanonicalRuntimeTruth = {
   sessionBoundary: HugeCodeRuntimeSessionBoundary | null;
   continuation: HugeCodeContinuationSummary | null;
   nextOperatorAction: HugeCodeNextOperatorAction | null;
+};
+
+export type RuntimeTruthCompatRunReviewPairInput = {
+  run: Pick<
+    HugeCodeRunSummary,
+    | "id"
+    | "workspaceId"
+    | "taskId"
+    | "state"
+    | "reviewPackId"
+    | "approval"
+    | "reviewDecision"
+    | "nextAction"
+    | "checkpoint"
+    | "missionLinkage"
+    | "actionability"
+    | "publishHandoff"
+    | "takeoverBundle"
+    | "sessionBoundary"
+    | "continuation"
+    | "nextOperatorAction"
+  > | null;
+  reviewPack: Pick<
+    HugeCodeReviewPackSummary,
+    | "id"
+    | "workspaceId"
+    | "taskId"
+    | "runId"
+    | "reviewStatus"
+    | "reviewDecision"
+    | "checkpoint"
+    | "missionLinkage"
+    | "actionability"
+    | "publishHandoff"
+    | "takeoverBundle"
+    | "sessionBoundary"
+    | "continuation"
+    | "nextOperatorAction"
+  > | null;
 };
 
 function readOptionalText(value: string | null | undefined) {
@@ -436,4 +477,35 @@ export function resolveCanonicalRuntimeTruth(
     continuation,
     nextOperatorAction,
   };
+}
+
+export function buildRuntimeTruthCompatInputFromRunReviewPair(
+  input: RuntimeTruthCompatRunReviewPairInput
+): RuntimeTruthCompatInput {
+  return {
+    workspaceId: input.reviewPack?.workspaceId ?? input.run?.workspaceId ?? null,
+    taskId: input.reviewPack?.taskId ?? input.run?.taskId ?? null,
+    runId: input.reviewPack?.runId ?? input.run?.id ?? null,
+    reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
+    state: input.run?.state ?? (input.reviewPack ? "review_ready" : null),
+    reviewStatus: input.reviewPack?.reviewStatus ?? null,
+    approval: input.run?.approval ?? null,
+    reviewDecision: input.reviewPack?.reviewDecision ?? input.run?.reviewDecision ?? null,
+    nextAction: input.run?.nextAction ?? null,
+    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
+    missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
+    actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
+    publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
+    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
+    sessionBoundary: input.reviewPack?.sessionBoundary ?? input.run?.sessionBoundary ?? null,
+    continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
+    nextOperatorAction:
+      input.reviewPack?.nextOperatorAction ?? input.run?.nextOperatorAction ?? null,
+  };
+}
+
+export function resolveCanonicalRuntimeTruthFromRunReviewPair(
+  input: RuntimeTruthCompatRunReviewPairInput
+): CanonicalRuntimeTruth {
+  return resolveCanonicalRuntimeTruth(buildRuntimeTruthCompatInputFromRunReviewPair(input));
 }

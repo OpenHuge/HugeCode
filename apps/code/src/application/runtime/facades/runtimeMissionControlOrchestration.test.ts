@@ -41,28 +41,50 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
       runtimeTasks: [
         {
           ...buildTask("resume-task", "interrupted", 10),
-          recovered: true,
-          executionGraph: {
-            graphId: "graph-resume-task",
-            nodes: [
-              {
-                id: "graph-resume-task:root",
-                kind: "plan",
-                resolvedBackendId: "backend-1",
-                checkpoint: {
-                  state: "interrupted",
-                  lifecycleState: "interrupted",
-                  checkpointId: "checkpoint-1",
-                  traceId: "trace-1",
-                  recovered: true,
-                  updatedAt: 10,
-                  resumeReady: true,
-                  recoveredAt: 10,
-                  summary: "Resume from checkpoint-1.",
+          runSummary: {
+            id: "resume-task",
+            taskId: "resume-task",
+            workspaceId: "workspace-1",
+            state: "paused",
+            title: "Resume task",
+            summary: "Resume from runtime-published checkpoint.",
+            startedAt: 1,
+            finishedAt: null,
+            updatedAt: 10,
+            currentStepIndex: 0,
+            checkpoint: {
+              state: "interrupted",
+              lifecycleState: "interrupted",
+              checkpointId: "checkpoint-1",
+              traceId: "trace-1",
+              recovered: true,
+              updatedAt: 10,
+              resumeReady: true,
+              recoveredAt: 10,
+              summary: "Resume from checkpoint-1.",
+            },
+            executionGraph: {
+              graphId: "graph-resume-task",
+              nodes: [
+                {
+                  id: "graph-resume-task:root",
+                  kind: "plan",
+                  resolvedBackendId: "backend-1",
+                  checkpoint: {
+                    state: "interrupted",
+                    lifecycleState: "interrupted",
+                    checkpointId: "checkpoint-1",
+                    traceId: "trace-1",
+                    recovered: true,
+                    updatedAt: 10,
+                    resumeReady: true,
+                    recoveredAt: 10,
+                    summary: "Resume from checkpoint-1.",
+                  },
                 },
-              },
-            ],
-            edges: [],
+              ],
+              edges: [],
+            },
           },
         },
         buildTask("approval-task", "awaiting_approval", 5),
@@ -166,5 +188,45 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
 
     expect(state.projectedRunsByTaskId.get("native-run")?.title).toBe("Runtime-native run");
     expect(state.projectedRunsByTaskId.get("native-run")?.summary).toBe("Published from runtime");
+  });
+
+  it("does not synthesize projected runs when runtime omitted run summaries", () => {
+    const state = buildRuntimeMissionControlOrchestrationState({
+      runtimeTasks: [buildTask("task-without-run", "running", 12)],
+      statusFilter: "all",
+      capabilities: {
+        mode: "electron-bridge",
+        methods: [],
+        features: [],
+        wsEndpointPath: "/ws",
+        error: null,
+      },
+      health: {
+        app: "runtime",
+        version: "1.0.0",
+        status: "ok",
+      },
+      healthError: null,
+      selectedRoute: {
+        value: "auto",
+        label: "Automatic workspace routing",
+        state: "ready",
+        ready: true,
+        launchAllowed: true,
+        detail: null,
+      },
+      runtimeToolMetrics: null,
+      runtimeToolGuardrails: null,
+      stalePendingApprovalMs: 10,
+    });
+
+    expect(state.projectedRunsByTaskId.has("task-without-run")).toBe(false);
+    expect(state.visibleRuntimeRuns).toEqual([
+      {
+        task: expect.objectContaining({ taskId: "task-without-run" }),
+        run: null,
+      },
+    ]);
+    expect(state.continuityReadiness.items).toHaveLength(0);
   });
 });
