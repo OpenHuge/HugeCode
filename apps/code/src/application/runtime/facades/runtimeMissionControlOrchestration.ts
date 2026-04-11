@@ -1,4 +1,8 @@
-import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import {
+  buildRuntimeContextPressureSummary,
+  mergeRuntimeContextPressureSummaries,
+  type HugeCodeRunSummary,
+} from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import {
   buildRuntimeContinuityReadiness,
@@ -125,6 +129,15 @@ export function buildRuntimeMissionControlOrchestrationState({
     metrics: runtimeToolMetrics,
     guardrails: runtimeToolGuardrails,
   });
+  const contextPressure = mergeRuntimeContextPressureSummaries(
+    runtimeTasks.map((task) =>
+      buildRuntimeContextPressureSummary({
+        compactionSummary: task.compactionSummary ?? task.runSummary?.compactionSummary ?? null,
+        contextBoundary: task.contextBoundary ?? task.runSummary?.contextBoundary ?? null,
+        contextProjection: task.contextProjection ?? task.runSummary?.contextProjection ?? null,
+      })
+    )
+  );
 
   const launchReadiness = buildRuntimeLaunchReadiness({
     capabilities,
@@ -132,6 +145,7 @@ export function buildRuntimeMissionControlOrchestrationState({
     healthError,
     selectedRoute,
     executionReliability,
+    contextPressure,
     pendingApprovalCount: pendingApprovalTasks.length,
     stalePendingApprovalCount: stalePendingApprovalTasks.length,
   });

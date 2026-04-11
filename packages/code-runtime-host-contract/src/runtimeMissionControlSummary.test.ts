@@ -197,4 +197,67 @@ describe("runtimeMissionControlSummary", () => {
     expect(summary.launchAllowed).toBe(false);
     expect(summary.blockingReason).toBe("Enable at least one pool for this provider.");
   });
+
+  it("blocks launch when runtime context pressure is critical", () => {
+    const summary = buildRuntimeLaunchReadinessSummary({
+      capabilities: buildCapabilitiesSummary(),
+      health: {
+        app: "hugecode-runtime",
+        version: "1.0.0",
+        status: "ok",
+      },
+      healthError: null,
+      selectedRoute: {
+        value: "openai",
+        label: "OpenAI",
+        state: "ready",
+        ready: true,
+        launchAllowed: true,
+        detail: "Route ready.",
+      },
+      executionReliability: {
+        state: "ready",
+        blockingReason: null,
+        recommendedAction: "Runtime execution reliability looks healthy for another launch.",
+        gate: {
+          minSuccessRate: 0.95,
+          successRate: 1,
+          denominator: 10,
+          passed: true,
+        },
+        channelHealth: {
+          status: "healthy",
+          reason: null,
+          lastErrorCode: null,
+          updatedAt: 1,
+          source: "guardrails",
+        },
+        blockedTotal: 0,
+        topFailedReason: null,
+        circuitBreakers: [],
+      },
+      contextPressure: {
+        state: "critical",
+        label: "Context pressure critical",
+        detail: "Context projection is missing after compaction.",
+        recommendedAction: "Restore runtime context projection.",
+        signals: [],
+        compactionSummary: null,
+        contextBoundary: null,
+        contextProjection: null,
+        projectionFingerprint: null,
+        summaryRef: null,
+        offloadRefs: [],
+        updatedAt: null,
+      },
+      pendingApprovalCount: 0,
+      stalePendingApprovalCount: 0,
+    });
+
+    expect(summary.state).toBe("blocked");
+    expect(summary.launchAllowed).toBe(false);
+    expect(summary.contextPressure.pressureState).toBe("critical");
+    expect(summary.blockingReason).toBe("Context projection is missing after compaction.");
+    expect(summary.recommendedAction).toBe("Restore runtime context projection.");
+  });
 });

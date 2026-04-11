@@ -8,6 +8,7 @@ import type {
   RuntimePolicySnapshot,
   RuntimeToolingPlaneV2,
 } from "@ku0/code-runtime-host-contract";
+import { buildRuntimeContextPressureSummary } from "@ku0/code-runtime-host-contract";
 
 export type RuntimeMissionControlSummaryCounts = {
   total: number;
@@ -66,42 +67,22 @@ function joinSummaryParts(parts: Array<string | null>): string | null {
   return normalized.length > 0 ? normalized.join(" | ") : null;
 }
 
-function formatRuntimeCompactionSummary(contextPlane: RuntimeContextPlaneV2): string | null {
-  const compactionSummary = contextPlane.compactionSummary;
-  if (!compactionSummary) {
-    return null;
-  }
-  if (compactionSummary.executionError) {
-    return `Compaction: failed (${compactionSummary.executionError})`;
-  }
-  if (!compactionSummary.triggered) {
-    return "Compaction: idle";
-  }
-
-  const detailParts = [
-    compactionSummary.executed ? "executed" : "triggered",
-    compactionSummary.compressedSteps !== null && compactionSummary.compressedSteps !== undefined
-      ? `${compactionSummary.compressedSteps} step(s)`
-      : null,
-    compactionSummary.bytesReduced !== null && compactionSummary.bytesReduced !== undefined
-      ? `${compactionSummary.bytesReduced}B reduced`
-      : null,
-  ].filter((value): value is string => Boolean(value));
-
-  return `Compaction: ${detailParts.join(", ")}`;
-}
-
 export function buildRuntimeLaunchPreparationContextPlaneSummary(
   contextPlane: RuntimeContextPlaneV2 | null | undefined
 ): string | null {
   if (!contextPlane) {
     return null;
   }
+  const contextPressure = buildRuntimeContextPressureSummary({
+    compactionSummary: contextPlane.compactionSummary ?? null,
+  });
+  const compactionSignal =
+    contextPressure.signals.find((signal) => signal.source === "compaction") ?? null;
   return joinSummaryParts([
     `Memory refs: ${contextPlane.memoryRefs.length}`,
     `Artifacts: ${contextPlane.artifactRefs.length}`,
     `Retention: ${contextPlane.workingSetPolicy.retentionMode}`,
-    formatRuntimeCompactionSummary(contextPlane),
+    compactionSignal?.detail ?? null,
   ]);
 }
 

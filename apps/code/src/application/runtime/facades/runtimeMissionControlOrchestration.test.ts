@@ -229,4 +229,49 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
     ]);
     expect(state.continuityReadiness.items).toHaveLength(0);
   });
+
+  it("feeds runtime-published context pressure into launch readiness", () => {
+    const state = buildRuntimeMissionControlOrchestrationState({
+      runtimeTasks: [
+        {
+          ...buildTask("context-pressure-task", "running", 12),
+          contextBoundary: {
+            boundaryId: "boundary-1",
+            trigger: "tool_output",
+            phase: "mid_turn",
+            status: "failed",
+          },
+        },
+      ],
+      statusFilter: "all",
+      capabilities: {
+        mode: "electron-bridge",
+        methods: [],
+        features: [],
+        wsEndpointPath: "/ws",
+        error: null,
+      },
+      health: {
+        app: "runtime",
+        version: "1.0.0",
+        status: "ok",
+      },
+      healthError: null,
+      selectedRoute: {
+        value: "auto",
+        label: "Automatic workspace routing",
+        state: "ready",
+        ready: true,
+        launchAllowed: true,
+        detail: null,
+      },
+      runtimeToolMetrics: null,
+      runtimeToolGuardrails: null,
+      stalePendingApprovalMs: 10,
+    });
+
+    expect(state.launchReadiness.state).toBe("blocked");
+    expect(state.launchReadiness.contextPressure.pressureState).toBe("critical");
+    expect(state.launchReadiness.contextPressure.detail).toContain("boundary-1 failed");
+  });
 });
