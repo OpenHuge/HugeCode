@@ -57,6 +57,10 @@ jobs:
 
       - uses: ./.github/actions/cache-turbo
 
+      - uses: ./.github/actions/setup-playwright
+        with:
+          install-command: pnpm -C tests/e2e exec playwright install --only-shell chromium
+
       - name: Run internal runtime proving lane
         run: pnpm runtime:prove
 
