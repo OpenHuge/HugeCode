@@ -113,14 +113,6 @@
       "types": "./src/runtime-control-plane/runtimeMissionControlOperatorAction.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlOperatorAction.ts"
     },
-    "./runtimeMissionControlContinuation": {
-      "types": "./src/runtime-control-plane/runtimeMissionControlContinuation.ts",
-      "default": "./src/runtime-control-plane/runtimeMissionControlContinuation.ts"
-    },
-    "./runtimeMissionControlContinuationSummary": {
-      "types": "./src/runtime-control-plane/runtimeMissionControlContinuationSummary.ts",
-      "default": "./src/runtime-control-plane/runtimeMissionControlContinuationSummary.ts"
-    },
     "./runtimeMissionControlTakeoverAction": {
       "types": "./src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlTakeoverAction.ts"
@@ -204,10 +196,6 @@
     "./runtimeReviewPackSurfacePresentation": {
       "types": "./src/runtime-control-plane/runtimeReviewPackSurfacePresentation.ts",
       "default": "./src/runtime-control-plane/runtimeReviewPackSurfacePresentation.ts"
-    },
-    "./runtimeReviewContinuationFacade": {
-      "types": "./src/runtime-control-plane/runtimeReviewContinuationFacade.ts",
-      "default": "./src/runtime-control-plane/runtimeReviewContinuationFacade.ts"
     },
     "./runtimeLiveSkillAliases": {
       "types": "./src/runtimeLiveSkillAliases.ts",

@@ -126,7 +126,6 @@ export {
   resolveLegacyReviewPackNextAction,
   resolveMissionReviewContinuationData,
 } from "./runtime-control-plane/runtimeMissionControlContinuationSummary";
-export { buildRuntimeContinuityReadiness } from "./runtime-control-plane/runtimeContinuityReadiness";
 export {
   prepareReviewContinuationDraft,
   resolveReviewContinuationDefaults,
@@ -155,11 +154,6 @@ export {
   buildMissionRunSummary as buildRuntimeMissionRunSummary,
 } from "./runtime-control-plane/runtimeMissionControlLoop";
 export { buildMissionSecondaryLabel } from "./runtime-control-plane/runtimeMissionSecondaryLabel";
-export {
-  summarizeReviewContinuationActionability,
-  resolveReviewContinuationDefaults,
-  resolveRuntimeFollowUpPreferredBackendIds,
-} from "./runtime-control-plane/runtimeReviewContinuationFacade";
 export { buildMissionReviewTriageMetadata } from "./runtime-control-plane/runtimeMissionReviewTriage";
 export { resolveReviewIntelligenceSummary } from "./runtime-control-plane/runtimeReviewIntelligenceSummary";
 export {
