@@ -18,6 +18,11 @@ export type {
   RuntimeCompositionSettingsPersistenceEnvelope,
   RuntimeCompositionSettingsSelection,
 } from "./runtimeCompositionSettings.js";
+export {
+  buildRuntimeCompositionAuthoritySummary,
+  buildRuntimeCompositionResolutionSummary,
+} from "./runtimeCompositionSummary.js";
+export type { RuntimeCompositionResolutionSummary } from "./runtimeCompositionSummary.js";
 export type DesktopUpdateCapability = "automatic" | "manual" | "unsupported";
 export type DesktopUpdateMode =
   | "disabled_beta_manual"

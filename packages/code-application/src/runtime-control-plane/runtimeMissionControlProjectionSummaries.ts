@@ -2,7 +2,11 @@ import type {
   AgentTaskSummary,
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
+  RuntimeContextPlaneV2,
+  RuntimeEvalPlaneV2,
+  RuntimeInvocationCatalogRefV2,
   RuntimePolicySnapshot,
+  RuntimeToolingPlaneV2,
 } from "@ku0/code-runtime-host-contract";
 
 export type RuntimeMissionControlSummaryCounts = {
@@ -48,6 +52,129 @@ export type RuntimeMissionControlPolicyIndicator = {
   capabilities: RuntimeMissionControlPolicyCapability[];
   error: string | null;
 };
+
+export type RuntimeLaunchPreparationInvocationSummary = {
+  bindingCount: number;
+  readyBindingCount: number;
+  blockedBindingCount: number;
+  notRequiredBindingCount: number;
+  requirementCount: number;
+};
+
+function joinSummaryParts(parts: Array<string | null>): string | null {
+  const normalized = parts.filter((value): value is string => Boolean(value));
+  return normalized.length > 0 ? normalized.join(" | ") : null;
+}
+
+function formatRuntimeCompactionSummary(contextPlane: RuntimeContextPlaneV2): string | null {
+  const compactionSummary = contextPlane.compactionSummary;
+  if (!compactionSummary) {
+    return null;
+  }
+  if (compactionSummary.executionError) {
+    return `Compaction: failed (${compactionSummary.executionError})`;
+  }
+  if (!compactionSummary.triggered) {
+    return "Compaction: idle";
+  }
+
+  const detailParts = [
+    compactionSummary.executed ? "executed" : "triggered",
+    compactionSummary.compressedSteps !== null && compactionSummary.compressedSteps !== undefined
+      ? `${compactionSummary.compressedSteps} step(s)`
+      : null,
+    compactionSummary.bytesReduced !== null && compactionSummary.bytesReduced !== undefined
+      ? `${compactionSummary.bytesReduced}B reduced`
+      : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return `Compaction: ${detailParts.join(", ")}`;
+}
+
+export function buildRuntimeLaunchPreparationContextPlaneSummary(
+  contextPlane: RuntimeContextPlaneV2 | null | undefined
+): string | null {
+  if (!contextPlane) {
+    return null;
+  }
+  return joinSummaryParts([
+    `Memory refs: ${contextPlane.memoryRefs.length}`,
+    `Artifacts: ${contextPlane.artifactRefs.length}`,
+    `Retention: ${contextPlane.workingSetPolicy.retentionMode}`,
+    formatRuntimeCompactionSummary(contextPlane),
+  ]);
+}
+
+export function buildRuntimeLaunchPreparationInvocationSummary(
+  invocationCatalogRef: RuntimeInvocationCatalogRefV2 | null | undefined
+): RuntimeLaunchPreparationInvocationSummary | null {
+  if (!invocationCatalogRef) {
+    return null;
+  }
+  return {
+    bindingCount: invocationCatalogRef.execution.bindings.reduce(
+      (total, entry) => total + entry.count,
+      0
+    ),
+    readyBindingCount: invocationCatalogRef.execution.bindings.reduce(
+      (total, entry) => total + entry.readyCount,
+      0
+    ),
+    blockedBindingCount: invocationCatalogRef.execution.bindings.reduce(
+      (total, entry) => total + entry.blockedCount,
+      0
+    ),
+    notRequiredBindingCount: invocationCatalogRef.execution.bindings.reduce(
+      (total, entry) => total + entry.notRequiredCount,
+      0
+    ),
+    requirementCount: invocationCatalogRef.execution.requirements.length,
+  };
+}
+
+export function buildRuntimeLaunchPreparationToolingPlaneSummary(
+  toolingPlane: RuntimeToolingPlaneV2 | null | undefined
+): string | null {
+  if (!toolingPlane) {
+    return null;
+  }
+  const invocationSummary = buildRuntimeLaunchPreparationInvocationSummary(
+    toolingPlane.invocationCatalogRef
+  );
+  return joinSummaryParts([
+    `Capabilities: ${toolingPlane.capabilityCatalog?.capabilities.length ?? 0}`,
+    invocationSummary
+      ? `Invocation bindings: ${invocationSummary.bindingCount} (${invocationSummary.readyBindingCount} ready${
+          invocationSummary.blockedBindingCount > 0
+            ? `, ${invocationSummary.blockedBindingCount} blocked`
+            : ""
+        }${
+          invocationSummary.notRequiredBindingCount > 0
+            ? `, ${invocationSummary.notRequiredBindingCount} optional`
+            : ""
+        })`
+      : null,
+    invocationSummary ? `Invocation requirements: ${invocationSummary.requirementCount}` : null,
+    toolingPlane.sandboxRef ? `Tool posture: ${toolingPlane.sandboxRef.toolPosture}` : null,
+    toolingPlane.sandboxRef
+      ? `Approval sensitivity: ${toolingPlane.sandboxRef.approvalSensitivity}`
+      : null,
+    `MCP sources: ${toolingPlane.mcpSources.length}`,
+  ]);
+}
+
+export function buildRuntimeLaunchPreparationEvalPlaneSummary(
+  evalPlane: RuntimeEvalPlaneV2 | null | undefined
+): string | null {
+  if (!evalPlane) {
+    return null;
+  }
+  return joinSummaryParts([
+    `Eval cases: ${evalPlane.evalCases.length}`,
+    evalPlane.evalCases[0] ? `Baseline: ${evalPlane.evalCases[0].modelBaseline}` : null,
+    `Playbook steps: ${evalPlane.modelReleasePlaybook.length}`,
+  ]);
+}
 
 export function buildRuntimeMissionControlSummaryCounts(
   runtimeTasks: RuntimeMissionControlSummaryTaskLike[]

@@ -46,6 +46,20 @@ const RULES = [
     },
   },
   {
+    id: "shared-settings-app-server-control-plane-import",
+    description:
+      "shared workspace settings surfaces must not import app-local server control-plane settings helpers or sections",
+    roots: ["packages/code-workspace-client"],
+    appliesTo(relativeFilePath) {
+      return relativeFilePath.startsWith("packages/code-workspace-client/");
+    },
+    matches(_content, specifier) {
+      return /apps\/code\/src\/features\/settings\/components\/sections\/(?:SettingsAutomationSection|SettingsBackendPoolSection|settings-server-section\/(?:shared|SettingsRuntimeCompositionFieldGroup))(?:\.tsx?|)$/u.test(
+        specifier
+      );
+    },
+  },
+  {
     id: "code-domain-platform-import",
     description:
       "code-domain must stay framework- and platform-neutral; no React, browser host, desktop-host, or Electron imports",

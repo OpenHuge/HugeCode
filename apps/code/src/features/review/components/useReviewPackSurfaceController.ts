@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { listRunExecutionProfiles } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import { listRunExecutionProfiles } from "@ku0/code-application/runtimeMissionControlExecutionProfiles";
 import type { MissionInterventionDraft } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
 import { trackProductAnalyticsEvent } from "../../shared/productAnalytics";
 import type {

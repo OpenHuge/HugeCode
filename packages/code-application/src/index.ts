@@ -62,6 +62,10 @@ export {
   resolveRuntimeCompositionSelectedBackendCandidates,
   resolveRuntimePreferredBackendIdsInput,
 } from "./runtimeBackendPreferences";
+export {
+  buildRuntimeCompositionAuthoritySummary,
+  buildRuntimeCompositionResolutionSummary,
+} from "./runtimeCompositionSummary";
 export { applyRuntimeConfigHooks, resolveRuntimeCompositionProfile } from "./runtimeConfigHooks";
 export {
   RuntimeSkillExecutionGateError,
@@ -116,10 +120,34 @@ export {
 } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
 export { resolveMissionTakeoverOperatorAction } from "./runtime-control-plane/runtimeMissionControlTakeoverAction";
 export {
+  buildRuntimeLaunchPreparationContextPlaneSummary,
+  buildRuntimeLaunchPreparationEvalPlaneSummary,
+  buildRuntimeLaunchPreparationInvocationSummary,
+  buildRuntimeLaunchPreparationToolingPlaneSummary,
   buildRuntimeMissionControlCompositionSummary,
   buildRuntimeMissionControlPolicyIndicator,
   buildRuntimeMissionControlSummaryCounts,
 } from "./runtime-control-plane/runtimeMissionControlProjectionSummaries";
+export { buildRuntimeContinuityReadiness } from "./runtime-control-plane/runtimeContinuityReadiness";
+export {
+  listRunExecutionProfiles,
+  resolveExecutionProfile,
+} from "./runtime-control-plane/runtimeMissionControlExecutionProfiles";
+export { projectAgentTaskStatusToRunState } from "./runtime-control-plane/runtimeMissionControlTaskStatus";
+export {
+  buildMissionControlLoopItems,
+  buildMissionControlLoopItems as buildRuntimeMissionControlLoopItems,
+  buildMissionRunSummary,
+  buildMissionRunSummary as buildRuntimeMissionRunSummary,
+} from "./runtime-control-plane/runtimeMissionControlLoop";
+export { buildMissionSecondaryLabel } from "./runtime-control-plane/runtimeMissionSecondaryLabel";
+export {
+  summarizeReviewContinuationActionability,
+  resolveReviewContinuationDefaults,
+  resolveRuntimeFollowUpPreferredBackendIds,
+} from "./runtime-control-plane/runtimeReviewContinuationFacade";
+export { buildMissionReviewTriageMetadata } from "./runtime-control-plane/runtimeMissionReviewTriage";
+export { resolveReviewIntelligenceSummary } from "./runtime-control-plane/runtimeReviewIntelligenceSummary";
 export {
   buildRuntimeMissionControlPluginCatalogSummary,
   buildRuntimeKernelPluginReadinessEntries,
@@ -170,11 +198,17 @@ export type {
 } from "./runtime-control-plane/missionControlSurfaceModel";
 export type { MissionOperatorActionModel } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
 export type {
+  RuntimeLaunchPreparationInvocationSummary,
   RuntimeMissionControlCompositionSummary,
   RuntimeMissionControlPolicyCapability,
   RuntimeMissionControlPolicyIndicator,
   RuntimeMissionControlSummaryCounts,
 } from "./runtime-control-plane/runtimeMissionControlProjectionSummaries";
+export type {
+  RuntimeContinuityReadinessItem,
+  RuntimeContinuityReadinessState,
+  RuntimeContinuityReadinessSummary,
+} from "./runtime-control-plane/runtimeContinuityReadiness";
 export type {
   RuntimeKernelPluginReadinessBadge,
   RuntimeKernelPluginReadinessEntry,
@@ -196,10 +230,16 @@ export type {
   ReviewPackSelectionSource,
   ReviewPackSelectionState,
 } from "./runtime-control-plane/reviewPackSurfaceModel";
+export type { MissionReviewFilterTag } from "./runtime-control-plane/runtimeMissionReviewTriage";
+export type {
+  MissionControlLoopItem,
+  MissionRunSummary,
+} from "./runtime-control-plane/runtimeMissionControlLoop";
 export type {
   RuntimeCompositionProfileLaunchOverride,
   RuntimeCompositionProfileUpdates,
 } from "./runtimeCompositionProfiles";
+export type { RuntimeCompositionResolutionSummary } from "./runtimeCompositionSummary";
 export type { RuntimeConfigHook, RuntimeConfigHookContext } from "./runtimeConfigHooks";
 export type {
   RuntimeControlPlaneOperatorAction,
@@ -217,3 +257,13 @@ export type {
   RuntimeSkillBackedToolPublicationDecision,
   RuntimeSkillBackedToolPublicationEntry,
 } from "./runtimeExtensionExplainability";
+export type {
+  ReviewContinuationActionabilitySummary,
+  ReviewContinuationCheckpointDurabilityState,
+  ReviewContinuationDefaults,
+  ReviewContinuationDraft,
+  ReviewContinuationFieldOrigin,
+  ReviewContinuationFieldOrigins,
+  ReviewContinuationIntent,
+  RuntimeFollowUpPlacementInput,
+} from "./runtime-control-plane/runtimeReviewContinuationFacade";

@@ -1,10 +1,10 @@
 import type { DragEvent, MouseEvent, ReactNode, RefObject } from "react";
 import type {
+  HugeCodeMissionControlSnapshot as MissionControlProjection,
   InvocationDescriptor,
   RuntimeReviewGetV2Response,
 } from "@ku0/code-runtime-host-contract";
 import type { ErrorToast } from "../../../../application/runtime/ports/toasts";
-import type { MissionControlProjection } from "../../../../application/runtime/facades/runtimeMissionControlFacade";
 import type { RepositoryExecutionContract } from "../../../../application/runtime/facades/runtimeRepositoryExecutionContract";
 import type { GovernedGitHubFollowUpPreview } from "../../../../application/runtime/facades/githubSourceLaunchPreview";
 import type {

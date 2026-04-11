@@ -41,6 +41,30 @@ fn dedupe_string_values(values: impl IntoIterator<Item = String>) -> Vec<String>
     deduped
 }
 
+fn build_invocation_catalog_ref(execution_profile_id: Option<&str>) -> Value {
+    json!({
+        "catalogId": execution_profile_id.map(|id| format!("launch:{id}")),
+        "summary": "Launch-scoped invocation catalog publishes the canonical runtime run dispatch path and its host requirements before execution begins.",
+        "generatedAt": now_ms(),
+        "execution": {
+            "bindings": [{
+                "bindingKind": "runtime_run",
+                "host": "runtime",
+                "count": 1,
+                "readyCount": 1,
+                "blockedCount": 0,
+                "notRequiredCount": 0,
+                "requirementKeys": ["runtime_service"],
+            }],
+            "requirements": [{
+                "key": "runtime_service",
+                "count": 1,
+            }],
+        },
+        "provenance": ["runtime_prepare", "execution_profile"],
+    })
+}
+
 pub(super) fn build_context_plane(
     task_source: Option<&AgentTaskSourceSummary>,
     repository_defaults: &RepositoryExecutionResolvedDefaults,
@@ -287,6 +311,7 @@ pub(super) fn build_tooling_plane(
             "generatedAt": now_ms(),
             "capabilities": capabilities,
         },
+        "invocationCatalogRef": build_invocation_catalog_ref(execution_profile_id),
         "sandboxRef": {
             "id": format!("sandbox:{}", execution_profile_id.unwrap_or("runtime-default")),
             "label": format!("{execution_profile_label} sandbox"),
@@ -510,6 +535,14 @@ mod tests {
         assert_eq!(
             tooling_plane["sandboxRef"]["approvalSensitivity"],
             json!("standard")
+        );
+        assert_eq!(
+            tooling_plane["invocationCatalogRef"]["catalogId"],
+            json!("launch:balanced-delegate")
+        );
+        assert_eq!(
+            tooling_plane["invocationCatalogRef"]["execution"]["bindings"][0]["bindingKind"],
+            json!("runtime_run")
         );
         assert_eq!(tooling_plane["mcpSources"].as_array().map(Vec::len), Some(3));
     }

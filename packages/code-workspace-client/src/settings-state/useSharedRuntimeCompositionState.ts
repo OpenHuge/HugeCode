@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  buildRuntimeCompositionAuthoritySummary,
+  buildRuntimeCompositionResolutionSummary,
+  type RuntimeCompositionResolutionSummary,
+} from "@ku0/code-platform-interfaces";
 import type {
   RuntimeCompositionProfile,
   RuntimeCompositionProfileLaunchOverride,
@@ -114,6 +119,8 @@ export type SharedRuntimeCompositionState = {
       | ((current: RuntimeCompositionSettingsEntry) => RuntimeCompositionSettingsEntry)
   ) => Promise<RuntimeCompositionSettingsEntry>;
   clearPreview: () => void;
+  summary: RuntimeCompositionResolutionSummary;
+  authoritySummary: string;
 };
 
 type UseSharedRuntimeCompositionStateOptions = {
@@ -360,6 +367,12 @@ export function useSharedRuntimeCompositionState({
     setPreviewSnapshot(null);
   }, []);
 
+  const summary = useMemo(() => buildRuntimeCompositionResolutionSummary(resolution), [resolution]);
+  const authoritySummary = useMemo(
+    () => buildRuntimeCompositionAuthoritySummary(snapshot),
+    [snapshot]
+  );
+
   return useMemo(
     () => ({
       settings,
@@ -380,6 +393,8 @@ export function useSharedRuntimeCompositionState({
       publishActiveResolution,
       saveSettings,
       clearPreview,
+      summary,
+      authoritySummary,
     }),
     [
       activeProfile,
@@ -399,7 +414,9 @@ export function useSharedRuntimeCompositionState({
       resolution,
       saveSettings,
       settings,
+      summary,
       snapshot,
+      authoritySummary,
     ]
   );
 }

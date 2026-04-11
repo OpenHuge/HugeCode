@@ -5,7 +5,10 @@ import type { ComponentProps, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeCompositionSettingsEntry } from "@ku0/code-platform-interfaces";
 import type { SettingsShellFraming, WorkspaceClientBindings } from "@ku0/code-workspace-client";
-import { WorkspaceClientBindingsProvider } from "@ku0/code-workspace-client";
+import {
+  createSettingsServerOperabilityState,
+  WorkspaceClientBindingsProvider,
+} from "@ku0/code-workspace-client";
 import type {
   AppSettings,
   BackendPoolBootstrapPreview,
@@ -13,7 +16,6 @@ import type {
   RemoteBackendProfile,
 } from "../../../../types";
 import { SettingsServerSection } from "./SettingsServerSection";
-import { createSettingsServerOperabilityState } from "./settings-server-section/shared";
 
 const desktopSettingsShellFraming: SettingsShellFraming = {
   kickerLabel: "Preferences",
@@ -406,7 +408,16 @@ function createWorkspaceClientBindingsForServerSection() {
         listPools: async () => [],
         listPoolMembers: async () => [],
         getPrimaryAccount: async () => null,
-        setPrimaryAccount: async () => undefined,
+        setPrimaryAccount: async () => ({
+          provider: "codex" as const,
+          accountId: "codex-a1",
+          account: null,
+          defaultPoolId: "pool-codex",
+          routeAccountId: "codex-a1",
+          inSync: true,
+          createdAt: 1,
+          updatedAt: 1,
+        }),
         applyPool: async () => undefined,
         bindPoolAccount: async () => undefined,
         runLogin: async () => ({ authUrl: "", immediateSuccess: false }),
@@ -485,6 +496,26 @@ function createWorkspaceClientBindingsForServerSection() {
       },
       review: {
         listReviewPacks: async () => [],
+      },
+      subAgents: {
+        spawn: async () => {
+          throw new Error("not implemented");
+        },
+        send: async () => {
+          throw new Error("not implemented");
+        },
+        wait: async () => {
+          throw new Error("not implemented");
+        },
+        status: async () => {
+          throw new Error("not implemented");
+        },
+        interrupt: async () => {
+          throw new Error("not implemented");
+        },
+        close: async () => {
+          throw new Error("not implemented");
+        },
       },
       composition,
     },

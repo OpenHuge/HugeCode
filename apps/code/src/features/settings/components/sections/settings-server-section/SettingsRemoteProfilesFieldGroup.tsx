@@ -1,12 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Button, Input, StatusBadge } from "../../../../../design-system";
-import type { RemoteBackendProfile } from "../../../../../types";
-import { SettingsField, SettingsFieldGroup, SettingsFooterBar } from "../../SettingsSectionGrammar";
 import {
   resolveSettingsServerOperabilityBlockedReason,
   resolveSettingsServerOperabilityNotice,
   type SettingsServerOperabilityState,
-} from "./shared";
+} from "@ku0/code-workspace-client/settings-shell";
+import { Button, Input, StatusBadge } from "../../../../../design-system";
+import type { RemoteBackendProfile } from "../../../../../types";
+import { SettingsField, SettingsFieldGroup, SettingsFooterBar } from "../../SettingsSectionGrammar";
 
 type SettingsRemoteProfilesFieldGroupProps = {
   isMobileSimplified: boolean;

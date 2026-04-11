@@ -1,19 +1,24 @@
-import { useEffect, useState } from "react";
-import type { RuntimeCompositionSettingsEntry } from "@ku0/code-platform-interfaces";
+import { useEffect, useRef, useState } from "react";
 import {
-  useMaybeWorkspaceClientBindings,
-  useSharedRuntimeCompositionState,
-} from "@ku0/code-workspace-client";
-import { Button, Select, type SelectOption } from "../../../../../design-system";
-import { SettingsField, SettingsFieldGroup, SettingsFooterBar } from "../../SettingsSectionGrammar";
-import type { SettingsServerCompactSelectProps } from "./shared";
+  buildRuntimeCompositionAuthoritySummary,
+  buildRuntimeCompositionResolutionSummary,
+  type RuntimeCompositionSettingsEntry,
+} from "@ku0/code-platform-interfaces";
+import { Button, Select, type SelectOption } from "@ku0/design-system";
+import { useSharedRuntimeCompositionState } from "../settings-state";
+import { useMaybeWorkspaceClientBindings } from "../workspace/WorkspaceClientBindingsProvider";
+import { SettingsField, SettingsFieldGroup, SettingsFooterBar } from "./SettingsSectionGrammar";
+import { settingsServerCompactSelectProps } from "./settingsServerControlPlaneShared";
+import type { SettingsServerCompactSelectProps } from "./serverControlPlaneTypes";
 
 type SettingsRuntimeCompositionFieldGroupProps = {
   workspaceOptions: Array<{ id: string; label: string }>;
   remoteExecutionBackendOptions: Array<{ id: string; label: string }>;
   defaultRemoteExecutionBackendId: string | null;
-  compactSelectProps: SettingsServerCompactSelectProps;
+  compactSelectProps?: SettingsServerCompactSelectProps;
 };
+
+export type { SettingsRuntimeCompositionFieldGroupProps };
 
 function resolveInitialWorkspaceId(
   workspaceOptions: Array<{ id: string; label: string }>,
@@ -28,27 +33,25 @@ function resolveInitialWorkspaceId(
   return workspaceOptions[0]?.id ?? null;
 }
 
-function summarizeResolution(input: {
-  selectedPluginCount: number;
-  blockedPluginCount: number;
-  routeCandidateCount: number;
-  backendCandidates: string[];
-  appliedLayerOrder: string[];
-}) {
-  return {
-    backendSummary:
-      input.backendCandidates.length > 0 ? input.backendCandidates.join(", ") : "runtime fallback",
-    layerSummary:
-      input.appliedLayerOrder.length > 0 ? input.appliedLayerOrder.join(" -> ") : "runtime default",
-    countsSummary: `Selected plugins ${input.selectedPluginCount}, blocked plugins ${input.blockedPluginCount}, route candidates ${input.routeCandidateCount}.`,
-  };
+function formatTimestamp(value: number | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "Not recorded";
+  }
+  return new Date(value).toLocaleString();
 }
 
+function formatSelectorDecisions(selectorDecisions: Record<string, string>): string {
+  const entries = Object.entries(selectorDecisions);
+  if (entries.length === 0) {
+    return "Runtime defaults";
+  }
+  return entries.map(([key, value]) => `${key}: ${value}`).join(" | ");
+}
 export function SettingsRuntimeCompositionFieldGroup({
   workspaceOptions,
   remoteExecutionBackendOptions,
   defaultRemoteExecutionBackendId,
-  compactSelectProps,
+  compactSelectProps = settingsServerCompactSelectProps,
 }: SettingsRuntimeCompositionFieldGroupProps) {
   const bindings = useMaybeWorkspaceClientBindings();
   const routeSelection = bindings?.navigation.readRouteSelection();
@@ -72,6 +75,7 @@ export function SettingsRuntimeCompositionFieldGroup({
 type SettingsRuntimeCompositionFieldGroupContentProps =
   SettingsRuntimeCompositionFieldGroupProps & {
     routeWorkspaceId: string | null;
+    compactSelectProps: SettingsServerCompactSelectProps;
   };
 
 function SettingsRuntimeCompositionFieldGroupContent({
@@ -86,10 +90,12 @@ function SettingsRuntimeCompositionFieldGroupContent({
   );
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionInfo, setActionInfo] = useState<string | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
   const runtimeComposition = useSharedRuntimeCompositionState({
     workspaceId: selectedWorkspaceId,
     enabled: selectedWorkspaceId !== null,
   });
+  const previousWorkspaceIdRef = useRef<string | null>(selectedWorkspaceId);
 
   useEffect(() => {
     setSelectedWorkspaceId((currentWorkspaceId) => {
@@ -107,6 +113,15 @@ function SettingsRuntimeCompositionFieldGroupContent({
     setActionError(null);
     setActionInfo(null);
   }, [selectedWorkspaceId]);
+
+  useEffect(() => {
+    if (previousWorkspaceIdRef.current === selectedWorkspaceId) {
+      return;
+    }
+    previousWorkspaceIdRef.current = selectedWorkspaceId;
+    setPreviewBusy(false);
+    runtimeComposition.clearPreview();
+  }, [runtimeComposition, selectedWorkspaceId]);
 
   if (!selectedWorkspaceId) {
     return null;
@@ -130,20 +145,26 @@ function SettingsRuntimeCompositionFieldGroupContent({
   const backendPreferenceHelp = defaultRemoteExecutionBackendId
     ? `This persists a workspace-specific routing hint. Leaving it automatic falls back to shared runtime routing, starting from the current default backend ${defaultRemoteExecutionBackendId} when no narrower runtime choice applies.`
     : "This persists a workspace-specific routing hint. Leaving it automatic falls back to shared runtime routing and runtime-selected placement.";
-  const resolutionSummary = summarizeResolution({
-    selectedPluginCount: runtimeComposition.resolution?.selectedPlugins.length ?? 0,
-    blockedPluginCount: runtimeComposition.resolution?.blockedPlugins.length ?? 0,
-    routeCandidateCount: runtimeComposition.resolution?.selectedRouteCandidates.length ?? 0,
-    backendCandidates:
-      runtimeComposition.resolution?.selectedBackendCandidates.map(
-        (candidate) => candidate.backendId
-      ) ?? [],
-    appliedLayerOrder: runtimeComposition.resolution?.provenance.appliedLayerOrder ?? [],
-  });
-  const authoritySummary = runtimeComposition.snapshot
-    ? `${runtimeComposition.snapshot.authorityState} / ${runtimeComposition.snapshot.freshnessState}`
-    : "unavailable";
-  const actionBusy = runtimeComposition.isLoading || runtimeComposition.isMutating;
+  const resolutionSummary = runtimeComposition.summary;
+  const authoritySummary = runtimeComposition.authoritySummary;
+  const persistence = runtimeComposition.settings?.persistence ?? null;
+  const previewSummary = runtimeComposition.previewResolution
+    ? buildRuntimeCompositionResolutionSummary(runtimeComposition.previewResolution)
+    : null;
+  const previewProfileOptions: SelectOption[] = [
+    { value: "", label: "No preview" },
+    ...runtimeComposition.profiles.map((profile) => ({
+      value: profile.id,
+      label: `${profile.name} (${profile.scope})`,
+    })),
+  ];
+  const activeSelectorDecisions = formatSelectorDecisions(
+    runtimeComposition.resolution?.provenance.selectorDecisions ?? {}
+  );
+  const previewSelectorDecisions = formatSelectorDecisions(
+    runtimeComposition.previewResolution?.provenance.selectorDecisions ?? {}
+  );
+  const actionBusy = runtimeComposition.isLoading || runtimeComposition.isMutating || previewBusy;
 
   async function handleProfileChange(profileId: string) {
     setActionError(null);
@@ -227,6 +248,29 @@ function SettingsRuntimeCompositionFieldGroupContent({
     }
   }
 
+  async function handlePreviewChange(profileId: string) {
+    setActionError(null);
+    setActionInfo(null);
+    setPreviewBusy(true);
+    try {
+      if (!profileId) {
+        runtimeComposition.clearPreview();
+        setActionInfo("Cleared the previewed runtime composition profile.");
+        return;
+      }
+      await runtimeComposition.previewProfile(profileId);
+      setActionInfo(`Previewed runtime composition profile ${profileId}.`);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Unable to preview the runtime composition profile."
+      );
+    } finally {
+      setPreviewBusy(false);
+    }
+  }
+
   return (
     <SettingsFieldGroup
       title="Workspace composition & routing"
@@ -303,6 +347,69 @@ function SettingsRuntimeCompositionFieldGroupContent({
         </div>
       </SettingsField>
 
+      <SettingsField
+        label="Selector provenance"
+        help="Inspect the active layer order and selector decisions from the shared runtime resolver instead of inferring effective routing locally."
+      >
+        <div>
+          <div>Layer order: {resolutionSummary.layerSummary}</div>
+          <div>Selector decisions: {activeSelectorDecisions}</div>
+        </div>
+      </SettingsField>
+
+      <SettingsField
+        label="Published persistence"
+        help="These durable settings track which session last published authority and which revision the workspace accepted."
+      >
+        <div>
+          <div>Publisher session: {persistence?.publisherSessionId ?? "Not published yet"}</div>
+          <div>
+            Accepted authority revision:{" "}
+            {persistence?.lastAcceptedAuthorityRevision ?? "Not recorded"}
+          </div>
+          <div>Last publish attempt: {formatTimestamp(persistence?.lastPublishAttemptAt)}</div>
+          <div>Last published: {formatTimestamp(persistence?.lastPublishedAt)}</div>
+        </div>
+      </SettingsField>
+
+      <SettingsField
+        label="Preview profile"
+        help="Preview another workspace profile and inspect its effective routing and provenance before applying it."
+      >
+        <Select
+          {...compactSelectProps}
+          ariaLabel="Preview profile"
+          options={previewProfileOptions}
+          value={runtimeComposition.previewProfileId ?? ""}
+          disabled={actionBusy}
+          onValueChange={(value) => {
+            void handlePreviewChange(value);
+          }}
+        />
+      </SettingsField>
+
+      {previewSummary ? (
+        <SettingsField
+          label="Previewed effective state"
+          help={`Preview layer order: ${previewSummary.layerSummary}.`}
+        >
+          <div>
+            <div>
+              Preview profile:{" "}
+              {runtimeComposition.previewSnapshot?.activeProfile?.name ??
+                runtimeComposition.previewProfileId}
+            </div>
+            <div>{previewSummary.countsSummary}</div>
+            <div>Backend candidates: {previewSummary.backendSummary}.</div>
+            <div>Selector decisions: {previewSelectorDecisions}</div>
+            <div>
+              Preview authority:{" "}
+              {buildRuntimeCompositionAuthoritySummary(runtimeComposition.previewSnapshot)}
+            </div>
+          </div>
+        </SettingsField>
+      ) : null}
+
       {runtimeComposition.error ? (
         <div className="settings-help settings-help-error">{runtimeComposition.error}</div>
       ) : null}
@@ -319,6 +426,18 @@ function SettingsRuntimeCompositionFieldGroupContent({
           }}
         >
           Refresh composition
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={actionBusy || runtimeComposition.previewProfileId === null}
+          onClick={() => {
+            runtimeComposition.clearPreview();
+            setActionError(null);
+            setActionInfo("Cleared the previewed runtime composition profile.");
+          }}
+        >
+          Clear preview
         </Button>
         <Button
           variant="secondary"

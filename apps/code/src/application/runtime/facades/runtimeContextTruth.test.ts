@@ -226,6 +226,20 @@ describe("runtimeContextTruth", () => {
       toolPosture: "workspace_safe",
       approvalSensitivity: "standard",
     });
+    expect(toolingPlane.invocationCatalogRef).toMatchObject({
+      catalogId: "launch:balanced-delegate",
+      provenance: ["runtime_prepare", "execution_profile"],
+      execution: {
+        bindings: [
+          expect.objectContaining({
+            bindingKind: "runtime_run",
+            host: "runtime",
+            readyCount: 1,
+          }),
+        ],
+        requirements: [{ key: "runtime_service", count: 1 }],
+      },
+    });
     expect(toolingPlane.toolCallRefs).toEqual([]);
     expect(toolingPlane.toolResultRefs).toEqual([]);
   });

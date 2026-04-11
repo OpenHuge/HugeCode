@@ -126,6 +126,19 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+function createDeferred<T>() {
+  let resolve: ((value: T | PromiseLike<T>) => void) | null = null;
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return {
+    promise,
+    resolve(value: T) {
+      resolve?.(value);
+    },
+  };
+}
+
 async function mount() {
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -178,6 +191,51 @@ describe("useAccountPools", () => {
 
     expect(listOAuthAccounts).toHaveBeenCalledTimes(2);
     expect(listOAuthPools).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("keeps queued refresh callers pending until the queued cycle finishes", async () => {
+    const firstAccounts = createDeferred<Awaited<ReturnType<typeof listOAuthAccounts>>>();
+    const secondAccounts = createDeferred<Awaited<ReturnType<typeof listOAuthAccounts>>>();
+    vi.mocked(listOAuthAccounts)
+      .mockImplementationOnce(() => firstAccounts.promise)
+      .mockImplementationOnce(() => secondAccounts.promise);
+
+    const { root } = await mount();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(listOAuthAccounts).toHaveBeenCalledTimes(1);
+    const current = latest;
+    expect(current).not.toBeNull();
+    if (!current) {
+      throw new Error("Expected useAccountPools to expose a refresh handler.");
+    }
+
+    let queuedRefreshResolved = false;
+    const queuedRefresh = current.refreshOAuthState().then(() => {
+      queuedRefreshResolved = true;
+    });
+
+    await act(async () => {
+      firstAccounts.resolve([]);
+      await Promise.resolve();
+    });
+
+    expect(listOAuthAccounts).toHaveBeenCalledTimes(2);
+    expect(queuedRefreshResolved).toBe(false);
+
+    await act(async () => {
+      secondAccounts.resolve([]);
+      await queuedRefresh;
+    });
+
+    expect(queuedRefreshResolved).toBe(true);
 
     await act(async () => {
       root.unmount();
