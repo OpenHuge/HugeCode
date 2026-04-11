@@ -37,6 +37,7 @@ import type {
   AgentTaskSummary,
   AgentTaskStepSummary,
   CodeRuntimeRpcRequestPayloadByMethod,
+  CodeRuntimeRpcResponsePayloadByMethod,
   KernelContextSlice,
   KernelJob,
   KernelProjectionBootstrapResponse,
@@ -78,6 +79,10 @@ type HotKernelContextPayload =
   CodeRuntimeRpcRequestPayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.KERNEL_CONTEXT_SNAPSHOT_V2];
 type HotKernelPoliciesPayload =
   CodeRuntimeRpcRequestPayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.KERNEL_POLICIES_EVALUATE_V2];
+type HotInvocationDispatchPayload =
+  CodeRuntimeRpcRequestPayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_DISPATCH_V1];
+type HotInvocationHostsResponse =
+  CodeRuntimeRpcResponsePayloadByMethod[typeof CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_HOSTS_LIST_V1];
 
 const HOT_TURN_SEND_WORKSPACE_IS_CANONICAL: AssertFalse<
   "workspace_id" extends keyof HotTurnSendPayload ? true : false
@@ -106,6 +111,9 @@ const HOT_KERNEL_POLICIES_PAYLOAD_BYTES_IS_CANONICAL: AssertFalse<
 const _HOT_KERNEL_POLICIES_TOOL_ALIAS_IS_CANONICAL: AssertFalse<
   "capabilityId" extends keyof HotKernelPoliciesPayload ? true : false
 > = false;
+const _HOT_INVOCATION_DISPATCH_INVOCATION_ID_IS_CANONICAL: AssertFalse<
+  "invocation_id" extends keyof HotInvocationDispatchPayload ? true : false
+> = false;
 
 describe("code runtime rpc method consistency", () => {
   it("includes runtime kernel v2 methods in the canonical method list", () => {
@@ -124,8 +132,30 @@ describe("code runtime rpc method consistency", () => {
         CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2,
         CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2,
         CODE_RUNTIME_RPC_METHODS.COMPOSITION_SNAPSHOT_PUBLISH_V1,
+        CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_HOSTS_LIST_V1,
+        CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_DISPATCH_V1,
       ])
     );
+  });
+
+  it("types runtime-owned invocation host registry responses", () => {
+    expectTypeOf<HotInvocationDispatchPayload>().toExtend<{
+      invocationId: string;
+      hostId?: string | null;
+    }>();
+    expectTypeOf<HotInvocationHostsResponse>().toExtend<{
+      registryVersion: string;
+      hosts: Array<{
+        hostId: string;
+        category:
+          | "built_in_runtime_tool"
+          | "runtime_extension_tool"
+          | "workspace_skill"
+          | "prompt_overlay"
+          | "reserved_rpc_host"
+          | "reserved_wasi_host";
+      }>;
+    }>();
   });
 
   it("classifies canonical run lifecycle and compat-only thread/turn surfaces explicitly", () => {
@@ -1718,6 +1748,7 @@ describe("rpc capability constants", () => {
         "runtime_diagnostics_export_v1",
         "runtime_codex_exec_run_v1",
         "runtime_codex_cloud_tasks_read_v1",
+        "runtime_invocation_host_registry_v1",
         "runtime_codex_execpolicy_preflight_v1",
         "runtime_codex_unified_rpc_migration_v1",
         "runtime_host_deprecated",

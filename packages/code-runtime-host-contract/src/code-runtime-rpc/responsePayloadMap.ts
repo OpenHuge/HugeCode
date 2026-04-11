@@ -97,6 +97,10 @@ import type {
   SubAgentWaitResult,
 } from "./runtimeRunsAndSubAgents.js";
 import type {
+  RuntimeInvocationDispatchResponse,
+  RuntimeInvocationHostRegistry,
+} from "../runtimeInvocationPlane.js";
+import type {
   GitBranchesSnapshot,
   GitChangesSnapshot,
   GitCommitResult,
@@ -205,6 +209,8 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2]: RuntimeCompositionProfile | null;
   [CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2]: RuntimeCompositionResolveV2Response;
   [CODE_RUNTIME_RPC_METHODS.COMPOSITION_SNAPSHOT_PUBLISH_V1]: RuntimeCompositionSnapshotPublishResponse;
+  [CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_HOSTS_LIST_V1]: RuntimeInvocationHostRegistry;
+  [CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_DISPATCH_V1]: RuntimeInvocationDispatchResponse;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST]: RuntimeBackendSummary[];
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_UPSERT]: RuntimeBackendSummary;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_REMOVE]: boolean;

@@ -2745,6 +2745,9 @@
                 // Keep this dispatch-coverage test deterministic and fast by skipping
                 // external usage refresh side effects.
                 "code_oauth_accounts_list" => json!({ "usageRefresh": "off" }),
+                "code_runtime_invocation_dispatch_v1" => {
+                    json!({ "invocationId": "runtime:test", "dryRun": true })
+                }
                 _ => json!({}),
             };
             let request = Request::builder()

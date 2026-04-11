@@ -57,7 +57,10 @@ export type InvocationHostRequirementKey =
   | "runtime_service"
   | "extension_bridge"
   | "session_facade"
-  | "prompt_library";
+  | "prompt_library"
+  | "workspace_skill_manifest"
+  | "rpc_method"
+  | "wasi_component_host";
 
 export type InvocationExecutionPreflightState = "ready" | "blocked" | "not_required";
 
@@ -219,4 +222,110 @@ export type ActiveInvocationCatalog = {
   items: InvocationDescriptor[];
   sources: ActiveInvocationCatalogSourceSummary[];
   execution: ActiveInvocationCatalogExecutionPlane;
+};
+
+export const RUNTIME_INVOCATION_HOST_CATEGORIES = [
+  "built_in_runtime_tool",
+  "runtime_extension_tool",
+  "workspace_skill",
+  "prompt_overlay",
+  "reserved_rpc_host",
+  "reserved_wasi_host",
+] as const;
+
+export type RuntimeInvocationHostCategory = (typeof RUNTIME_INVOCATION_HOST_CATEGORIES)[number];
+
+export type RuntimeInvocationHostReadinessState = "ready" | "attention" | "blocked" | "unsupported";
+
+export type RuntimeInvocationHostDispatchMode =
+  | "execute"
+  | "resolve_only"
+  | "reserved"
+  | "unsupported";
+
+export type RuntimeInvocationHostDescriptor = {
+  hostId: string;
+  category: RuntimeInvocationHostCategory;
+  label: string;
+  summary: string;
+  authority: "runtime" | "workspace" | "session";
+  dispatchMode: RuntimeInvocationHostDispatchMode;
+  readiness: {
+    state: RuntimeInvocationHostReadinessState;
+    available: boolean;
+    reason: string | null;
+    checkedAt: number | null;
+  };
+  requirementKeys: InvocationHostRequirementKey[];
+  dispatchMethods: string[];
+  provenance: {
+    source: "runtime_host_registry";
+    registryVersion: string;
+    workspaceId: string | null;
+  };
+};
+
+export type RuntimeInvocationHostRegistrySummary = {
+  total: number;
+  executable: number;
+  resolveOnly: number;
+  reserved: number;
+  unsupported: number;
+  ready: number;
+  attention: number;
+  blocked: number;
+};
+
+export type RuntimeInvocationHostRegistry = {
+  registryVersion: string;
+  workspaceId: string | null;
+  generatedAt: number;
+  hosts: RuntimeInvocationHostDescriptor[];
+  summary: RuntimeInvocationHostRegistrySummary;
+};
+
+export type RuntimeInvocationHostsListRequest = {
+  workspaceId?: string | null;
+};
+
+export type RuntimeInvocationDispatchRequest = {
+  invocationId: string;
+  hostId?: string | null;
+  caller?: InvocationAudience | null;
+  workspaceId?: string | null;
+  arguments?: Record<string, unknown> | null;
+  dryRun?: boolean | null;
+};
+
+export type RuntimeInvocationDispatchStatus = "accepted" | "resolved" | "blocked" | "unsupported";
+
+export type RuntimeInvocationDispatchPreflight = {
+  state: InvocationExecutionPreflightState;
+  reason: string | null;
+  hostId: string;
+};
+
+export type RuntimeInvocationDispatchProvenance = {
+  invocationId: string;
+  hostId: string;
+  category: RuntimeInvocationHostCategory;
+  source: "runtime_host_registry";
+  registryVersion: string;
+  workspaceId: string | null;
+  caller: InvocationAudience;
+};
+
+export type RuntimeInvocationPostExecutionShaping = {
+  applied: boolean;
+  summary: string;
+  metadata: Record<string, unknown> | null;
+};
+
+export type RuntimeInvocationDispatchResponse = {
+  invocationId: string;
+  status: RuntimeInvocationDispatchStatus;
+  summary: string;
+  preflight: RuntimeInvocationDispatchPreflight;
+  provenance: RuntimeInvocationDispatchProvenance;
+  postExecution: RuntimeInvocationPostExecutionShaping;
 };

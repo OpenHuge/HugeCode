@@ -35,6 +35,10 @@ import type {
   SubAgentWaitRequest,
 } from "./runtimeRunsAndSubAgents.js";
 import type {
+  RuntimeInvocationDispatchRequest,
+  RuntimeInvocationHostsListRequest,
+} from "../runtimeInvocationPlane.js";
+import type {
   RuntimeRpcBatchRequest,
   WorkspaceDiagnosticsListRequest,
   WorkspacePatchApplyRequest,
@@ -403,6 +407,8 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
     published_at?: number | null;
     publisher_session_id?: string | null;
   };
+  [CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_HOSTS_LIST_V1]: RuntimeInvocationHostsListRequest;
+  [CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_DISPATCH_V1]: RuntimeInvocationDispatchRequest;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKEND_UPSERT]: RuntimeBackendUpsertInput & {
     backend_id?: string;

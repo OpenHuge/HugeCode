@@ -18,6 +18,7 @@ import {
   type RuntimeLaunchReadinessSummary,
 } from "./runtimeLaunchReadiness";
 import { normalizeRuntimeTaskForProjection } from "./runtimeMissionControlProjectionNormalization";
+import { projectAgentTaskStatusToRunState } from "./runtimeMissionControlProjectionHelpers";
 import type { RunProjectionRoutingContext } from "./runtimeMissionControlFacade";
 
 export type RuntimeMissionControlVisibleRun = {
@@ -66,6 +67,57 @@ function isPendingApprovalTask(task: RuntimeAgentTaskSummary): boolean {
   );
 }
 
+function hasTaskLevelContinuityTruth(task: RuntimeAgentTaskSummary): boolean {
+  return Boolean(
+    task.continuation ||
+    task.takeoverBundle ||
+    task.publishHandoff ||
+    task.missionLinkage ||
+    task.reviewActionability ||
+    task.nextOperatorAction
+  );
+}
+
+function resolveContinuityRunSummary(task: RuntimeAgentTaskSummary): HugeCodeRunSummary | null {
+  if (task.runSummary) {
+    return task.runSummary;
+  }
+  if (!hasTaskLevelContinuityTruth(task)) {
+    return null;
+  }
+  return {
+    id: task.taskId,
+    taskId: task.taskId,
+    workspaceId: task.workspaceId,
+    taskSource: task.taskSource ?? null,
+    state: projectAgentTaskStatusToRunState(task.status),
+    title: task.title ?? task.taskId,
+    summary: null,
+    startedAt: task.startedAt,
+    finishedAt: task.completedAt,
+    updatedAt: task.updatedAt,
+    currentStepIndex: task.currentStep,
+    profileReadiness: task.profileReadiness ?? null,
+    routing: task.routing ?? null,
+    reviewDecision: task.reviewDecision ?? null,
+    intervention: task.intervention ?? null,
+    operatorState: task.operatorState ?? null,
+    nextAction: task.nextAction ?? null,
+    reviewPackId: task.reviewPackId ?? task.missionLinkage?.reviewPackId ?? null,
+    checkpoint: null,
+    missionLinkage: task.missionLinkage ?? null,
+    actionability: task.reviewActionability ?? null,
+    sessionBoundary: task.sessionBoundary ?? null,
+    continuation: task.continuation ?? null,
+    nextOperatorAction: task.nextOperatorAction ?? null,
+    publishHandoff: task.publishHandoff ?? null,
+    takeoverBundle: task.takeoverBundle ?? null,
+    contextBoundary: task.contextBoundary ?? null,
+    contextProjection: task.contextProjection ?? null,
+    compactionSummary: task.compactionSummary ?? null,
+  } satisfies HugeCodeRunSummary;
+}
+
 export function buildRuntimeMissionControlOrchestrationState({
   runtimeTasks,
   statusFilter,
@@ -88,12 +140,21 @@ export function buildRuntimeMissionControlOrchestrationState({
   const projectedRunsByTaskId = new Map(
     runtimeTasksWithRunSummary.map((task) => [task.taskId, task.runSummary])
   );
+  const continuityCandidates = runtimeTasks.flatMap((task) => {
+    const run = resolveContinuityRunSummary(task);
+    if (!run) {
+      return [];
+    }
+    return [
+      {
+        task: normalizeRuntimeTaskForProjection(task),
+        run,
+      },
+    ];
+  });
 
   const continuityReadiness = buildRuntimeContinuityReadiness({
-    candidates: runtimeTasksWithRunSummary.map((task) => ({
-      task: normalizeRuntimeTaskForProjection(task),
-      run: task.runSummary,
-    })),
+    candidates: continuityCandidates,
     durabilityWarning,
   });
 

@@ -7,6 +7,7 @@ mod agent_tasks;
 mod codex_cloud_tasks;
 mod codex_exec_run;
 mod codex_oauth_handlers;
+mod composition_host_registry;
 mod diagnostics_export;
 mod distributed;
 mod distributed_graph_rpc_helpers;
@@ -407,6 +408,7 @@ const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "runtime_diagnostics_export_v1",
     "runtime_codex_exec_run_v1",
     "runtime_codex_cloud_tasks_read_v1",
+    "runtime_invocation_host_registry_v1",
     "runtime_codex_execpolicy_preflight_v1",
     "runtime_codex_unified_rpc_migration_v1",
     "runtime_host_deprecated",

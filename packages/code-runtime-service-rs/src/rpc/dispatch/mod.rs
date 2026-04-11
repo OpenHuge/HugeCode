@@ -53,6 +53,9 @@ use crate::acp_client_adapter::{
     handle_acp_integration_probe, handle_acp_integration_remove, handle_acp_integration_set_state,
     handle_acp_integration_upsert, handle_acp_integrations_list,
 };
+use crate::composition_host_registry::{
+    handle_runtime_invocation_dispatch_v1, handle_runtime_invocation_hosts_list_v1,
+};
 use crate::codex_oauth_handlers::{
     cancel_codex_oauth, start_codex_oauth, CodexOauthCancelInput, CodexOauthStartInput,
 };
@@ -231,6 +234,8 @@ pub(crate) async fn handle_rpc(
         "code_runtime_composition_snapshot_publish_v1" => {
             handle_runtime_composition_snapshot_publish_v1(ctx, params).await
         }
+        "code_runtime_invocation_hosts_list_v1" => handle_runtime_invocation_hosts_list_v1(params),
+        "code_runtime_invocation_dispatch_v1" => handle_runtime_invocation_dispatch_v1(params),
         "code_runtime_backends_list" => handle_runtime_backends_list(ctx).await,
         "code_runtime_backend_upsert" => handle_runtime_backend_upsert(ctx, params).await,
         "code_runtime_backend_remove" => handle_runtime_backend_remove(ctx, params).await,
