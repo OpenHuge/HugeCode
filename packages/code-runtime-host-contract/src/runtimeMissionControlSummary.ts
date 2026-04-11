@@ -12,6 +12,7 @@ import {
   buildRuntimeContinuationReadinessSummary,
   formatRuntimeContinuationStateLabel,
 } from "./runtimeContinuationFacade.js";
+import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability.js";
 import { resolveCanonicalRuntimeTruth } from "./runtimeTruthCompat.js";
 
 export type RuntimeCapabilitiesSummaryLike = {
@@ -58,32 +59,7 @@ type RuntimeLaunchReadinessRouteSignal = RuntimeLaunchReadinessSignal & {
   provenanceLabel: string | null;
 };
 
-export type RuntimeLaunchExecutionReliabilitySummary = {
-  state: RuntimeLaunchReadinessState;
-  blockingReason: string | null;
-  recommendedAction: string;
-  gate: {
-    minSuccessRate: number;
-    successRate: number | null;
-    denominator: number;
-    passed: boolean | null;
-  };
-  channelHealth: {
-    status: "healthy" | "degraded" | "unavailable" | "unknown";
-    reason: string | null;
-    lastErrorCode: string | null;
-    updatedAt: number | null;
-    source: "guardrails" | "metrics" | "unavailable";
-  };
-  blockedTotal: number;
-  topFailedReason: string | null;
-  circuitBreakers: Array<{
-    scope: "write" | "runtime" | "computer_observe";
-    state: "closed" | "open" | "half_open";
-    openedAt: number | null;
-    updatedAt: number | null;
-  }>;
-};
+export type RuntimeLaunchExecutionReliabilitySummary = RuntimeExecutionReliabilitySummary;
 
 export type RuntimeLaunchReadinessSummary = {
   state: RuntimeLaunchReadinessState;

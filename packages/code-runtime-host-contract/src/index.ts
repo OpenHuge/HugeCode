@@ -1127,6 +1127,17 @@ export {
   isRuntimeRunPrepareV2DegradedCompatibleError,
   resolveCanonicalRuntimeRunPrepareSurface,
 } from "./runtimeRunPrepareCompat.js";
+export type {
+  RuntimeExecutionReliabilityChannel,
+  RuntimeExecutionReliabilityCircuitBreaker,
+  RuntimeExecutionReliabilityGate,
+  RuntimeExecutionReliabilityState,
+  RuntimeExecutionReliabilitySummary,
+} from "./runtimeExecutionReliability.js";
+export {
+  buildRuntimeExecutionReliability,
+  DEFAULT_RUNTIME_EXECUTION_SUCCESS_MIN_RATE,
+} from "./runtimeExecutionReliability.js";
 export type * from "./runtimeContinuationFacade.js";
 export {
   buildRuntimeContinuationAggregate,
