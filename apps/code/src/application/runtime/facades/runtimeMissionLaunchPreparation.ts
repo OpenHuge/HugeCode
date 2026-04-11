@@ -322,9 +322,8 @@ export function useRuntimeMissionLaunchPreview(
     canonicalPreparation?.triageSummary ?? degradedFallbackSurface?.triageSummary ?? null;
   const delegationContract =
     canonicalPreparation?.delegationContract ?? degradedFallbackSurface?.delegationContract ?? null;
-  const effectiveError = degradedFallbackEnabled
-    ? null
-    : canonicalPreparationResolution && !canonicalPreparationResolution.ok
+  const effectiveError =
+    canonicalPreparationResolution && !canonicalPreparationResolution.ok
       ? canonicalPreparationResolution.message
       : error;
 

@@ -54,8 +54,12 @@ function readErrorMessage(error: unknown): string | null {
   return typeof message === "string" && message.trim().length > 0 ? message.trim() : null;
 }
 
+function normalizeErrorCodeForMatching(code: string | null): string {
+  return (code ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+}
+
 function isRuntimeUnavailableLikeError(error: unknown): boolean {
-  const code = readErrorCode(error)?.toLowerCase() ?? "";
+  const code = normalizeErrorCodeForMatching(readErrorCode(error));
   if (code.includes("runtime_unavailable") || code.includes("invoke_unavailable")) {
     return true;
   }

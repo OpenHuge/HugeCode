@@ -347,7 +347,7 @@ describe("runtimeMissionLaunchPreparation", () => {
     expect(result.current.preparation).toBeNull();
     expect(result.current.contextTruth).not.toBeNull();
     expect(result.current.toolingPlane).not.toBeNull();
-    expect(result.current.error).toBeNull();
+    expect(result.current.error).toBe("Code runtime is unavailable for prepare runtime run v2.");
     expect(vi.mocked(buildRuntimeContextTruth)).toHaveBeenCalled();
     expect(vi.mocked(buildRuntimeGuidanceStack)).toHaveBeenCalled();
     expect(vi.mocked(buildRuntimeContextPlane)).toHaveBeenCalled();

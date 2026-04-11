@@ -256,6 +256,15 @@ describe("runtimeRunPrepareCompat", () => {
     ).toBe(true);
   });
 
+  it("treats dotted runtime-unavailable codes as degraded-compatible", () => {
+    expect(
+      isRuntimeRunPrepareV2DegradedCompatibleError({
+        code: "runtime.validation.method.unavailable",
+        message: "prepare_v2 is unavailable",
+      })
+    ).toBe(true);
+  });
+
   it("does not treat arbitrary prepare failures as degraded-compatible", () => {
     expect(
       isRuntimeRunPrepareV2DegradedCompatibleError({

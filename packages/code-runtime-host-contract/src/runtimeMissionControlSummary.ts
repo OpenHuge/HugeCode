@@ -341,10 +341,10 @@ export function buildRuntimeLaunchReadinessSummary(input: {
       ? runtime.detail
       : route.state === "blocked"
         ? (route.blockingReason ?? route.detail)
-        : executionReliability.state === "blocked"
-          ? executionReliability.detail
-          : contextPressure.state === "blocked"
-            ? contextPressure.detail
+        : contextPressure.state === "blocked"
+          ? contextPressure.detail
+          : executionReliability.state === "blocked"
+            ? executionReliability.detail
             : null;
 
   let recommendedAction = "Runtime looks healthy. You can launch this run now.";
