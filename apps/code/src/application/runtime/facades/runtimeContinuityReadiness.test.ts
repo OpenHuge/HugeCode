@@ -220,6 +220,26 @@ describe("buildRuntimeContinuityReadiness", () => {
     expect(summary.items).toHaveLength(0);
   });
 
+  it("does not synthesize continuity candidates from task recovery fields alone", () => {
+    const summary = buildRuntimeContinuityReadiness({
+      candidates: [
+        {
+          run: buildRun(),
+          task: buildTask({
+            status: "interrupted",
+            recovered: true,
+            checkpointId: "checkpoint-task-only",
+            traceId: "trace-task-only",
+          }),
+        },
+      ],
+    });
+
+    expect(summary.state).toBe("attention");
+    expect(summary.recoverableRunCount).toBe(0);
+    expect(summary.items).toHaveLength(0);
+  });
+
   it("keeps continuity at attention when review actionability is degraded", () => {
     const summary = buildRuntimeContinuityReadiness({
       candidates: [

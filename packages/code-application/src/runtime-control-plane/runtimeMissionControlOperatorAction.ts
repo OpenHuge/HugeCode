@@ -4,7 +4,10 @@ import type {
   HugeCodeTakeoverTarget,
   HugeCodeTaskSummary,
 } from "@ku0/code-runtime-host-contract";
-import { resolveCanonicalRuntimeTruth } from "@ku0/code-runtime-host-contract";
+import {
+  buildRuntimeTruthCompatInputFromRunReviewPair,
+  resolveCanonicalRuntimeTruth,
+} from "@ku0/code-runtime-host-contract";
 import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import { buildRuntimeContinuationDescriptor } from "./runtimeContinuationTruth";
 import { readRuntimeOperatorActionText } from "./runtimeOperatorActionPresentation";
@@ -39,26 +42,12 @@ function resolveCanonicalTruth(
   input: MissionOperatorActionInput &
     Partial<Pick<MissionOperatorActionContext, "workspaceId" | "taskId" | "runId">>
 ) {
+  const compatInput = buildRuntimeTruthCompatInputFromRunReviewPair(input);
   return resolveCanonicalRuntimeTruth({
-    workspaceId:
-      input.workspaceId ?? input.reviewPack?.workspaceId ?? input.run?.workspaceId ?? null,
-    taskId: input.taskId ?? input.reviewPack?.taskId ?? input.run?.taskId ?? null,
-    runId: input.runId ?? input.reviewPack?.runId ?? input.run?.id ?? null,
-    reviewPackId: input.reviewPack?.id ?? input.run?.reviewPackId ?? null,
-    state: input.run?.state ?? (input.reviewPack ? "review_ready" : null),
-    reviewStatus: input.reviewPack?.reviewStatus ?? null,
-    approval: input.run?.approval ?? null,
-    reviewDecision: input.reviewPack?.reviewDecision ?? input.run?.reviewDecision ?? null,
-    nextAction: input.run?.nextAction ?? null,
-    checkpoint: input.reviewPack?.checkpoint ?? input.run?.checkpoint ?? null,
-    missionLinkage: input.reviewPack?.missionLinkage ?? input.run?.missionLinkage ?? null,
-    actionability: input.reviewPack?.actionability ?? input.run?.actionability ?? null,
-    publishHandoff: input.reviewPack?.publishHandoff ?? input.run?.publishHandoff ?? null,
-    takeoverBundle: input.reviewPack?.takeoverBundle ?? input.run?.takeoverBundle ?? null,
-    sessionBoundary: input.reviewPack?.sessionBoundary ?? input.run?.sessionBoundary ?? null,
-    continuation: input.reviewPack?.continuation ?? input.run?.continuation ?? null,
-    nextOperatorAction:
-      input.reviewPack?.nextOperatorAction ?? input.run?.nextOperatorAction ?? null,
+    ...compatInput,
+    workspaceId: input.workspaceId ?? compatInput.workspaceId ?? null,
+    taskId: input.taskId ?? compatInput.taskId ?? null,
+    runId: input.runId ?? compatInput.runId ?? null,
   });
 }
 

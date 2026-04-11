@@ -118,6 +118,8 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_runtime_composition_profile_get_v2"),
     RpcMethodEntry::new("code_runtime_composition_profile_resolve_v2"),
     RpcMethodEntry::new("code_runtime_composition_snapshot_publish_v1"),
+    RpcMethodEntry::new("code_runtime_invocation_hosts_list_v1"),
+    RpcMethodEntry::new("code_runtime_invocation_dispatch_v1"),
     RpcMethodEntry::new("code_runtime_backends_list"),
     RpcMethodEntry::new("code_runtime_backend_upsert"),
     RpcMethodEntry::new("code_runtime_backend_remove"),

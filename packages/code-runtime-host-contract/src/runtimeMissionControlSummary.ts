@@ -12,6 +12,8 @@ import {
   buildRuntimeContinuationReadinessSummary,
   formatRuntimeContinuationStateLabel,
 } from "./runtimeContinuationFacade.js";
+import type { RuntimeContextPressureSummary } from "./runtimeContextPressure.js";
+import type { RuntimeExecutionReliabilitySummary } from "./runtimeExecutionReliability.js";
 import { resolveCanonicalRuntimeTruth } from "./runtimeTruthCompat.js";
 
 export type RuntimeCapabilitiesSummaryLike = {
@@ -58,32 +60,7 @@ type RuntimeLaunchReadinessRouteSignal = RuntimeLaunchReadinessSignal & {
   provenanceLabel: string | null;
 };
 
-export type RuntimeLaunchExecutionReliabilitySummary = {
-  state: RuntimeLaunchReadinessState;
-  blockingReason: string | null;
-  recommendedAction: string;
-  gate: {
-    minSuccessRate: number;
-    successRate: number | null;
-    denominator: number;
-    passed: boolean | null;
-  };
-  channelHealth: {
-    status: "healthy" | "degraded" | "unavailable" | "unknown";
-    reason: string | null;
-    lastErrorCode: string | null;
-    updatedAt: number | null;
-    source: "guardrails" | "metrics" | "unavailable";
-  };
-  blockedTotal: number;
-  topFailedReason: string | null;
-  circuitBreakers: Array<{
-    scope: "write" | "runtime" | "computer_observe";
-    state: "closed" | "open" | "half_open";
-    openedAt: number | null;
-    updatedAt: number | null;
-  }>;
-};
+export type RuntimeLaunchExecutionReliabilitySummary = RuntimeExecutionReliabilitySummary;
 
 export type RuntimeLaunchReadinessSummary = {
   state: RuntimeLaunchReadinessState;
@@ -93,6 +70,12 @@ export type RuntimeLaunchReadinessSummary = {
   launchAllowed: boolean;
   route: RuntimeLaunchReadinessRouteSignal;
   runtime: RuntimeLaunchReadinessSignal;
+  contextPressure: RuntimeLaunchReadinessSignal & {
+    pressureState: RuntimeContextPressureSummary["state"];
+    signalCount: number;
+    projectionFingerprint: string | null;
+    summaryRef: string | null;
+  };
   approvalPressure: RuntimeLaunchReadinessSignal & {
     pendingCount: number;
     staleCount: number;
@@ -291,12 +274,50 @@ function buildExecutionReliabilitySignal(
   };
 }
 
+function mapContextPressureState(
+  state: RuntimeContextPressureSummary["state"]
+): RuntimeLaunchReadinessState {
+  if (state === "critical") {
+    return "blocked";
+  }
+  if (state === "attention" || state === "unknown") {
+    return "attention";
+  }
+  return "ready";
+}
+
+function buildContextPressureSignal(
+  contextPressure: RuntimeContextPressureSummary | null | undefined
+): RuntimeLaunchReadinessSummary["contextPressure"] {
+  if (!contextPressure) {
+    return {
+      state: "ready",
+      label: "Context pressure",
+      detail: "Runtime context pressure is nominal.",
+      pressureState: "nominal",
+      signalCount: 0,
+      projectionFingerprint: null,
+      summaryRef: null,
+    };
+  }
+  return {
+    state: mapContextPressureState(contextPressure.state),
+    label: "Context pressure",
+    detail: contextPressure.detail,
+    pressureState: contextPressure.state,
+    signalCount: contextPressure.signals.length,
+    projectionFingerprint: contextPressure.projectionFingerprint,
+    summaryRef: contextPressure.summaryRef,
+  };
+}
+
 export function buildRuntimeLaunchReadinessSummary(input: {
   capabilities: unknown;
   health: unknown;
   healthError: string | null;
   selectedRoute: RuntimeLaunchReadinessRoute;
   executionReliability: RuntimeLaunchExecutionReliabilitySummary;
+  contextPressure?: RuntimeContextPressureSummary | null;
   pendingApprovalCount: number;
   stalePendingApprovalCount: number;
 }): RuntimeLaunchReadinessSummary {
@@ -307,8 +328,12 @@ export function buildRuntimeLaunchReadinessSummary(input: {
     input.stalePendingApprovalCount
   );
   const executionReliability = buildExecutionReliabilitySignal(input.executionReliability);
+  const contextPressure = buildContextPressureSignal(input.contextPressure);
   const state = maxLaunchState(
-    maxLaunchState(maxLaunchState(runtime.state, route.state), executionReliability.state),
+    maxLaunchState(
+      maxLaunchState(maxLaunchState(runtime.state, route.state), executionReliability.state),
+      contextPressure.state
+    ),
     approvalPressure.state
   );
   const blockingReason =
@@ -316,9 +341,11 @@ export function buildRuntimeLaunchReadinessSummary(input: {
       ? runtime.detail
       : route.state === "blocked"
         ? (route.blockingReason ?? route.detail)
-        : executionReliability.state === "blocked"
-          ? executionReliability.detail
-          : null;
+        : contextPressure.state === "blocked"
+          ? contextPressure.detail
+          : executionReliability.state === "blocked"
+            ? executionReliability.detail
+            : null;
 
   let recommendedAction = "Runtime looks healthy. You can launch this run now.";
   if (runtime.state === "blocked") {
@@ -328,8 +355,16 @@ export function buildRuntimeLaunchReadinessSummary(input: {
     recommendedAction =
       route.recommendedAction ??
       "Fix the selected route or switch to a ready route before launching.";
+  } else if (contextPressure.state === "blocked") {
+    recommendedAction =
+      input.contextPressure?.recommendedAction ??
+      "Restore runtime context projection before launching more work.";
   } else if (executionReliability.state !== "ready") {
     recommendedAction = input.executionReliability.recommendedAction;
+  } else if (contextPressure.state === "attention") {
+    recommendedAction =
+      input.contextPressure?.recommendedAction ??
+      "Review runtime context pressure before launching more work.";
   } else if (route.state === "attention") {
     recommendedAction =
       route.recommendedAction ??
@@ -354,6 +389,7 @@ export function buildRuntimeLaunchReadinessSummary(input: {
     launchAllowed: state !== "blocked",
     runtime,
     route,
+    contextPressure,
     approvalPressure,
     executionReliability,
   };

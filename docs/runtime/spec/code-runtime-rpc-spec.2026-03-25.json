@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-04-07T10:22:51.028Z",
+  "generatedAt": "2026-04-11T08:29:27.056Z",
   "rpc": {
     "contractVersion": "2026-03-25",
     "freezeEffectiveAt": "2026-03-25",
-    "methodSetHash": "7d95b10c242e4ca6",
+    "methodSetHash": "c77e4ca9c0f59bfc",
     "methods": [
       "code_acp_integration_probe",
       "code_acp_integration_remove",
@@ -100,6 +100,8 @@
       "code_runtime_composition_profile_resolve_v2",
       "code_runtime_composition_snapshot_publish_v1",
       "code_runtime_diagnostics_export_v1",
+      "code_runtime_invocation_dispatch_v1",
+      "code_runtime_invocation_hosts_list_v1",
       "code_runtime_policy_get_v2",
       "code_runtime_policy_set_v2",
       "code_runtime_review_get_v2",
@@ -252,6 +254,8 @@
       "code_runtime_composition_profile_get_v2",
       "code_runtime_composition_profile_resolve_v2",
       "code_runtime_composition_snapshot_publish_v1",
+      "code_runtime_invocation_hosts_list_v1",
+      "code_runtime_invocation_dispatch_v1",
       "code_runtime_backends_list",
       "code_runtime_backend_upsert",
       "code_runtime_backend_remove",
@@ -389,6 +393,7 @@
       "runtime_diagnostics_export_v1",
       "runtime_codex_exec_run_v1",
       "runtime_codex_cloud_tasks_read_v1",
+      "runtime_invocation_host_registry_v1",
       "runtime_codex_execpolicy_preflight_v1",
       "runtime_codex_unified_rpc_migration_v1",
       "runtime_host_deprecated",

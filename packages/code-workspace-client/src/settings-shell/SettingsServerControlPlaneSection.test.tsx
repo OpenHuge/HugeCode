@@ -34,6 +34,17 @@ const mockRuntimeComposition = {
     authorityState: "published",
     freshnessState: "current",
   },
+  summary: {
+    selectedPluginCount: 1,
+    blockedPluginCount: 0,
+    routeCandidateCount: 1,
+    selectedBackendCount: 1,
+    preferredBackendIds: ["backend-1"],
+    backendSummary: "backend-1",
+    layerSummary: "built_in -> workspace",
+    countsSummary: "Selected plugins 1, blocked plugins 0, route candidates 1.",
+  },
+  authoritySummary: "published / current",
   activeProfile: {
     id: "profile-1",
     name: "Workspace Default",

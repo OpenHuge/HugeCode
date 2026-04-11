@@ -2745,6 +2745,9 @@
                 // Keep this dispatch-coverage test deterministic and fast by skipping
                 // external usage refresh side effects.
                 "code_oauth_accounts_list" => json!({ "usageRefresh": "off" }),
+                "code_runtime_invocation_dispatch_v1" => {
+                    json!({ "invocationId": "runtime:test", "dryRun": true })
+                }
                 _ => json!({}),
             };
             let request = Request::builder()
@@ -6954,6 +6957,23 @@ exit 1
             prepare_payload["result"]["validationPlan"]["required"],
             Value::Bool(true)
         );
+        assert!(prepare_payload["result"]["executionEligibility"]["eligible"].is_boolean());
+        assert!(prepare_payload["result"]["executionEligibility"]["summary"].is_string());
+        assert!(prepare_payload["result"]["executionEligibility"]["wakeState"].is_string());
+        assert!(prepare_payload["result"]["wakePolicySummary"]["summary"].is_string());
+        assert!(prepare_payload["result"]["plan"]["planVersion"].is_string());
+        assert!(prepare_payload["result"]["autonomyProfile"].is_string());
+        assert!(prepare_payload["result"]["wakePolicy"]["mode"].is_string());
+        assert!(prepare_payload["result"]["intentSnapshot"]["primaryGoal"].is_string());
+        assert!(prepare_payload["result"]["opportunityQueue"]["selectionSummary"].is_string());
+        assert!(prepare_payload["result"]["researchTrace"]["mode"].is_string());
+        assert_eq!(
+            prepare_payload["result"]["reviewFocus"].as_array().map(Vec::len),
+            Some(3)
+        );
+        assert!(prepare_payload["result"]["guidanceStack"]["summary"].is_string());
+        assert!(prepare_payload["result"]["delegationContract"].is_object());
+        assert!(prepare_payload["result"]["delegationContract"]["summary"].is_string());
         assert_eq!(
             prepare_payload["result"]["delegationPlan"]["fanOutReady"],
             Value::Bool(true)

@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
+  CanonicalRuntimeRunPrepareSurface,
   HugeCodeExecutionProfile,
   RuntimeRunPrepareV2Request,
   RuntimeRunPrepareV2Response,
+} from "@ku0/code-runtime-host-contract";
+import {
+  isRuntimeRunPrepareV2DegradedCompatibleError,
+  resolveCanonicalRuntimeRunPrepareSurface,
 } from "@ku0/code-runtime-host-contract";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { prepareRuntimeRunV2 } from "../ports/runtimeJobs";
@@ -49,6 +54,17 @@ export type RuntimeMissionLaunchPreviewState = {
 };
 
 export { buildRuntimeRunStartRequestFromPreparation } from "./runtimeRunStartRequest";
+
+type RuntimeMissionLaunchFallbackSurface = Pick<
+  CanonicalRuntimeRunPrepareSurface,
+  | "contextTruth"
+  | "guidanceStack"
+  | "contextPlane"
+  | "toolingPlane"
+  | "evalPlane"
+  | "triageSummary"
+  | "delegationContract"
+>;
 
 function readOptionalText(value: string | null | undefined): string | null {
   if (typeof value !== "string") {
@@ -166,34 +182,39 @@ export function useRuntimeMissionLaunchPreview(
     ]
   );
   const debouncedRequest = useDebouncedValue(request, 250);
-  const [preparation, setPreparation] = useState<RuntimeRunPrepareV2Response | null>(null);
+  const [rawPreparation, setRawPreparation] = useState<RuntimeRunPrepareV2Response | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prepareFailure, setPrepareFailure] = useState<unknown>(null);
 
   useEffect(() => {
     if (!debouncedRequest) {
-      setPreparation(null);
+      setRawPreparation(null);
       setLoading(false);
       setError(null);
+      setPrepareFailure(null);
       return;
     }
 
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setPrepareFailure(null);
     void prepareRuntimeRunV2(debouncedRequest)
       .then((nextPreparation) => {
         if (cancelled) {
           return;
         }
-        setPreparation(nextPreparation);
+        setRawPreparation(nextPreparation);
         setError(null);
+        setPrepareFailure(null);
       })
       .catch((nextError) => {
         if (cancelled) {
           return;
         }
-        setPreparation(null);
+        setRawPreparation(null);
+        setPrepareFailure(nextError);
         setError(nextError instanceof Error ? nextError.message : String(nextError));
       })
       .finally(() => {
@@ -207,123 +228,104 @@ export function useRuntimeMissionLaunchPreview(
     };
   }, [debouncedRequest]);
 
-  const contextTruth = useMemo(() => {
-    if (preparation?.contextTruth) {
-      return preparation.contextTruth;
-    }
-    if (!request) {
+  const canonicalPreparationResolution = useMemo(
+    () => (rawPreparation ? resolveCanonicalRuntimeRunPrepareSurface(rawPreparation) : null),
+    [rawPreparation]
+  );
+  const degradedFallbackEnabled = Boolean(
+    request &&
+    !rawPreparation &&
+    prepareFailure &&
+    isRuntimeRunPrepareV2DegradedCompatibleError(prepareFailure)
+  );
+  const degradedFallbackSurface = useMemo<RuntimeMissionLaunchFallbackSurface | null>(() => {
+    if (!request || !degradedFallbackEnabled) {
       return null;
     }
-    return buildRuntimeContextTruth({
+    const contextTruth = buildRuntimeContextTruth({
       taskSource: request.taskSource ?? null,
       repositoryDefaults: input.repositoryLaunchDefaults,
       contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
       hasRepoInstructions: true,
       explicitInstruction: input.draftInstruction,
     });
-  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
-
-  const guidanceStack = useMemo(() => {
-    if (preparation?.guidanceStack) {
-      return preparation.guidanceStack;
-    }
-    if (!request) {
-      return null;
-    }
-    return buildRuntimeGuidanceStack({
+    const guidanceStack = buildRuntimeGuidanceStack({
       taskSource: request.taskSource ?? null,
       repositoryDefaults: input.repositoryLaunchDefaults,
       contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
       hasRepoInstructions: true,
       explicitInstruction: input.draftInstruction,
     });
-  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
-
-  const contextPlane = useMemo(() => {
-    if (preparation?.contextPlane) {
-      return preparation.contextPlane;
-    }
-    if (!request) {
-      return null;
-    }
-    return buildRuntimeContextPlane({
+    const triageSummary = buildRuntimeTriageSummary({
       taskSource: request.taskSource ?? null,
       repositoryDefaults: input.repositoryLaunchDefaults,
       contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
       hasRepoInstructions: true,
       explicitInstruction: input.draftInstruction,
     });
-  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
-
-  const toolingPlane = useMemo(() => {
-    if (preparation?.toolingPlane) {
-      return preparation.toolingPlane;
-    }
-    if (!request) {
-      return null;
-    }
-    return buildRuntimeToolingPlane({
-      selectedExecutionProfile: input.selectedExecutionProfile,
-      preferredBackendIds: request.preferredBackendIds ?? input.preferredBackendIds ?? null,
-      routedProvider: input.routedProvider,
-      reviewProfileId: request.reviewProfileId ?? null,
-      validationPresetId: request.validationPresetId ?? null,
-    });
+    return {
+      contextTruth,
+      guidanceStack,
+      contextPlane: buildRuntimeContextPlane({
+        taskSource: request.taskSource ?? null,
+        repositoryDefaults: input.repositoryLaunchDefaults,
+        contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
+        hasRepoInstructions: true,
+        explicitInstruction: input.draftInstruction,
+      }),
+      toolingPlane: buildRuntimeToolingPlane({
+        selectedExecutionProfile: input.selectedExecutionProfile,
+        preferredBackendIds: request.preferredBackendIds ?? input.preferredBackendIds ?? null,
+        routedProvider: input.routedProvider,
+        reviewProfileId: request.reviewProfileId ?? null,
+        validationPresetId: request.validationPresetId ?? null,
+      }),
+      evalPlane: buildRuntimeEvalPlane({
+        taskSource: request.taskSource ?? null,
+        repositoryDefaults: input.repositoryLaunchDefaults,
+        selectedExecutionProfile: input.selectedExecutionProfile,
+        reviewProfileId: request.reviewProfileId ?? null,
+        validationPresetId: request.validationPresetId ?? null,
+      }),
+      triageSummary,
+      delegationContract: buildRuntimeDelegationContract({
+        contextTruth,
+        triageSummary,
+        missingContext: request.missionBrief?.constraints ?? [],
+        approvalBatchCount: 0,
+      }),
+    };
   }, [
+    degradedFallbackEnabled,
+    input.draftInstruction,
     input.preferredBackendIds,
+    input.repositoryLaunchDefaults,
     input.routedProvider,
     input.selectedExecutionProfile,
-    preparation,
     request,
   ]);
-
-  const evalPlane = useMemo(() => {
-    if (preparation?.evalPlane) {
-      return preparation.evalPlane;
-    }
-    if (!request) {
-      return null;
-    }
-    return buildRuntimeEvalPlane({
-      taskSource: request.taskSource ?? null,
-      repositoryDefaults: input.repositoryLaunchDefaults,
-      selectedExecutionProfile: input.selectedExecutionProfile,
-      reviewProfileId: request.reviewProfileId ?? null,
-      validationPresetId: request.validationPresetId ?? null,
-    });
-  }, [input.repositoryLaunchDefaults, input.selectedExecutionProfile, preparation, request]);
-
-  const triageSummary = useMemo(() => {
-    if (preparation?.triageSummary) {
-      return preparation.triageSummary;
-    }
-    if (!request) {
-      return null;
-    }
-    return buildRuntimeTriageSummary({
-      taskSource: request.taskSource ?? null,
-      repositoryDefaults: input.repositoryLaunchDefaults,
-      contractLabel: input.repositoryLaunchDefaults.contract?.metadata?.label ?? null,
-      hasRepoInstructions: true,
-      explicitInstruction: input.draftInstruction,
-    });
-  }, [input.draftInstruction, input.repositoryLaunchDefaults, preparation, request]);
-
-  const delegationContract = useMemo(() => {
-    if (preparation?.delegationContract) {
-      return preparation.delegationContract;
-    }
-    if (!contextTruth) {
-      return null;
-    }
-    return buildRuntimeDelegationContract({
-      contextTruth,
-      triageSummary,
-      missingContext:
-        preparation?.runIntent.missingContext ?? request?.missionBrief?.constraints ?? [],
-      approvalBatchCount: preparation?.approvalBatches.length ?? 0,
-    });
-  }, [contextTruth, preparation, request, triageSummary]);
+  const canonicalPreparation =
+    canonicalPreparationResolution && canonicalPreparationResolution.ok
+      ? canonicalPreparationResolution.surface
+      : null;
+  const preparation = canonicalPreparation;
+  const contextTruth =
+    canonicalPreparation?.contextTruth ?? degradedFallbackSurface?.contextTruth ?? null;
+  const guidanceStack =
+    canonicalPreparation?.guidanceStack ?? degradedFallbackSurface?.guidanceStack ?? null;
+  const contextPlane =
+    canonicalPreparation?.contextPlane ?? degradedFallbackSurface?.contextPlane ?? null;
+  const toolingPlane =
+    canonicalPreparation?.toolingPlane ?? degradedFallbackSurface?.toolingPlane ?? null;
+  const evalPlane = canonicalPreparation?.evalPlane ?? degradedFallbackSurface?.evalPlane ?? null;
+  const triageSummary =
+    canonicalPreparation?.triageSummary ?? degradedFallbackSurface?.triageSummary ?? null;
+  const delegationContract =
+    canonicalPreparation?.delegationContract ?? degradedFallbackSurface?.delegationContract ?? null;
+  const effectiveError =
+    canonicalPreparationResolution && !canonicalPreparationResolution.ok
+      ? canonicalPreparationResolution.message
+      : error;
 
   const repoGuidanceSummary = useMemo(
     () => summarizeLaunchPreparationRepoGuidance(preparation, guidanceStack),
@@ -341,8 +343,12 @@ export function useRuntimeMissionLaunchPreview(
     triageSummary,
     delegationContract,
     repoGuidanceSummary,
-    truthSourceLabel: preparation ? "Runtime kernel v2 prepare" : null,
+    truthSourceLabel: canonicalPreparation
+      ? "Runtime kernel v2 prepare"
+      : degradedFallbackEnabled
+        ? "App fallback prepare"
+        : null,
     loading,
-    error,
+    error: effectiveError,
   };
 }

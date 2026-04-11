@@ -81,6 +81,7 @@ export const restrictedCompatVarRules = [
       "apps/code/src/features/composer/components/ComposerSelectMenu.css.ts",
       "apps/code/src/features/home/components/HomeThreadControls.css.ts",
       "apps/code/src/features/settings/components/SettingsSelect.css.ts",
+      "packages/code-workspace-client/src/settings-shell/SettingsSelect.css.ts",
       "apps/code/src/features/settings/components/sections/settings-codex-accounts-card/CodexAccountControls.css.ts",
     ]),
     guidance:

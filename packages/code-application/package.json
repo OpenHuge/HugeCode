@@ -137,6 +137,10 @@
       "types": "./src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlTaskSourceProjector.ts"
     },
+    "./runtimeSourceLaunchNormalization": {
+      "types": "./src/runtime-control-plane/runtimeSourceLaunchNormalization.ts",
+      "default": "./src/runtime-control-plane/runtimeSourceLaunchNormalization.ts"
+    },
     "./runtimeMissionControlProvenance": {
       "types": "./src/runtime-control-plane/runtimeMissionControlProvenance.ts",
       "default": "./src/runtime-control-plane/runtimeMissionControlProvenance.ts"

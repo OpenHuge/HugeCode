@@ -118,7 +118,20 @@ export {
   resolveCheckpointHandoffLabel,
   resolveMissionOperatorAction,
 } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
+export { resolveMissionContinuationActionability } from "./runtime-control-plane/runtimeMissionControlContinuation";
 export { resolveMissionTakeoverOperatorAction } from "./runtime-control-plane/runtimeMissionControlTakeoverAction";
+export {
+  buildMissionOverviewOperatorSignal as buildMissionOverviewContinuationSignal,
+  resolveCanonicalMissionReviewContinuation,
+  resolveLegacyReviewPackNextAction,
+  resolveMissionReviewContinuationData,
+} from "./runtime-control-plane/runtimeMissionControlContinuationSummary";
+export {
+  prepareReviewContinuationDraft,
+  resolveReviewContinuationDefaults,
+  resolveRuntimeFollowUpPreferredBackendIds,
+  summarizeReviewContinuationActionability,
+} from "./runtime-control-plane/runtimeReviewContinuationFacade";
 export {
   buildRuntimeLaunchPreparationContextPlaneSummary,
   buildRuntimeLaunchPreparationEvalPlaneSummary,
@@ -141,11 +154,6 @@ export {
   buildMissionRunSummary as buildRuntimeMissionRunSummary,
 } from "./runtime-control-plane/runtimeMissionControlLoop";
 export { buildMissionSecondaryLabel } from "./runtime-control-plane/runtimeMissionSecondaryLabel";
-export {
-  summarizeReviewContinuationActionability,
-  resolveReviewContinuationDefaults,
-  resolveRuntimeFollowUpPreferredBackendIds,
-} from "./runtime-control-plane/runtimeReviewContinuationFacade";
 export { buildMissionReviewTriageMetadata } from "./runtime-control-plane/runtimeMissionReviewTriage";
 export { resolveReviewIntelligenceSummary } from "./runtime-control-plane/runtimeReviewIntelligenceSummary";
 export {
@@ -154,6 +162,18 @@ export {
   buildRuntimeKernelPluginReadinessSections,
   readRuntimeControlPlaneRoutingPluginMetadata,
 } from "./runtime-control-plane/runtimeMissionControlPluginCatalog";
+export {
+  buildRuntimeSourceLaunchSummary,
+  buildRuntimeSourceTaskSource,
+  normalizeCallSummarySourceLaunchInput,
+  normalizeCustomerFeedbackSourceLaunchInput,
+  normalizeDocumentSourceLaunchInput,
+  normalizeExternalReferenceSourceLaunchInput,
+  normalizeGitHubDiscussionSourceLaunchInput,
+  normalizeNoteSourceLaunchInput,
+  normalizeRuntimeSourceLaunchTextList,
+  readRuntimeSourceLaunchText,
+} from "./runtime-control-plane/runtimeSourceLaunchNormalization";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,
@@ -197,6 +217,9 @@ export type {
   ThreadVisualState,
 } from "./runtime-control-plane/missionControlSurfaceModel";
 export type { MissionOperatorActionModel } from "./runtime-control-plane/runtimeMissionControlOperatorAction";
+export type * from "./runtime-control-plane/runtimeMissionControlContinuationSummary";
+export type * from "./runtime-control-plane/runtimeContinuityReadiness";
+export type * from "./runtime-control-plane/runtimeReviewContinuationFacade";
 export type {
   RuntimeLaunchPreparationInvocationSummary,
   RuntimeMissionControlCompositionSummary,
@@ -222,6 +245,16 @@ export type {
   RuntimeMissionControlPluginSource,
   RuntimeMissionControlPluginCatalogStatus,
 } from "./runtime-control-plane/runtimeMissionControlPluginCatalog";
+export type {
+  CallSummarySourceLaunchInput,
+  CustomerFeedbackSourceLaunchInput,
+  DocumentSourceLaunchInput,
+  ExternalReferenceSourceLaunchInput,
+  GitHubDiscussionSourceLaunchInput,
+  NoteSourceLaunchInput,
+  RuntimeNormalizedSourceLaunchSummary,
+  RuntimeSourceLaunchSharedFields,
+} from "./runtime-control-plane/runtimeSourceLaunchNormalization";
 export type {
   MissionRunDetailModel,
   MissionSurfaceDetailModel,

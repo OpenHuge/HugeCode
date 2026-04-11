@@ -8,7 +8,6 @@ import type {
   RuntimeContinuationPathKind,
   RuntimeContinuationTruthSource,
 } from "@ku0/code-runtime-host-contract";
-import { buildMissionRunCheckpoint } from "./runtimeMissionControlCheckpoint";
 import {
   buildRuntimeContinuationAggregate,
   buildRuntimeContinuationReadinessSummary,
@@ -53,17 +52,7 @@ type RuntimeContinuityCandidateRun = Pick<
   | "nextAction"
 >;
 
-type RuntimeContinuityCandidateTask = Pick<
-  AgentTaskSummary,
-  | "taskId"
-  | "status"
-  | "updatedAt"
-  | "checkpointId"
-  | "traceId"
-  | "errorCode"
-  | "recovered"
-  | "checkpointState"
-> | null;
+type RuntimeContinuityCandidateTask = Pick<AgentTaskSummary, "taskId"> | null;
 
 type RuntimeContinuityCandidate = {
   run: RuntimeContinuityCandidateRun;
@@ -79,26 +68,8 @@ type BuildRuntimeContinuityReadinessOptions = {
   durabilityWarning?: RuntimeContinuityDurability;
 };
 
-function resolveCheckpoint(
-  run: RuntimeContinuityCandidateRun,
-  task: RuntimeContinuityCandidateTask
-): HugeCodeCheckpointSummary | null {
-  if (run.checkpoint) {
-    return run.checkpoint;
-  }
-  if (!task) {
-    return null;
-  }
-  return buildMissionRunCheckpoint(task);
-}
-
-function isRecoverableTaskStatus(status: AgentTaskSummary["status"] | null | undefined): boolean {
-  return status === "paused" || status === "interrupted";
-}
-
 function isCanonicalContinuationCandidate(input: {
   run: RuntimeContinuityCandidateRun;
-  task: RuntimeContinuityCandidateTask;
   checkpoint: HugeCodeCheckpointSummary | null;
 }) {
   return Boolean(
@@ -108,9 +79,7 @@ function isCanonicalContinuationCandidate(input: {
     input.run.publishHandoff ||
     input.run.missionLinkage ||
     input.run.actionability ||
-    input.checkpoint ||
-    input.task?.recovered === true ||
-    isRecoverableTaskStatus(input.task?.status)
+    input.checkpoint
   );
 }
 
@@ -132,11 +101,10 @@ export function buildRuntimeContinuityReadiness({
   durabilityWarning = null,
 }: BuildRuntimeContinuityReadinessOptions): RuntimeContinuityReadinessSummary {
   const aggregateCandidates = candidates.flatMap((candidate) => {
-    const checkpoint = resolveCheckpoint(candidate.run, candidate.task ?? null);
+    const checkpoint = candidate.run.checkpoint ?? null;
     if (
       !isCanonicalContinuationCandidate({
         run: candidate.run,
-        task: candidate.task ?? null,
         checkpoint,
       })
     ) {

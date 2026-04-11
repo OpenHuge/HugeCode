@@ -1114,11 +1114,40 @@ export {
   resolveCodeRuntimeRpcMethod,
 } from "./codeRuntimeRpcCompat.js";
 export {
+  buildRuntimeTruthCompatInputFromRunReviewPair,
   resolveCanonicalRuntimeTruth,
+  resolveCanonicalRuntimeTruthFromRunReviewPair,
   resolveRuntimeContinuation,
   resolveRuntimeNextOperatorAction,
   resolveRuntimeSessionBoundary,
 } from "./runtimeTruthCompat.js";
+export type * from "./runtimeTruthCompat.js";
+export type * from "./runtimeRunPrepareCompat.js";
+export {
+  isRuntimeRunPrepareV2DegradedCompatibleError,
+  resolveCanonicalRuntimeRunPrepareSurface,
+} from "./runtimeRunPrepareCompat.js";
+export type {
+  RuntimeExecutionReliabilityChannel,
+  RuntimeExecutionReliabilityCircuitBreaker,
+  RuntimeExecutionReliabilityGate,
+  RuntimeExecutionReliabilityState,
+  RuntimeExecutionReliabilitySummary,
+} from "./runtimeExecutionReliability.js";
+export {
+  buildRuntimeExecutionReliability,
+  DEFAULT_RUNTIME_EXECUTION_SUCCESS_MIN_RATE,
+} from "./runtimeExecutionReliability.js";
+export type {
+  RuntimeContextPressureSignal,
+  RuntimeContextPressureSignalSource,
+  RuntimeContextPressureState,
+  RuntimeContextPressureSummary,
+} from "./runtimeContextPressure.js";
+export {
+  buildRuntimeContextPressureSummary,
+  mergeRuntimeContextPressureSummaries,
+} from "./runtimeContextPressure.js";
 export type * from "./runtimeContinuationFacade.js";
 export {
   buildRuntimeContinuationAggregate,

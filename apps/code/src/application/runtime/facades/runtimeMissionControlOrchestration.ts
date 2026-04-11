@@ -1,4 +1,8 @@
-import type { HugeCodeRunSummary } from "@ku0/code-runtime-host-contract";
+import {
+  buildRuntimeContextPressureSummary,
+  mergeRuntimeContextPressureSummaries,
+  type HugeCodeRunSummary,
+} from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import {
   buildRuntimeContinuityReadiness,
@@ -14,10 +18,8 @@ import {
   type RuntimeLaunchReadinessSummary,
 } from "./runtimeLaunchReadiness";
 import { normalizeRuntimeTaskForProjection } from "./runtimeMissionControlProjectionNormalization";
-import {
-  projectAgentTaskSummaryToRunSummary,
-  type RunProjectionRoutingContext,
-} from "./runtimeMissionControlFacade";
+import { projectAgentTaskStatusToRunState } from "./runtimeMissionControlProjectionHelpers";
+import type { RunProjectionRoutingContext } from "./runtimeMissionControlFacade";
 
 export type RuntimeMissionControlVisibleRun = {
   task: RuntimeAgentTaskSummary;
@@ -65,6 +67,57 @@ function isPendingApprovalTask(task: RuntimeAgentTaskSummary): boolean {
   );
 }
 
+function hasTaskLevelContinuityTruth(task: RuntimeAgentTaskSummary): boolean {
+  return Boolean(
+    task.continuation ||
+    task.takeoverBundle ||
+    task.publishHandoff ||
+    task.missionLinkage ||
+    task.reviewActionability ||
+    task.nextOperatorAction
+  );
+}
+
+function resolveContinuityRunSummary(task: RuntimeAgentTaskSummary): HugeCodeRunSummary | null {
+  if (task.runSummary) {
+    return task.runSummary;
+  }
+  if (!hasTaskLevelContinuityTruth(task)) {
+    return null;
+  }
+  return {
+    id: task.taskId,
+    taskId: task.taskId,
+    workspaceId: task.workspaceId,
+    taskSource: task.taskSource ?? null,
+    state: projectAgentTaskStatusToRunState(task.status),
+    title: task.title ?? task.taskId,
+    summary: null,
+    startedAt: task.startedAt,
+    finishedAt: task.completedAt,
+    updatedAt: task.updatedAt,
+    currentStepIndex: task.currentStep,
+    profileReadiness: task.profileReadiness ?? null,
+    routing: task.routing ?? null,
+    reviewDecision: task.reviewDecision ?? null,
+    intervention: task.intervention ?? null,
+    operatorState: task.operatorState ?? null,
+    nextAction: task.nextAction ?? null,
+    reviewPackId: task.reviewPackId ?? task.missionLinkage?.reviewPackId ?? null,
+    checkpoint: null,
+    missionLinkage: task.missionLinkage ?? null,
+    actionability: task.reviewActionability ?? null,
+    sessionBoundary: task.sessionBoundary ?? null,
+    continuation: task.continuation ?? null,
+    nextOperatorAction: task.nextOperatorAction ?? null,
+    publishHandoff: task.publishHandoff ?? null,
+    takeoverBundle: task.takeoverBundle ?? null,
+    contextBoundary: task.contextBoundary ?? null,
+    contextProjection: task.contextProjection ?? null,
+    compactionSummary: task.compactionSummary ?? null,
+  } satisfies HugeCodeRunSummary;
+}
+
 export function buildRuntimeMissionControlOrchestrationState({
   runtimeTasks,
   statusFilter,
@@ -79,20 +132,29 @@ export function buildRuntimeMissionControlOrchestrationState({
   stalePendingApprovalMs,
   now = Date.now,
 }: BuildRuntimeMissionControlOrchestrationStateInput): RuntimeMissionControlOrchestrationState {
-  const resolveRunSummary = (task: RuntimeAgentTaskSummary): HugeCodeRunSummary =>
-    task.runSummary ??
-    projectAgentTaskSummaryToRunSummary(normalizeRuntimeTaskForProjection(task), {
-      routingContext,
-    });
-  const projectedRunsByTaskId = new Map(
-    runtimeTasks.map((task) => [task.taskId, resolveRunSummary(task)])
+  void routingContext;
+  const runtimeTasksWithRunSummary = runtimeTasks.filter(
+    (task): task is RuntimeAgentTaskSummary & { runSummary: HugeCodeRunSummary } =>
+      task.runSummary !== undefined && task.runSummary !== null
   );
+  const projectedRunsByTaskId = new Map(
+    runtimeTasksWithRunSummary.map((task) => [task.taskId, task.runSummary])
+  );
+  const continuityCandidates = runtimeTasks.flatMap((task) => {
+    const run = resolveContinuityRunSummary(task);
+    if (!run) {
+      return [];
+    }
+    return [
+      {
+        task: normalizeRuntimeTaskForProjection(task),
+        run,
+      },
+    ];
+  });
 
   const continuityReadiness = buildRuntimeContinuityReadiness({
-    candidates: runtimeTasks.map((task) => ({
-      task: normalizeRuntimeTaskForProjection(task),
-      run: projectedRunsByTaskId.get(task.taskId)!,
-    })),
+    candidates: continuityCandidates,
     durabilityWarning,
   });
 
@@ -128,6 +190,15 @@ export function buildRuntimeMissionControlOrchestrationState({
     metrics: runtimeToolMetrics,
     guardrails: runtimeToolGuardrails,
   });
+  const contextPressure = mergeRuntimeContextPressureSummaries(
+    runtimeTasks.map((task) =>
+      buildRuntimeContextPressureSummary({
+        compactionSummary: task.compactionSummary ?? task.runSummary?.compactionSummary ?? null,
+        contextBoundary: task.contextBoundary ?? task.runSummary?.contextBoundary ?? null,
+        contextProjection: task.contextProjection ?? task.runSummary?.contextProjection ?? null,
+      })
+    )
+  );
 
   const launchReadiness = buildRuntimeLaunchReadiness({
     capabilities,
@@ -135,6 +206,7 @@ export function buildRuntimeMissionControlOrchestrationState({
     healthError,
     selectedRoute,
     executionReliability,
+    contextPressure,
     pendingApprovalCount: pendingApprovalTasks.length,
     stalePendingApprovalCount: stalePendingApprovalTasks.length,
   });
