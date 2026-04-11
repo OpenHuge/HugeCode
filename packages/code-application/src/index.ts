@@ -168,6 +168,18 @@ export {
   buildRuntimeKernelPluginReadinessSections,
   readRuntimeControlPlaneRoutingPluginMetadata,
 } from "./runtime-control-plane/runtimeMissionControlPluginCatalog";
+export {
+  buildRuntimeSourceLaunchSummary,
+  buildRuntimeSourceTaskSource,
+  normalizeCallSummarySourceLaunchInput,
+  normalizeCustomerFeedbackSourceLaunchInput,
+  normalizeDocumentSourceLaunchInput,
+  normalizeExternalReferenceSourceLaunchInput,
+  normalizeGitHubDiscussionSourceLaunchInput,
+  normalizeNoteSourceLaunchInput,
+  normalizeRuntimeSourceLaunchTextList,
+  readRuntimeSourceLaunchText,
+} from "./runtime-control-plane/runtimeSourceLaunchNormalization";
 
 export type {
   CreateDesktopWorkspaceClientBindingsInput,
@@ -239,6 +251,16 @@ export type {
   RuntimeMissionControlPluginSource,
   RuntimeMissionControlPluginCatalogStatus,
 } from "./runtime-control-plane/runtimeMissionControlPluginCatalog";
+export type {
+  CallSummarySourceLaunchInput,
+  CustomerFeedbackSourceLaunchInput,
+  DocumentSourceLaunchInput,
+  ExternalReferenceSourceLaunchInput,
+  GitHubDiscussionSourceLaunchInput,
+  NoteSourceLaunchInput,
+  RuntimeNormalizedSourceLaunchSummary,
+  RuntimeSourceLaunchSharedFields,
+} from "./runtime-control-plane/runtimeSourceLaunchNormalization";
 export type {
   MissionRunDetailModel,
   MissionSurfaceDetailModel,
