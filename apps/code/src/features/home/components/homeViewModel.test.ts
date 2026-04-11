@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import type { RequestUserInputRequest } from "../../../types";
 import {
   buildHomeMissionSignalsViewModel,

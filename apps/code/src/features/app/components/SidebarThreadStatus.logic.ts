@@ -1,3 +1,4 @@
+import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import type {
   ApprovalRequest,
   ConversationItem,
@@ -5,7 +6,6 @@ import type {
   RequestUserInputRequest,
   ThreadSummary,
 } from "../../../types";
-import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import { resolveTimelineMessageBanner } from "../../messages/utils/timelineSurface";
 import { getApprovalRequestThreadId } from "../../messages/utils/approvalPresentation";
 import { resolveActivePlanArtifact } from "../../messages/utils/planArtifact";

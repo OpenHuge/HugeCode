@@ -3,8 +3,8 @@ import {
   buildMissionControlLoopItems,
   buildMissionRunSummary,
   type MissionControlLoopItem,
-} from "../../../application/runtime/facades/runtimeMissionControlLoop";
-import { projectAgentTaskStatusToRunState } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+} from "@ku0/code-application/runtimeMissionControlLoop";
+import { projectAgentTaskStatusToRunState } from "@ku0/code-application/runtimeMissionControlTaskStatus";
 import { formatHugeCodeRunStateLabel } from "../../../application/runtime/facades/runtimeMissionControlRunState";
 import type { RuntimeAgentTaskSummary } from "../../../application/runtime/types/webMcpBridge";
 

@@ -125,4 +125,61 @@ describe("check-app-source-boundary", () => {
     );
     expect(result.stderr).toContain("package-to-app src import");
   });
+
+  it("fails when a production feature imports an app-local control-plane facade", async () => {
+    const repoRoot = createTempRepo();
+    writeRepoFile(
+      repoRoot,
+      "apps/code/src/features/home/components/Home.tsx",
+      'import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";\nexport const value = null;\n'
+    );
+    writeRepoFile(
+      repoRoot,
+      "apps/code/src/application/runtime/facades/runtimeMissionControlFacade.ts",
+      "export type MissionControlProjection = { source: string };\n"
+    );
+
+    const result = await runBoundaryScript(repoRoot);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("feature-to-app control-plane facade import");
+  });
+
+  it("fails when a production feature imports the app-local mission control loop facade", async () => {
+    const repoRoot = createTempRepo();
+    writeRepoFile(
+      repoRoot,
+      "apps/code/src/features/home/components/Home.tsx",
+      'import { buildMissionControlLoopItems } from "../../../application/runtime/facades/runtimeMissionControlLoop";\nexport const value = buildMissionControlLoopItems;\n'
+    );
+    writeRepoFile(
+      repoRoot,
+      "apps/code/src/application/runtime/facades/runtimeMissionControlLoop.ts",
+      "export const buildMissionControlLoopItems = () => [];\n"
+    );
+
+    const result = await runBoundaryScript(repoRoot);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("feature-to-app control-plane facade import");
+  });
+
+  it("allows feature tests to keep importing app-local control-plane facades", async () => {
+    const repoRoot = createTempRepo();
+    writeRepoFile(
+      repoRoot,
+      "apps/code/src/features/home/components/Home.test.tsx",
+      'import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";\nexport const value = null;\n'
+    );
+    writeRepoFile(
+      repoRoot,
+      "apps/code/src/application/runtime/facades/runtimeMissionControlFacade.ts",
+      "export type MissionControlProjection = { source: string };\n"
+    );
+
+    const result = await runBoundaryScript(repoRoot);
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("");
+  });
 });

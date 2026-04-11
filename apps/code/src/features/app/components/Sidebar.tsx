@@ -16,9 +16,9 @@ import {
   useRef,
   useState,
 } from "react";
+import type { HugeCodeMissionControlSnapshot as MissionControlProjection } from "@ku0/code-runtime-host-contract";
 import { createPortal } from "react-dom";
 import { PopoverMenuItem, PopoverSurface } from "../../../design-system";
-import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
 import { pushErrorToast } from "../../../application/runtime/ports/toasts";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import type {

@@ -112,9 +112,21 @@ describe("code runtime host event envelope", () => {
           summary: "Requires runtime service availability.",
         },
       ],
+      hostCapabilityRequirements: [
+        {
+          key: "runtime_service",
+          summary: "Requires runtime service availability.",
+        },
+      ],
       preflight: {
         state: "ready",
         summary: "Invocation is executable.",
+      },
+      preflightOutcome: {
+        state: "ready",
+        summary: "Invocation is executable.",
+        required: true,
+        readinessState: "ready",
       },
     };
     const evidence: InvocationExecutionEvidence = {
@@ -136,6 +148,23 @@ describe("code runtime host event envelope", () => {
         warnings: [],
         checkedAt: null,
       },
+      invocationProvenance: {
+        descriptorKind: "runtime_tool",
+        bindingKind: "runtime_run",
+        sourceKind: "runtime_tool",
+        sourceId: "start-runtime-run",
+        sourceAuthority: "runtime",
+        executionHost: "runtime",
+        toolName: "start-runtime-run",
+        extensionId: null,
+        promptId: null,
+      },
+      placementRationale: {
+        summary:
+          "Dispatches through the runtime-run path so launch placement, approvals, and lifecycle stay runtime-owned.",
+        reason: null,
+      },
+      toolCallIds: ["tool-call-1"],
       outcome: {
         status: "executed",
         summary: "Runtime run launch request was dispatched through the canonical runtime path.",
@@ -144,6 +173,8 @@ describe("code runtime host event envelope", () => {
     };
 
     expect(evidence.binding.kind).toBe("runtime_run");
+    expect(evidence.hostCapabilityRequirements[0]?.key).toBe("runtime_service");
+    expect(evidence.preflightOutcome.required).toBe(true);
     expect(evidence.outcome.status).toBe("executed");
   });
 

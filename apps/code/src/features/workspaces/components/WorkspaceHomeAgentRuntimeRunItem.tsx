@@ -5,7 +5,8 @@ import type {
   RuntimeExecutionEvidenceSummary,
 } from "@ku0/code-runtime-host-contract";
 import type { MissionNavigationTarget } from "@ku0/code-application/runtimeMissionControlSurfaceModel";
-import { projectAgentTaskStatusToRunState } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import type { RuntimeContinuityReadinessItem } from "@ku0/code-application/runtimeContinuityReadiness";
+import { projectAgentTaskStatusToRunState } from "@ku0/code-application/runtimeMissionControlTaskStatus";
 import {
   buildRuntimeAutonomyContextDetails,
   formatRuntimeAutonomyProfileLabel,
@@ -13,7 +14,6 @@ import {
 } from "../../../application/runtime/facades/runtimeAutonomyPresentation";
 import { useRuntimeRunRecordTruth } from "../../../application/runtime/facades/runtimeRunRecordTruth";
 import type { RuntimeTaskLauncherInterventionIntent } from "../../../application/runtime/facades/runtimeTaskInterventionDraftFacade";
-import type { RuntimeContinuityReadinessItem } from "../../../application/runtime/facades/runtimeContinuityReadiness";
 import type {
   RuntimeAgentTaskInterventionInput,
   RuntimeAgentTaskSummary,

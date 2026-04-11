@@ -94,11 +94,20 @@ describe("runtimeInvocationExecution", () => {
         extensionId: "ext.review",
         toolName: "ext.review.search",
       },
+      preflightOutcome: {
+        state: "ready",
+        required: true,
+        readinessState: "ready",
+      },
       preflight: {
         state: "ready",
       },
     });
     expect(plan.hostRequirements.map((entry) => entry.key)).toEqual([
+      "runtime_service",
+      "extension_bridge",
+    ]);
+    expect(plan.hostCapabilityRequirements.map((entry) => entry.key)).toEqual([
       "runtime_service",
       "extension_bridge",
     ]);
@@ -162,6 +171,11 @@ describe("runtimeInvocationExecution", () => {
         host: "workspace",
         promptId: "prompt.summarize",
       },
+      preflightOutcome: {
+        state: "not_required",
+        required: false,
+        readinessState: "ready",
+      },
       preflight: {
         state: "not_required",
       },
@@ -181,6 +195,9 @@ describe("runtimeInvocationExecution", () => {
     const descriptor = withInvocationExecutionPlan(
       createDescriptor({
         id: "tool:run-runtime-live-skill",
+        metadata: {
+          toolCallIds: ["tool-call-1", "tool-call-2", "tool-call-1"],
+        },
         runtimeTool: {
           toolName: "run-runtime-live-skill",
           scope: "runtime",
@@ -213,6 +230,21 @@ describe("runtimeInvocationExecution", () => {
         kind: "runtime_live_skill",
         host: "runtime",
       },
+      invocationProvenance: {
+        bindingKind: "runtime_live_skill",
+        descriptorKind: "runtime_tool",
+        sourceKind: "runtime_tool",
+        sourceId: "start-runtime-run",
+        sourceAuthority: "runtime",
+        executionHost: "runtime",
+        toolName: "run-runtime-live-skill",
+      },
+      placementRationale: {
+        summary:
+          "Dispatches through the canonical runtime live-skill path so execution remains inside runtime governance.",
+        reason: null,
+      },
+      toolCallIds: ["tool-call-1", "tool-call-2"],
       outcome: {
         status: "executed",
       },

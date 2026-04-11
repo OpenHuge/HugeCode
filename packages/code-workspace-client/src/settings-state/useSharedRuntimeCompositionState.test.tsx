@@ -2,6 +2,13 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { RuntimeCompositionSettingsEntry } from "@ku0/code-platform-interfaces";
+import type {
+  RuntimeCompositionProfile,
+  RuntimeCompositionProfileSummaryV2,
+  RuntimeCompositionResolveV2Response,
+  RuntimeCompositionSnapshotPublishResponse,
+} from "@ku0/code-runtime-host-contract";
 import type { SettingsShellFraming } from "../settings-shell/settingsShellTypes";
 import type { WorkspaceClientBindings } from "../workspace/bindings";
 import { WorkspaceClientBindingsProvider } from "../workspace/WorkspaceClientBindingsProvider";
@@ -14,37 +21,41 @@ const desktopSettingsShellFraming: SettingsShellFraming = {
   subtitle: "Workspace settings",
 };
 
-function createCompositionSnapshot(profileId: string | null, authorityRevision = 1) {
+function createCompositionSnapshot(
+  profileId: string | null,
+  authorityRevision = 1
+): RuntimeCompositionResolveV2Response {
+  const activeProfile: RuntimeCompositionProfile | null = profileId
+    ? {
+        id: profileId,
+        name: "Workspace Default",
+        scope: "workspace",
+        enabled: true,
+        pluginSelectors: [],
+        routePolicy: {
+          preferredRoutePluginIds: [],
+          providerPreference: [],
+          allowRuntimeFallback: true,
+        },
+        backendPolicy: {
+          preferredBackendIds: ["backend-primary"],
+          resolvedBackendId: null,
+        },
+        trustPolicy: {
+          requireVerifiedSignatures: true,
+          allowDevOverrides: false,
+          blockedPublishers: [],
+        },
+        executionPolicyRefs: [],
+        observabilityPolicy: {
+          emitStableEvents: true,
+          emitOtelAlignedTelemetry: true,
+        },
+        configLayers: [],
+      }
+    : null;
   return {
-    activeProfile: profileId
-      ? {
-          id: profileId,
-          name: "Workspace Default",
-          scope: "workspace",
-          enabled: true,
-          pluginSelectors: [],
-          routePolicy: {
-            preferredRoutePluginIds: [],
-            providerPreference: [],
-            allowRuntimeFallback: true,
-          },
-          backendPolicy: {
-            preferredBackendIds: ["backend-primary"],
-            resolvedBackendId: null,
-          },
-          trustPolicy: {
-            requireVerifiedSignatures: true,
-            allowDevOverrides: false,
-            blockedPublishers: [],
-          },
-          executionPolicyRefs: [],
-          observabilityPolicy: {
-            emitStableEvents: true,
-            emitOtelAlignedTelemetry: true,
-          },
-          configLayers: [],
-        }
-      : null,
+    activeProfile,
     authorityState: "published",
     freshnessState: "current",
     authorityRevision,
@@ -63,11 +74,20 @@ function createCompositionSnapshot(profileId: string | null, authorityRevision =
     selectedBackendCandidates: [{ backendId: "backend-primary", sourcePluginId: null }],
     blockedPlugins: [],
     trustDecisions: [],
-  } as const;
+  };
 }
 
 function createBindings() {
-  let compositionSettings = {
+  const profileSummaries: RuntimeCompositionProfileSummaryV2[] = [
+    {
+      id: "workspace-default",
+      name: "Workspace Default",
+      scope: "workspace",
+      enabled: true,
+      active: true,
+    },
+  ];
+  let compositionSettings: RuntimeCompositionSettingsEntry = {
     selection: {
       profileId: "workspace-default",
       preferredBackendIds: ["backend-primary"],
@@ -81,21 +101,16 @@ function createBindings() {
     },
   };
   const composition = {
-    listProfilesV2: vi.fn(async () => [
-      {
-        id: "workspace-default",
-        name: "Workspace Default",
-        scope: "workspace",
-        enabled: true,
-        active: true,
-      },
-    ]),
+    listProfilesV2: vi.fn(async () => profileSummaries),
     getProfileV2: vi.fn(async () => createCompositionSnapshot("workspace-default").activeProfile),
     resolveV2: vi.fn(async (input: { profileId?: string | null }) =>
       createCompositionSnapshot(input.profileId ?? "workspace-default", 5)
     ),
     publishSnapshotV1: vi.fn(
-      async (input: { authorityRevision: number; publisherSessionId?: string | null }) => ({
+      async (input: {
+        authorityRevision: number;
+        publisherSessionId?: string | null;
+      }): Promise<RuntimeCompositionSnapshotPublishResponse> => ({
         authorityState: "published",
         freshnessState: "current",
         authorityRevision: input.authorityRevision,
@@ -106,7 +121,7 @@ function createBindings() {
       })
     ),
     getSettings: vi.fn(async () => compositionSettings),
-    updateSettings: vi.fn(async (_workspaceId: string, next: typeof compositionSettings) => {
+    updateSettings: vi.fn(async (_workspaceId: string, next: RuntimeCompositionSettingsEntry) => {
       compositionSettings = next;
       return compositionSettings;
     }),
@@ -181,6 +196,26 @@ function createBindings() {
           throw new Error("not implemented");
         },
         submitRuntimeJobApprovalDecision: async () => {
+          throw new Error("not implemented");
+        },
+      },
+      subAgents: {
+        spawn: async () => {
+          throw new Error("not implemented");
+        },
+        send: async () => {
+          throw new Error("not implemented");
+        },
+        wait: async () => {
+          throw new Error("not implemented");
+        },
+        status: async () => {
+          throw new Error("not implemented");
+        },
+        interrupt: async () => {
+          throw new Error("not implemented");
+        },
+        close: async () => {
           throw new Error("not implemented");
         },
       },
@@ -292,6 +327,13 @@ describe("useSharedRuntimeCompositionState", () => {
         },
       },
     });
+    expect(result.current.summary).toMatchObject({
+      preferredBackendIds: ["backend-primary"],
+      backendSummary: "backend-primary",
+      layerSummary: "built_in -> user -> workspace -> launch_override",
+      countsSummary: "Selected plugins 0, blocked plugins 0, route candidates 0.",
+    });
+    expect(result.current.authoritySummary).toBe("published / current");
   });
 
   it("persists applied profile selection and advances publish authority metadata", async () => {

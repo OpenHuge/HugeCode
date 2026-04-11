@@ -114,10 +114,34 @@ export type InvocationExecutionPreflight = {
   summary: string;
 };
 
+export type InvocationExecutionPreflightOutcome = InvocationExecutionPreflight & {
+  required: boolean;
+  readinessState: InvocationReadinessState;
+};
+
+export type InvocationExecutionProvenance = {
+  descriptorKind: InvocationDescriptorKind;
+  bindingKind: InvocationExecutionBindingKind;
+  sourceKind: InvocationSourceKind;
+  sourceId: string;
+  sourceAuthority: InvocationSource["authority"];
+  executionHost: InvocationExecutionHost;
+  toolName?: string | null;
+  extensionId?: string | null;
+  promptId?: string | null;
+};
+
+export type InvocationExecutionPlacementRationale = {
+  summary: string;
+  reason: string | null;
+};
+
 export type InvocationExecutionPlan = {
   binding: InvocationExecutionBinding;
   hostRequirements: InvocationHostRequirement[];
+  hostCapabilityRequirements: InvocationHostRequirement[];
   preflight: InvocationExecutionPreflight;
+  preflightOutcome: InvocationExecutionPreflightOutcome;
 };
 
 export type InvocationExecutionOutcome = {
@@ -130,6 +154,9 @@ export type InvocationExecutionEvidence = InvocationExecutionPlan & {
   caller: InvocationAudience;
   source: InvocationSource;
   readiness: InvocationReadiness;
+  invocationProvenance: InvocationExecutionProvenance;
+  placementRationale: InvocationExecutionPlacementRationale;
+  toolCallIds: string[];
   outcome: InvocationExecutionOutcome;
 };
 

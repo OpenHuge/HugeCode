@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { listRunExecutionProfiles } from "@ku0/code-application/runtimeMissionControlExecutionProfiles";
 import type { RuntimeAgentTaskInterventionInput } from "../types/webMcpBridge";
 import { readBrowserReadiness } from "../ports/browserCapability";
 import { useWorkspaceRuntimeAgentControl } from "../ports/runtimeAgentControl";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
-import { listRunExecutionProfiles } from "./runtimeMissionControlFacade";
 import { startRuntimeRunWithRemoteSelection } from "./runtimeRemoteExecutionFacade";
 import {
   buildRuntimeRunStartRequestFromPreparation,

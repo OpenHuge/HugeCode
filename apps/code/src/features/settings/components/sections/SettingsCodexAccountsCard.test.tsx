@@ -788,6 +788,11 @@ describe("SettingsCodexAccountsCard", () => {
         resolveAccounts?.([]);
       });
 
+      await waitFor(() => {
+        expect(listOAuthAccountsMock).toHaveBeenCalledTimes(2);
+        expect(listOAuthPoolsMock).toHaveBeenCalledTimes(2);
+      });
+
       fireEvent.click(poolsTab);
       await screen.findByText("Popup Success Pool");
       await waitFor(

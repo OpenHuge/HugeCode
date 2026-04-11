@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { RuntimeCompositionSettingsEntry } from "@ku0/code-platform-interfaces";
+import {
+  buildRuntimeCompositionAuthoritySummary,
+  buildRuntimeCompositionResolutionSummary,
+  type RuntimeCompositionSettingsEntry,
+} from "@ku0/code-platform-interfaces";
 import { Button, Select, type SelectOption } from "@ku0/design-system";
 import { useSharedRuntimeCompositionState } from "../settings-state";
 import { useMaybeWorkspaceClientBindings } from "../workspace/WorkspaceClientBindingsProvider";
@@ -29,22 +33,6 @@ function resolveInitialWorkspaceId(
   return workspaceOptions[0]?.id ?? null;
 }
 
-function summarizeResolution(input: {
-  selectedPluginCount: number;
-  blockedPluginCount: number;
-  routeCandidateCount: number;
-  backendCandidates: string[];
-  appliedLayerOrder: string[];
-}) {
-  return {
-    backendSummary:
-      input.backendCandidates.length > 0 ? input.backendCandidates.join(", ") : "runtime fallback",
-    layerSummary:
-      input.appliedLayerOrder.length > 0 ? input.appliedLayerOrder.join(" -> ") : "runtime default",
-    countsSummary: `Selected plugins ${input.selectedPluginCount}, blocked plugins ${input.blockedPluginCount}, route candidates ${input.routeCandidateCount}.`,
-  };
-}
-
 function formatTimestamp(value: number | null | undefined): string {
   if (value === null || value === undefined) {
     return "Not recorded";
@@ -59,7 +47,6 @@ function formatSelectorDecisions(selectorDecisions: Record<string, string>): str
   }
   return entries.map(([key, value]) => `${key}: ${value}`).join(" | ");
 }
-
 export function SettingsRuntimeCompositionFieldGroup({
   workspaceOptions,
   remoteExecutionBackendOptions,
@@ -158,30 +145,11 @@ function SettingsRuntimeCompositionFieldGroupContent({
   const backendPreferenceHelp = defaultRemoteExecutionBackendId
     ? `This persists a workspace-specific routing hint. Leaving it automatic falls back to shared runtime routing, starting from the current default backend ${defaultRemoteExecutionBackendId} when no narrower runtime choice applies.`
     : "This persists a workspace-specific routing hint. Leaving it automatic falls back to shared runtime routing and runtime-selected placement.";
-  const resolutionSummary = summarizeResolution({
-    selectedPluginCount: runtimeComposition.resolution?.selectedPlugins.length ?? 0,
-    blockedPluginCount: runtimeComposition.resolution?.blockedPlugins.length ?? 0,
-    routeCandidateCount: runtimeComposition.resolution?.selectedRouteCandidates.length ?? 0,
-    backendCandidates:
-      runtimeComposition.resolution?.selectedBackendCandidates.map(
-        (candidate) => candidate.backendId
-      ) ?? [],
-    appliedLayerOrder: runtimeComposition.resolution?.provenance.appliedLayerOrder ?? [],
-  });
-  const authoritySummary = runtimeComposition.snapshot
-    ? `${runtimeComposition.snapshot.authorityState} / ${runtimeComposition.snapshot.freshnessState}`
-    : "unavailable";
+  const resolutionSummary = runtimeComposition.summary;
+  const authoritySummary = runtimeComposition.authoritySummary;
   const persistence = runtimeComposition.settings?.persistence ?? null;
   const previewSummary = runtimeComposition.previewResolution
-    ? summarizeResolution({
-        selectedPluginCount: runtimeComposition.previewResolution.selectedPlugins.length,
-        blockedPluginCount: runtimeComposition.previewResolution.blockedPlugins.length,
-        routeCandidateCount: runtimeComposition.previewResolution.selectedRouteCandidates.length,
-        backendCandidates: runtimeComposition.previewResolution.selectedBackendCandidates.map(
-          (candidate) => candidate.backendId
-        ),
-        appliedLayerOrder: runtimeComposition.previewResolution.provenance.appliedLayerOrder ?? [],
-      })
+    ? buildRuntimeCompositionResolutionSummary(runtimeComposition.previewResolution)
     : null;
   const previewProfileOptions: SelectOption[] = [
     { value: "", label: "No preview" },
@@ -436,9 +404,7 @@ function SettingsRuntimeCompositionFieldGroupContent({
             <div>Selector decisions: {previewSelectorDecisions}</div>
             <div>
               Preview authority:{" "}
-              {runtimeComposition.previewSnapshot
-                ? `${runtimeComposition.previewSnapshot.authorityState} / ${runtimeComposition.previewSnapshot.freshnessState}`
-                : "unavailable"}
+              {buildRuntimeCompositionAuthoritySummary(runtimeComposition.previewSnapshot)}
             </div>
           </div>
         </SettingsField>

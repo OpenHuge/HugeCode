@@ -1,5 +1,7 @@
-import type { RuntimeReviewGetV2Response } from "@ku0/code-runtime-host-contract";
-import type { MissionControlProjection } from "../../../application/runtime/facades/runtimeMissionControlFacade";
+import type {
+  HugeCodeMissionControlSnapshot as MissionControlProjection,
+  RuntimeReviewGetV2Response,
+} from "@ku0/code-runtime-host-contract";
 import type { RepositoryExecutionContract } from "../../../application/runtime/facades/runtimeRepositoryExecutionContract";
 import { useRuntimeWorkspaceSkillCatalog } from "../../../application/runtime/facades/runtimeReviewIntelligenceFacade";
 import {
