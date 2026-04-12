@@ -4,6 +4,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RuntimeRunPrepareV2Response } from "@ku0/code-runtime-host-contract";
 import { prepareRuntimeRunV2 } from "../ports/runtimeJobs";
+import { listRuntimeInvocationHostsV1 } from "../ports/runtimeInvocationPlane";
 import {
   buildRuntimeContextPlane,
   buildRuntimeContextTruth,
@@ -21,6 +22,10 @@ vi.mock("../../../hooks/useDebouncedValue", () => ({
 
 vi.mock("../ports/runtimeJobs", () => ({
   prepareRuntimeRunV2: vi.fn(),
+}));
+
+vi.mock("../ports/runtimeInvocationPlane", () => ({
+  listRuntimeInvocationHostsV1: vi.fn(),
 }));
 
 vi.mock("./runtimeContextTruth", async () => {
@@ -310,6 +315,44 @@ function buildLaunchInput() {
 describe("runtimeMissionLaunchPreparation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(listRuntimeInvocationHostsV1).mockResolvedValue({
+      registryVersion: "runtime-invocation-host-registry-v1",
+      generatedAt: 1,
+      workspaceId: "workspace-1",
+      summary: {
+        total: 1,
+        executable: 1,
+        resolveOnly: 0,
+        reserved: 0,
+        unsupported: 0,
+        ready: 1,
+        attention: 0,
+        blocked: 0,
+      },
+      hosts: [
+        {
+          hostId: "runtime:built-in-tools",
+          category: "built_in_runtime_tool",
+          label: "Runtime built-in tools",
+          summary: "Runtime-native execution host",
+          authority: "runtime",
+          dispatchMode: "execute",
+          readiness: {
+            state: "ready",
+            available: true,
+            reason: null,
+            checkedAt: 1,
+          },
+          requirementKeys: ["runtime_service"],
+          dispatchMethods: ["code_runtime_invocation_dispatch_v1"],
+          provenance: {
+            source: "runtime_host_registry",
+            registryVersion: "runtime-invocation-host-registry-v1",
+            workspaceId: "workspace-1",
+          },
+        },
+      ],
+    });
   });
 
   it("uses runtime prepare truth directly when kernel v2 returns a complete surface", async () => {

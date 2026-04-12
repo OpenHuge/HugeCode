@@ -4,6 +4,7 @@ import type {
   OAuthPoolSummary,
   RuntimeCompositionProfile,
   RuntimeCompositionResolution,
+  RuntimeInvocationHostRegistry,
   RuntimePolicySnapshot,
   RuntimeRegistryPackageDescriptor,
   RuntimeProviderCatalogEntry,
@@ -105,6 +106,7 @@ export type WorkspaceRuntimeMissionControlProjection = {
   composition: RuntimeMissionControlCompositionSummary;
   executionReliability: RuntimeExecutionReliabilitySummary;
   launchReadiness: RuntimeLaunchReadinessSummary;
+  launchInvocationTruth: RuntimeMissionControlOrchestrationState["launchInvocationTruth"];
 };
 
 type BuildWorkspaceRuntimeMissionControlProjectionInput = {
@@ -131,6 +133,7 @@ type BuildWorkspaceRuntimeMissionControlProjectionInput = {
   runtimeCompositionActiveProfile: RuntimeCompositionProfile | null;
   runtimeCompositionResolution: RuntimeCompositionResolution | null;
   runtimeCompositionError: string | null;
+  runtimeInvocationHostRegistry?: RuntimeInvocationHostRegistry | null;
   selectedProviderRoute: string;
   runtimeStatusFilter: RuntimeAgentTaskSummary["status"] | "all";
   runtimeDurabilityWarning: {
@@ -179,6 +182,7 @@ export function buildWorkspaceRuntimeMissionControlProjection(
   });
 
   const orchestration = buildRuntimeMissionControlOrchestrationState({
+    workspaceId: input.workspaceId,
     runtimeTasks: input.runtimeTasks,
     statusFilter: input.runtimeStatusFilter,
     routingContext: {
@@ -218,6 +222,7 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     },
     runtimeToolMetrics: input.runtimeToolMetrics,
     runtimeToolGuardrails: input.runtimeToolGuardrails,
+    runtimeInvocationHostRegistry: input.runtimeInvocationHostRegistry ?? null,
     stalePendingApprovalMs: 10 * 60_000,
     now: input.now,
   });
@@ -257,5 +262,6 @@ export function buildWorkspaceRuntimeMissionControlProjection(
     composition,
     executionReliability: orchestration.executionReliability,
     launchReadiness: orchestration.launchReadiness,
+    launchInvocationTruth: orchestration.launchInvocationTruth,
   };
 }

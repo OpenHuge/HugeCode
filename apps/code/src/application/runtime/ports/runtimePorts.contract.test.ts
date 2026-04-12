@@ -41,6 +41,10 @@ import {
   resumeRuntimeRun,
   startRuntimeRunV2,
 } from "./runtimeJobs";
+import {
+  dispatchRuntimeInvocationV1,
+  listRuntimeInvocationHostsV1,
+} from "./runtimeInvocationPlane";
 import { getInstructionSkill, getSkillsList } from "./skills";
 import { getRuntimeCapabilitiesSummary as getRuntimeCapabilitiesSummaryFromThreads } from "./threads";
 import { openRuntimeTerminalSession } from "./runtimeTerminal";
@@ -151,6 +155,22 @@ describe("runtime port contract", () => {
     for (const [name, exportedValue, bridgeValue] of runtimePortExports) {
       expect(exportedValue, `${name} should be re-exported directly`).toBe(bridgeValue);
     }
+  });
+
+  it("keeps runtime invocation plane on the dedicated client boundary", () => {
+    expect(typeof listRuntimeInvocationHostsV1).toBe("function");
+    expect(typeof dispatchRuntimeInvocationV1).toBe("function");
+
+    const source = readFileSync(
+      path.resolve(import.meta.dirname, "runtimeInvocationPlane.ts"),
+      "utf8"
+    );
+
+    expect(source).toMatch(/from\s+["']\.\/runtimeClient["']/);
+    expect(source).toMatch(/getRuntimeClient\(\)\.runtimeInvocationHostsListV1/);
+    expect(source).toMatch(/getRuntimeClient\(\)\.runtimeInvocationDispatchV1/);
+    expect(source).not.toMatch(/startRuntimeRun|runRuntimeLiveSkill|invokeRuntimeExtensionTool/);
+    expect(source).not.toMatch(/services\/runtimeJobsBridge|services\/runtimeMissionControlBridge/);
   });
 
   it("re-exports leaf runtime ports from dedicated bridge or desktop service modules", () => {

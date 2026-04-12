@@ -80,6 +80,10 @@ import type {
   RuntimeCompositionSnapshotPublishRequest,
   RuntimeCompositionSnapshotPublishResponse,
   RuntimeCockpitToolsCodexImportResponse,
+  RuntimeInvocationDispatchRequest,
+  RuntimeInvocationDispatchResponse,
+  RuntimeInvocationHostRegistry,
+  RuntimeInvocationHostsListRequest,
   RuntimeCodexCloudTasksListRequest,
   RuntimeCodexCloudTasksListResponse,
   RuntimeCodexConfigPathResponse,
@@ -339,6 +343,12 @@ export type RuntimeClient<TAppSettings extends Record<string, unknown> = Record<
     kernelProjectionBootstrapV3: (
       request?: KernelProjectionBootstrapRequest
     ) => Promise<KernelProjectionBootstrapResponse>;
+    runtimeInvocationHostsListV1: (
+      request?: RuntimeInvocationHostsListRequest
+    ) => Promise<RuntimeInvocationHostRegistry>;
+    runtimeInvocationDispatchV1: (
+      request: RuntimeInvocationDispatchRequest
+    ) => Promise<RuntimeInvocationDispatchResponse>;
     runtimeCompositionProfileListV2: (
       request: RuntimeCompositionProfileListV2Request
     ) => Promise<RuntimeCompositionProfileSummaryV2[]>;

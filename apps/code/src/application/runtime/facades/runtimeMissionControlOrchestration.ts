@@ -2,6 +2,7 @@ import {
   buildRuntimeContextPressureSummary,
   mergeRuntimeContextPressureSummaries,
   type HugeCodeRunSummary,
+  type RuntimeInvocationHostRegistry,
 } from "@ku0/code-runtime-host-contract";
 import type { RuntimeAgentTaskSummary } from "../types/webMcpBridge";
 import {
@@ -17,6 +18,10 @@ import {
   type RuntimeLaunchReadinessRoute,
   type RuntimeLaunchReadinessSummary,
 } from "./runtimeLaunchReadiness";
+import {
+  buildRuntimeMissionLaunchInvocationPresentation,
+  type RuntimeInvocationTruthPresentation,
+} from "./runtimeInvocationPresentation";
 import { normalizeRuntimeTaskForProjection } from "./runtimeMissionControlProjectionNormalization";
 import { projectAgentTaskStatusToRunState } from "./runtimeMissionControlProjectionHelpers";
 import type { RunProjectionRoutingContext } from "./runtimeMissionControlFacade";
@@ -38,6 +43,7 @@ export type RuntimeMissionControlOrchestrationState = {
   stalePendingApprovalTasks: RuntimeAgentTaskSummary[];
   executionReliability: RuntimeExecutionReliabilitySummary;
   launchReadiness: RuntimeLaunchReadinessSummary;
+  launchInvocationTruth: RuntimeInvocationTruthPresentation | null;
 };
 
 type RuntimeDurabilityWarningSummary = {
@@ -45,6 +51,7 @@ type RuntimeDurabilityWarningSummary = {
 } | null;
 
 type BuildRuntimeMissionControlOrchestrationStateInput = {
+  workspaceId: string;
   runtimeTasks: RuntimeAgentTaskSummary[];
   statusFilter: RuntimeAgentTaskSummary["status"] | "all";
   routingContext?: RunProjectionRoutingContext;
@@ -55,6 +62,7 @@ type BuildRuntimeMissionControlOrchestrationStateInput = {
   selectedRoute: RuntimeLaunchReadinessRoute;
   runtimeToolMetrics: unknown;
   runtimeToolGuardrails: unknown;
+  runtimeInvocationHostRegistry?: RuntimeInvocationHostRegistry | null;
   stalePendingApprovalMs: number;
   now?: () => number;
 };
@@ -119,6 +127,7 @@ function resolveContinuityRunSummary(task: RuntimeAgentTaskSummary): HugeCodeRun
 }
 
 export function buildRuntimeMissionControlOrchestrationState({
+  workspaceId,
   runtimeTasks,
   statusFilter,
   routingContext,
@@ -129,6 +138,7 @@ export function buildRuntimeMissionControlOrchestrationState({
   selectedRoute,
   runtimeToolMetrics,
   runtimeToolGuardrails,
+  runtimeInvocationHostRegistry = null,
   stalePendingApprovalMs,
   now = Date.now,
 }: BuildRuntimeMissionControlOrchestrationStateInput): RuntimeMissionControlOrchestrationState {
@@ -210,6 +220,10 @@ export function buildRuntimeMissionControlOrchestrationState({
     pendingApprovalCount: pendingApprovalTasks.length,
     stalePendingApprovalCount: stalePendingApprovalTasks.length,
   });
+  const launchInvocationTruth = buildRuntimeMissionLaunchInvocationPresentation({
+    workspaceId,
+    runtimeHostRegistry: runtimeInvocationHostRegistry,
+  });
 
   return {
     projectedRunsByTaskId,
@@ -223,5 +237,6 @@ export function buildRuntimeMissionControlOrchestrationState({
     stalePendingApprovalTasks,
     executionReliability,
     launchReadiness,
+    launchInvocationTruth,
   };
 }

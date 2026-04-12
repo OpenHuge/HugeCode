@@ -28,6 +28,30 @@ function isInvocableContribution(
   return isRuntimeInvocationKind(contribution.kind);
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function readString(record: Record<string, unknown> | null, key: string): string | null {
+  const value = record?.[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+export function readRuntimeInvocationPromptOverlayMetadata(metadata: unknown): {
+  promptId: string | null;
+  scope: string | null;
+} | null {
+  const promptOverlay = asRecord(asRecord(metadata)?.promptOverlay);
+  return promptOverlay
+    ? {
+        promptId: readString(promptOverlay, "promptId"),
+        scope: readString(promptOverlay, "scope"),
+      }
+    : null;
+}
+
 function normalizeInvocationDiagnostics(
   diagnostics: RuntimeExtensionActivationSnapshot["records"][number]["diagnostics"]
 ): RuntimeInvocationDescriptor["diagnostics"] {

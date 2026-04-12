@@ -50,6 +50,15 @@ export {
   withInvocationExecutionPlan,
 } from "./runtimeInvocationExecution";
 export {
+  buildRuntimeInvocationDispatchOutcome,
+  classifyRuntimeInvocationFallback,
+  reconcileRuntimeInvocationDescriptorReadiness,
+  resolveRuntimeInvocationCandidateHostCategories,
+  resolveRuntimeInvocationHostSelectionSummary,
+  resolveRuntimeInvocationPlaneFacade,
+  summarizeRuntimeInvocationDispatchProvenance,
+} from "./runtimeInvocationPlaneFacade";
+export {
   applyRuntimeCompositionProfileUpdates,
   buildDefaultRuntimeCompositionProfiles,
   cloneRuntimeCompositionProfile,
@@ -86,6 +95,7 @@ export { resolveRuntimeControlPlaneOperatorActionPresentation } from "./runtimeC
 export {
   listRuntimeInvocationDescriptors,
   normalizeRuntimeInvocationCatalogSnapshot,
+  readRuntimeInvocationPromptOverlayMetadata,
   resolveRuntimeInvocationDescriptor,
 } from "./runtimeInvocationCatalog";
 export {
@@ -205,6 +215,7 @@ export type {
 export type * from "./runtimeExecutableSkillFacade";
 export type * from "./runtimeInvocationCatalogFacade";
 export type * from "./runtimeInvocationExecution";
+export type * from "./runtimeInvocationPlaneFacade";
 export type * from "./runtimeLiveSkillAliases";
 export type {
   MissionControlFreshnessState,

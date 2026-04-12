@@ -15,12 +15,14 @@ describe("createWorkspaceRuntimeScope", () => {
     const compositionRuntime = { getActiveResolution: vi.fn() };
     const extensionActivation = { readSnapshot: vi.fn() };
     const invocationCatalog = { readSnapshot: vi.fn() };
+    const invocationPlane = { listHosts: vi.fn(), dispatch: vi.fn() };
     const createAgentControl = vi.fn(() => runtimeAgentControl);
     const createSessionCommands = vi.fn(() => runtimeSessionCommands);
     const createPluginRegistry = vi.fn(() => pluginRegistry);
     const createCompositionRuntime = vi.fn(() => compositionRuntime);
     const createExtensionActivation = vi.fn(() => extensionActivation);
     const createInvocationCatalog = vi.fn(() => invocationCatalog);
+    const createInvocationPlane = vi.fn(() => invocationPlane);
     const capabilityProviders: WorkspaceRuntimeCapabilityProvider[] = [
       {
         key: RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
@@ -46,6 +48,10 @@ describe("createWorkspaceRuntimeScope", () => {
         key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog,
         createCapability: createInvocationCatalog as never,
       },
+      {
+        key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationPlane,
+        createCapability: createInvocationPlane as never,
+      },
     ];
 
     const scope = createWorkspaceRuntimeScope({
@@ -60,6 +66,7 @@ describe("createWorkspaceRuntimeScope", () => {
     expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime)).toBe(true);
     expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.extensionActivation)).toBe(true);
     expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog)).toBe(true);
+    expect(scope.hasCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.invocationPlane)).toBe(true);
     expect(scope.listCapabilities()).toEqual([
       RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl,
       RUNTIME_KERNEL_CAPABILITY_KEYS.sessionCommands,
@@ -67,6 +74,7 @@ describe("createWorkspaceRuntimeScope", () => {
       RUNTIME_KERNEL_CAPABILITY_KEYS.compositionRuntime,
       RUNTIME_KERNEL_CAPABILITY_KEYS.extensionActivation,
       RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog,
+      RUNTIME_KERNEL_CAPABILITY_KEYS.invocationPlane,
     ]);
     expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.agentControl)).toBe(
       runtimeAgentControl
@@ -87,12 +95,16 @@ describe("createWorkspaceRuntimeScope", () => {
     expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.invocationCatalog)).toBe(
       invocationCatalog
     );
+    expect(scope.getCapability(RUNTIME_KERNEL_CAPABILITY_KEYS.invocationPlane)).toBe(
+      invocationPlane
+    );
     expect(createAgentControl).toHaveBeenCalledTimes(1);
     expect(createSessionCommands).toHaveBeenCalledTimes(1);
     expect(createPluginRegistry).toHaveBeenCalledTimes(1);
     expect(createCompositionRuntime).toHaveBeenCalledTimes(1);
     expect(createExtensionActivation).toHaveBeenCalledTimes(1);
     expect(createInvocationCatalog).toHaveBeenCalledTimes(1);
+    expect(createInvocationPlane).toHaveBeenCalledTimes(1);
     expect(scope).toMatchObject({
       workspaceId: "ws-1",
       runtimeGateway,
