@@ -172,7 +172,6 @@ describe("code runtime rpc method consistency", () => {
       CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_DISPATCH_V1
     );
   });
-
   it("classifies canonical run lifecycle and compat-only thread/turn surfaces explicitly", () => {
     expect(CODE_RUNTIME_CANONICAL_RUN_LIFECYCLE_METHODS).toEqual([
       CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,

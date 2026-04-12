@@ -27,7 +27,6 @@ vi.mock("../ports/runtimeJobs", () => ({
 vi.mock("../ports/runtimeInvocationPlane", () => ({
   listRuntimeInvocationHostsV1: vi.fn(),
 }));
-
 vi.mock("./runtimeContextTruth", async () => {
   const actual =
     await vi.importActual<typeof import("./runtimeContextTruth")>("./runtimeContextTruth");
@@ -366,6 +365,10 @@ describe("runtimeMissionLaunchPreparation", () => {
 
     expect(result.current.preparation?.toolingPlane?.summary).toBe("Tooling ready.");
     expect(result.current.repoGuidanceSummary).toBe("Repo guidance: AGENTS.md");
+    expect(result.current.selectedInvocationHostLabel).toBe("Runtime built-in tools");
+    expect(result.current.runtimeDispatchMode).toBe("execute");
+    expect(result.current.usesCanonicalRuntimeDispatch).toBe(true);
+    expect(result.current.usesCompatibilityFallback).toBe(false);
     expect(result.current.error).toBeNull();
     expect(vi.mocked(buildRuntimeContextTruth)).not.toHaveBeenCalled();
     expect(vi.mocked(buildRuntimeGuidanceStack)).not.toHaveBeenCalled();
@@ -390,6 +393,8 @@ describe("runtimeMissionLaunchPreparation", () => {
     expect(result.current.preparation).toBeNull();
     expect(result.current.contextTruth).not.toBeNull();
     expect(result.current.toolingPlane).not.toBeNull();
+    expect(result.current.selectedInvocationHostLabel).toBe("Runtime built-in tools");
+    expect(result.current.runtimeDispatchMode).toBe("execute");
     expect(result.current.error).toBe("Code runtime is unavailable for prepare runtime run v2.");
     expect(vi.mocked(buildRuntimeContextTruth)).toHaveBeenCalled();
     expect(vi.mocked(buildRuntimeGuidanceStack)).toHaveBeenCalled();
@@ -414,6 +419,7 @@ describe("runtimeMissionLaunchPreparation", () => {
     expect(result.current.preparation).toBeNull();
     expect(result.current.contextTruth).toBeNull();
     expect(result.current.toolingPlane).toBeNull();
+    expect(result.current.selectedInvocationHostLabel).toBe("Runtime built-in tools");
     expect(result.current.truthSourceLabel).toBeNull();
     expect(vi.mocked(buildRuntimeContextTruth)).not.toHaveBeenCalled();
     expect(vi.mocked(buildRuntimeGuidanceStack)).not.toHaveBeenCalled();
