@@ -195,6 +195,12 @@ export function createUnavailableRuntimeClient(
     kernelProjectionBootstrapV3() {
       return rejectUnavailable("bootstrap kernel projection v3");
     },
+    runtimeInvocationHostsListV1() {
+      return rejectUnavailable("list runtime invocation hosts v1");
+    },
+    runtimeInvocationDispatchV1() {
+      return rejectUnavailable("dispatch runtime invocation v1");
+    },
     runtimeCompositionProfileListV2() {
       return rejectUnavailable("list runtime composition profiles v2");
     },

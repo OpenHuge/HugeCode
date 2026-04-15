@@ -1385,14 +1385,66 @@ describe("runtimeClient mode detection", () => {
             "code_kernel_extensions_list_v2",
             "code_kernel_policies_evaluate_v2",
             "code_kernel_projection_bootstrap_v3",
+            "code_runtime_invocation_hosts_list_v1",
+            "code_runtime_invocation_dispatch_v1",
           ],
         });
+      }
+      if (method === "code_runtime_invocation_hosts_list_v1") {
+        return {
+          registryVersion: "runtime-invocation-host-registry-v1",
+          workspaceId: "ws-kernel",
+          generatedAt: 42,
+          hosts: [],
+          summary: {
+            total: 0,
+            executable: 0,
+            resolveOnly: 0,
+            reserved: 0,
+            unsupported: 0,
+            ready: 0,
+            attention: 0,
+            blocked: 0,
+          },
+        };
+      }
+      if (method === "code_runtime_invocation_dispatch_v1") {
+        return {
+          invocationId: "invocation-1",
+          status: "accepted",
+          summary: "Runtime dispatch accepted.",
+          preflight: {
+            state: "ready",
+            reason: null,
+            hostId: "runtime:built-in-tools",
+          },
+          provenance: {
+            invocationId: "invocation-1",
+            hostId: "runtime:built-in-tools",
+            category: "built_in_runtime_tool",
+            source: "runtime_host_registry",
+            registryVersion: "runtime-invocation-host-registry-v1",
+            workspaceId: "ws-kernel",
+            caller: "operator",
+          },
+          postExecution: {
+            applied: false,
+            summary: "No post-execution shaping applied.",
+            metadata: null,
+          },
+        };
       }
       return [];
     });
 
     const runtime = await importRuntimeClientModule();
     const client = runtime.getRuntimeClient();
+    await expect(runtime.readRuntimeCapabilitiesSummary()).resolves.toMatchObject({
+      methods: expect.arrayContaining([
+        "code_runtime_invocation_hosts_list_v1",
+        "code_runtime_invocation_dispatch_v1",
+      ]),
+    });
 
     await client.kernelCapabilitiesListV2();
     expect(invokeMock).toHaveBeenCalledWith("code_kernel_capabilities_list_v2", {});
@@ -1466,6 +1518,85 @@ describe("runtimeClient mode detection", () => {
         scopes: ["mission_control", "jobs"],
       })
     );
+
+    const invocationHosts = await client.runtimeInvocationHostsListV1({ workspaceId: "ws-kernel" });
+    expect(invocationHosts).toEqual({
+      registryVersion: "runtime-invocation-host-registry-v1",
+      workspaceId: "ws-kernel",
+      generatedAt: 42,
+      hosts: [],
+      summary: {
+        total: 0,
+        executable: 0,
+        resolveOnly: 0,
+        reserved: 0,
+        unsupported: 0,
+        ready: 0,
+        attention: 0,
+        blocked: 0,
+      },
+    });
+    expect(invokeMock).toHaveBeenCalledWith("code_runtime_invocation_hosts_list_v1", {
+      workspaceId: "ws-kernel",
+    });
+
+    const invocationDispatch = await client.runtimeInvocationDispatchV1({
+      invocationId: "invocation-1",
+      hostId: "runtime:built-in-tools",
+      caller: "operator",
+      workspaceId: "ws-kernel",
+      arguments: { prompt: "status" },
+      dryRun: true,
+    });
+    expect(invocationDispatch).toMatchObject({
+      invocationId: "invocation-1",
+      status: "accepted",
+      preflight: {
+        state: "ready",
+        hostId: "runtime:built-in-tools",
+      },
+      provenance: {
+        hostId: "runtime:built-in-tools",
+        workspaceId: "ws-kernel",
+        caller: "operator",
+      },
+    });
+    expect(invokeMock).toHaveBeenCalledWith(
+      "code_runtime_invocation_dispatch_v1",
+      expect.objectContaining({
+        invocationId: "invocation-1",
+        hostId: "runtime:built-in-tools",
+        caller: "operator",
+        workspaceId: "ws-kernel",
+        arguments: { prompt: "status" },
+        dryRun: true,
+      })
+    );
+  });
+
+  it("fails cleanly when runtime invocation plane methods are not supported by runtime capabilities", async () => {
+    bridgeAvailable = true;
+    invokeMock.mockImplementation(async (method: string) => {
+      if (method === "code_rpc_capabilities") {
+        return createFrozenCapabilitiesPayload({
+          methods: ["code_kernel_capabilities_list_v2"],
+        });
+      }
+      return [];
+    });
+
+    const runtime = await importRuntimeClientModule();
+    const client = runtime.getRuntimeClient();
+
+    await expect(
+      client.runtimeInvocationHostsListV1({ workspaceId: "ws-kernel" })
+    ).rejects.toBeInstanceOf(runtime.RuntimeRpcMethodUnsupportedError);
+    await expect(
+      client.runtimeInvocationDispatchV1({
+        invocationId: "invocation-1",
+        workspaceId: "ws-kernel",
+      })
+    ).rejects.toBeInstanceOf(runtime.RuntimeRpcMethodUnsupportedError);
   });
 
   it("routes oauth pool mutations and rate-limit reports through unified rpc contract", async () => {

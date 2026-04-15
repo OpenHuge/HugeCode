@@ -2,6 +2,7 @@ import type {
   InvocationAudience,
   InvocationDescriptor,
   InvocationExecutionEvidence,
+  InvocationExecutionOutcome,
   LiveSkillExecuteRequest,
   LiveSkillExecutionResult,
   PromptLibraryEntry,
@@ -14,8 +15,13 @@ import {
   buildInvocationExecutionEvidence,
   buildInvocationExecutionPlan,
 } from "@ku0/code-application/runtimeInvocationExecution";
+import {
+  resolveRuntimeInvocationPlaneFacade,
+  type RuntimeInvocationPlaneFacadeResult,
+} from "@ku0/code-application/runtimeInvocationPlaneFacade";
 import type { RuntimeSessionCommandFacade } from "../facades/runtimeSessionCommandFacade";
 import type { RuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalog";
+import type { RuntimeInvocationPlaneFacade } from "./runtimeInvocationPlane";
 
 export type RuntimeInvocationExecuteInput = {
   invocationId: string;
@@ -63,6 +69,7 @@ export type RuntimeInvocationExecuteFacade = {
 type RuntimeInvocationExecuteFacadeInput = {
   workspaceId: string;
   invocationCatalog: Pick<RuntimeInvocationCatalogFacade, "resolveInvocationDescriptor">;
+  invocationPlane: Pick<RuntimeInvocationPlaneFacade, "listHosts" | "dispatch">;
   sessionCommands: Pick<RuntimeSessionCommandFacade, "sendMessage" | "respondToApproval">;
   startRuntimeRun: (request: RuntimeRunStartRequest) => Promise<RuntimeRunStartV2Response>;
   runRuntimeLiveSkill: (request: LiveSkillExecuteRequest) => Promise<LiveSkillExecutionResult>;
@@ -71,7 +78,6 @@ type RuntimeInvocationExecuteFacadeInput = {
   ) => Promise<RuntimeExtensionToolInvokeResponse>;
   listRuntimePrompts: (workspaceId?: string | null) => Promise<PromptLibraryEntry[]>;
 };
-
 type PromptOverlayMetadata = {
   promptId: string;
   scope: "workspace" | "global" | null;
@@ -295,6 +301,88 @@ function resolvePromptOverlayText(input: {
   };
 }
 
+function isRuntimeOwnedExecutableBinding(bindingKind: string): boolean {
+  return (
+    bindingKind === "runtime_run" ||
+    bindingKind === "runtime_live_skill" ||
+    bindingKind === "runtime_extension_tool"
+  );
+}
+
+function buildPlaneAwareEvidence(input: {
+  descriptor: InvocationDescriptor;
+  caller: InvocationAudience;
+  outcome: InvocationExecutionOutcome;
+  planeResult?: RuntimeInvocationPlaneFacadeResult | null;
+}): InvocationExecutionEvidence {
+  const descriptor = input.planeResult
+    ? {
+        ...input.descriptor,
+        execution: input.planeResult.execution,
+        readiness: input.planeResult.reconciledReadiness,
+      }
+    : input.descriptor;
+  const evidence = buildInvocationExecutionEvidence({
+    descriptor,
+    caller: input.caller,
+    outcome: input.outcome,
+  });
+  if (!input.planeResult?.evidence) {
+    return evidence;
+  }
+  return {
+    ...evidence,
+    preflight: input.planeResult.evidence.preflight,
+    preflightOutcome: {
+      ...input.planeResult.evidence.preflightOutcome,
+      readinessState: evidence.readiness.state,
+    },
+    placementRationale: input.planeResult.evidence.placementRationale,
+  };
+}
+
+function summarizeRuntimeOwnedExecution(input: {
+  bindingKind: string;
+  planeResult: RuntimeInvocationPlaneFacadeResult;
+}): string {
+  const actionLabel =
+    input.bindingKind === "runtime_run"
+      ? "Runtime run launch request"
+      : input.bindingKind === "runtime_live_skill"
+        ? "Runtime live skill execution"
+        : "Runtime extension tool invocation";
+  if (input.planeResult.fallbackClassification === "compat-fallback") {
+    return `${actionLabel} executed through the migration fallback after runtime dispatch reported a compatible non-canonical path.`;
+  }
+  return `${actionLabel} executed after runtime dispatch selected the canonical runtime-owned path.`;
+}
+
+async function resolveRuntimeOwnedDispatch(input: {
+  workspaceId: string;
+  descriptor: InvocationDescriptor;
+  invocationId: string;
+  args: Record<string, unknown>;
+  caller: InvocationAudience;
+  invocationPlane: Pick<RuntimeInvocationPlaneFacade, "listHosts" | "dispatch">;
+}): Promise<RuntimeInvocationPlaneFacadeResult> {
+  const runtimeHostRegistry = await input.invocationPlane.listHosts({
+    workspaceId: input.workspaceId,
+  });
+  const runtimeDispatchResponse = await input.invocationPlane.dispatch({
+    invocationId: input.invocationId,
+    arguments: input.args,
+    caller: input.caller,
+    workspaceId: input.workspaceId,
+  });
+  return resolveRuntimeInvocationPlaneFacade({
+    descriptor: input.descriptor,
+    runtimeHostRegistry,
+    runtimeDispatchResponse,
+    caller: input.caller,
+    workspaceId: input.workspaceId,
+  });
+}
+
 export function createRuntimeInvocationExecuteFacade(
   input: RuntimeInvocationExecuteFacadeInput
 ): RuntimeInvocationExecuteFacade {
@@ -351,6 +439,16 @@ export function createRuntimeInvocationExecuteFacade(
         const args = asArgumentsRecord(invocationArguments);
         const executionPlan = descriptor.execution ?? buildInvocationExecutionPlan(descriptor);
         const bindingKind = executionPlan.binding.kind;
+        const runtimeOwnedDispatch = isRuntimeOwnedExecutableBinding(bindingKind)
+          ? await resolveRuntimeOwnedDispatch({
+              workspaceId: input.workspaceId,
+              descriptor,
+              invocationId,
+              args,
+              caller,
+              invocationPlane: input.invocationPlane,
+            })
+          : null;
 
         if (bindingKind === "unsupported" || descriptor.kind === "plugin") {
           return buildUnsupported(
@@ -364,6 +462,25 @@ export function createRuntimeInvocationExecuteFacade(
                 summary: `Invocation \`${invocationId}\` does not expose a supported execute binding.`,
               },
             })
+          );
+        }
+
+        if (runtimeOwnedDispatch?.outcome?.status === "blocked") {
+          return buildBlocked(
+            invocationId,
+            runtimeOwnedDispatch.outcome.summary,
+            runtimeOwnedDispatch.evidence
+          );
+        }
+
+        if (
+          runtimeOwnedDispatch?.outcome?.status === "unsupported" &&
+          runtimeOwnedDispatch.fallbackClassification !== "compat-fallback"
+        ) {
+          return buildUnsupported(
+            invocationId,
+            runtimeOwnedDispatch.outcome.summary,
+            runtimeOwnedDispatch.evidence
           );
         }
 
@@ -384,12 +501,18 @@ export function createRuntimeInvocationExecuteFacade(
             invocationId,
             "extension_tool_executed",
             payload,
-            buildInvocationExecutionEvidence({
+            buildPlaneAwareEvidence({
               descriptor,
               caller,
+              planeResult: runtimeOwnedDispatch,
               outcome: {
                 status: "executed",
-                summary: "Runtime extension tool executed through the runtime extension bridge.",
+                summary: runtimeOwnedDispatch
+                  ? summarizeRuntimeOwnedExecution({
+                      bindingKind,
+                      planeResult: runtimeOwnedDispatch,
+                    })
+                  : "Runtime extension tool executed through the runtime extension bridge.",
               },
             })
           );
@@ -405,13 +528,18 @@ export function createRuntimeInvocationExecuteFacade(
             invocationId,
             "runtime_run_started",
             payload,
-            buildInvocationExecutionEvidence({
+            buildPlaneAwareEvidence({
               descriptor,
               caller,
+              planeResult: runtimeOwnedDispatch,
               outcome: {
                 status: "executed",
-                summary:
-                  "Runtime run launch request was dispatched through the canonical runtime path.",
+                summary: runtimeOwnedDispatch
+                  ? summarizeRuntimeOwnedExecution({
+                      bindingKind,
+                      planeResult: runtimeOwnedDispatch,
+                    })
+                  : "Runtime run launch request was dispatched through the canonical runtime path.",
               },
             })
           );
@@ -447,12 +575,18 @@ export function createRuntimeInvocationExecuteFacade(
             invocationId,
             "live_skill_executed",
             payload,
-            buildInvocationExecutionEvidence({
+            buildPlaneAwareEvidence({
               descriptor,
               caller,
+              planeResult: runtimeOwnedDispatch,
               outcome: {
                 status: "executed",
-                summary: "Runtime live skill executed through the canonical runtime path.",
+                summary: runtimeOwnedDispatch
+                  ? summarizeRuntimeOwnedExecution({
+                      bindingKind,
+                      planeResult: runtimeOwnedDispatch,
+                    })
+                  : "Runtime live skill executed through the canonical runtime path.",
               },
             })
           );
@@ -461,7 +595,20 @@ export function createRuntimeInvocationExecuteFacade(
         if (descriptor.kind === "session_command") {
           const promptOverlay = readPromptOverlayMetadata(descriptor);
           if (bindingKind === "prompt_overlay" && promptOverlay) {
-            const prompts = await input.listRuntimePrompts(input.workspaceId);
+            const prompts = (
+              await Promise.all([
+                input.listRuntimePrompts(input.workspaceId),
+                input.listRuntimePrompts(null),
+              ])
+            )
+              .flat()
+              .reduce<PromptLibraryEntry[]>((entries, entry) => {
+                if (entries.some((candidate) => candidate.id === entry.id)) {
+                  return entries;
+                }
+                entries.push(entry);
+                return entries;
+              }, []);
             const prompt = prompts.find((entry) => entry.id === promptOverlay.promptId);
             if (!prompt) {
               return buildBlocked(

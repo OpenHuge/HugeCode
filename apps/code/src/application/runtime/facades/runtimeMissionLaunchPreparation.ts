@@ -11,6 +11,8 @@ import {
 } from "@ku0/code-runtime-host-contract";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { prepareRuntimeRunV2 } from "../ports/runtimeJobs";
+import { listRuntimeInvocationHostsV1 } from "../ports/runtimeInvocationPlane";
+import { buildRuntimeMissionLaunchInvocationPresentation } from "./runtimeInvocationPresentation";
 import type { ResolvedRepositoryExecutionDefaults } from "./runtimeRepositoryExecutionContract";
 import { buildGovernedRuntimeRunRequest } from "./runtimeGovernedRunIngestion";
 import { normalizeTaskSourceDraft } from "./runtimeTaskSourceFacade";
@@ -48,11 +50,15 @@ export type RuntimeMissionLaunchPreviewState = {
   triageSummary: RuntimeRunPrepareV2Response["triageSummary"] | null;
   delegationContract: RuntimeRunPrepareV2Response["delegationContract"] | null;
   repoGuidanceSummary: string | null;
+  selectedInvocationHostLabel: string | null;
+  runtimeDispatchMode: "execute" | "resolve_only" | "reserved" | "unsupported" | null;
+  invocationReadinessReason: string | null;
+  usesCanonicalRuntimeDispatch: boolean | null;
+  usesCompatibilityFallback: boolean | null;
   truthSourceLabel: string | null;
   loading: boolean;
   error: string | null;
 };
-
 export { buildRuntimeRunStartRequestFromPreparation } from "./runtimeRunStartRequest";
 
 type RuntimeMissionLaunchFallbackSurface = Pick<
@@ -183,9 +189,33 @@ export function useRuntimeMissionLaunchPreview(
   );
   const debouncedRequest = useDebouncedValue(request, 250);
   const [rawPreparation, setRawPreparation] = useState<RuntimeRunPrepareV2Response | null>(null);
+  const [runtimeHostRegistry, setRuntimeHostRegistry] = useState<Awaited<
+    ReturnType<typeof listRuntimeInvocationHostsV1>
+  > | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prepareFailure, setPrepareFailure] = useState<unknown>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void listRuntimeInvocationHostsV1({
+      workspaceId: input.workspaceId,
+    })
+      .then((nextRegistry) => {
+        if (!cancelled) {
+          setRuntimeHostRegistry(nextRegistry);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRuntimeHostRegistry(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [input.workspaceId]);
 
   useEffect(() => {
     if (!debouncedRequest) {
@@ -331,6 +361,14 @@ export function useRuntimeMissionLaunchPreview(
     () => summarizeLaunchPreparationRepoGuidance(preparation, guidanceStack),
     [guidanceStack, preparation]
   );
+  const invocationPresentation = useMemo(
+    () =>
+      buildRuntimeMissionLaunchInvocationPresentation({
+        workspaceId: input.workspaceId,
+        runtimeHostRegistry,
+      }),
+    [input.workspaceId, runtimeHostRegistry]
+  );
 
   return {
     request,
@@ -343,6 +381,11 @@ export function useRuntimeMissionLaunchPreview(
     triageSummary,
     delegationContract,
     repoGuidanceSummary,
+    selectedInvocationHostLabel: invocationPresentation?.selectedInvocationHostLabel ?? null,
+    runtimeDispatchMode: invocationPresentation?.runtimeDispatchMode ?? null,
+    invocationReadinessReason: invocationPresentation?.readinessReason ?? null,
+    usesCanonicalRuntimeDispatch: invocationPresentation?.usesCanonicalRuntimeDispatch ?? null,
+    usesCompatibilityFallback: invocationPresentation?.usesCompatibilityFallback ?? null,
     truthSourceLabel: canonicalPreparation
       ? "Runtime kernel v2 prepare"
       : degradedFallbackEnabled

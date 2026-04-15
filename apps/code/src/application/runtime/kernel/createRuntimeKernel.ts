@@ -7,6 +7,10 @@ import { configureManualWebRuntimeGatewayTarget } from "../ports/runtimeWebGatew
 import { getMissionControlSnapshot } from "../ports/missionControl";
 import { detectRuntimeMode, readRuntimeCapabilitiesSummary } from "../ports/runtimeClient";
 import {
+  dispatchRuntimeInvocationV1,
+  listRuntimeInvocationHostsV1,
+} from "../ports/runtimeInvocationPlane";
+import {
   getRuntimeCompositionProfileV2,
   listRuntimeCompositionProfilesV2,
   publishRuntimeCompositionSnapshotV1,
@@ -36,6 +40,7 @@ import { listRuntimeLiveSkills } from "../ports/runtimeSkills";
 import { createRuntimeExtensionActivationService } from "./runtimeExtensionActivation";
 import { createRuntimeInvocationCatalogFacade } from "./runtimeInvocationCatalog";
 import { createRuntimeInvocationExecuteFacade } from "./runtimeInvocationExecute";
+import { createRuntimeInvocationPlaneFacade } from "./runtimeInvocationPlane";
 import { createRuntimeKernelCompositionFacade } from "./runtimeKernelComposition";
 import {
   RUNTIME_KERNEL_CAPABILITY_KEYS,
@@ -153,9 +158,15 @@ export function createRuntimeKernel(): RuntimeKernel {
         listLiveSkills: listRuntimeLiveSkills,
         runLiveSkill: runRuntimeLiveSkill,
       });
+      const invocationPlane = createRuntimeInvocationPlaneFacade({
+        workspaceId,
+        listHosts: listRuntimeInvocationHostsV1,
+        dispatch: dispatchRuntimeInvocationV1,
+      });
       const invocationExecute = createRuntimeInvocationExecuteFacade({
         workspaceId,
         invocationCatalog,
+        invocationPlane,
         sessionCommands,
         startRuntimeRun: startRuntimeRunV2,
         runRuntimeLiveSkill,
@@ -186,6 +197,10 @@ export function createRuntimeKernel(): RuntimeKernel {
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationExecute,
           createCapability: () => invocationExecute,
+        },
+        {
+          key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationPlane,
+          createCapability: () => invocationPlane,
         },
         {
           key: RUNTIME_KERNEL_CAPABILITY_KEYS.pluginCatalog,

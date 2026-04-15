@@ -9,6 +9,8 @@ import {
   type RuntimeCompositionProfileListV2Request,
   type RuntimeCompositionProfileResolveV2Request,
   type RuntimeCompositionSnapshotPublishRequest,
+  type RuntimeInvocationDispatchRequest,
+  type RuntimeInvocationHostsListRequest,
   type RuntimeRunGetV2Request,
   type RuntimeRunPrepareV2Request,
   type RuntimeRunStartRequest,
@@ -298,6 +300,26 @@ export function createBaseRpcRuntimeClient<
         adaptRuntimeRpcPayload("runtimeRunsList", request)
       );
     },
+    runtimeInvocationHostsListV1(request?: RuntimeInvocationHostsListRequest) {
+      return invokeRpc(
+        CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_HOSTS_LIST_V1,
+        request
+          ? withCanonicalFields({ workspaceId: request.workspaceId ?? null })
+          : CODE_RUNTIME_RPC_EMPTY_PARAMS
+      );
+    },
+    runtimeInvocationDispatchV1(request: RuntimeInvocationDispatchRequest) {
+      return invokeRpc(CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_DISPATCH_V1, {
+        ...withCanonicalFields({
+          invocationId: request.invocationId,
+          hostId: request.hostId ?? null,
+          caller: request.caller ?? null,
+          workspaceId: request.workspaceId ?? null,
+          dryRun: request.dryRun ?? null,
+        }),
+        arguments: request.arguments ?? null,
+      });
+    },
     runtimeCompositionProfileListV2(request: RuntimeCompositionProfileListV2Request) {
       return invokeRpc(CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2, {
         ...withCanonicalFields({ workspaceId: request.workspaceId }),
@@ -391,6 +413,8 @@ export function createBaseRpcRuntimeClient<
     | "runtimeRunSubscribeV2"
     | "runtimeReviewGetV2"
     | "runtimeRunsList"
+    | "runtimeInvocationHostsListV1"
+    | "runtimeInvocationDispatchV1"
     | "runtimeCompositionProfileListV2"
     | "runtimeCompositionProfileGetV2"
     | "runtimeCompositionProfileResolveV2"

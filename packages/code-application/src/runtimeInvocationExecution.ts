@@ -10,6 +10,7 @@ import type {
   InvocationExecutionProvenance,
   InvocationHostRequirement,
 } from "@ku0/code-runtime-host-contract";
+import { readRuntimeInvocationPromptOverlayMetadata } from "./runtimeInvocationCatalog";
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -121,7 +122,7 @@ function buildPreflightOutcome(
 
 function inferBinding(descriptor: InvocationDescriptor): InvocationExecutionBinding {
   const metadata = asRecord(descriptor.metadata);
-  const promptOverlay = asRecord(metadata?.promptOverlay);
+  const promptOverlay = readRuntimeInvocationPromptOverlayMetadata(descriptor.metadata);
   const extensionId = readString(metadata, "extensionId") ?? descriptor.source.sourceId;
   const toolName = descriptor.runtimeTool?.toolName ?? descriptor.title;
 

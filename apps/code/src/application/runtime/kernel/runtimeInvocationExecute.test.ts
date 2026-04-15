@@ -72,6 +72,122 @@ function createPromptEntry(overrides: Partial<PromptLibraryEntry> = {}): PromptL
   };
 }
 
+function createInvocationPlaneMock(overrides?: {
+  listHosts?: ReturnType<typeof vi.fn>;
+  dispatch?: ReturnType<typeof vi.fn>;
+}) {
+  return {
+    listHosts:
+      overrides?.listHosts ??
+      vi.fn(async () => ({
+        registryVersion: "registry-v1",
+        workspaceId: "ws-1",
+        generatedAt: 1,
+        hosts: [
+          {
+            hostId: "runtime:built-in-tools",
+            category: "built_in_runtime_tool",
+            label: "Built-in runtime tools",
+            summary: "Canonical runtime tool host.",
+            authority: "runtime",
+            dispatchMode: "execute",
+            readiness: {
+              state: "ready",
+              available: true,
+              reason: null,
+              checkedAt: 1,
+            },
+            requirementKeys: ["runtime_service"],
+            dispatchMethods: ["runtime_invocation_dispatch_v1"],
+            provenance: {
+              source: "runtime_host_registry",
+              registryVersion: "registry-v1",
+              workspaceId: "ws-1",
+            },
+          },
+          {
+            hostId: "runtime:workspace-skills",
+            category: "workspace_skill",
+            label: "Workspace skills",
+            summary: "Canonical workspace skill host.",
+            authority: "workspace",
+            dispatchMode: "execute",
+            readiness: {
+              state: "ready",
+              available: true,
+              reason: null,
+              checkedAt: 1,
+            },
+            requirementKeys: ["runtime_service"],
+            dispatchMethods: ["runtime_invocation_dispatch_v1"],
+            provenance: {
+              source: "runtime_host_registry",
+              registryVersion: "registry-v1",
+              workspaceId: "ws-1",
+            },
+          },
+          {
+            hostId: "runtime:extensions",
+            category: "runtime_extension_tool",
+            label: "Runtime extensions",
+            summary: "Canonical runtime extension host.",
+            authority: "runtime",
+            dispatchMode: "execute",
+            readiness: {
+              state: "ready",
+              available: true,
+              reason: null,
+              checkedAt: 1,
+            },
+            requirementKeys: ["runtime_service", "extension_bridge"],
+            dispatchMethods: ["runtime_invocation_dispatch_v1"],
+            provenance: {
+              source: "runtime_host_registry",
+              registryVersion: "registry-v1",
+              workspaceId: "ws-1",
+            },
+          },
+        ],
+        summary: {
+          total: 3,
+          executable: 3,
+          resolveOnly: 0,
+          reserved: 0,
+          unsupported: 0,
+          ready: 3,
+          attention: 0,
+          blocked: 0,
+        },
+      })),
+    dispatch:
+      overrides?.dispatch ??
+      vi.fn(async (request: { invocationId: string }) => ({
+        invocationId: request.invocationId,
+        status: "accepted",
+        summary: "Runtime dispatch accepted.",
+        preflight: {
+          state: "ready",
+          reason: null,
+          hostId: "runtime:built-in-tools",
+        },
+        provenance: {
+          invocationId: request.invocationId,
+          hostId: "runtime:built-in-tools",
+          category: "built_in_runtime_tool",
+          source: "runtime_host_registry",
+          registryVersion: "registry-v1",
+          workspaceId: "ws-1",
+          caller: "operator",
+        },
+        postExecution: {
+          applied: false,
+          summary: "No post-execution shaping applied.",
+          metadata: null,
+        },
+      })),
+  } as never;
+}
+
 describe("runtimeInvocationExecute", () => {
   it("starts runtime runs for the built-in start-runtime-run invocation", async () => {
     const startRuntimeRun = vi.fn(
@@ -103,6 +219,7 @@ describe("runtimeInvocationExecute", () => {
       invocationCatalog: {
         resolveInvocationDescriptor: vi.fn(async () => createInvocationDescriptor({})),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage: vi.fn(),
         respondToApproval: vi.fn(),
@@ -181,6 +298,7 @@ describe("runtimeInvocationExecute", () => {
           })
         ),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage: vi.fn(),
         respondToApproval: vi.fn(),
@@ -256,6 +374,7 @@ describe("runtimeInvocationExecute", () => {
           })
         ),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage,
         respondToApproval: vi.fn(),
@@ -326,6 +445,7 @@ describe("runtimeInvocationExecute", () => {
           })
         ),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage: vi.fn(),
         respondToApproval: vi.fn(),
@@ -364,6 +484,11 @@ describe("runtimeInvocationExecute", () => {
 
   it("resolves prompt overlays into compose patches without sending a turn", async () => {
     const sendMessage = vi.fn();
+    const listRuntimePrompts = vi
+      .fn()
+      .mockImplementation(async (workspaceId?: string | null) =>
+        workspaceId === null ? [createPromptEntry({ scope: "global" })] : []
+      );
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
       invocationCatalog: {
@@ -403,6 +528,7 @@ describe("runtimeInvocationExecute", () => {
           })
         ),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage,
         respondToApproval: vi.fn(),
@@ -410,7 +536,7 @@ describe("runtimeInvocationExecute", () => {
       startRuntimeRun: vi.fn(),
       runRuntimeLiveSkill: vi.fn(),
       invokeRuntimeExtensionTool: vi.fn(),
-      listRuntimePrompts: vi.fn(async () => [createPromptEntry()]),
+      listRuntimePrompts,
     });
 
     const result = await facade.invoke({
@@ -421,6 +547,9 @@ describe("runtimeInvocationExecute", () => {
     });
 
     expect(sendMessage).not.toHaveBeenCalled();
+    expect(listRuntimePrompts).toHaveBeenCalledTimes(2);
+    expect(listRuntimePrompts).toHaveBeenNthCalledWith(1, "ws-1");
+    expect(listRuntimePrompts).toHaveBeenNthCalledWith(2, null);
     expect(result).toMatchObject({
       invocationId: "session:prompt:prompt.summarize",
       kind: "compose_patch_resolved",
@@ -483,6 +612,7 @@ describe("runtimeInvocationExecute", () => {
           })
         ),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage: vi.fn(),
         respondToApproval: vi.fn(),
@@ -561,6 +691,7 @@ describe("runtimeInvocationExecute", () => {
             })
           ),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage: vi.fn(),
         respondToApproval: vi.fn(),
@@ -608,6 +739,161 @@ describe("runtimeInvocationExecute", () => {
     });
   });
 
+  it("surfaces runtime dispatch blocking reasons before local executors run", async () => {
+    const startRuntimeRun = vi.fn();
+    const facade = createRuntimeInvocationExecuteFacade({
+      workspaceId: "ws-1",
+      invocationCatalog: {
+        resolveInvocationDescriptor: vi.fn(async () => createInvocationDescriptor({})),
+      },
+      invocationPlane: createInvocationPlaneMock({
+        dispatch: vi.fn(async () => ({
+          invocationId: "tool:start-runtime-run",
+          status: "blocked",
+          summary: "Runtime dispatch blocked the invocation.",
+          preflight: {
+            state: "blocked",
+            reason: "Approval required by runtime policy.",
+            hostId: "runtime:built-in-tools",
+          },
+          provenance: {
+            invocationId: "tool:start-runtime-run",
+            hostId: "runtime:built-in-tools",
+            category: "built_in_runtime_tool",
+            source: "runtime_host_registry",
+            registryVersion: "registry-v1",
+            workspaceId: "ws-1",
+            caller: "operator",
+          },
+          postExecution: {
+            applied: false,
+            summary: "No post-execution shaping applied.",
+            metadata: null,
+          },
+        })),
+      }),
+      sessionCommands: {
+        sendMessage: vi.fn(),
+        respondToApproval: vi.fn(),
+      } as never,
+      startRuntimeRun,
+      runRuntimeLiveSkill: vi.fn(),
+      invokeRuntimeExtensionTool: vi.fn(),
+      listRuntimePrompts: vi.fn(async () => []),
+    });
+
+    await expect(
+      facade.invoke({
+        invocationId: "tool:start-runtime-run",
+      })
+    ).resolves.toMatchObject({
+      invocationId: "tool:start-runtime-run",
+      kind: "blocked",
+      ok: false,
+      message: "Runtime dispatch blocked the invocation.",
+      evidence: {
+        placementRationale: {
+          reason: "Approval required by runtime policy.",
+        },
+      },
+    });
+    expect(startRuntimeRun).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to local execution when runtime dispatch stays non-executable", async () => {
+    const startRuntimeRun = vi.fn();
+    const facade = createRuntimeInvocationExecuteFacade({
+      workspaceId: "ws-1",
+      invocationCatalog: {
+        resolveInvocationDescriptor: vi.fn(async () => createInvocationDescriptor({})),
+      },
+      invocationPlane: createInvocationPlaneMock({
+        listHosts: vi.fn(async () => ({
+          registryVersion: "registry-v1",
+          workspaceId: "ws-1",
+          generatedAt: 1,
+          hosts: [
+            {
+              hostId: "runtime:reserved-rpc",
+              category: "built_in_runtime_tool",
+              label: "Reserved RPC host",
+              summary: "Reserved host.",
+              authority: "runtime",
+              dispatchMode: "reserved",
+              readiness: {
+                state: "unsupported",
+                available: false,
+                reason: "Reserved for future runtime dispatch.",
+                checkedAt: 1,
+              },
+              requirementKeys: ["runtime_service"],
+              dispatchMethods: [],
+              provenance: {
+                source: "runtime_host_registry",
+                registryVersion: "registry-v1",
+                workspaceId: "ws-1",
+              },
+            },
+          ],
+          summary: {
+            total: 1,
+            executable: 0,
+            resolveOnly: 0,
+            reserved: 1,
+            unsupported: 0,
+            ready: 0,
+            attention: 0,
+            blocked: 0,
+          },
+        })),
+        dispatch: vi.fn(async () => ({
+          invocationId: "tool:start-runtime-run",
+          status: "unsupported",
+          summary: "Runtime invocation host is reserved and not executable in this phase.",
+          preflight: {
+            state: "blocked",
+            reason: "Runtime invocation host is reserved and not executable in this phase.",
+            hostId: "runtime:reserved-rpc",
+          },
+          provenance: {
+            invocationId: "tool:start-runtime-run",
+            hostId: "runtime:reserved-rpc",
+            category: "built_in_runtime_tool",
+            source: "runtime_host_registry",
+            registryVersion: "registry-v1",
+            workspaceId: "ws-1",
+            caller: "operator",
+          },
+          postExecution: {
+            applied: false,
+            summary: "No post-execution shaping applied.",
+            metadata: null,
+          },
+        })),
+      }),
+      sessionCommands: {
+        sendMessage: vi.fn(),
+        respondToApproval: vi.fn(),
+      } as never,
+      startRuntimeRun,
+      runRuntimeLiveSkill: vi.fn(),
+      invokeRuntimeExtensionTool: vi.fn(),
+      listRuntimePrompts: vi.fn(async () => []),
+    });
+
+    await expect(
+      facade.invoke({
+        invocationId: "tool:start-runtime-run",
+      })
+    ).resolves.toMatchObject({
+      invocationId: "tool:start-runtime-run",
+      kind: "unsupported",
+      ok: false,
+      message: "Runtime invocation host is reserved and not executable in this phase.",
+    });
+    expect(startRuntimeRun).not.toHaveBeenCalled();
+  });
+
   it("normalizes downstream execution failures into blocked results", async () => {
     const facade = createRuntimeInvocationExecuteFacade({
       workspaceId: "ws-1",
@@ -641,6 +927,7 @@ describe("runtimeInvocationExecute", () => {
             })
           ),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage: vi.fn(),
         respondToApproval: vi.fn(),
@@ -694,6 +981,7 @@ describe("runtimeInvocationExecute", () => {
           throw new Error("catalog unavailable");
         }),
       },
+      invocationPlane: createInvocationPlaneMock(),
       sessionCommands: {
         sendMessage: vi.fn(),
         respondToApproval: vi.fn(),

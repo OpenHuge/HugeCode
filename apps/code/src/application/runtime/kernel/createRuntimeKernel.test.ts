@@ -412,6 +412,9 @@ describe("createRuntimeKernel", () => {
           expect.objectContaining({
             key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationExecute,
           }),
+          expect.objectContaining({
+            key: RUNTIME_KERNEL_CAPABILITY_KEYS.invocationPlane,
+          }),
         ]),
       })
     );

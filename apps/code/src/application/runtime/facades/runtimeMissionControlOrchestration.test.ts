@@ -38,6 +38,7 @@ function buildTask(
 describe("buildRuntimeMissionControlOrchestrationState", () => {
   it("centralizes graph-backed continuity and launch readiness state", () => {
     const state = buildRuntimeMissionControlOrchestrationState({
+      workspaceId: "workspace-1",
       runtimeTasks: [
         {
           ...buildTask("resume-task", "interrupted", 10),
@@ -130,6 +131,7 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
 
   it("prefers runtime-published run summaries over local projection fallback", () => {
     const state = buildRuntimeMissionControlOrchestrationState({
+      workspaceId: "workspace-1",
       runtimeTasks: [
         {
           ...buildTask("native-run", "running", 12),
@@ -192,6 +194,7 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
 
   it("does not synthesize projected runs when runtime omitted run summaries", () => {
     const state = buildRuntimeMissionControlOrchestrationState({
+      workspaceId: "workspace-1",
       runtimeTasks: [buildTask("task-without-run", "running", 12)],
       statusFilter: "all",
       capabilities: {
@@ -232,6 +235,7 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
 
   it("feeds runtime-published context pressure into launch readiness", () => {
     const state = buildRuntimeMissionControlOrchestrationState({
+      workspaceId: "workspace-1",
       runtimeTasks: [
         {
           ...buildTask("context-pressure-task", "running", 12),
@@ -273,5 +277,83 @@ describe("buildRuntimeMissionControlOrchestrationState", () => {
     expect(state.launchReadiness.state).toBe("blocked");
     expect(state.launchReadiness.contextPressure.pressureState).toBe("critical");
     expect(state.launchReadiness.contextPressure.detail).toContain("boundary-1 failed");
+  });
+
+  it("surfaces runtime invocation host truth for launch orchestration", () => {
+    const state = buildRuntimeMissionControlOrchestrationState({
+      workspaceId: "workspace-1",
+      runtimeTasks: [],
+      statusFilter: "all",
+      capabilities: {
+        mode: "electron-bridge",
+        methods: [],
+        features: [],
+        wsEndpointPath: "/ws",
+        error: null,
+      },
+      health: {
+        app: "runtime",
+        version: "1.0.0",
+        status: "ok",
+      },
+      healthError: null,
+      selectedRoute: {
+        value: "auto",
+        label: "Automatic workspace routing",
+        state: "ready",
+        ready: true,
+        launchAllowed: true,
+        detail: null,
+      },
+      runtimeToolMetrics: null,
+      runtimeToolGuardrails: null,
+      runtimeInvocationHostRegistry: {
+        registryVersion: "runtime-invocation-host-registry-v1",
+        generatedAt: 1,
+        workspaceId: "workspace-1",
+        summary: {
+          total: 1,
+          executable: 1,
+          resolveOnly: 0,
+          reserved: 0,
+          unsupported: 0,
+          ready: 1,
+          attention: 0,
+          blocked: 0,
+        },
+        hosts: [
+          {
+            hostId: "runtime:built-in-tools",
+            category: "built_in_runtime_tool",
+            label: "Runtime built-in tools",
+            summary: "Runtime-native execution host",
+            authority: "runtime",
+            dispatchMode: "execute",
+            readiness: {
+              state: "ready",
+              available: true,
+              reason: null,
+              checkedAt: 1,
+            },
+            requirementKeys: ["runtime_service"],
+            dispatchMethods: ["code_runtime_invocation_dispatch_v1"],
+            provenance: {
+              source: "runtime_host_registry",
+              registryVersion: "runtime-invocation-host-registry-v1",
+              workspaceId: "workspace-1",
+            },
+          },
+        ],
+      },
+      stalePendingApprovalMs: 10,
+    });
+
+    expect(state.launchInvocationTruth).toMatchObject({
+      selectedInvocationHostLabel: "Runtime built-in tools",
+      runtimeDispatchMode: "execute",
+      usesCanonicalRuntimeDispatch: true,
+      usesCompatibilityFallback: false,
+      truthSourceLabel: "Runtime invocation host registry",
+    });
   });
 });

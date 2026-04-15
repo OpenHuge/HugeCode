@@ -16,6 +16,18 @@ function readComposePatchText(payload: unknown): string | null {
   return typeof text === "string" && text.trim().length > 0 ? text : null;
 }
 
+function readRuntimeInvocationFailureMessage(
+  execution: Awaited<ReturnType<RuntimeInvocationExecuteFacade["invoke"]>>
+): string {
+  return (
+    execution.evidence?.placementRationale.reason ??
+    execution.evidence?.preflightOutcome.summary ??
+    execution.evidence?.outcome.summary ??
+    execution.message ??
+    "Runtime invocation failed."
+  );
+}
+
 export async function dispatchThreadRuntimeInvocationSlashCommand(input: {
   workspace: WorkspaceInfo;
   threadId: string;
@@ -70,7 +82,7 @@ export async function dispatchThreadRuntimeInvocationSlashCommand(input: {
     caller: "operator",
   });
   if (!execution.ok) {
-    input.pushThreadErrorMessage(threadId, execution.message);
+    input.pushThreadErrorMessage(threadId, readRuntimeInvocationFailureMessage(execution));
     input.safeMessageActivity();
     return true;
   }

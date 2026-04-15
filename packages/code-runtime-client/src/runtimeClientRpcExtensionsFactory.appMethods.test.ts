@@ -43,6 +43,15 @@ describe("@ku0/code-runtime-client runtimeClientRpcExtensionsFactory app methods
       invokeRpc
     ) as RuntimeClient<Record<string, unknown>>;
 
+    await client.runtimeInvocationHostsListV1({ workspaceId: "ws-1" });
+    await client.runtimeInvocationDispatchV1({
+      invocationId: "invocation-1",
+      hostId: "runtime:built-in-tools",
+      caller: "operator",
+      workspaceId: "ws-1",
+      arguments: { query: "status" },
+      dryRun: true,
+    });
     await client.runtimeCompositionProfileListV2({ workspaceId: "ws-1" });
     await client.runtimeCompositionProfileGetV2({
       workspaceId: "ws-1",
@@ -59,8 +68,11 @@ describe("@ku0/code-runtime-client runtimeClientRpcExtensionsFactory app methods
       snapshot: {
         activeProfile: null,
         authorityState: "published",
+        freshnessState: "fresh",
         authorityRevision: 1,
+        lastAcceptedRevision: 1,
         publishedAt: 10,
+        lastPublishAttemptAt: 10,
         publisherSessionId: "session-1",
         provenance: {
           activeProfileId: null,
@@ -80,13 +92,32 @@ describe("@ku0/code-runtime-client runtimeClientRpcExtensionsFactory app methods
 
     expect(invokeRpc).toHaveBeenNthCalledWith(
       1,
-      CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2,
+      CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_HOSTS_LIST_V1,
       {
         workspaceId: "ws-1",
       }
     );
     expect(invokeRpc).toHaveBeenNthCalledWith(
       2,
+      CODE_RUNTIME_RPC_METHODS.RUNTIME_INVOCATION_DISPATCH_V1,
+      {
+        invocationId: "invocation-1",
+        hostId: "runtime:built-in-tools",
+        caller: "operator",
+        workspaceId: "ws-1",
+        dryRun: true,
+        arguments: { query: "status" },
+      }
+    );
+    expect(invokeRpc).toHaveBeenNthCalledWith(
+      3,
+      CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_LIST_V2,
+      {
+        workspaceId: "ws-1",
+      }
+    );
+    expect(invokeRpc).toHaveBeenNthCalledWith(
+      4,
       CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_GET_V2,
       {
         workspaceId: "ws-1",
@@ -94,7 +125,7 @@ describe("@ku0/code-runtime-client runtimeClientRpcExtensionsFactory app methods
       }
     );
     expect(invokeRpc).toHaveBeenNthCalledWith(
-      3,
+      5,
       CODE_RUNTIME_RPC_METHODS.COMPOSITION_PROFILE_RESOLVE_V2,
       {
         workspaceId: "ws-1",
@@ -103,7 +134,7 @@ describe("@ku0/code-runtime-client runtimeClientRpcExtensionsFactory app methods
       }
     );
     expect(invokeRpc).toHaveBeenNthCalledWith(
-      4,
+      6,
       CODE_RUNTIME_RPC_METHODS.COMPOSITION_SNAPSHOT_PUBLISH_V1,
       {
         workspaceId: "ws-1",
@@ -111,8 +142,11 @@ describe("@ku0/code-runtime-client runtimeClientRpcExtensionsFactory app methods
         snapshot: {
           activeProfile: null,
           authorityState: "published",
+          freshnessState: "fresh",
           authorityRevision: 1,
+          lastAcceptedRevision: 1,
           publishedAt: 10,
+          lastPublishAttemptAt: 10,
           publisherSessionId: "session-1",
           provenance: {
             activeProfileId: null,

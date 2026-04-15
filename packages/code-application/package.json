@@ -29,6 +29,10 @@
       "types": "./src/runtimeInvocationExecution.ts",
       "default": "./src/runtimeInvocationExecution.ts"
     },
+    "./runtimeInvocationPlaneFacade": {
+      "types": "./src/runtimeInvocationPlaneFacade.ts",
+      "default": "./src/runtimeInvocationPlaneFacade.ts"
+    },
     "./runtimeAutonomyPresentation": {
       "types": "./src/runtime-control-plane/runtimeAutonomyPresentation.ts",
       "default": "./src/runtime-control-plane/runtimeAutonomyPresentation.ts"

@@ -808,9 +808,21 @@ export function createRuntimeInvocationCatalogFacade(
       : [];
 
     const runtimePromptOverlayDescriptors = input.listRuntimePrompts
-      ? (await input.listRuntimePrompts(input.workspaceId).catch(() => [])).map((prompt) =>
-          createRuntimePromptOverlayDescriptor(input.workspaceId, prompt)
+      ? (
+          await Promise.all([
+            input.listRuntimePrompts(input.workspaceId).catch(() => []),
+            input.listRuntimePrompts(null).catch(() => []),
+          ])
         )
+          .flat()
+          .reduce<PromptLibraryEntry[]>((entries, prompt) => {
+            if (entries.some((entry) => entry.id === prompt.id)) {
+              return entries;
+            }
+            entries.push(prompt);
+            return entries;
+          }, [])
+          .map((prompt) => createRuntimePromptOverlayDescriptor(input.workspaceId, prompt))
       : [];
 
     const items = dedupeCatalogEntries([
