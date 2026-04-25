@@ -44,7 +44,7 @@ type AiWebLabBrowserWindowFacade = {
 
 type CreateDesktopAiWebLabControllerInput = {
   browserWindow: AiWebLabBrowserWindowFacade;
-  ensureManagedSessionSecurity?(providerId: AiWebLabProviderId): void;
+  ensureManagedSessionSecurity?(providerId: AiWebLabProviderId, partitionKey?: string | null): void;
   getDefaultProvider?(): AiWebLabProviderId;
   isSafeExternalUrl(url: string): boolean;
   listLocalChromeDebuggerEndpoints():
@@ -158,8 +158,27 @@ function getProviderDefinition(providerId: AiWebLabProviderId): ProviderDefiniti
   return PROVIDER_DEFINITIONS[providerId];
 }
 
-export function getAiWebLabManagedPartition(providerId: AiWebLabProviderId): string {
-  return `persist:hugecode-ai-web-lab:${providerId}`;
+function normalizePartitionKey(value: string | null | undefined): string | null {
+  const trimmed = readTrimmedText(value);
+  if (!trimmed) {
+    return null;
+  }
+  const normalized = trimmed
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/gu, "-")
+    .replace(/^-+|-+$/gu, "")
+    .slice(0, 96);
+  return normalized.length > 0 ? normalized : null;
+}
+
+export function getAiWebLabManagedPartition(
+  providerId: AiWebLabProviderId,
+  partitionKey?: string | null
+): string {
+  const normalizedPartitionKey = normalizePartitionKey(partitionKey);
+  return normalizedPartitionKey
+    ? `persist:hugecode-ai-web-lab:${providerId}:${normalizedPartitionKey}`
+    : `persist:hugecode-ai-web-lab:${providerId}`;
 }
 
 export function normalizeAiWebLabUrl(
@@ -342,6 +361,7 @@ export function createDesktopAiWebLabController(
   input: CreateDesktopAiWebLabControllerInput
 ): DesktopAiWebLabController {
   let managedWindow: AiWebLabBrowserWindowLike | null = null;
+  const managedWindowsByPartition = new Map<string, AiWebLabBrowserWindowLike>();
   let activeEntrypointId: string | null = null;
   let actualUrl: string | null = null;
   let pageTitle: string | null = null;
@@ -349,6 +369,7 @@ export function createDesktopAiWebLabController(
   let preferredViewMode: DesktopAiWebLabViewMode = "docked";
   let providerId = input.getDefaultProvider?.() ?? DEFAULT_AI_WEB_LAB_PROVIDER;
   let sessionMode: DesktopAiWebLabSessionMode = "managed";
+  let activePartitionKey: string | null = null;
   let statusMessage = "AI Web Lab is ready.";
   let targetUrl = getProviderDefinition(providerId).defaultUrl;
   const catalog = createCatalog(providerId);
@@ -371,7 +392,9 @@ export function createDesktopAiWebLabController(
       available: true,
       catalog,
       lastArtifact,
-      managedWindowOpen: Boolean(managedWindow && !managedWindow.isDestroyed()),
+      managedWindowOpen: [...managedWindowsByPartition.values()].some(
+        (window) => !window.isDestroyed()
+      ),
       modeSupport: {
         attached: true,
         docked: true,
@@ -393,11 +416,34 @@ export function createDesktopAiWebLabController(
     pageTitle = null;
   }
 
-  function ensureManagedWindow(): AiWebLabBrowserWindowLike {
-    if (managedWindow && !managedWindow.isDestroyed()) {
-      return managedWindow;
+  function detachManagedWindowForPartition(partition: string, window: AiWebLabBrowserWindowLike) {
+    if (managedWindowsByPartition.get(partition) === window) {
+      managedWindowsByPartition.delete(partition);
     }
-    input.ensureManagedSessionSecurity?.(providerId);
+    if (managedWindow === window) {
+      detachManagedWindow();
+    }
+  }
+
+  function closeManagedWindows() {
+    const windows = [...managedWindowsByPartition.values()];
+    managedWindowsByPartition.clear();
+    for (const window of windows) {
+      if (!window.isDestroyed()) {
+        window.close();
+      }
+    }
+    detachManagedWindow();
+  }
+
+  function ensureManagedWindow(): AiWebLabBrowserWindowLike {
+    const nextPartition = getAiWebLabManagedPartition(providerId, activePartitionKey);
+    const existingWindow = managedWindowsByPartition.get(nextPartition);
+    if (existingWindow && !existingWindow.isDestroyed()) {
+      managedWindow = existingWindow;
+      return existingWindow;
+    }
+    input.ensureManagedSessionSecurity?.(providerId, activePartitionKey);
     const nextWindow = input.browserWindow.create({
       width: 1240,
       height: 900,
@@ -410,7 +456,7 @@ export function createDesktopAiWebLabController(
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        partition: getAiWebLabManagedPartition(providerId),
+        partition: nextPartition,
         sandbox: true,
       },
     });
@@ -422,6 +468,7 @@ export function createDesktopAiWebLabController(
         detachManagedWindow();
         statusMessage = "AI Web Lab window closed.";
       }
+      detachManagedWindowForPartition(nextPartition, nextWindow);
     });
     nextWindow.webContents.setWindowOpenHandler(({ url }) => {
       if (isAiWebLabAllowedUrl(url) || input.isSafeExternalUrl(url)) {
@@ -433,6 +480,7 @@ export function createDesktopAiWebLabController(
       actualUrl = readTrimmedText(typeof url === "string" ? url : null) ?? targetUrl;
     });
     managedWindow = nextWindow;
+    managedWindowsByPartition.set(nextPartition, nextWindow);
     return nextWindow;
   }
 
@@ -482,6 +530,7 @@ export function createDesktopAiWebLabController(
     },
     async openSession(nextInput) {
       providerId = nextInput?.providerId ?? providerId;
+      activePartitionKey = normalizePartitionKey(nextInput?.partitionKey);
       preferredViewMode = nextInput?.preferredViewMode ?? preferredViewMode;
       sessionMode = nextInput?.preferredSessionMode ?? sessionMode;
       activeEntrypointId =
@@ -494,10 +543,7 @@ export function createDesktopAiWebLabController(
       );
 
       if (sessionMode === "attached") {
-        if (managedWindow && !managedWindow.isDestroyed()) {
-          managedWindow.close();
-        }
-        detachManagedWindow();
+        closeManagedWindows();
         await input.openExternalUrl(targetUrl);
         const endpoints = await listAttachedEndpoints(input);
         statusMessage =
@@ -516,6 +562,7 @@ export function createDesktopAiWebLabController(
     },
     async openEntrypoint(nextProviderId, nextEntrypointId) {
       providerId = nextProviderId;
+      activePartitionKey = null;
       activeEntrypointId = nextEntrypointId;
       targetUrl = normalizeAiWebLabUrl(
         providerId,
@@ -542,10 +589,7 @@ export function createDesktopAiWebLabController(
       return resolveState();
     },
     async closeSession() {
-      if (managedWindow && !managedWindow.isDestroyed()) {
-        managedWindow.close();
-      }
-      detachManagedWindow();
+      closeManagedWindows();
       statusMessage = "AI Web Lab session closed.";
       return resolveState();
     },
@@ -559,9 +603,8 @@ export function createDesktopAiWebLabController(
     },
     async setSessionMode(mode) {
       sessionMode = mode;
-      if (mode === "attached" && managedWindow && !managedWindow.isDestroyed()) {
-        managedWindow.close();
-        detachManagedWindow();
+      if (mode === "attached") {
+        closeManagedWindows();
       }
       statusMessage =
         mode === "attached"

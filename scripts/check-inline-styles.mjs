@@ -20,6 +20,7 @@ const EXCLUDED_DIRS = [
   ".codex",
   ".figma-workflow",
 ];
+const EXCLUDED_PREFIXES = ["apps/code-t3/upstream/"];
 
 let hasViolations = false;
 
@@ -48,6 +49,10 @@ function collectChangedFilesFromEnv() {
 }
 
 function scanSingleFile(fullPath) {
+  const repoPath = toPosixPath(path.relative(rootDir, fullPath));
+  if (EXCLUDED_PREFIXES.some((prefix) => repoPath.startsWith(prefix))) {
+    return;
+  }
   const file = path.basename(fullPath);
   if (!file.endsWith(".tsx") && !file.endsWith(".jsx")) {
     return;
@@ -60,9 +65,7 @@ function scanSingleFile(fullPath) {
   INLINE_STYLE_REGEX.lastIndex = 0;
 
   if (INLINE_STYLE_REGEX.test(content)) {
-    process.stderr.write(
-      `Inline style usage is forbidden in repo-owned UI: ${toPosixPath(path.relative(rootDir, fullPath))}\n`
-    );
+    process.stderr.write(`Inline style usage is forbidden in repo-owned UI: ${repoPath}\n`);
     hasViolations = true;
   }
 }
@@ -114,7 +117,8 @@ function scanChangedFiles(filePaths) {
   for (const filePath of filePaths) {
     if (
       !(filePath.startsWith("apps/") || filePath.startsWith("packages/")) ||
-      filePath.split("/").some((segment) => EXCLUDED_DIRS.includes(segment))
+      filePath.split("/").some((segment) => EXCLUDED_DIRS.includes(segment)) ||
+      EXCLUDED_PREFIXES.some((prefix) => filePath.startsWith(prefix))
     ) {
       continue;
     }

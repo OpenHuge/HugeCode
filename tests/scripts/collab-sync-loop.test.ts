@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 const repoRoot = path.resolve(import.meta.dirname, "..", "..");
 const tempRoots: string[] = [];
 const nodeShebang = `#!${process.execPath}`;
+const INTEGRATION_TEST_TIMEOUT_MS = 30_000;
 
 async function createTempRoot(prefix: string): Promise<string> {
   const tempRoot = await mkdtemp(path.join(tmpdir(), prefix));
@@ -126,143 +127,178 @@ describe("collab-sync-loop", () => {
     tempRoots.length = 0;
   });
 
-  it("reports a clean synced repository via --status-only --json", async () => {
-    const { localPath } = await createTrackedRepo("collab-sync-clean-");
+  it(
+    "reports a clean synced repository via --status-only --json",
+    async () => {
+      const { localPath } = await createTrackedRepo("collab-sync-clean-");
 
-    const result = runSync(localPath, ["--status-only", "--json"]);
-    const payload = JSON.parse(result.stdout) as {
-      ok: boolean;
-      mode: string;
-      status: { ahead: number; behind: number; dirty: boolean; branch: string };
-    };
+      const result = runSync(localPath, ["--status-only", "--json"]);
+      const payload = JSON.parse(result.stdout) as {
+        ok: boolean;
+        mode: string;
+        status: { ahead: number; behind: number; dirty: boolean; branch: string };
+      };
 
-    expect(result.status).toBe(0);
-    expect(payload.ok).toBe(true);
-    expect(payload.mode).toBe("status-only");
-    expect(payload.status.branch).toBe("main");
-    expect(payload.status.ahead).toBe(0);
-    expect(payload.status.behind).toBe(0);
-    expect(payload.status.dirty).toBe(false);
-  });
+      expect(result.status).toBe(0);
+      expect(payload.ok).toBe(true);
+      expect(payload.mode).toBe("status-only");
+      expect(payload.status.branch).toBe("main");
+      expect(payload.status.ahead).toBe(0);
+      expect(payload.status.behind).toBe(0);
+      expect(payload.status.dirty).toBe(false);
+    },
+    INTEGRATION_TEST_TIMEOUT_MS
+  );
 
-  it("reports behind status after remote updates are fetched", async () => {
-    const { tempRoot, remotePath, localPath } = await createTrackedRepo("collab-sync-behind-");
-    const peerPath = await createPeerClone(tempRoot, remotePath, "peer");
+  it(
+    "reports behind status after remote updates are fetched",
+    async () => {
+      const { tempRoot, remotePath, localPath } = await createTrackedRepo("collab-sync-behind-");
+      const peerPath = await createPeerClone(tempRoot, remotePath, "peer");
 
-    await writeFile(path.join(peerPath, "peer.txt"), "peer change\n", "utf8");
-    runGit(peerPath, ["add", "-A"]);
-    runGit(peerPath, ["commit", "-m", "peer update"]);
-    runGit(peerPath, ["push", "origin", "main"]);
+      await writeFile(path.join(peerPath, "peer.txt"), "peer change\n", "utf8");
+      runGit(peerPath, ["add", "-A"]);
+      runGit(peerPath, ["commit", "-m", "peer update"]);
+      runGit(peerPath, ["push", "origin", "main"]);
 
-    const result = runSync(localPath, ["--status-only", "--json"]);
-    const payload = JSON.parse(result.stdout) as {
-      ok: boolean;
-      status: { behind: number; ahead: number; dirty: boolean };
-    };
+      const result = runSync(localPath, ["--status-only", "--json"]);
+      const payload = JSON.parse(result.stdout) as {
+        ok: boolean;
+        status: { behind: number; ahead: number; dirty: boolean };
+      };
 
-    expect(result.status).toBe(0);
-    expect(payload.ok).toBe(true);
-    expect(payload.status.behind).toBe(1);
-    expect(payload.status.ahead).toBe(0);
-    expect(payload.status.dirty).toBe(false);
-  });
+      expect(result.status).toBe(0);
+      expect(payload.ok).toBe(true);
+      expect(payload.status.behind).toBe(1);
+      expect(payload.status.ahead).toBe(0);
+      expect(payload.status.dirty).toBe(false);
+    },
+    INTEGRATION_TEST_TIMEOUT_MS
+  );
 
-  it("fails with structured output when --fail-if-behind is set", async () => {
-    const { tempRoot, remotePath, localPath } = await createTrackedRepo("collab-sync-behind-fail-");
-    const peerPath = await createPeerClone(tempRoot, remotePath, "peer");
+  it(
+    "fails with structured output when --fail-if-behind is set",
+    async () => {
+      const { tempRoot, remotePath, localPath } = await createTrackedRepo(
+        "collab-sync-behind-fail-"
+      );
+      const peerPath = await createPeerClone(tempRoot, remotePath, "peer");
 
-    await writeFile(path.join(peerPath, "peer.txt"), "peer change\n", "utf8");
-    runGit(peerPath, ["add", "-A"]);
-    runGit(peerPath, ["commit", "-m", "peer update"]);
-    runGit(peerPath, ["push", "origin", "main"]);
+      await writeFile(path.join(peerPath, "peer.txt"), "peer change\n", "utf8");
+      runGit(peerPath, ["add", "-A"]);
+      runGit(peerPath, ["commit", "-m", "peer update"]);
+      runGit(peerPath, ["push", "origin", "main"]);
 
-    const result = runSync(localPath, ["--status-only", "--json", "--fail-if-behind"]);
-    const payload = JSON.parse(result.stdout) as {
-      ok: boolean;
-      code: string;
-      status: { behind: number };
-    };
+      const result = runSync(localPath, ["--status-only", "--json", "--fail-if-behind"]);
+      const payload = JSON.parse(result.stdout) as {
+        ok: boolean;
+        code: string;
+        status: { behind: number };
+      };
 
-    expect(result.status).toBe(1);
-    expect(payload.ok).toBe(false);
-    expect(payload.code).toBe("behind_remote");
-    expect(payload.status.behind).toBe(1);
-  });
+      expect(result.status).toBe(1);
+      expect(payload.ok).toBe(false);
+      expect(payload.code).toBe("behind_remote");
+      expect(payload.status.behind).toBe(1);
+    },
+    INTEGRATION_TEST_TIMEOUT_MS
+  );
 
-  it("reports dirty worktree state via --status-only --json", async () => {
-    const { localPath } = await createTrackedRepo("collab-sync-dirty-");
+  it(
+    "reports dirty worktree state via --status-only --json",
+    async () => {
+      const { localPath } = await createTrackedRepo("collab-sync-dirty-");
 
-    await writeFile(path.join(localPath, "README.md"), "# dirty\n", "utf8");
+      await writeFile(path.join(localPath, "README.md"), "# dirty\n", "utf8");
 
-    const result = runSync(localPath, ["--status-only", "--json"]);
-    const payload = JSON.parse(result.stdout) as {
-      ok: boolean;
-      status: { dirty: boolean; dirtyEntries: string[] };
-    };
+      const result = runSync(localPath, ["--status-only", "--json"]);
+      const payload = JSON.parse(result.stdout) as {
+        ok: boolean;
+        status: { dirty: boolean; dirtyEntries: string[] };
+      };
 
-    expect(result.status).toBe(0);
-    expect(payload.ok).toBe(true);
-    expect(payload.status.dirty).toBe(true);
-    expect(payload.status.dirtyEntries).toEqual(expect.arrayContaining(["M README.md"]));
-  });
+      expect(result.status).toBe(0);
+      expect(payload.ok).toBe(true);
+      expect(payload.status.dirty).toBe(true);
+      expect(payload.status.dirtyEntries).toEqual(expect.arrayContaining(["M README.md"]));
+    },
+    INTEGRATION_TEST_TIMEOUT_MS
+  );
 
-  it("fails with structured output when --fail-if-dirty is set", async () => {
-    const { localPath } = await createTrackedRepo("collab-sync-dirty-fail-");
+  it(
+    "fails with structured output when --fail-if-dirty is set",
+    async () => {
+      const { localPath } = await createTrackedRepo("collab-sync-dirty-fail-");
 
-    await writeFile(path.join(localPath, "README.md"), "# dirty\n", "utf8");
+      await writeFile(path.join(localPath, "README.md"), "# dirty\n", "utf8");
 
-    const result = runSync(localPath, ["--status-only", "--json", "--fail-if-dirty"]);
-    const payload = JSON.parse(result.stdout) as {
-      ok: boolean;
-      code: string;
-      status: { dirty: boolean };
-    };
+      const result = runSync(localPath, ["--status-only", "--json", "--fail-if-dirty"]);
+      const payload = JSON.parse(result.stdout) as {
+        ok: boolean;
+        code: string;
+        status: { dirty: boolean };
+      };
 
-    expect(result.status).toBe(1);
-    expect(payload.ok).toBe(false);
-    expect(payload.code).toBe("dirty_worktree");
-    expect(payload.status.dirty).toBe(true);
-  });
+      expect(result.status).toBe(1);
+      expect(payload.ok).toBe(false);
+      expect(payload.code).toBe("dirty_worktree");
+      expect(payload.status.dirty).toBe(true);
+    },
+    INTEGRATION_TEST_TIMEOUT_MS
+  );
 
-  it("maps --validate-profile fast to pnpm validate:fast", async () => {
-    const { localPath } = await createTrackedRepo("collab-sync-validate-profile-");
-    const commandLogPath = path.join(localPath, "command-invocations.log");
+  it(
+    "maps --validate-profile fast to pnpm validate:fast",
+    async () => {
+      const { localPath } = await createTrackedRepo("collab-sync-validate-profile-");
+      const commandLogPath = path.join(localPath, "command-invocations.log");
 
-    await createCommandShim(localPath, "pnpm");
-    await writeFile(path.join(localPath, "README.md"), "# dirty\n", "utf8");
+      await createCommandShim(localPath, "pnpm");
+      await writeFile(path.join(localPath, "README.md"), "# dirty\n", "utf8");
 
-    const result = runSync(
-      localPath,
-      ["--validate-profile", "fast", "--skip-commit", "--no-push"],
-      {
-        PATH: `${path.join(localPath, "bin")}${path.delimiter}${process.env.PATH ?? ""}`,
-        COMMAND_LOG_PATH: commandLogPath,
-      }
-    );
-    const commandLog = await readFile(commandLogPath, "utf8");
+      const result = runSync(
+        localPath,
+        ["--validate-profile", "fast", "--skip-commit", "--no-push"],
+        {
+          PATH: `${path.join(localPath, "bin")}${path.delimiter}${process.env.PATH ?? ""}`,
+          COMMAND_LOG_PATH: commandLogPath,
+        }
+      );
+      const commandLog = await readFile(commandLogPath, "utf8");
 
-    expect(result.status).toBe(0);
-    expect(commandLog).toContain("pnpm validate:fast");
-  });
+      expect(result.status).toBe(0);
+      expect(commandLog).toContain("pnpm validate:fast");
+    },
+    INTEGRATION_TEST_TIMEOUT_MS
+  );
 
-  it("fails before mutating git operations when branch naming is invalid", async () => {
-    const { localPath } = await createTrackedRepo("collab-sync-invalid-branch-");
-    runGit(localPath, ["switch", "-c", "feature/not-allowed"]);
+  it(
+    "fails before mutating git operations when branch naming is invalid",
+    async () => {
+      const { localPath } = await createTrackedRepo("collab-sync-invalid-branch-");
+      runGit(localPath, ["switch", "-c", "feature/not-allowed"]);
 
-    const result = runSync(localPath, ["--skip-validate", "--skip-commit", "--no-push", "--json"]);
-    const payload = JSON.parse(result.stdout) as {
-      ok: boolean;
-      code: string;
-      branchPolicy?: { branch: string | null };
-    };
+      const result = runSync(localPath, [
+        "--skip-validate",
+        "--skip-commit",
+        "--no-push",
+        "--json",
+      ]);
+      const payload = JSON.parse(result.stdout) as {
+        ok: boolean;
+        code: string;
+        branchPolicy?: { branch: string | null };
+      };
 
-    expect(result.status).toBe(1);
-    expect(payload.ok).toBe(false);
-    expect(payload.code).toBe("invalid_branch_policy");
-    expect(payload.branchPolicy).toEqual(
-      expect.objectContaining({
-        branch: "feature/not-allowed",
-      })
-    );
-  });
+      expect(result.status).toBe(1);
+      expect(payload.ok).toBe(false);
+      expect(payload.code).toBe("invalid_branch_policy");
+      expect(payload.branchPolicy).toEqual(
+        expect.objectContaining({
+          branch: "feature/not-allowed",
+        })
+      );
+    },
+    INTEGRATION_TEST_TIMEOUT_MS
+  );
 });

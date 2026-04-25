@@ -34,7 +34,9 @@ type BrowserWindowLike = {
   restore(): void;
   show(): void;
   webContents: {
+    executeJavaScript(code: string): Promise<unknown>;
     send(channel: string, payload: DesktopLaunchIntent | DesktopUpdateState): void;
+    once(event: string, listener: (...args: unknown[]) => unknown): void;
     on(
       event: "will-navigate",
       listener: (event: { preventDefault(): void }, url: string) => void

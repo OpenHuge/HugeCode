@@ -1,7 +1,7 @@
 import type { OAuthAccountSummary } from "../../../../../application/runtime/ports/oauth";
 import type { ProviderBrandId } from "../../../../app/utils/antiGravityBranding";
 
-export type AccountPoolsTab = "accounts" | "pools" | "health";
+export type AccountPoolsTab = "accounts" | "pools" | "sharing" | "health";
 
 export type FormBusyAction =
   | null

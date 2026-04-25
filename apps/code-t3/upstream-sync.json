@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "upstreamPackage": "@t3tools/web",
+  "upstreamVersion": "0.0.21",
+  "upstreamCommit": "ada410bccff144ce4cfed0e2c6e18974b045f968",
+  "adaptationBoundary": {
+    "uiShell": "apps/code-t3/src/components/T3WorkspaceApp.tsx",
+    "chatChrome": "apps/code-t3/src/components/T3ChatWorkspaceChrome.tsx",
+    "browserExtension": "apps/code-t3/src/runtime/t3BrowserProfiles.ts",
+    "runtimeAdapter": "packages/code-t3-runtime-adapter/src/index.ts"
+  },
+  "watchedFiles": [
+    {
+      "path": "apps/code-t3/upstream/package.json",
+      "sha256": "5f21d80abf2748f9339c4f1e2b4100883df6003a615094db287a38d797d8dbcb",
+      "reason": "T3 dependency and script contract"
+    },
+    {
+      "path": "apps/code-t3/upstream/UPSTREAM.json",
+      "sha256": "ab84ada3d95e4b0e6d3edce512142a82e2b82623c45e1202c839d92663926c64",
+      "reason": "Pinned upstream source"
+    },
+    {
+      "path": "apps/code-t3/upstream/src/components/Sidebar.tsx",
+      "sha256": "4170afcb9171ef78d59e5fb45bc7892ec529b6b17eeee92d1ef9004f6fb8fd60",
+      "reason": "Primary sidebar chrome"
+    },
+    {
+      "path": "apps/code-t3/upstream/src/components/chat/ChatComposer.tsx",
+      "sha256": "fcf26d85d284733f83c98baad842d9b65dfeaa38226f4edc8e835c73fc316a3d",
+      "reason": "Composer behavior and controls"
+    },
+    {
+      "path": "apps/code-t3/upstream/src/components/chat/ProviderModelPicker.tsx",
+      "sha256": "168bbb410a8f3ba711599c87d80afb02c3e8edab48a5b68a3d08ee09e3cf1e2e",
+      "reason": "Model picker trigger contract"
+    },
+    {
+      "path": "apps/code-t3/upstream/src/components/chat/ModelPickerContent.tsx",
+      "sha256": "4e256a060a9cfed56e2ef2256c6dfb121050f814f5122ce6c55e54fb95f11414",
+      "reason": "Model picker content contract"
+    },
+    {
+      "path": "apps/code-t3/upstream/src/providerModels.ts",
+      "sha256": "82c251684453ae8130ad672aa85d789e47e27d39deec77eabc0f5bc2d09d0827",
+      "reason": "Provider/model selection behavior"
+    }
+  ]
+}

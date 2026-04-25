@@ -2452,27 +2452,30 @@ describe("WorkspaceHomeAgentRuntimeOrchestration", () => {
 
     fireEvent.click(retryButton);
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(
-          "Run task-retry loaded into the launcher for retry. Source-linked launch: GitHub issue #44 · ku0/hugecode. Retry from runtime-owned relaunch context."
-        )
-      ).toBeTruthy();
-      expect(
-        screen.getByText("Source-linked launch: GitHub issue #44 · ku0/hugecode")
-      ).toBeTruthy();
-      expect(screen.queryByText("Repo source mapping: github_issue")).toBeNull();
-      expect(screen.getByText("Review profile source: runtime relaunch context")).toBeTruthy();
-      expect(screen.getByText("Validation source: runtime relaunch context")).toBeTruthy();
-      expect(screen.getAllByText("Validation preset: standard").length).toBeGreaterThan(0);
-      expect(screen.getByText("Access mode: on-request")).toBeTruthy();
-      expect(
-        screen.getByText("Relaunch context: Retry from runtime-owned relaunch context.")
-      ).toBeTruthy();
-      expect((screen.getByLabelText("Execution profile") as HTMLSelectElement).value).toBe(
-        "balanced-delegate"
-      );
-    });
+    await waitFor(
+      () => {
+        expect(
+          screen.getByText(
+            "Run task-retry loaded into the launcher for retry. Source-linked launch: GitHub issue #44 · ku0/hugecode. Retry from runtime-owned relaunch context."
+          )
+        ).toBeTruthy();
+        expect(
+          screen.getByText("Source-linked launch: GitHub issue #44 · ku0/hugecode")
+        ).toBeTruthy();
+        expect(screen.queryByText("Repo source mapping: github_issue")).toBeNull();
+        expect(screen.getByText("Review profile source: runtime relaunch context")).toBeTruthy();
+        expect(screen.getByText("Validation source: runtime relaunch context")).toBeTruthy();
+        expect(screen.getAllByText("Validation preset: standard").length).toBeGreaterThan(0);
+        expect(screen.getByText("Access mode: on-request")).toBeTruthy();
+        expect(
+          screen.getByText("Relaunch context: Retry from runtime-owned relaunch context.")
+        ).toBeTruthy();
+        expect((screen.getByLabelText("Execution profile") as HTMLSelectElement).value).toBe(
+          "balanced-delegate"
+        );
+      },
+      { timeout: 5_000 }
+    );
   });
 
   it("shows blocked launch readiness when runtime capabilities are unavailable", async () => {

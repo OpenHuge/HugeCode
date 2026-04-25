@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import type { OAuthSharingOverview } from "../../../../../application/runtime/ports/oauthSharing";
 import { Avatar } from "../../../../../design-system";
 import { StatusBadge } from "../../../../../design-system";
 import { Text } from "../../../../../design-system";
@@ -25,6 +26,7 @@ type SettingsCodexHealthTabProps = {
   healthSectionRef: RefObject<HTMLDivElement | null>;
   providerPoolRoutingHealth: ProviderRoutingHealthEntry[];
   routingReadyCount: number;
+  sharingOverview?: OAuthSharingOverview;
 };
 
 export function SettingsCodexHealthTab({
@@ -34,6 +36,7 @@ export function SettingsCodexHealthTab({
   healthSectionRef,
   providerPoolRoutingHealth,
   routingReadyCount,
+  sharingOverview,
 }: SettingsCodexHealthTabProps) {
   const providersTotal = providerPoolRoutingHealth.length;
   const enabledAccountsTotal = providerPoolRoutingHealth.reduce(
@@ -48,6 +51,22 @@ export function SettingsCodexHealthTab({
     (total, entry) => total + entry.enabledPools,
     0
   );
+  const sharedLeasesBlockedCount =
+    sharingOverview?.leases.filter(
+      (lease) =>
+        lease.status === "paused" ||
+        lease.status === "expired" ||
+        lease.status === "revoked" ||
+        Boolean(lease.blockingReason)
+    ).length ?? 0;
+  const carpoolsBlockedCount =
+    sharingOverview?.carpools.filter(
+      (carpool) => !carpool.enabled || Boolean(carpool.blockingReason)
+    ).length ?? 0;
+  const sharedPressureCount =
+    (sharingOverview?.usage?.budgetExhaustedCount ?? 0) +
+    (sharingOverview?.usage?.rateLimitPressureCount ?? 0) +
+    (sharingOverview?.usage?.concurrencyPressureCount ?? 0);
 
   return (
     <div className="apm-tab-content">
@@ -75,9 +94,16 @@ export function SettingsCodexHealthTab({
           <div className="apm-overview-value">{credentialReadyTotal}</div>
         </div>
         <div className="apm-overview-card">
-          <div className="apm-overview-label">Enabled Pools</div>
-          <div className="apm-overview-value">{enabledPoolsTotal}</div>
+          <div className="apm-overview-label">Sharing Blocks</div>
+          <div className="apm-overview-value">
+            {sharedLeasesBlockedCount + carpoolsBlockedCount + sharedPressureCount}
+          </div>
         </div>
+      </div>
+
+      <div className="apm-hint">
+        Enabled pools {enabledPoolsTotal}. Shared pressure stays advisory here; selection remains
+        runtime-owned.
       </div>
 
       <div ref={healthSectionRef} className="apm-list apm-health-list apm-list-shell">

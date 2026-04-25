@@ -6,7 +6,8 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 
 use super::{
     local_claude_exec_path::{
-        format_local_claude_command, new_local_claude_command, resolve_local_claude_exec_binary,
+        format_local_claude_command, local_claude_external_auth_configured,
+        new_local_claude_command, resolve_local_claude_exec_binary,
         CODE_RUNTIME_LOCAL_CLAUDE_EXEC_PATH_ENV,
     },
     native_state_store::TABLE_NATIVE_RUNTIME_STATE_KV,
@@ -653,6 +654,9 @@ async fn read_local_claude_auth_status() -> Result<LocalClaudeAuthStatus, String
 }
 
 async fn ensure_local_claude_authenticated() -> Result<(), String> {
+    if local_claude_external_auth_configured() {
+        return Ok(());
+    }
     let auth_status = read_local_claude_auth_status().await?;
     if !auth_status.logged_in {
         return Err(LOCAL_CLAUDE_NOT_AUTHENTICATED_ERROR.to_string());

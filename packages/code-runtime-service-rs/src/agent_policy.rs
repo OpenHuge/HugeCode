@@ -500,7 +500,9 @@ mod tests {
 
         assert_eq!(error.code.as_str(), "INVALID_PARAMS");
         assert!(
-            error.message.contains("Invalid agent task start payload"),
+            error
+                .message
+                .contains("Runtime run v2 request no longer accepts legacy alias fields"),
             "unexpected message: {}",
             error.message
         );

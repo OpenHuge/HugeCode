@@ -19,6 +19,10 @@ import {
   setOAuthPrimaryAccount,
 } from "../../../../application/runtime/ports/oauth";
 import {
+  readOAuthSharingOverview,
+  type OAuthSharingOverview,
+} from "../../../../application/runtime/ports/oauthSharing";
+import {
   readSafeLocalStorageItem,
   writeSafeLocalStorageItem,
 } from "../../../../utils/safeLocalStorage";
@@ -33,6 +37,7 @@ import { SettingsCodexAccountsNavigation } from "./settings-codex-accounts-card/
 import { SettingsCodexAccountsTab } from "./settings-codex-accounts-card/SettingsCodexAccountsTab";
 import { SettingsCodexHealthTab } from "./settings-codex-accounts-card/SettingsCodexHealthTab";
 import { SettingsCodexPoolsTab } from "./settings-codex-accounts-card/SettingsCodexPoolsTab";
+import { SettingsCodexSharingTab } from "./settings-codex-accounts-card/SettingsCodexSharingTab";
 import type {
   AccountPoolsTab,
   AccountStatusFilter,
@@ -104,7 +109,7 @@ function resolvePrimaryRouteAccountId(
 
 function readStoredActiveTab(): AccountPoolsTab {
   const raw = readSafeLocalStorageItem(STORAGE_KEY_ACTIVE_TAB);
-  if (raw === "accounts" || raw === "pools" || raw === "health") {
+  if (raw === "accounts" || raw === "pools" || raw === "sharing" || raw === "health") {
     return raw;
   }
   return "accounts";
@@ -154,9 +159,30 @@ function formatCockpitToolsImportSummary(result: RuntimeCockpitToolsCodexImportR
   return `${parts.join(", ")} from cockpit-tools.`;
 }
 
+function createInitialSharingOverview(): OAuthSharingOverview {
+  return {
+    status: "unsupported",
+    leases: [],
+    carpools: [],
+    usage: {
+      turnsUsed: 0,
+      activeConcurrentRuns: 0,
+      blockedRoutesCount: 0,
+      budgetExhaustedCount: 0,
+      rateLimitPressureCount: 0,
+      concurrencyPressureCount: 0,
+      recentAuditEvents: [],
+    },
+    unavailableReason: "Sharing state has not been loaded yet.",
+  };
+}
+
 export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCardProps) {
   const [accounts, setAccounts] = useState<OAuthAccountSummary[]>([]);
   const [pools, setPools] = useState<OAuthPoolSummary[]>([]);
+  const [sharingOverview, setSharingOverview] = useState<OAuthSharingOverview>(() =>
+    createInitialSharingOverview()
+  );
   const [codexPrimaryAccount, setCodexPrimaryAccount] = useState<OAuthPrimaryAccountSummary | null>(
     null
   );
@@ -265,6 +291,17 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
   useEffect(() => {
     void refreshOAuthState();
   }, [refreshOAuthState]);
+
+  const refreshOAuthSharingState = useCallback(async () => {
+    const nextOverview = await readOAuthSharingOverview();
+    if (isMountedRef.current) {
+      setSharingOverview(nextOverview);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshOAuthSharingState();
+  }, [refreshOAuthSharingState]);
 
   useCodexRuntimeOauthRefresh({
     lastRuntimeUpdatedRevisionRef,
@@ -845,12 +882,17 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
     setSelectedPoolIds((previous) => previous.filter((poolId) => visiblePoolIdSet.has(poolId)));
   }, [visiblePoolIdSet]);
 
+  const sharingCount =
+    sharingOverview.leases.filter((lease) => lease.status === "active").length +
+    sharingOverview.carpools.filter((carpool) => carpool.enabled).length;
+
   return (
     <div className="settings-field account-pools-management account-pools-redesign">
       <SettingsCodexAccountsNavigation
         activeTab={activeTab}
         accountsCount={accounts.length}
         poolsCount={pools.length}
+        sharingCount={sharingCount}
         routingReadyCount={routingReadyCount}
         providerHealthCount={providerPoolRoutingHealth.length}
         onTabChange={setActiveTab}
@@ -965,6 +1007,20 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
           />
         )}
 
+        {activeTab === "sharing" && (
+          <SettingsCodexSharingTab
+            onClose={onClose}
+            onRefresh={() => {
+              void refreshOAuthState();
+              void refreshOAuthSharingState();
+            }}
+            busyAction={busyAction}
+            sharingOverview={sharingOverview}
+            providerOptions={providerOptions}
+            pools={pools}
+          />
+        )}
+
         {activeTab === "health" && (
           <SettingsCodexHealthTab
             onClose={onClose}
@@ -973,6 +1029,7 @@ export function SettingsCodexAccountsCard({ onClose }: SettingsCodexAccountsCard
             healthSectionRef={healthSectionRef}
             providerPoolRoutingHealth={providerPoolRoutingHealth}
             routingReadyCount={routingReadyCount}
+            sharingOverview={sharingOverview}
           />
         )}
       </div>

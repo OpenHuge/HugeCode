@@ -127,6 +127,85 @@ export type WorkspaceClientRuntimeOauthBindings = {
   ) => Promise<WorkspaceClientOAuthLoginResult>;
   getAccountInfo: (workspaceId: string) => Promise<unknown>;
   getProvidersCatalog: () => Promise<unknown>;
+  sharing?: WorkspaceClientRuntimeOauthSharingBindings;
+};
+
+export type WorkspaceClientOAuthSharingLeaseStatus =
+  | "pending"
+  | "active"
+  | "paused"
+  | "expired"
+  | "revoked";
+
+export type WorkspaceClientOAuthSharingPolicy =
+  | "fair_share"
+  | "owner_priority"
+  | "borrower_priority";
+
+export type WorkspaceClientOAuthCarpoolStrategy =
+  | "fair_share"
+  | "weighted"
+  | "cheapest_ready"
+  | "fastest_ready";
+
+export type WorkspaceClientOAuthSharingLeaseSummary = {
+  leaseId: string;
+  ownerWorkspaceId: string | null;
+  borrowerWorkspaceId: string | null;
+  provider: OAuthProviderId;
+  poolId: string;
+  allowedAccountIds: string[];
+  status: WorkspaceClientOAuthSharingLeaseStatus;
+  startsAt: number | null;
+  expiresAt: number | null;
+  maxConcurrentRuns: number | null;
+  turnBudget: number | null;
+  turnsUsed: number;
+  policy: WorkspaceClientOAuthSharingPolicy;
+  blockingReason: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type WorkspaceClientOAuthCarpoolSummary = {
+  carpoolId: string;
+  provider: OAuthProviderId;
+  name: string;
+  memberWorkspaceIds: string[];
+  poolIds: string[];
+  strategy: WorkspaceClientOAuthCarpoolStrategy;
+  perMemberConcurrencyLimit: number | null;
+  perMemberTurnBudget: number | null;
+  enabled: boolean;
+  blockingReason: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type WorkspaceClientOAuthSharingUsageSummary = {
+  turnsUsed: number;
+  activeConcurrentRuns: number;
+  blockedRoutesCount: number;
+  budgetExhaustedCount: number;
+  rateLimitPressureCount: number;
+  concurrencyPressureCount: number;
+  recentAuditEvents: Array<Record<string, unknown>>;
+};
+
+export type WorkspaceClientRuntimeOauthSharingBindings = {
+  listLeases: () => Promise<WorkspaceClientOAuthSharingLeaseSummary[]>;
+  upsertLease: (
+    input: Partial<WorkspaceClientOAuthSharingLeaseSummary> & { leaseId: string }
+  ) => Promise<WorkspaceClientOAuthSharingLeaseSummary>;
+  revokeLease: (leaseId: string) => Promise<boolean>;
+  listCarpools: () => Promise<WorkspaceClientOAuthCarpoolSummary[]>;
+  upsertCarpool: (
+    input: Partial<WorkspaceClientOAuthCarpoolSummary> & { carpoolId: string }
+  ) => Promise<WorkspaceClientOAuthCarpoolSummary>;
+  removeCarpool: (carpoolId: string) => Promise<boolean>;
+  readUsage: () => Promise<WorkspaceClientOAuthSharingUsageSummary>;
 };
 
 export type WorkspaceClientRuntimeModelsBindings = {

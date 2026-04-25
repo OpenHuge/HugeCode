@@ -307,6 +307,7 @@ export type DesktopAiWebLabCatalog = {
 
 export type DesktopAiWebLabOpenInput = {
   entrypointId?: string | null;
+  partitionKey?: string | null;
   preferredSessionMode?: DesktopAiWebLabSessionMode | null;
   preferredViewMode?: DesktopAiWebLabViewMode | null;
   providerId?: AiWebLabProviderId | null;

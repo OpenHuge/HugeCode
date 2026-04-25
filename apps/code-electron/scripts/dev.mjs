@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { createDevServerUrl, resolveAvailableDevServerPort } from "./dev-server.mjs";
+import { resolveRendererTarget } from "./renderer-target.mjs";
 
 const scriptDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const packageDir = resolve(scriptDir, "..");
@@ -58,10 +59,11 @@ process.on("SIGTERM", () => {
 
 const rendererPort = await resolveAvailableDevServerPort();
 const devServerUrl = createDevServerUrl(rendererPort);
+const rendererTarget = resolveRendererTarget();
 
 const rendererProcess = spawnProcess("pnpm", [
   "-C",
-  "../code",
+  rendererTarget.packageDir,
   "exec",
   "vite",
   "--host",

@@ -90,7 +90,7 @@ describe("desktopAiWebLab", () => {
     });
 
     expect(create).toHaveBeenCalledTimes(1);
-    expect(ensureManagedSessionSecurity).toHaveBeenCalledWith("chatgpt");
+    expect(ensureManagedSessionSecurity).toHaveBeenCalledWith("chatgpt", null);
     expect(aiWebLabWindow.window.loadURL).toHaveBeenCalledWith("https://chatgpt.com/");
     expect(state.providerId).toBe("chatgpt");
     expect(state.sessionMode).toBe("managed");
@@ -103,6 +103,132 @@ describe("desktopAiWebLab", () => {
     expect(artifact.artifactKind).toBe("prompt_markdown");
     expect(artifact.status).toBe("succeeded");
     expect(artifact.content).toContain("final prompt");
+  });
+
+  it("keeps a dedicated persistent partition window for each isolated app key", async () => {
+    const firstWindow = createAiWebLabWindow();
+    const secondWindow = createAiWebLabWindow();
+    const create = vi
+      .fn()
+      .mockReturnValueOnce(firstWindow.window)
+      .mockReturnValueOnce(secondWindow.window);
+    const ensureManagedSessionSecurity = vi.fn();
+
+    const controller = createDesktopAiWebLabController({
+      browserWindow: { create },
+      ensureManagedSessionSecurity,
+      isSafeExternalUrl: () => true,
+      listLocalChromeDebuggerEndpoints: () => [],
+      openExternalUrl: vi.fn(),
+    });
+
+    await controller.openSession({
+      partitionKey: "current-browser:https://gemini.google.com:probe-a",
+      preferredSessionMode: "managed",
+      preferredViewMode: "window",
+      providerId: "gemini",
+      url: "https://gemini.google.com/app",
+    });
+    await controller.openSession({
+      partitionKey: "current-browser:https://gemini.google.com:probe-b",
+      preferredSessionMode: "managed",
+      preferredViewMode: "window",
+      providerId: "gemini",
+      url: "https://gemini.google.com/app",
+    });
+
+    expect(create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        webPreferences: expect.objectContaining({
+          partition:
+            "persist:hugecode-ai-web-lab:gemini:current-browser-https-gemini.google.com-probe-a",
+        }),
+      })
+    );
+    expect(create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        webPreferences: expect.objectContaining({
+          partition:
+            "persist:hugecode-ai-web-lab:gemini:current-browser-https-gemini.google.com-probe-b",
+        }),
+      })
+    );
+    expect(firstWindow.window.close).not.toHaveBeenCalled();
+    expect(secondWindow.window.close).not.toHaveBeenCalled();
+    expect(ensureManagedSessionSecurity).toHaveBeenCalledWith(
+      "gemini",
+      "current-browser-https-gemini.google.com-probe-a"
+    );
+    expect(ensureManagedSessionSecurity).toHaveBeenCalledWith(
+      "gemini",
+      "current-browser-https-gemini.google.com-probe-b"
+    );
+  });
+
+  it("reuses the managed window for the same isolated app partition", async () => {
+    const appWindow = createAiWebLabWindow();
+    const create = vi.fn(() => appWindow.window);
+
+    const controller = createDesktopAiWebLabController({
+      browserWindow: { create },
+      ensureManagedSessionSecurity: vi.fn(),
+      isSafeExternalUrl: () => true,
+      listLocalChromeDebuggerEndpoints: () => [],
+      openExternalUrl: vi.fn(),
+    });
+
+    const input = {
+      partitionKey: "current-browser:https://gemini.google.com:probe-a",
+      preferredSessionMode: "managed" as const,
+      preferredViewMode: "window" as const,
+      providerId: "gemini" as const,
+      url: "https://gemini.google.com/app",
+    };
+    await controller.openSession(input);
+    await controller.openSession(input);
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(appWindow.window.close).not.toHaveBeenCalled();
+    expect(appWindow.window.focus).toHaveBeenCalledTimes(2);
+  });
+
+  it("closes every managed isolated app window when the session is closed", async () => {
+    const firstWindow = createAiWebLabWindow();
+    const secondWindow = createAiWebLabWindow();
+    const create = vi
+      .fn()
+      .mockReturnValueOnce(firstWindow.window)
+      .mockReturnValueOnce(secondWindow.window);
+
+    const controller = createDesktopAiWebLabController({
+      browserWindow: { create },
+      ensureManagedSessionSecurity: vi.fn(),
+      isSafeExternalUrl: () => true,
+      listLocalChromeDebuggerEndpoints: () => [],
+      openExternalUrl: vi.fn(),
+    });
+
+    await controller.openSession({
+      partitionKey: "current-browser:https://gemini.google.com:probe-a",
+      preferredSessionMode: "managed",
+      preferredViewMode: "window",
+      providerId: "gemini",
+      url: "https://gemini.google.com/app",
+    });
+    await controller.openSession({
+      partitionKey: "current-browser:https://gemini.google.com:probe-b",
+      preferredSessionMode: "managed",
+      preferredViewMode: "window",
+      providerId: "gemini",
+      url: "https://gemini.google.com/app",
+    });
+
+    await controller.closeSession();
+
+    expect(firstWindow.window.close).toHaveBeenCalledTimes(1);
+    expect(secondWindow.window.close).toHaveBeenCalledTimes(1);
   });
 
   it("opens a Gemini entrypoint and extracts text content", async () => {

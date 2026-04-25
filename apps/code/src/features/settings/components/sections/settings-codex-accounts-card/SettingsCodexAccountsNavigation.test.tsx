@@ -15,6 +15,7 @@ describe("SettingsCodexAccountsNavigation", () => {
         activeTab="accounts"
         accountsCount={3}
         poolsCount={5}
+        sharingCount={2}
         routingReadyCount={2}
         providerHealthCount={4}
         onTabChange={vi.fn()}
@@ -24,7 +25,7 @@ describe("SettingsCodexAccountsNavigation", () => {
     expect(
       container.querySelectorAll('.apm-nav-badge[data-status-tone="default"][data-shape="chip"]')
         .length
-    ).toBe(3);
+    ).toBe(4);
   });
 
   it("changes tabs without promoting the active count into a local badge variant", () => {
@@ -34,6 +35,7 @@ describe("SettingsCodexAccountsNavigation", () => {
         activeTab="health"
         accountsCount={1}
         poolsCount={2}
+        sharingCount={0}
         routingReadyCount={3}
         providerHealthCount={4}
         onTabChange={onTabChange}

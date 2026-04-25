@@ -40,6 +40,7 @@ import { createDesktopUpdaterController } from "./desktopUpdaterController.js";
 import { createDesktopWindowController } from "./desktopWindowController.js";
 import { listLocalChromeDebuggerEndpoints } from "./localChromeDebuggerDiscovery.js";
 import { registerDesktopHostIpc } from "./registerDesktopHostIpc.js";
+import { registerDesktopRuntimeCompatIpc } from "./registerDesktopRuntimeCompatIpc.js";
 
 const DEFAULT_WINDOW_STATE: DesktopWindowBounds = {
   width: 1440,
@@ -88,6 +89,7 @@ type DesktopBrowserWindowLike = {
       listener: (event: { preventDefault(): void }, url: string) => void
     ): void;
     on(event: string, listener: (...args: unknown[]) => unknown): void;
+    once(event: string, listener: (...args: unknown[]) => unknown): void;
     setWindowOpenHandler(handler: (details: { url: string }) => { action: "deny" }): void;
   };
 };
@@ -267,7 +269,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
       return input.shell.openExternal(url);
     },
     persistState: persistDesktopState,
-    preloadPath: join(input.sourceDirectory, "../preload/preload.js"),
+    preloadPath: join(input.sourceDirectory, "../preload/preload.cjs"),
     shellState,
   });
   const launchIntentController = createDesktopLaunchIntentController({
@@ -552,7 +554,7 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
         show: false,
         webPreferences: {
           contextIsolation: true,
-          preload: join(input.sourceDirectory, "../preload/preload.js"),
+          preload: join(input.sourceDirectory, "../preload/preload.cjs"),
           sandbox: true,
         },
       });
@@ -560,8 +562,8 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
   });
   const aiWebLab = createDesktopAiWebLabController({
     browserWindow: input.browserWindow,
-    ensureManagedSessionSecurity(providerId) {
-      const partition = getAiWebLabManagedPartition(providerId);
+    ensureManagedSessionSecurity(providerId, partitionKey) {
+      const partition = getAiWebLabManagedPartition(providerId, partitionKey);
       if (aiWebLabSessionSecurityRegistered.has(partition)) {
         return;
       }
@@ -655,6 +657,10 @@ export function createDesktopMainComposition(input: CreateDesktopMainComposition
     registerDesktopHostIpc({
       channels: DESKTOP_HOST_IPC_CHANNELS,
       handlers: desktopHostHandlers,
+      ipcMain: input.ipcMain,
+      isTrustedSender: isTrustedIpcSender,
+    });
+    registerDesktopRuntimeCompatIpc({
       ipcMain: input.ipcMain,
       isTrustedSender: isTrustedIpcSender,
     });

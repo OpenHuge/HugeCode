@@ -7096,6 +7096,25 @@ exit 1
     #[tokio::test]
     async fn runtime_run_start_v2_materializes_parallel_safe_sub_agent_lanes() {
         let app = test_router();
+        let backend_payload = send_rpc_request(
+            app.clone(),
+            json!({
+                "method": "code_runtime_backend_upsert",
+                "params": {
+                    "backendId": "worker-code",
+                    "displayName": "Worker Code",
+                    "capabilities": ["code"],
+                    "maxConcurrency": 4,
+                    "costTier": "standard",
+                    "latencyClass": "regional",
+                    "rolloutState": "current",
+                    "status": "active"
+                }
+            }),
+        )
+        .await;
+        assert_eq!(backend_payload["ok"], Value::Bool(true));
+
         let prepare_payload = send_rpc_request(
             app.clone(),
             json!({
@@ -7103,7 +7122,10 @@ exit 1
                 "params": {
                     "workspaceId": "workspace-web",
                     "title": "Parallel safe delegation mission",
+                    "executionMode": "distributed",
                     "executionProfileId": "balanced-delegate",
+                    "preferredBackendIds": ["worker-code"],
+                    "requiredCapabilities": ["code"],
                     "steps": [
                         {
                             "kind": "read",
@@ -7134,8 +7156,11 @@ exit 1
                 "params": {
                     "workspaceId": "workspace-web",
                     "title": "Parallel safe delegation mission",
+                    "executionMode": "distributed",
                     "executionProfileId": "balanced-delegate",
                     "approvedPlanVersion": approved_plan_version,
+                    "preferredBackendIds": ["worker-code"],
+                    "requiredCapabilities": ["code"],
                     "steps": [
                         {
                             "kind": "read",

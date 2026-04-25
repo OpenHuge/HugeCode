@@ -1,5 +1,6 @@
 import Activity from "lucide-react/dist/esm/icons/activity";
 import Layers from "lucide-react/dist/esm/icons/layers";
+import Share2 from "lucide-react/dist/esm/icons/share-2";
 import Users from "lucide-react/dist/esm/icons/users";
 import { StatusBadge } from "../../../../../design-system";
 import type { AccountPoolsTab } from "./types";
@@ -8,6 +9,7 @@ type SettingsCodexAccountsNavigationProps = {
   activeTab: AccountPoolsTab;
   accountsCount: number;
   poolsCount: number;
+  sharingCount: number;
   routingReadyCount: number;
   providerHealthCount: number;
   onTabChange: (tab: AccountPoolsTab) => void;
@@ -17,6 +19,7 @@ export function SettingsCodexAccountsNavigation({
   activeTab,
   accountsCount,
   poolsCount,
+  sharingCount,
   routingReadyCount,
   providerHealthCount,
   onTabChange,
@@ -65,6 +68,17 @@ export function SettingsCodexAccountsNavigation({
         <Layers className="apm-nav-icon" aria-hidden />
         <span className="apm-nav-label">Pools</span>
         <StatusBadge className="apm-nav-badge">{poolsCount}</StatusBadge>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        className={`apm-nav-item ${activeTab === "sharing" ? "is-active" : ""}`}
+        onClick={() => onTabChange("sharing")}
+        aria-selected={activeTab === "sharing"}
+      >
+        <Share2 className="apm-nav-icon" aria-hidden />
+        <span className="apm-nav-label">Sharing</span>
+        <StatusBadge className="apm-nav-badge">{sharingCount}</StatusBadge>
       </button>
       <button
         type="button"

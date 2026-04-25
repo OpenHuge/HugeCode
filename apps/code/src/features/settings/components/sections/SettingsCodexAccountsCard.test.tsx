@@ -49,6 +49,13 @@ vi.mock("../../../../application/runtime/ports/runtimeUpdatedEvents", () => ({
 vi.mock("../../../../application/runtime/ports/runtimeClient", () => ({
   detectRuntimeMode: vi.fn(() => "unavailable"),
   getRuntimeClient: vi.fn(),
+  readRuntimeCapabilitiesSummary: vi.fn(async () => ({
+    mode: "unavailable",
+    methods: [],
+    features: [],
+    wsEndpointPath: null,
+    error: "Runtime capabilities unavailable.",
+  })),
 }));
 
 vi.mock("../../../../application/runtime/facades/desktopHostFacade", () => ({

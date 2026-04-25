@@ -862,7 +862,7 @@ mod tests {
             .expect("task runtime payload");
 
         assert_eq!(payload["contextBoundary"]["trigger"], json!("tool_output"));
-        assert_eq!(payload["contextBoundary"]["status"], json!("compacted"));
+        assert_eq!(payload["contextBoundary"]["status"], json!("offloaded"));
         assert_eq!(
             payload["contextProjection"]["offloadRefs"][0],
             json!("turn://run-step-1/output")

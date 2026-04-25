@@ -179,6 +179,7 @@ use distributed_runtime::{
     normalize_distributed_dispatch_error_message, normalize_distributed_dispatch_error_source,
     resolve_cached_distributed_readiness_snapshot, truncate_chars_with_ellipsis,
 };
+use local_claude_exec_path::local_claude_external_auth_configured;
 use local_claude_exec_turn::{
     clear_local_claude_thread_session, persist_local_claude_thread_session,
     query_local_claude_exec_turn, read_local_claude_cli_readiness, LocalClaudeExecTurnInput,

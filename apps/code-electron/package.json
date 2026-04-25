@@ -11,8 +11,8 @@
   "type": "module",
   "main": "dist-electron/main/main.js",
   "scripts": {
-    "build:main": "tsc --project tsconfig.build.json",
-    "build:renderer": "pnpm -C ../code exec vite build && node ./scripts/prepare-renderer.mjs",
+    "build:main": "tsc --project tsconfig.build.json && node ./scripts/copy-preload-cjs.mjs",
+    "build:renderer": "node ./scripts/build-renderer.mjs",
     "dev": "node ./scripts/dev.mjs",
     "build": "pnpm run build:main && pnpm run build:renderer",
     "package": "node ./scripts/run-forge.mjs preflight package && pnpm run build && node ./scripts/run-forge.mjs package",

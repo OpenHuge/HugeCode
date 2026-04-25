@@ -82,6 +82,8 @@
     "**/*.min.js",
     "**/*.min.css",
     "apps/code/public/vendor",
+    "apps/code-t3/upstream",
+    "apps/code-t3/upstream/**",
     "**/routeTree.gen.ts",
     "pnpm-lock.yaml",
     "packages/mdvp-wasm/pkg",
@@ -90,6 +92,8 @@
     ".codex/figma-exports",
     ".codex/figma-exports/**",
     ".codex/figma-exports-validation",
-    ".codex/figma-exports-validation/**"
+    ".codex/figma-exports-validation/**",
+    ".codex/vendor",
+    ".codex/vendor/**"
   ]
 }

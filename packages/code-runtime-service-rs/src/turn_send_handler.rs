@@ -138,10 +138,10 @@ async fn query_provider_with_local_exec_fallback(
             }
         });
     }
-
     match query_local_codex_exec_turn(
         workspace_path_for_turn,
         content,
+        requested_model_id.or(Some(model_id)),
         access_mode,
         codex_bin_override,
         codex_args,

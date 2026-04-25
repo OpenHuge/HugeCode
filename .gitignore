@@ -197,6 +197,7 @@ packages/*/.codex/
 .codex-artifacts
 .codex/code-integration-watch.json
 .codex/validate-cache.json
+.codex/vendor/
 .codex/ux-audit/core-*.json
 .codex/ux-audit/perf-*.json
 .codex/ux-audit/screenshots/
@@ -207,6 +208,7 @@ artifacts/figma-codegen/
 # Build and dist
 dist/
 build/
+apps/code-t3/dist/
 apps/code-electron/dist-electron/
 apps/code-electron/out/
 **/target/

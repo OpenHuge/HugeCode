@@ -92,3 +92,76 @@ feature(".account-pools-summary", {
     },
   },
 });
+
+feature(".apm-sharing-unavailable", {
+  borderRadius: "var(--ds-radius-md)",
+  border: "1px solid color-mix(in srgb, var(--status-warning) 36%, var(--ds-border-muted))",
+  background: "color-mix(in srgb, var(--status-warning) 9%, var(--ds-surface-card-base))",
+});
+
+feature(".apm-sharing-grid", {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+  gap: "12px",
+  alignItems: "start",
+  "@media": {
+    "(max-width: 960px)": {
+      gridTemplateColumns: "1fr",
+    },
+  },
+});
+
+feature(".apm-list-heading", {
+  display: "flex",
+  alignItems: "center",
+  gap: "7px",
+  padding: "10px 12px 0",
+  fontSize: "var(--font-size-fine)",
+  fontWeight: "680",
+  color: "var(--ds-text-muted)",
+});
+
+feature(".apm-list-heading-icon", {
+  width: "15px",
+  height: "15px",
+  color: "var(--ds-text-faint)",
+});
+
+feature(".apm-sharing-list", {
+  padding: "10px",
+});
+
+feature(".apm-row--sharing", {
+  alignItems: "center",
+  gap: "10px",
+  "@media": {
+    "(max-width: 720px)": {
+      alignItems: "stretch",
+      flexDirection: "column",
+    },
+  },
+});
+
+feature(".apm-sharing-row-hint", {
+  marginTop: "6px",
+});
+
+feature(".apm-empty-state", {
+  padding: "18px",
+  borderRadius: "var(--ds-radius-md)",
+  border: "1px dashed color-mix(in srgb, var(--ds-border-muted) 88%, transparent)",
+  background: "color-mix(in srgb, var(--ds-surface-control) 42%, transparent)",
+});
+
+feature(".apm-empty-title", {
+  fontSize: "var(--font-size-label)",
+  fontWeight: "680",
+  color: "var(--ds-text-strong)",
+});
+
+feature(".apm-empty-detail", {
+  marginTop: "4px",
+  fontSize: "var(--font-size-fine)",
+  lineHeight: "var(--line-height-145)",
+  color: "var(--ds-text-muted)",
+});
