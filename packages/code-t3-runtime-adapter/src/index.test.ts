@@ -4,6 +4,7 @@ import {
   buildHugeCodeAgentTaskStartRequest,
   buildT3CodexGatewayProviderProfile,
   createT3CodexGatewayProviderRoute,
+  mapHugeRouterCommercialSnapshotToT3ProviderRoute,
   mapHugeCodeBackendPoolToT3ProviderRoutes,
   mapHugeCodeModelPoolToT3ProviderModels,
   mapHugeCodeRuntimeEventToT3TimelineEvent,
@@ -157,6 +158,93 @@ describe("code-t3-runtime-adapter", () => {
         "route_receipt_required",
       ],
     });
+  });
+
+  it("promotes an active HugeRouter route token into the t3 provider catalog", () => {
+    const hugeRouterRoute = mapHugeRouterCommercialSnapshotToT3ProviderRoute({
+      availablePlans: [],
+      capacity: {
+        burstCapacityEligible: true,
+        capacityKind: "reserved",
+        concurrencyLimit: 8,
+        includedMonthlyCredits: 1_000_000,
+        planId: "hugerouter-pro",
+        planName: "Hugerouter Pro",
+        remainingCredits: 900_000,
+        resetsAt: null,
+        sharedCapacityEligible: true,
+      },
+      connection: {
+        accountLabel: "Acme",
+        dashboardUrl: "https://hugerouter.openhuge.example/dashboard",
+        diagnostics: [],
+        projectId: "proj_core",
+        routeBaseUrl: "https://router.openhuge.example/v1",
+        status: "connected",
+        tenantId: "tenant_acme",
+      },
+      order: {
+        checkoutUrl: null,
+        manageUrl: "https://hugerouter.openhuge.example/orders",
+        nextBillingAt: null,
+        orderId: "order_1",
+        planId: "hugerouter-pro",
+        status: "active",
+      },
+      routeToken: {
+        envKey: "HUGEROUTER_ROUTE_TOKEN",
+        expiresAt: null,
+        lastFour: "t3v1",
+        lastIssuedAt: 1,
+        scopes: ["route:codex"],
+        status: "active",
+        tokenId: "rt_1",
+      },
+    });
+
+    expect(hugeRouterRoute).toEqual(
+      expect.objectContaining({
+        backendId: "codex-app-server-hugerouter",
+        backendLabel: "Embedded Codex app-server via HugeRouter",
+        provider: "codex",
+        status: "ready",
+        summary: expect.stringContaining("HUGEROUTER_ROUTE_TOKEN"),
+      })
+    );
+
+    const catalog = buildT3ProviderCatalog([backend({})], [model({})], "now", {
+      hugeRouterCommercialService: {
+        availablePlans: [],
+        capacity: null,
+        connection: {
+          accountLabel: "Acme",
+          dashboardUrl: null,
+          diagnostics: [],
+          projectId: null,
+          routeBaseUrl: "https://router.openhuge.example/v1",
+          status: "connected",
+          tenantId: null,
+        },
+        order: null,
+        routeToken: {
+          envKey: "HUGEROUTER_ROUTE_TOKEN",
+          expiresAt: null,
+          lastFour: "t3v1",
+          lastIssuedAt: 1,
+          scopes: ["route:codex"],
+          status: "active",
+          tokenId: "rt_1",
+        },
+      },
+    });
+
+    expect(catalog.routes[0]).toEqual(
+      expect.objectContaining({
+        backendId: "codex-app-server-hugerouter",
+        provider: "codex",
+      })
+    );
+    expect(JSON.stringify(catalog)).not.toContain("hgrt_secret");
   });
 
   it("maps HugeCode local CLI backends to t3 provider routes", () => {

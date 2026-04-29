@@ -5,10 +5,26 @@ products from the t3code-style workspace.
 
 ## Safety Model
 
-- HugeCode must not store, export, copy, or replay cookies, passwords, OAuth tokens, or session
-  storage.
+- HugeCode may support same-user, multi-device profile migration through encrypted, cloud-managed
+  browser-state bundles. Those bundles can include cookies, Local Storage, IndexedDB, Cache Storage,
+  Service Worker state, extension data, bookmarks, history, site settings, and disclosed browser
+  environment configuration when the user explicitly syncs or migrates a profile.
+- Raw credential and browser-storage export remains blocked. The product must not expose plaintext
+  cookies, passwords, OAuth tokens, refresh tokens, private keys, raw browser databases, or session
+  storage dumps through UI, logs, import/export files, or local mocks.
 - A browser profile is a pointer to an existing browser session or a remote DevTools endpoint, not a
-  credential container.
+  plaintext credential container. Production sync payloads must be encrypted, versioned, scoped to
+  the same authenticated user, and restorable only on trusted devices.
+- Profile migration uses a single-writer lock. One device may open a profile read-write; other
+  devices should see the active device, last sync time, latest version, and takeover options instead
+  of writing concurrently.
+- "Sync and close" or "migrate to another device" is the reliable commit point. Do not imply that an
+  open profile is already safely uploaded until the profile is closed, the encrypted bundle is
+  committed, and the write lock is released.
+- Force takeover is allowed for stale or lost devices, but it must show data-loss risk, record an
+  audit entry, and mark the previous device stale or read-only until it refreshes.
+- Every successful close-and-sync should create a version snapshot so users can restore a previous
+  stable profile when a site logs out, state conflicts, or profile data becomes corrupt.
 - Fingerprint support means native fingerprint transparency and consistency checks. HugeCode may
   show browser-exposed attributes such as browser family, language, timezone, device class, profile
   source, and connection state.
@@ -18,6 +34,7 @@ products from the t3code-style workspace.
 - Do not implement anti-detect behavior, CAPTCHA bypasses, risk-control evasion, or fingerprint
   spoofing. If a future managed browser profile needs stable device metadata, it must be disclosed
   as a user-controlled local profile and must not impersonate another user or device.
+- Product copy must distinguish same-user multi-device migration from multi-person account sharing.
 
 ## Supported Session Types
 
@@ -28,10 +45,10 @@ products from the t3code-style workspace.
   already available to the current browser context.
 - Remote DevTools reference: saves only a sanitized endpoint URL and label. Credentials remain in
   the remote browser.
-- Hugerouter profile sync mock: stores profile metadata, device count, and remote-session
-  availability locally while explicitly blocking credential payloads. This models how two HugeCode
-  installations can use a member account through a remote session without copying cookies or tokens
-  between machines.
+- Hugerouter profile sync mock: stores profile metadata, device count, remote-session availability,
+  single-writer lock state, device names, version snapshots, and audit entries locally. It models
+  encrypted cloud-managed browser-state sync without exposing raw cookies, tokens, Local Storage,
+  IndexedDB, or extension databases in the web mock.
 - Guest Pass mock: creates a time-limited, revocable, supervised-use pass for a selected provider
   profile. The pass stores only a local invite code, profile/provider metadata, expiry, audit mode,
   and blocked-action policy; it does not store passwords, cookies, tokens, local storage, session
@@ -76,6 +93,11 @@ products from the t3code-style workspace.
 - Keep profile/space language aligned with mainstream browser concepts: profiles separate browsing
   data, while spaces or launch contexts organize links and sessions.
 - In-app browser surfaces must show enough URL and security context before users enter credentials.
+- Multi-device UX should expose "Continue here", "Sync and close", "Migrate to another device",
+  "Force takeover", and "Restore version" as explicit profile lifecycle actions.
+- Profile status should show whether the profile is available, in use, syncing, conflicted, or
+  stale-locked; the source device; recent sync time; latest version; and whether encrypted restore is
+  approval-gated.
 - Friend or teammate sharing should be presented as "supervised remote-session access", not account
   credential sharing. The owner must be able to revoke access, see active passes, and keep sensitive
   actions blocked by default.
@@ -109,15 +131,24 @@ products from the t3code-style workspace.
 
 ## Hugerouter Contract Direction
 
-The future `openhuge/hugerouter` service should expose profile sync as a remote-session handoff
-contract, not a credential-sync contract:
+The future `openhuge/hugerouter` service should expose profile sync as a same-user encrypted
+profile-migration contract:
 
-- Syncable: profile label, provider capability, device binding, remote session reference, health,
-  last sync timestamp, and user-visible policy text.
-- Not syncable: cookies, passwords, refresh tokens, OAuth access tokens, local storage, session
-  storage, private keys, or raw browser databases.
+- Syncable as plaintext metadata: profile label, provider capability, device binding, remote session
+  reference, health, last sync timestamp, active lock holder, version number, source device, audit
+  summaries, and user-visible policy text.
+- Syncable only inside encrypted cloud payloads: cookies, Local Storage, IndexedDB, Cache Storage,
+  Service Worker state, extension data, bookmarks, history, site settings, and browser environment
+  configuration needed to restore the same user's Web environment.
+- Not syncable or exportable as raw values: passwords, refresh tokens outside browser-managed
+  storage, OAuth access-token fields, private keys, raw browser database files, and plaintext session
+  storage dumps.
 - Account usability across machines should come from controlling or resuming a logged-in browser
-  session on an authorized device, or from the provider's official login/sync flow.
+  profile on an authorized device, or from the provider's official login/sync flow. Same-user profile
+  migration must not become multi-user account resale.
+- Profile migration fields should include `status`, `lock`, `lastSourceDeviceName`, `lastSyncedAt`,
+  `latestVersionId`, `latestVersionNumber`, `snapshots`, `stateClasses`, and `auditLog`. The lock is
+  single-writer; force takeover records the previous device and warns about unsynced state.
 - Guest pass fields should remain capability metadata: pass id, profile id, provider id, expiry,
   revoked state, approval policy, audit mode, and blocked-action categories. A production pass is a
   Hugerouter capability to a controlled remote session, not a serialized browser profile.

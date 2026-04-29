@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-04-11T08:29:27.056Z`
+- Generated at: `2026-04-25T23:42:48.736Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
-- Method-set hash: `c77e4ca9c0f59bfc`
+- Method-set hash: `9db6870dadcc8890`
 
 ## Features
 
@@ -68,6 +68,7 @@
 - `runtime_invocation_host_registry_v1`
 - `runtime_codex_execpolicy_preflight_v1`
 - `runtime_codex_unified_rpc_migration_v1`
+- `hugerouter_commercial_service_v1`
 - `runtime_host_deprecated`
 - `app_server_protocol_v2_2026_03_25`
 - `contract_frozen_2026_03_25`
@@ -85,6 +86,8 @@
 - `code_terminal_status`
 - `code_models_pool`
 - `code_providers_catalog`
+- `code_hugerouter_commercial_service_read`
+- `code_hugerouter_route_token_issue`
 - `code_workspaces_list`
 - `code_bootstrap_snapshot`
 - `code_mission_control_snapshot_v1`
@@ -285,6 +288,8 @@
 - `code_git_stage_change`
 - `code_git_unstage_change`
 - `code_health`
+- `code_hugerouter_commercial_service_read`
+- `code_hugerouter_route_token_issue`
 - `code_kernel_capabilities_list_v2`
 - `code_kernel_context_snapshot_v2`
 - `code_kernel_extensions_list_v2`

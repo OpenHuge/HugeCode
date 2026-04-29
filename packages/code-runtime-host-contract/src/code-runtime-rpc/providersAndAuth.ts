@@ -30,6 +30,112 @@ export type RuntimeProviderReadinessKind =
 
 export type RuntimeProviderExecutionKind = "local" | "cloud";
 
+export type HugeRouterCommercialServiceStatus =
+  | "not_connected"
+  | "connected"
+  | "action_required"
+  | "unavailable";
+
+export type HugeRouterCommercialCapacityKind =
+  | "included"
+  | "reserved"
+  | "shared"
+  | "brokered"
+  | "external_relay";
+
+export type HugeRouterCommercialOrderStatus =
+  | "none"
+  | "draft"
+  | "pending_payment"
+  | "active"
+  | "past_due"
+  | "canceled";
+
+export type HugeRouterRouteTokenStatus = "not_issued" | "active" | "expiring" | "revoked";
+
+export type HugeRouterCommercialConnectionSummary = {
+  status: HugeRouterCommercialServiceStatus;
+  tenantId: string | null;
+  projectId: string | null;
+  accountLabel: string | null;
+  dashboardUrl: string | null;
+  routeBaseUrl: string | null;
+  diagnostics: string[];
+};
+
+export type HugeRouterCommercialPlanSummary = {
+  planId: string;
+  name: string;
+  description: string | null;
+  capacityKind: HugeRouterCommercialCapacityKind;
+  includedMonthlyCredits: number | null;
+  currency: string | null;
+  unitPriceLabel: string | null;
+  orderUrl: string | null;
+};
+
+export type HugeRouterCommercialCapacitySummary = {
+  capacityKind: HugeRouterCommercialCapacityKind | null;
+  planId: string | null;
+  planName: string | null;
+  includedMonthlyCredits: number | null;
+  remainingCredits: number | null;
+  concurrencyLimit: number | null;
+  sharedCapacityEligible: boolean | null;
+  burstCapacityEligible: boolean | null;
+  resetsAt: number | null;
+};
+
+export type HugeRouterCommercialOrderSummary = {
+  orderId: string | null;
+  status: HugeRouterCommercialOrderStatus;
+  planId: string | null;
+  checkoutUrl: string | null;
+  manageUrl: string | null;
+  nextBillingAt: number | null;
+};
+
+export type HugeRouterRouteTokenSummary = {
+  tokenId: string | null;
+  status: HugeRouterRouteTokenStatus;
+  envKey: string;
+  expiresAt: number | null;
+  scopes: string[];
+  lastIssuedAt: number | null;
+  lastFour: string | null;
+};
+
+export type HugeRouterCommercialServiceSnapshot = {
+  connection: HugeRouterCommercialConnectionSummary;
+  capacity: HugeRouterCommercialCapacitySummary | null;
+  availablePlans: HugeRouterCommercialPlanSummary[];
+  order: HugeRouterCommercialOrderSummary | null;
+  routeToken: HugeRouterRouteTokenSummary | null;
+};
+
+export type HugeRouterCommercialConnectRequest = {
+  workspaceId?: string | null;
+  returnUrl?: string | null;
+};
+
+export type HugeRouterCommercialConnectResponse = {
+  connectUrl: string;
+  expiresAt: number | null;
+};
+
+export type HugeRouterRouteTokenIssueRequest = {
+  workspaceId?: string | null;
+  projectId?: string | null;
+  envKey?: string | null;
+  scopes?: string[] | null;
+  ttlSeconds?: number | null;
+};
+
+export type HugeRouterRouteTokenIssueResponse = {
+  token: string;
+  summary: HugeRouterRouteTokenSummary;
+};
+
 export type RuntimeProviderCatalogEntry = {
   providerId: CanonicalModelProvider | (string & {});
   displayName: string;

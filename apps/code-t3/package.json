@@ -13,11 +13,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@heroui/react": "^3.0.3",
+    "@heroui/styles": "^3.0.3",
     "@ku0/code-runtime-host-contract": "workspace:*",
     "@ku0/code-t3-runtime-adapter": "workspace:*",
     "lucide-react": "^0.576.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

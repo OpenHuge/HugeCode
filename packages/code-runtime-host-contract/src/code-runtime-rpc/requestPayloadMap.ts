@@ -48,6 +48,7 @@ import type {
   OAuthChatgptAuthTokensRefreshRequest,
   OAuthCodexLoginCancelRequest,
   OAuthCodexLoginStartRequest,
+  HugeRouterRouteTokenIssueRequest,
   OAuthPoolAccountBindRequest,
   OAuthPoolApplyInput,
   OAuthPoolMemberInput,
@@ -135,6 +136,8 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.TERMINAL_STATUS]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.MODELS_POOL]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.PROVIDERS_CATALOG]: CodeRuntimeRpcEmptyParams;
+  [CODE_RUNTIME_RPC_METHODS.HUGEROUTER_COMMERCIAL_SERVICE_READ]: CodeRuntimeRpcEmptyParams;
+  [CODE_RUNTIME_RPC_METHODS.HUGEROUTER_ROUTE_TOKEN_ISSUE]: HugeRouterRouteTokenIssueRequest;
   [CODE_RUNTIME_RPC_METHODS.WORKSPACES_LIST]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.BOOTSTRAP_SNAPSHOT]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1]: CodeRuntimeRpcEmptyParams;

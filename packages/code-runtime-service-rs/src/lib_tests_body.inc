@@ -10363,7 +10363,110 @@ exit 1
                 events.iter().any(|event| {
                     event["status"] == Value::String("rejected".to_string())
                 })
-            }));
+        }));
+    }
+
+    #[tokio::test]
+    async fn rpc_hugerouter_commercial_service_read_reports_not_connected_without_route_token() {
+        let app = test_router();
+        let payload = send_rpc_request(
+            app,
+            json!({"method":"code_hugerouter_commercial_service_read","params":{}}),
+        )
+        .await;
+
+        assert_eq!(payload["ok"], Value::Bool(true));
+        assert_eq!(
+            payload["result"]["connection"]["status"],
+            Value::String("not_connected".to_string())
+        );
+        assert_eq!(
+            payload["result"]["routeToken"]["status"],
+            Value::String("not_issued".to_string())
+        );
+        assert!(payload["result"]["availablePlans"]
+            .as_array()
+            .is_some_and(|plans| !plans.is_empty()));
+    }
+
+    #[tokio::test]
+    async fn rpc_hugerouter_commercial_service_read_projects_configured_route_token() {
+        let mut config = test_service_config_with_openai_compat("https://router.example.com/v1");
+        config.openai_compat_api_key = Some("hgrt_runtime_secret_1234".to_string());
+        let app = test_router_with_config(config);
+        let payload = send_rpc_request(
+            app,
+            json!({"method":"code_hugerouter_commercial_service_read","params":{}}),
+        )
+        .await;
+
+        assert_eq!(payload["ok"], Value::Bool(true));
+        assert_eq!(
+            payload["result"]["connection"]["status"],
+            Value::String("connected".to_string())
+        );
+        assert_eq!(
+            payload["result"]["connection"]["routeBaseUrl"],
+            Value::String("https://router.example.com/v1".to_string())
+        );
+        assert_eq!(
+            payload["result"]["routeToken"]["status"],
+            Value::String("active".to_string())
+        );
+        assert_eq!(
+            payload["result"]["routeToken"]["lastFour"],
+            Value::String("1234".to_string())
+        );
+        assert!(!payload.to_string().contains("hgrt_runtime_secret_1234"));
+    }
+
+    #[tokio::test]
+    async fn rpc_hugerouter_route_token_issue_returns_redacted_runtime_managed_token() {
+        let mut config = test_service_config_with_openai_compat("https://router.example.com/v1");
+        config.openai_compat_api_key = Some("hgrt_runtime_secret_abcd".to_string());
+        let app = test_router_with_config(config);
+        let payload = send_rpc_request(
+            app,
+            json!({
+                "method":"code_hugerouter_route_token_issue",
+                "params":{
+                    "envKey":"HUGEROUTER_ROUTE_TOKEN",
+                    "scopes":["route:codex","provider:hugerouter-commercial"]
+                }
+            }),
+        )
+        .await;
+
+        assert_eq!(payload["ok"], Value::Bool(true));
+        assert_eq!(
+            payload["result"]["token"],
+            Value::String("runtime_managed_route_token_redacted".to_string())
+        );
+        assert_eq!(
+            payload["result"]["summary"]["status"],
+            Value::String("active".to_string())
+        );
+        assert_eq!(
+            payload["result"]["summary"]["lastFour"],
+            Value::String("abcd".to_string())
+        );
+        assert!(!payload.to_string().contains("hgrt_runtime_secret_abcd"));
+    }
+
+    #[tokio::test]
+    async fn rpc_hugerouter_route_token_issue_rejects_missing_runtime_token() {
+        let app = test_router();
+        let payload = send_rpc_request(
+            app,
+            json!({"method":"code_hugerouter_route_token_issue","params":{}}),
+        )
+        .await;
+
+        assert_eq!(payload["ok"], Value::Bool(false));
+        assert_eq!(
+            payload["error"]["code"],
+            Value::String("INVALID_PARAMS".to_string())
+        );
     }
 
     #[tokio::test]

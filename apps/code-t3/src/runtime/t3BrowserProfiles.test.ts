@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildT3BrowserFingerprintSummary,
+  buildT3BrowserProfileOperationsReport,
+  buildT3BrowserProductContinuity,
   buildT3AiGatewaySummaryMock,
   addT3BrowserSeatPoolMemberMock,
   createT3AiGatewayRouteMock,
@@ -9,6 +11,8 @@ import {
   createT3BrowserIsolatedAppMock,
   createT3BrowserGuestPassMock,
   createT3BrowserProfileBridge,
+  forceTakeoverT3BrowserProfileMigrationMock,
+  getT3BrowserProfileMigrationState,
   getT3BrowserProfileSyncState,
   getT3BrowserSeatPoolMock,
   listT3AiGatewayRoutesMock,
@@ -23,10 +27,17 @@ import {
   removeT3BrowserIsolatedAppMock,
   revokeT3BrowserGuestPassMock,
   settleT3HugerouterCapacityOrderMock,
+  openT3BrowserProfileMigrationMock,
+  restoreT3BrowserProfileVersionMock,
   syncT3BrowserProfileToLocalMock,
+  syncCloseT3BrowserProfileMigrationMock,
   updateT3BrowserSeatPoolCommercialMock,
   type T3BrowserProfileDescriptor,
 } from "./t3BrowserProfiles";
+import {
+  buildT3HugeRouterCommercialServiceSnapshotMock,
+  T3_HUGEROUTER_ROUTE_TOKEN_ENV_KEY,
+} from "./t3HugeRouterCommercial";
 
 describe("t3BrowserProfiles", () => {
   beforeEach(() => {
@@ -158,6 +169,239 @@ describe("t3BrowserProfiles", () => {
     expect(summary.language).toBeTruthy();
   });
 
+  it("builds an operations report for profile launch, proxy, and team readiness", async () => {
+    const bridge = createT3BrowserProfileBridge();
+    const [profile] = await bridge.listProfiles();
+    expect(profile).toBeDefined();
+
+    const initialReport = buildT3BrowserProfileOperationsReport({
+      customUrl: "https://linear.app/acme",
+      profile: profile!,
+      providerId: "custom",
+    });
+
+    expect(initialReport).toEqual(
+      expect.objectContaining({
+        credentialPolicy: expect.stringContaining("encrypted cloud-managed"),
+        proxyPolicy: expect.stringContaining("host-managed"),
+        status: "attention",
+        teamPolicy: expect.stringContaining("Guest Pass"),
+      })
+    );
+    expect(initialReport.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "credentials",
+          status: "ready",
+          summary: expect.stringContaining("encrypted same-user cloud bundles"),
+        }),
+        expect.objectContaining({
+          id: "proxy",
+          status: "attention",
+        }),
+        expect.objectContaining({
+          id: "continuity",
+          status: "attention",
+        }),
+      ])
+    );
+    expect(initialReport.batchActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "create-guest-pass",
+          status: "needs-sync",
+        }),
+        expect.objectContaining({
+          id: "metadata-import-export",
+          status: "host-managed",
+          summary: expect.stringContaining("encrypted cloud restore"),
+        }),
+      ])
+    );
+    expect(JSON.stringify(initialReport)).not.toContain("credentialValue");
+    expect(JSON.stringify(initialReport)).not.toContain("accessToken");
+
+    const syncedReport = buildT3BrowserProfileOperationsReport({
+      customUrl: "https://linear.app/acme",
+      profile: profile!,
+      providerId: "custom",
+      syncState: syncT3BrowserProfileToLocalMock(profile!),
+    });
+
+    expect(syncedReport.batchActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "create-guest-pass",
+          status: "available",
+        }),
+      ])
+    );
+    expect(syncedReport.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "continuity",
+          status: "ready",
+        }),
+      ])
+    );
+  });
+
+  it("blocks operations when the custom target URL is unsafe", async () => {
+    const bridge = createT3BrowserProfileBridge();
+    const [profile] = await bridge.listProfiles();
+    expect(profile).toBeDefined();
+
+    const report = buildT3BrowserProfileOperationsReport({
+      customUrl: "https://user:pass@example.com",
+      profile: profile!,
+      providerId: "custom",
+    });
+
+    expect(report.status).toBe("blocked");
+    expect(report.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "target",
+          status: "blocked",
+          summary: expect.stringContaining("embedded credentials"),
+        }),
+      ])
+    );
+    expect(report.batchActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "open-selected-profile",
+          status: "host-managed",
+        }),
+      ])
+    );
+  });
+
+  it("models same-user profile migration with single-writer locks and encrypted snapshots", async () => {
+    const bridge = createT3BrowserProfileBridge();
+    const [profile] = await bridge.listProfiles();
+    expect(profile).toBeDefined();
+
+    expect(getT3BrowserProfileMigrationState(profile!)).toEqual(
+      expect.objectContaining({
+        credentialPayload: "blocked",
+        latestVersionNumber: 0,
+        status: "available",
+        syncPayload: "host-managed-encrypted",
+      })
+    );
+
+    const openedOnA = openT3BrowserProfileMigrationMock({
+      deviceName: "Office Mac",
+      profile: profile!,
+    });
+    expect(openedOnA).toEqual(
+      expect.objectContaining({
+        currentDeviceName: "Office Mac",
+        status: "in-use",
+        lock: expect.objectContaining({
+          deviceName: "Office Mac",
+        }),
+      })
+    );
+
+    const blockedOnB = openT3BrowserProfileMigrationMock({
+      deviceName: "Home PC",
+      profile: profile!,
+    });
+    expect(blockedOnB).toEqual(
+      expect.objectContaining({
+        currentDeviceName: "Office Mac",
+        status: "in-use",
+      })
+    );
+
+    const synced = syncCloseT3BrowserProfileMigrationMock({
+      deviceName: "Office Mac",
+      profile: profile!,
+    });
+    expect(synced).toEqual(
+      expect.objectContaining({
+        currentDeviceName: null,
+        latestVersionNumber: 1,
+        lastSourceDeviceName: "Office Mac",
+        lock: null,
+        status: "available",
+        syncPayload: "host-managed-encrypted",
+      })
+    );
+    expect(synced.snapshots[0]).toEqual(
+      expect.objectContaining({
+        payloadPolicy: "host-managed-encrypted",
+        sourceDeviceName: "Office Mac",
+        stateClasses: expect.arrayContaining([
+          "cookies",
+          "local-storage",
+          "indexed-db",
+          "extension-data",
+        ]),
+        versionNumber: 1,
+      })
+    );
+
+    const openedOnB = openT3BrowserProfileMigrationMock({
+      deviceName: "Home PC",
+      profile: profile!,
+    });
+    expect(openedOnB).toEqual(
+      expect.objectContaining({
+        currentDeviceName: "Home PC",
+        latestVersionNumber: 1,
+        status: "in-use",
+      })
+    );
+
+    const takenOver = forceTakeoverT3BrowserProfileMigrationMock({
+      deviceName: "Backup Laptop",
+      profile: profile!,
+    });
+    expect(takenOver).toEqual(
+      expect.objectContaining({
+        currentDeviceName: "Backup Laptop",
+        status: "in-use",
+      })
+    );
+    expect(takenOver.auditLog[0]).toEqual(
+      expect.objectContaining({
+        action: "force-takeover",
+        previousDeviceName: "Home PC",
+      })
+    );
+
+    const secondSync = syncCloseT3BrowserProfileMigrationMock({
+      deviceName: "Backup Laptop",
+      profile: profile!,
+    });
+    const restored = restoreT3BrowserProfileVersionMock({
+      deviceName: "Office Mac",
+      profile: profile!,
+      versionId: secondSync.snapshots[1]?.id,
+    });
+    expect(restored).toEqual(
+      expect.objectContaining({
+        latestVersionNumber: 3,
+        status: "available",
+      })
+    );
+    expect(restored.auditLog[0]).toEqual(
+      expect.objectContaining({
+        action: "restore-version",
+      })
+    );
+
+    const storedMigration = JSON.parse(
+      window.localStorage.getItem("hugecode_t3_browser_profile_migration_mock_v1") ?? "{}"
+    ) as Record<string, unknown>;
+    expect(JSON.stringify(storedMigration)).not.toContain("credentialValue");
+    expect(JSON.stringify(storedMigration)).not.toContain("accessToken");
+    expect(JSON.stringify(storedMigration)).not.toContain("refreshToken");
+  });
+
   it("mocks Hugerouter profile sync without credential payloads", async () => {
     const bridge = createT3BrowserProfileBridge();
     const [profile] = await bridge.listProfiles();
@@ -191,6 +435,63 @@ describe("t3BrowserProfiles", () => {
     expect(storedProfileSync["current-browser"]).not.toHaveProperty("cookie");
     expect(storedProfileSync["current-browser"]).not.toHaveProperty("token");
     expect(storedProfileSync["current-browser"]).not.toHaveProperty("credentialValue");
+  });
+
+  it("builds site-scoped product continuity for multi-device use without credentials", async () => {
+    const bridge = createT3BrowserProfileBridge();
+    const [profile] = await bridge.listProfiles();
+    expect(profile).toBeDefined();
+
+    const initialContinuity = buildT3BrowserProductContinuity({
+      customUrl: "https://linear.app/acme?issue=1",
+      profile: profile!,
+      providerId: "custom",
+      recentSessions: [],
+    });
+    expect(initialContinuity).toEqual(
+      expect.objectContaining({
+        accountPortability: "local-only",
+        credentialPayload: "blocked",
+        launchMode: "local-session-only",
+        siteId: "https://linear.app",
+        siteOrigin: "https://linear.app",
+        status: "needs-sync",
+      })
+    );
+
+    const syncState = syncT3BrowserProfileToLocalMock(profile!);
+    await bridge.openProvider({
+      customUrl: "https://linear.app/acme?issue=2",
+      profileId: profile!.id,
+      providerId: "custom",
+    });
+    const syncedContinuity = buildT3BrowserProductContinuity({
+      customUrl: "https://linear.app/other/path",
+      profile: profile!,
+      providerId: "custom",
+      recentSessions: listT3BrowserRecentSessions(),
+      syncState,
+    });
+
+    expect(syncedContinuity).toEqual(
+      expect.objectContaining({
+        accountPortability: "remote-session",
+        credentialPayload: "blocked",
+        deviceCount: 2,
+        launchMode: "remote-session-handoff",
+        siteId: "https://linear.app",
+        siteOrigin: "https://linear.app",
+        status: "ready",
+      })
+    );
+    expect(syncedContinuity.recentProductSessions).toEqual([
+      expect.objectContaining({
+        siteId: "https://linear.app",
+      }),
+    ]);
+    expect(syncedContinuity).not.toHaveProperty("cookie");
+    expect(syncedContinuity).not.toHaveProperty("token");
+    expect(syncedContinuity).not.toHaveProperty("credentialValue");
   });
 
   it("creates revocable guest passes for synced remote sessions without credentials", async () => {
@@ -696,6 +997,61 @@ describe("t3BrowserProfiles", () => {
     expect(storedOrders[0]).not.toHaveProperty("password");
     expect(storedOrders[0]).not.toHaveProperty("cookie");
     expect(storedOrders[0]).not.toHaveProperty("token");
+  });
+
+  it("builds the HugeRouter commercial service contract snapshot for T3 routes", () => {
+    const route = createT3AiGatewayRouteMock({
+      maxConcurrentTasks: 6,
+      ownerLabel: "T3 workspace",
+      planType: "hugerouter-pro",
+      requestBudgetPerDay: 900,
+      routeMode: "official-api",
+    });
+    const listing = createT3HugerouterCapacityListingMock({
+      minPurchaseCredits: 50_000,
+      sellerLabel: "Hugerouter treasury",
+      sourceKind: "hugerouter-native-credits",
+      tier: "hugerouter-pro",
+      totalCredits: 1_000_000,
+      unitPriceCentsPerThousand: 8,
+    });
+    const order = createT3HugerouterCapacityOrderMock({
+      buyerLabel: "Workspace buyer",
+      creditsRequested: 100_000,
+      listingId: listing.id,
+    });
+
+    const snapshot = buildT3HugeRouterCommercialServiceSnapshotMock({
+      listings: listT3HugerouterCapacityListingsMock(),
+      orders: [order],
+      routes: [route],
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        connection: expect.objectContaining({
+          routeBaseUrl: "https://hugerouter.openhuge.local/v1",
+          status: "connected",
+        }),
+        order: expect.objectContaining({
+          orderId: order.id,
+          status: "pending_payment",
+        }),
+        routeToken: expect.objectContaining({
+          envKey: T3_HUGEROUTER_ROUTE_TOKEN_ENV_KEY,
+          lastFour: "t3v1",
+          status: "active",
+        }),
+      })
+    );
+    expect(snapshot.capacity).toEqual(
+      expect.objectContaining({
+        concurrencyLimit: 6,
+        remainingCredits: 900_000,
+      })
+    );
+    expect(JSON.stringify(snapshot)).not.toContain("credentialValue");
+    expect(JSON.stringify(snapshot)).not.toContain("accessToken");
   });
 
   it("enables multiple local isolated apps without credential payloads", async () => {

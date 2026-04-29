@@ -412,6 +412,7 @@ const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "runtime_invocation_host_registry_v1",
     "runtime_codex_execpolicy_preflight_v1",
     "runtime_codex_unified_rpc_migration_v1",
+    "hugerouter_commercial_service_v1",
     "runtime_host_deprecated",
     "app_server_protocol_v2_2026_03_25",
     "contract_frozen_2026_03_25",

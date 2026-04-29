@@ -4,6 +4,11 @@ import type {
   RuntimeBackendSummary,
   TurnInterruptRequest,
 } from "@ku0/code-runtime-host-contract";
+import type {
+  HugeRouterCommercialServiceSnapshot,
+  HugeRouterRouteTokenIssueRequest,
+  HugeRouterRouteTokenIssueResponse,
+} from "@ku0/code-runtime-host-contract/codeRuntimeRpc";
 import {
   CODE_RUNTIME_RPC_EMPTY_PARAMS,
   CODE_RUNTIME_RPC_METHODS,
@@ -11,6 +16,10 @@ import {
 import type { HugeCodeRuntimeBridge } from "@ku0/code-t3-runtime-adapter";
 
 type RuntimeBridgeGlobal = Partial<HugeCodeRuntimeBridge>;
+type RuntimeRpcInvoker = <Result>(
+  method: string,
+  params: Record<string, unknown>
+) => Promise<Result>;
 type DesktopHostBridgeGlobal = {
   core?: {
     invoke?<Result>(command: string, payload?: Record<string, unknown>): Promise<Result>;
@@ -186,11 +195,9 @@ function buildTurnInterruptPayload(request: TurnInterruptRequest): Record<string
   };
 }
 
-function createDesktopRuntimeBridge(desktopHost: DesktopHostBridgeGlobal): HugeCodeRuntimeBridge {
-  const invoke = desktopHost.core?.invoke;
-  if (!invoke) {
-    throw new Error("HugeCode desktop host invoke bridge is unavailable.");
-  }
+export function createHugeCodeT3RuntimeBridgeFromInvoker(
+  invoke: RuntimeRpcInvoker
+): HugeCodeRuntimeBridge {
   return {
     listBackends() {
       return invoke<RuntimeBackendSummary[]>(
@@ -202,6 +209,18 @@ function createDesktopRuntimeBridge(desktopHost: DesktopHostBridgeGlobal): HugeC
       return invoke<ModelPoolEntry[]>(
         CODE_RUNTIME_RPC_METHODS.MODELS_POOL,
         CODE_RUNTIME_RPC_EMPTY_PARAMS
+      );
+    },
+    readHugeRouterCommercialService() {
+      return invoke<HugeRouterCommercialServiceSnapshot | null>(
+        CODE_RUNTIME_RPC_METHODS.HUGEROUTER_COMMERCIAL_SERVICE_READ,
+        CODE_RUNTIME_RPC_EMPTY_PARAMS
+      );
+    },
+    issueHugeRouterRouteToken(request: HugeRouterRouteTokenIssueRequest = {}) {
+      return invoke<HugeRouterRouteTokenIssueResponse>(
+        CODE_RUNTIME_RPC_METHODS.HUGEROUTER_ROUTE_TOKEN_ISSUE,
+        request as Record<string, unknown>
       );
     },
     startAgentTask(request: AgentTaskStartRequest) {
@@ -224,6 +243,87 @@ function createDesktopRuntimeBridge(desktopHost: DesktopHostBridgeGlobal): HugeC
         reason: null,
       });
     },
+  };
+}
+
+function createDesktopRuntimeInvoker(desktopHost: DesktopHostBridgeGlobal): RuntimeRpcInvoker {
+  const invoke = desktopHost.core?.invoke;
+  if (!invoke) {
+    throw new Error("HugeCode desktop host invoke bridge is unavailable.");
+  }
+  return (method, params) => invoke(method, params);
+}
+
+function createDesktopRuntimeBridge(desktopHost: DesktopHostBridgeGlobal): HugeCodeRuntimeBridge {
+  return createHugeCodeT3RuntimeBridgeFromInvoker(createDesktopRuntimeInvoker(desktopHost));
+}
+
+function createRuntimeGatewayInvoker(endpoint: string): RuntimeRpcInvoker {
+  return (method, params) => invokeRuntimeGateway(endpoint, method, params);
+}
+
+export function createHugeCodeT3RuntimeBridgeFromGatewayEndpoint(
+  endpoint: string
+): HugeCodeRuntimeBridge {
+  return createHugeCodeT3RuntimeBridgeFromInvoker(createRuntimeGatewayInvoker(endpoint));
+}
+
+type RuntimeBridgeAttempt<Result> = {
+  run: () => Promise<Result>;
+  shouldContinue?: (error: unknown) => boolean;
+};
+
+async function firstRuntimeBridgeResult<Result>(
+  attempts: readonly RuntimeBridgeAttempt<Result>[],
+  fallback: () => Promise<Result> | Result
+): Promise<Result> {
+  for (const attempt of attempts) {
+    try {
+      return await attempt.run();
+    } catch (error) {
+      if (!attempt.shouldContinue?.(error)) {
+        throw error;
+      }
+    }
+  }
+  return fallback();
+}
+
+function shouldContinueFromDesktopToGateway(
+  runtimeGatewayBridge: HugeCodeRuntimeBridge | null,
+  error: unknown
+) {
+  return Boolean(runtimeGatewayBridge) && isMissingDesktopRuntimeHandler(error);
+}
+
+function shouldContinueFromGatewayToDevFallback(error: unknown) {
+  if (!import.meta.env.DEV) {
+    return false;
+  }
+  return error instanceof Error;
+}
+
+function buildDevRouteTokenResponse(
+  request: HugeRouterRouteTokenIssueRequest = {}
+): HugeRouterRouteTokenIssueResponse {
+  const now = Date.now();
+  const envKey = request.envKey?.trim() || "HUGEROUTER_ROUTE_TOKEN";
+  return {
+    summary: {
+      envKey,
+      expiresAt: null,
+      lastFour: "t3v1",
+      lastIssuedAt: now,
+      scopes: request.scopes ?? [
+        "route:codex",
+        "route:claude",
+        "provider:any-relay",
+        "provider:hugerouter-commercial",
+      ],
+      status: "active",
+      tokenId: `dev-route-token-${now}`,
+    },
+    token: "dev_hugerouter_route_token_redacted",
   };
 }
 
@@ -258,46 +358,7 @@ function resolveRuntimeGatewayEndpoint() {
 }
 
 function createRuntimeGatewayBridge(endpoint: string): HugeCodeRuntimeBridge {
-  return {
-    listBackends() {
-      return invokeRuntimeGateway<RuntimeBackendSummary[]>(
-        endpoint,
-        CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST,
-        CODE_RUNTIME_RPC_EMPTY_PARAMS
-      );
-    },
-    listModels() {
-      return invokeRuntimeGateway<ModelPoolEntry[]>(
-        endpoint,
-        CODE_RUNTIME_RPC_METHODS.MODELS_POOL,
-        CODE_RUNTIME_RPC_EMPTY_PARAMS
-      );
-    },
-    startAgentTask(request: AgentTaskStartRequest) {
-      return invokeRuntimeGateway(
-        endpoint,
-        CODE_RUNTIME_RPC_METHODS.TURN_SEND,
-        buildTurnSendPayload(request)
-      );
-    },
-    interruptTurn(turnId: string | null, reason?: string | null) {
-      const request: TurnInterruptRequest = {
-        turnId,
-        reason: reason ?? null,
-      };
-      return invokeRuntimeGateway<boolean>(endpoint, CODE_RUNTIME_RPC_METHODS.TURN_INTERRUPT, {
-        payload: buildTurnInterruptPayload(request),
-      });
-    },
-    approveRequest(requestId: string, approved: boolean) {
-      return invokeRuntimeGateway(endpoint, CODE_RUNTIME_RPC_METHODS.ACTION_REQUIRED_SUBMIT_V2, {
-        requestId,
-        kind: null,
-        status: approved ? "approved" : "rejected",
-        reason: null,
-      });
-    },
-  };
+  return createHugeCodeT3RuntimeBridgeFromGatewayEndpoint(endpoint);
 }
 
 function isMissingDesktopRuntimeHandler(error: unknown) {
@@ -318,124 +379,203 @@ export function createHugeCodeT3RuntimeBridge(): HugeCodeRuntimeBridge {
     import.meta.env.DEV && !runtimeBridge && !desktopRuntimeBridge && !runtimeGatewayBridge;
   return {
     async listBackends() {
-      if (runtimeBridge?.listBackends) {
-        return runtimeBridge.listBackends();
-      }
-      if (desktopRuntimeBridge) {
-        try {
-          return await desktopRuntimeBridge.listBackends();
-        } catch (error) {
-          if (!runtimeGatewayBridge || !isMissingDesktopRuntimeHandler(error)) {
-            throw error;
-          }
-        }
-      }
-      if (runtimeGatewayBridge) {
-        try {
-          return await runtimeGatewayBridge.listBackends();
-        } catch (error) {
-          if (!import.meta.env.DEV) {
-            throw error;
-          }
-        }
-      }
-      return fallbackBackends(devCompatibilityMode);
+      return firstRuntimeBridgeResult(
+        [
+          ...(runtimeBridge?.listBackends ? [{ run: () => runtimeBridge.listBackends!() }] : []),
+          ...(desktopRuntimeBridge
+            ? [
+                {
+                  run: () => desktopRuntimeBridge.listBackends(),
+                  shouldContinue: (error: unknown) =>
+                    shouldContinueFromDesktopToGateway(runtimeGatewayBridge, error),
+                },
+              ]
+            : []),
+          ...(runtimeGatewayBridge
+            ? [
+                {
+                  run: () => runtimeGatewayBridge.listBackends(),
+                  shouldContinue: shouldContinueFromGatewayToDevFallback,
+                },
+              ]
+            : []),
+        ],
+        () => fallbackBackends(devCompatibilityMode)
+      );
     },
     async listModels() {
-      if (runtimeBridge?.listModels) {
-        return runtimeBridge.listModels();
-      }
-      if (desktopRuntimeBridge) {
-        try {
-          return await desktopRuntimeBridge.listModels();
-        } catch (error) {
-          if (!runtimeGatewayBridge || !isMissingDesktopRuntimeHandler(error)) {
-            throw error;
+      return firstRuntimeBridgeResult(
+        [
+          ...(runtimeBridge?.listModels ? [{ run: () => runtimeBridge.listModels!() }] : []),
+          ...(desktopRuntimeBridge
+            ? [
+                {
+                  run: () => desktopRuntimeBridge.listModels(),
+                  shouldContinue: (error: unknown) =>
+                    shouldContinueFromDesktopToGateway(runtimeGatewayBridge, error),
+                },
+              ]
+            : []),
+          ...(runtimeGatewayBridge
+            ? [
+                {
+                  run: () => runtimeGatewayBridge.listModels(),
+                  shouldContinue: shouldContinueFromGatewayToDevFallback,
+                },
+              ]
+            : []),
+        ],
+        () => fallbackModels()
+      );
+    },
+    async readHugeRouterCommercialService() {
+      return firstRuntimeBridgeResult(
+        [
+          ...(runtimeBridge?.readHugeRouterCommercialService
+            ? [{ run: () => runtimeBridge.readHugeRouterCommercialService!() }]
+            : []),
+          ...(desktopRuntimeBridge?.readHugeRouterCommercialService
+            ? [
+                {
+                  run: () => desktopRuntimeBridge.readHugeRouterCommercialService!(),
+                  shouldContinue: (error: unknown) =>
+                    shouldContinueFromDesktopToGateway(runtimeGatewayBridge, error),
+                },
+              ]
+            : []),
+          ...(runtimeGatewayBridge?.readHugeRouterCommercialService
+            ? [
+                {
+                  run: () => runtimeGatewayBridge.readHugeRouterCommercialService!(),
+                  shouldContinue: shouldContinueFromGatewayToDevFallback,
+                },
+              ]
+            : []),
+        ],
+        () => null
+      );
+    },
+    async issueHugeRouterRouteToken(request: HugeRouterRouteTokenIssueRequest = {}) {
+      return firstRuntimeBridgeResult(
+        [
+          ...(runtimeBridge?.issueHugeRouterRouteToken
+            ? [{ run: () => runtimeBridge.issueHugeRouterRouteToken!(request) }]
+            : []),
+          ...(desktopRuntimeBridge?.issueHugeRouterRouteToken
+            ? [
+                {
+                  run: () => desktopRuntimeBridge.issueHugeRouterRouteToken!(request),
+                  shouldContinue: (error: unknown) =>
+                    shouldContinueFromDesktopToGateway(runtimeGatewayBridge, error),
+                },
+              ]
+            : []),
+          ...(runtimeGatewayBridge?.issueHugeRouterRouteToken
+            ? [
+                {
+                  run: () => runtimeGatewayBridge.issueHugeRouterRouteToken!(request),
+                  shouldContinue: shouldContinueFromGatewayToDevFallback,
+                },
+              ]
+            : []),
+        ],
+        () => {
+          if (devCompatibilityMode || import.meta.env.DEV) {
+            return buildDevRouteTokenResponse(request);
           }
+          throw new Error("HugeRouter route token service is not connected.");
         }
-      }
-      if (runtimeGatewayBridge) {
-        try {
-          return await runtimeGatewayBridge.listModels();
-        } catch (error) {
-          if (!import.meta.env.DEV) {
-            throw error;
-          }
-        }
-      }
-      return fallbackModels();
+      );
     },
     async startAgentTask(request: AgentTaskStartRequest) {
-      if (runtimeBridge?.startAgentTask) {
-        return runtimeBridge.startAgentTask(request);
-      }
-      if (desktopRuntimeBridge) {
-        try {
-          return await desktopRuntimeBridge.startAgentTask(request);
-        } catch (error) {
-          if (!runtimeGatewayBridge || !isMissingDesktopRuntimeHandler(error)) {
-            throw error;
+      return firstRuntimeBridgeResult(
+        [
+          ...(runtimeBridge?.startAgentTask
+            ? [{ run: () => runtimeBridge.startAgentTask!(request) }]
+            : []),
+          ...(desktopRuntimeBridge
+            ? [
+                {
+                  run: () => desktopRuntimeBridge.startAgentTask(request),
+                  shouldContinue: (error: unknown) =>
+                    shouldContinueFromDesktopToGateway(runtimeGatewayBridge, error),
+                },
+              ]
+            : []),
+          ...(runtimeGatewayBridge
+            ? [{ run: () => runtimeGatewayBridge.startAgentTask(request) }]
+            : []),
+        ],
+        () => {
+          if (devCompatibilityMode) {
+            return {
+              accepted: true,
+              compatibilityMode: true,
+              message: "Started through the standalone Vite compatibility bridge.",
+              request,
+              taskId: `dev-compat-${Date.now()}`,
+            };
           }
+          throw new Error(
+            `HugeCode runtime bridge is not connected. Cannot launch ${request.title ?? "task"}.`
+          );
         }
-      }
-      if (runtimeGatewayBridge) {
-        return runtimeGatewayBridge.startAgentTask(request);
-      }
-      if (devCompatibilityMode) {
-        return {
-          accepted: true,
-          compatibilityMode: true,
-          message: "Started through the standalone Vite compatibility bridge.",
-          request,
-          taskId: `dev-compat-${Date.now()}`,
-        };
-      }
-      throw new Error(
-        `HugeCode runtime bridge is not connected. Cannot launch ${request.title ?? "task"}.`
       );
     },
     async interruptTurn(turnId: string | null, reason?: string | null) {
-      if (runtimeBridge?.interruptTurn) {
-        return runtimeBridge.interruptTurn(turnId, reason);
-      }
-      if (desktopRuntimeBridge) {
-        try {
-          return await desktopRuntimeBridge.interruptTurn(turnId, reason);
-        } catch (error) {
-          if (!runtimeGatewayBridge || !isMissingDesktopRuntimeHandler(error)) {
-            throw error;
+      return firstRuntimeBridgeResult(
+        [
+          ...(runtimeBridge?.interruptTurn
+            ? [{ run: () => runtimeBridge.interruptTurn!(turnId, reason) }]
+            : []),
+          ...(desktopRuntimeBridge
+            ? [
+                {
+                  run: () => desktopRuntimeBridge.interruptTurn(turnId, reason),
+                  shouldContinue: (error: unknown) =>
+                    shouldContinueFromDesktopToGateway(runtimeGatewayBridge, error),
+                },
+              ]
+            : []),
+          ...(runtimeGatewayBridge
+            ? [{ run: () => runtimeGatewayBridge.interruptTurn(turnId, reason) }]
+            : []),
+        ],
+        () => {
+          if (devCompatibilityMode) {
+            return { accepted: true, compatibilityMode: true, reason, turnId };
           }
+          throw new Error("HugeCode runtime bridge is not connected. Cannot interrupt the task.");
         }
-      }
-      if (runtimeGatewayBridge) {
-        return runtimeGatewayBridge.interruptTurn(turnId, reason);
-      }
-      if (devCompatibilityMode) {
-        return { accepted: true, compatibilityMode: true, reason, turnId };
-      }
-      throw new Error("HugeCode runtime bridge is not connected. Cannot interrupt the task.");
+      );
     },
     async approveRequest(requestId: string, approved: boolean) {
-      if (runtimeBridge?.approveRequest) {
-        return runtimeBridge.approveRequest(requestId, approved);
-      }
-      if (desktopRuntimeBridge) {
-        try {
-          return await desktopRuntimeBridge.approveRequest(requestId, approved);
-        } catch (error) {
-          if (!runtimeGatewayBridge || !isMissingDesktopRuntimeHandler(error)) {
-            throw error;
+      return firstRuntimeBridgeResult(
+        [
+          ...(runtimeBridge?.approveRequest
+            ? [{ run: () => runtimeBridge.approveRequest!(requestId, approved) }]
+            : []),
+          ...(desktopRuntimeBridge
+            ? [
+                {
+                  run: () => desktopRuntimeBridge.approveRequest(requestId, approved),
+                  shouldContinue: (error: unknown) =>
+                    shouldContinueFromDesktopToGateway(runtimeGatewayBridge, error),
+                },
+              ]
+            : []),
+          ...(runtimeGatewayBridge
+            ? [{ run: () => runtimeGatewayBridge.approveRequest(requestId, approved) }]
+            : []),
+        ],
+        () => {
+          if (devCompatibilityMode) {
+            return { accepted: true, approved, compatibilityMode: true, requestId };
           }
+          throw new Error(
+            `HugeCode runtime bridge is not connected. Cannot ${approved ? "approve" : "reject"} ${requestId}.`
+          );
         }
-      }
-      if (runtimeGatewayBridge) {
-        return runtimeGatewayBridge.approveRequest(requestId, approved);
-      }
-      if (devCompatibilityMode) {
-        return { accepted: true, approved, compatibilityMode: true, requestId };
-      }
-      throw new Error(
-        `HugeCode runtime bridge is not connected. Cannot ${approved ? "approve" : "reject"} ${requestId}.`
       );
     },
   };

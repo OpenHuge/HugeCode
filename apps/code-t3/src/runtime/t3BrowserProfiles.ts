@@ -50,6 +50,87 @@ export type T3BrowserProfileSyncState = {
   summary: string;
 };
 
+export type T3BrowserProfileMigrationStatus =
+  | "available"
+  | "in-use"
+  | "syncing"
+  | "conflict"
+  | "stale-lock";
+
+export type T3BrowserProfileStateClass =
+  | "cookies"
+  | "local-storage"
+  | "indexed-db"
+  | "cache-storage"
+  | "service-worker"
+  | "extension-data"
+  | "bookmarks"
+  | "history"
+  | "site-settings"
+  | "environment-config";
+
+export type T3BrowserProfileMigrationLock = {
+  acquiredAt: number;
+  deviceName: string;
+  mode: "read-write";
+};
+
+export type T3BrowserProfileVersionSnapshot = {
+  createdAt: number;
+  id: string;
+  payloadPolicy: "host-managed-encrypted";
+  sourceDeviceName: string;
+  stateClasses: readonly T3BrowserProfileStateClass[];
+  summary: string;
+  versionNumber: number;
+};
+
+export type T3BrowserProfileMigrationAuditEntry = {
+  action: "open" | "sync-close" | "force-takeover" | "restore-version";
+  actorDeviceName: string;
+  createdAt: number;
+  id: string;
+  previousDeviceName: string | null;
+  summary: string;
+};
+
+export type T3BrowserProfileMigrationState = {
+  auditLog: readonly T3BrowserProfileMigrationAuditEntry[];
+  credentialPayload: "blocked";
+  currentDeviceName: string | null;
+  lastSourceDeviceName: string | null;
+  lastSyncedAt: number | null;
+  latestVersionId: string | null;
+  latestVersionNumber: number;
+  lock: T3BrowserProfileMigrationLock | null;
+  profileId: string;
+  profileLabel: string;
+  snapshots: readonly T3BrowserProfileVersionSnapshot[];
+  stateClasses: readonly T3BrowserProfileStateClass[];
+  status: T3BrowserProfileMigrationStatus;
+  summary: string;
+  syncPayload: "host-managed-encrypted";
+};
+
+export type T3BrowserProductContinuity = {
+  accountPortability: T3BrowserProfileSyncState["accountPortability"];
+  credentialPayload: "blocked";
+  deviceCount: number;
+  deviceLimit: number | null;
+  devicePolicy: T3BrowserProfileSyncState["devicePolicy"];
+  fingerprintPolicy: T3BrowserFingerprintPolicy;
+  launchMode: "local-session-only" | "remote-session-handoff";
+  profileId: string;
+  profileLabel: string;
+  recentProductSessions: readonly T3BrowserRecentSession[];
+  remoteSessionAvailable: boolean;
+  siteId: string;
+  siteLabel: string;
+  siteOrigin: string;
+  status: "needs-sync" | "ready";
+  summary: string;
+};
+
 export type T3BrowserGuestPassStatus = "active" | "expired" | "revoked";
 
 export type T3BrowserGuestPass = {
@@ -260,6 +341,35 @@ export type T3BrowserFingerprintSummary = {
   timezone: string;
 };
 
+export type T3BrowserOperationsStatus = "ready" | "attention" | "blocked";
+
+export type T3BrowserOperationsActionStatus = "available" | "needs-sync" | "host-managed";
+
+export type T3BrowserOperationsCheck = {
+  id: string;
+  label: string;
+  status: T3BrowserOperationsStatus;
+  summary: string;
+};
+
+export type T3BrowserOperationsAction = {
+  id: string;
+  label: string;
+  status: T3BrowserOperationsActionStatus;
+  summary: string;
+};
+
+export type T3BrowserProfileOperationsReport = {
+  batchActions: readonly T3BrowserOperationsAction[];
+  checks: readonly T3BrowserOperationsCheck[];
+  credentialPolicy: string;
+  proxyPolicy: string;
+  status: T3BrowserOperationsStatus;
+  statusLabel: string;
+  summary: string;
+  teamPolicy: string;
+};
+
 export type SaveT3RemoteBrowserProfileInput = {
   endpointUrl: string;
   label?: string | null;
@@ -301,6 +411,7 @@ declare global {
 const STORAGE_KEY = "hugecode_t3_browser_profiles_v1";
 const RECENT_SESSIONS_STORAGE_KEY = "hugecode_t3_browser_recent_sessions_v1";
 const PROFILE_SYNC_STORAGE_KEY = "hugecode_t3_browser_profile_sync_mock_v1";
+const PROFILE_MIGRATION_STORAGE_KEY = "hugecode_t3_browser_profile_migration_mock_v1";
 const GUEST_PASS_STORAGE_KEY = "hugecode_t3_browser_guest_passes_mock_v1";
 const SEAT_POOL_STORAGE_KEY = "hugecode_t3_browser_seat_pools_mock_v1";
 const ISOLATED_APPS_STORAGE_KEY = "hugecode_t3_browser_isolated_apps_mock_v1";
@@ -321,6 +432,18 @@ const PROVIDER_URLS = {
   hugerouter: "https://hugerouter.openhuge.local/",
 } as const satisfies Record<Exclude<T3BrowserProvider, "custom">, string>;
 const PROVIDERS: T3BrowserProvider[] = ["hugerouter", "chatgpt", "gemini", "custom"];
+const PROFILE_MIGRATION_STATE_CLASSES: readonly T3BrowserProfileStateClass[] = [
+  "cookies",
+  "local-storage",
+  "indexed-db",
+  "cache-storage",
+  "service-worker",
+  "extension-data",
+  "bookmarks",
+  "history",
+  "site-settings",
+  "environment-config",
+];
 export const T3_BROWSER_MEMBERSHIP_PLAN_OPTIONS = {
   "chatgpt-plus": {
     planLabel: "ChatGPT Plus",
@@ -812,6 +935,248 @@ function writeMockSyncRecords(records: Record<string, T3BrowserProfileSyncState>
   window.localStorage.setItem(PROFILE_SYNC_STORAGE_KEY, JSON.stringify(records));
 }
 
+function normalizeProfileStateClass(value: unknown): T3BrowserProfileStateClass | null {
+  return PROFILE_MIGRATION_STATE_CLASSES.includes(value as T3BrowserProfileStateClass)
+    ? (value as T3BrowserProfileStateClass)
+    : null;
+}
+
+function normalizeProfileStateClasses(value: unknown): readonly T3BrowserProfileStateClass[] {
+  if (!Array.isArray(value)) {
+    return PROFILE_MIGRATION_STATE_CLASSES;
+  }
+  const stateClasses = value
+    .map(normalizeProfileStateClass)
+    .filter((entry): entry is T3BrowserProfileStateClass => entry !== null);
+  return stateClasses.length > 0
+    ? Array.from(new Set(stateClasses))
+    : PROFILE_MIGRATION_STATE_CLASSES;
+}
+
+function normalizeMigrationStatus(value: unknown): T3BrowserProfileMigrationStatus {
+  if (
+    value === "available" ||
+    value === "in-use" ||
+    value === "syncing" ||
+    value === "conflict" ||
+    value === "stale-lock"
+  ) {
+    return value;
+  }
+  return "available";
+}
+
+function normalizeMigrationLock(value: unknown): T3BrowserProfileMigrationLock | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Partial<T3BrowserProfileMigrationLock>;
+  const deviceName = readText(record.deviceName);
+  if (!deviceName || typeof record.acquiredAt !== "number") {
+    return null;
+  }
+  return {
+    acquiredAt: record.acquiredAt,
+    deviceName,
+    mode: "read-write",
+  };
+}
+
+function normalizeMigrationSnapshot(value: unknown): T3BrowserProfileVersionSnapshot | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Partial<T3BrowserProfileVersionSnapshot>;
+  const id = readText(record.id);
+  const sourceDeviceName = readText(record.sourceDeviceName);
+  if (
+    !id ||
+    !sourceDeviceName ||
+    typeof record.createdAt !== "number" ||
+    typeof record.versionNumber !== "number"
+  ) {
+    return null;
+  }
+  return {
+    createdAt: record.createdAt,
+    id,
+    payloadPolicy: "host-managed-encrypted",
+    sourceDeviceName,
+    stateClasses: normalizeProfileStateClasses(record.stateClasses),
+    summary:
+      readText(record.summary) ??
+      "Version snapshot metadata recorded. Browser state payload is host-managed and encrypted.",
+    versionNumber: Math.max(Math.floor(record.versionNumber), 1),
+  };
+}
+
+function normalizeMigrationAuditEntry(value: unknown): T3BrowserProfileMigrationAuditEntry | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Partial<T3BrowserProfileMigrationAuditEntry>;
+  const id = readText(record.id);
+  const actorDeviceName = readText(record.actorDeviceName);
+  if (!id || !actorDeviceName || typeof record.createdAt !== "number") {
+    return null;
+  }
+  const action =
+    record.action === "open" ||
+    record.action === "sync-close" ||
+    record.action === "force-takeover" ||
+    record.action === "restore-version"
+      ? record.action
+      : "open";
+  return {
+    action,
+    actorDeviceName,
+    createdAt: record.createdAt,
+    id,
+    previousDeviceName: readText(record.previousDeviceName),
+    summary: readText(record.summary) ?? "Profile migration action recorded.",
+  };
+}
+
+function migrationSummary(input: {
+  latestVersionNumber: number;
+  lock: T3BrowserProfileMigrationLock | null;
+  status: T3BrowserProfileMigrationStatus;
+}) {
+  if (input.status === "in-use" && input.lock) {
+    return `Profile is locked for writing on ${input.lock.deviceName}. Other devices should view or request takeover.`;
+  }
+  if (input.status === "stale-lock") {
+    return "Last device did not close cleanly. Review the latest version before forcing takeover.";
+  }
+  if (input.status === "conflict") {
+    return "Two device histories need resolution before this profile can be safely opened.";
+  }
+  if (input.status === "syncing") {
+    return "Profile state is being saved. Wait for upload confirmation before opening elsewhere.";
+  }
+  if (input.latestVersionNumber > 0) {
+    return `Profile v${input.latestVersionNumber} is released and can be continued on another authorized device.`;
+  }
+  return "No migration snapshot yet. Use Sync and close after the first login session is ready.";
+}
+
+function normalizeMigrationState(value: unknown): T3BrowserProfileMigrationState | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const record = value as Partial<T3BrowserProfileMigrationState>;
+  const profileId = readText(record.profileId);
+  const profileLabel = readText(record.profileLabel);
+  if (!profileId || !profileLabel) {
+    return null;
+  }
+  const snapshots = Array.isArray(record.snapshots)
+    ? record.snapshots
+        .map(normalizeMigrationSnapshot)
+        .filter((snapshot): snapshot is T3BrowserProfileVersionSnapshot => snapshot !== null)
+        .sort((left, right) => right.versionNumber - left.versionNumber)
+        .slice(0, 8)
+    : [];
+  const auditLog = Array.isArray(record.auditLog)
+    ? record.auditLog
+        .map(normalizeMigrationAuditEntry)
+        .filter((entry): entry is T3BrowserProfileMigrationAuditEntry => entry !== null)
+        .sort((left, right) => right.createdAt - left.createdAt)
+        .slice(0, 12)
+    : [];
+  const lock = normalizeMigrationLock(record.lock);
+  const status = normalizeMigrationStatus(record.status);
+  const latestVersion = snapshots[0] ?? null;
+  return {
+    auditLog,
+    credentialPayload: "blocked",
+    currentDeviceName: lock?.deviceName ?? readText(record.currentDeviceName),
+    lastSourceDeviceName:
+      readText(record.lastSourceDeviceName) ?? latestVersion?.sourceDeviceName ?? null,
+    lastSyncedAt: typeof record.lastSyncedAt === "number" ? record.lastSyncedAt : null,
+    latestVersionId: latestVersion?.id ?? readText(record.latestVersionId),
+    latestVersionNumber: latestVersion?.versionNumber ?? 0,
+    lock,
+    profileId,
+    profileLabel,
+    snapshots,
+    stateClasses: normalizeProfileStateClasses(record.stateClasses),
+    status,
+    summary:
+      readText(record.summary) ??
+      migrationSummary({
+        latestVersionNumber: latestVersion?.versionNumber ?? 0,
+        lock,
+        status,
+      }),
+    syncPayload: "host-managed-encrypted",
+  };
+}
+
+function readMigrationRecords(): Record<string, T3BrowserProfileMigrationState> {
+  try {
+    const parsed = JSON.parse(
+      window.localStorage.getItem(PROFILE_MIGRATION_STORAGE_KEY) ?? "{}"
+    ) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    const records: Record<string, T3BrowserProfileMigrationState> = {};
+    for (const [profileId, value] of Object.entries(parsed)) {
+      const record = normalizeMigrationState(value);
+      if (record && record.profileId === profileId) {
+        records[profileId] = record;
+      }
+    }
+    return records;
+  } catch {
+    return {};
+  }
+}
+
+function writeMigrationRecords(records: Record<string, T3BrowserProfileMigrationState>) {
+  window.localStorage.setItem(PROFILE_MIGRATION_STORAGE_KEY, JSON.stringify(records));
+}
+
+function defaultMigrationState(
+  profile: T3BrowserProfileDescriptor
+): T3BrowserProfileMigrationState {
+  return {
+    auditLog: [],
+    credentialPayload: "blocked",
+    currentDeviceName: null,
+    lastSourceDeviceName: null,
+    lastSyncedAt: null,
+    latestVersionId: null,
+    latestVersionNumber: 0,
+    lock: null,
+    profileId: profile.id,
+    profileLabel: profile.label,
+    snapshots: [],
+    stateClasses: PROFILE_MIGRATION_STATE_CLASSES,
+    status: "available",
+    summary:
+      "No migration snapshot yet. Use Sync and close after the first login session is ready.",
+    syncPayload: "host-managed-encrypted",
+  };
+}
+
+function migrationAudit(input: {
+  action: T3BrowserProfileMigrationAuditEntry["action"];
+  actorDeviceName: string;
+  previousDeviceName?: string | null;
+  summary: string;
+}): T3BrowserProfileMigrationAuditEntry {
+  return {
+    action: input.action,
+    actorDeviceName: input.actorDeviceName,
+    createdAt: Date.now(),
+    id: createLocalId("profile-migration-audit"),
+    previousDeviceName: input.previousDeviceName ?? null,
+    summary: input.summary,
+  };
+}
+
 function guestPassStatus(pass: Pick<T3BrowserGuestPass, "expiresAt" | "revokedAt">) {
   if (pass.revokedAt !== null) {
     return "revoked";
@@ -1167,8 +1532,8 @@ export function createT3AiGatewayRouteMock(input: {
 
 function hugerouterListingSummary(sourceKind: T3HugerouterCapacitySource) {
   return sourceKind === "hugerouter-native-credits"
-    ? "Hugerouter-native AI credits listed for mock marketplace trading and relay delivery."
-    : "Provider-authorized capacity pool listed for Hugerouter relay after backend eligibility checks.";
+    ? "Hugerouter-native AI credits listed through the local T3 fixture; merchant, metering, settlement, and route receipts remain HugeRouter-owned."
+    : "Provider-authorized capacity pool listed for HugeRouter relay after backend eligibility checks; commercial authority remains in HugeRouter.";
 }
 
 function normalizeHugerouterCapacityListing(value: unknown): T3HugerouterCapacityListing | null {
@@ -1605,7 +1970,7 @@ export function getT3BrowserProfileSyncState(
     remoteSessionAvailable: false,
     status: "idle",
     summary:
-      "Local mock only. Sync profile metadata to prepare remote-session handoff; credentials stay out of sync.",
+      "Local mock only. Use multi-device migration to capture an encrypted cloud-managed browser-state bundle.",
   };
 }
 
@@ -1627,11 +1992,204 @@ export function syncT3BrowserProfileToLocalMock(
     remoteSessionAvailable: true,
     status: "synced",
     summary:
-      "Local Hugerouter mock synced profile metadata and remote-session reference. Web device count is not capped in this mock; login cookies and tokens are not copied.",
+      "Local Hugerouter mock synced profile metadata and remote-session reference. Browser-state payloads are represented as encrypted host/cloud-managed bundles.",
   };
   writeMockSyncRecords({
     ...records,
     [profile.id]: nextState,
+  });
+  return nextState;
+}
+
+export function getT3BrowserProfileMigrationState(
+  profile: T3BrowserProfileDescriptor
+): T3BrowserProfileMigrationState {
+  return readMigrationRecords()[profile.id] ?? defaultMigrationState(profile);
+}
+
+export function openT3BrowserProfileMigrationMock(input: {
+  deviceName: string;
+  profile: T3BrowserProfileDescriptor;
+}): T3BrowserProfileMigrationState {
+  const deviceName = readText(input.deviceName) ?? "This device";
+  const records = readMigrationRecords();
+  const current = records[input.profile.id] ?? defaultMigrationState(input.profile);
+  if (current.lock && current.lock.deviceName !== deviceName) {
+    return {
+      ...current,
+      status: "in-use",
+      summary: `Profile is currently in use on ${current.lock.deviceName}. Force takeover only if that device is unavailable.`,
+    };
+  }
+  const lock: T3BrowserProfileMigrationLock = {
+    acquiredAt: Date.now(),
+    deviceName,
+    mode: "read-write",
+  };
+  const nextState: T3BrowserProfileMigrationState = {
+    ...current,
+    auditLog: [
+      migrationAudit({
+        action: "open",
+        actorDeviceName: deviceName,
+        previousDeviceName: current.lock?.deviceName ?? null,
+        summary: `${deviceName} opened the profile with a single-writer lock.`,
+      }),
+      ...current.auditLog,
+    ].slice(0, 12),
+    currentDeviceName: deviceName,
+    lock,
+    profileLabel: input.profile.label,
+    status: "in-use",
+    summary: `Profile is open on ${deviceName}. Use Sync and close before continuing on another device.`,
+  };
+  writeMigrationRecords({
+    ...records,
+    [input.profile.id]: nextState,
+  });
+  return nextState;
+}
+
+export function syncCloseT3BrowserProfileMigrationMock(input: {
+  deviceName: string;
+  profile: T3BrowserProfileDescriptor;
+}): T3BrowserProfileMigrationState {
+  const deviceName = readText(input.deviceName) ?? "This device";
+  const records = readMigrationRecords();
+  const current = records[input.profile.id] ?? defaultMigrationState(input.profile);
+  const previousVersionNumber = current.snapshots[0]?.versionNumber ?? 0;
+  const versionNumber = previousVersionNumber + 1;
+  const snapshot: T3BrowserProfileVersionSnapshot = {
+    createdAt: Date.now(),
+    id: createLocalId("profile-version"),
+    payloadPolicy: "host-managed-encrypted",
+    sourceDeviceName: deviceName,
+    stateClasses: PROFILE_MIGRATION_STATE_CLASSES,
+    summary:
+      "Encrypted browser-state bundle captured for same-user device migration, including cookies, storage databases, extension data, and browser settings.",
+    versionNumber,
+  };
+  const syncState = syncT3BrowserProfileToLocalMock(input.profile);
+  const nextState: T3BrowserProfileMigrationState = {
+    ...current,
+    auditLog: [
+      migrationAudit({
+        action: "sync-close",
+        actorDeviceName: deviceName,
+        previousDeviceName: current.lock?.deviceName ?? null,
+        summary: `${deviceName} synced encrypted profile state and released the write lock.`,
+      }),
+      ...current.auditLog,
+    ].slice(0, 12),
+    currentDeviceName: null,
+    credentialPayload: "blocked",
+    lastSourceDeviceName: deviceName,
+    lastSyncedAt: syncState.lastSyncedAt,
+    latestVersionId: snapshot.id,
+    latestVersionNumber: versionNumber,
+    lock: null,
+    profileLabel: input.profile.label,
+    snapshots: [snapshot, ...current.snapshots].slice(0, 8),
+    stateClasses: PROFILE_MIGRATION_STATE_CLASSES,
+    status: "available",
+    summary: `Profile v${versionNumber} is synced from ${deviceName} and released for another authorized device.`,
+    syncPayload: "host-managed-encrypted",
+  };
+  writeMigrationRecords({
+    ...records,
+    [input.profile.id]: nextState,
+  });
+  return nextState;
+}
+
+export function forceTakeoverT3BrowserProfileMigrationMock(input: {
+  deviceName: string;
+  profile: T3BrowserProfileDescriptor;
+}): T3BrowserProfileMigrationState {
+  const deviceName = readText(input.deviceName) ?? "This device";
+  const records = readMigrationRecords();
+  const current = records[input.profile.id] ?? defaultMigrationState(input.profile);
+  const previousDeviceName = current.lock?.deviceName ?? current.currentDeviceName;
+  const lock: T3BrowserProfileMigrationLock = {
+    acquiredAt: Date.now(),
+    deviceName,
+    mode: "read-write",
+  };
+  const nextState: T3BrowserProfileMigrationState = {
+    ...current,
+    auditLog: [
+      migrationAudit({
+        action: "force-takeover",
+        actorDeviceName: deviceName,
+        previousDeviceName,
+        summary: `${deviceName} force-took the profile lock from ${previousDeviceName ?? "an unknown device"}.`,
+      }),
+      ...current.auditLog,
+    ].slice(0, 12),
+    currentDeviceName: deviceName,
+    lock,
+    profileLabel: input.profile.label,
+    status: "in-use",
+    summary:
+      "Profile lock was force-taken. The previous device should be treated as stale or read-only until it refreshes.",
+  };
+  writeMigrationRecords({
+    ...records,
+    [input.profile.id]: nextState,
+  });
+  return nextState;
+}
+
+export function restoreT3BrowserProfileVersionMock(input: {
+  deviceName: string;
+  profile: T3BrowserProfileDescriptor;
+  versionId?: string | null;
+}): T3BrowserProfileMigrationState {
+  const deviceName = readText(input.deviceName) ?? "This device";
+  const records = readMigrationRecords();
+  const current = records[input.profile.id] ?? defaultMigrationState(input.profile);
+  const targetSnapshot =
+    current.snapshots.find((snapshot) => snapshot.id === input.versionId) ??
+    current.snapshots[1] ??
+    current.snapshots[0] ??
+    null;
+  if (!targetSnapshot) {
+    throw new Error("No synced profile version is available to restore.");
+  }
+  const restoredVersionNumber = (current.snapshots[0]?.versionNumber ?? 0) + 1;
+  const restoredSnapshot: T3BrowserProfileVersionSnapshot = {
+    ...targetSnapshot,
+    createdAt: Date.now(),
+    id: createLocalId("profile-version"),
+    sourceDeviceName: deviceName,
+    summary: `Restored from v${targetSnapshot.versionNumber}; encrypted browser-state payload remains cloud-managed.`,
+    versionNumber: restoredVersionNumber,
+  };
+  const nextState: T3BrowserProfileMigrationState = {
+    ...current,
+    auditLog: [
+      migrationAudit({
+        action: "restore-version",
+        actorDeviceName: deviceName,
+        previousDeviceName: targetSnapshot.sourceDeviceName,
+        summary: `${deviceName} restored profile state from v${targetSnapshot.versionNumber}.`,
+      }),
+      ...current.auditLog,
+    ].slice(0, 12),
+    currentDeviceName: null,
+    lastSourceDeviceName: deviceName,
+    lastSyncedAt: restoredSnapshot.createdAt,
+    latestVersionId: restoredSnapshot.id,
+    latestVersionNumber: restoredVersionNumber,
+    lock: null,
+    profileLabel: input.profile.label,
+    snapshots: [restoredSnapshot, ...current.snapshots].slice(0, 8),
+    status: "available",
+    summary: `Profile v${restoredVersionNumber} restored from v${targetSnapshot.versionNumber} and released.`,
+  };
+  writeMigrationRecords({
+    ...records,
+    [input.profile.id]: nextState,
   });
   return nextState;
 }
@@ -2017,6 +2575,50 @@ export function listT3BrowserRecentSessions(): T3BrowserRecentSession[] {
   }
 }
 
+export function buildT3BrowserProductContinuity(input: {
+  customUrl?: string | null;
+  profile: T3BrowserProfileDescriptor;
+  providerId: T3BrowserProvider;
+  recentSessions?: readonly T3BrowserRecentSession[];
+  syncState?: T3BrowserProfileSyncState | null;
+}): T3BrowserProductContinuity {
+  const url = resolveProviderUrl({
+    customUrl: input.customUrl,
+    providerId: input.providerId,
+  });
+  const siteScope = buildT3HugerouterSiteScope(url);
+  const syncState = input.syncState ?? getT3BrowserProfileSyncState(input.profile);
+  const recentProductSessions = (input.recentSessions ?? listT3BrowserRecentSessions())
+    .filter(
+      (session) => session.profileId === input.profile.id && session.siteId === siteScope.siteId
+    )
+    .slice(0, 4);
+  const remoteSessionAvailable =
+    syncState.accountPortability === "remote-session" && syncState.remoteSessionAvailable;
+  const status = remoteSessionAvailable ? "ready" : "needs-sync";
+  const deviceCount = Math.max(syncState.deviceCount, remoteSessionAvailable ? 2 : 1);
+  return {
+    accountPortability: syncState.accountPortability,
+    credentialPayload: "blocked",
+    deviceCount,
+    deviceLimit: syncState.deviceLimit,
+    devicePolicy: syncState.devicePolicy,
+    fingerprintPolicy: input.profile.fingerprintPolicy,
+    launchMode: remoteSessionAvailable ? "remote-session-handoff" : "local-session-only",
+    profileId: input.profile.id,
+    profileLabel: input.profile.label,
+    recentProductSessions,
+    remoteSessionAvailable,
+    siteId: siteScope.siteId,
+    siteLabel: siteScope.siteLabel,
+    siteOrigin: siteScope.siteOrigin,
+    status,
+    summary: remoteSessionAvailable
+      ? `${siteScope.siteLabel} can be resumed through Hugerouter encrypted profile-state migration across ${deviceCount} trusted devices. Raw credential export remains blocked.`
+      : `${siteScope.siteLabel} is local to this browser profile until Hugerouter sync records a remote-session reference. Credentials remain blocked from sync.`,
+  };
+}
+
 function rememberRecentSession(input: {
   isolatedApp?: T3BrowserIsolatedApp | null;
   profile: T3BrowserProfileDescriptor;
@@ -2102,6 +2704,12 @@ function buildBrowserWindowUrl(input: {
   providerId: T3BrowserProvider;
   url: string;
 }) {
+  const continuity = buildT3BrowserProductContinuity({
+    customUrl: input.url,
+    profile: input.profile,
+    providerId: input.providerId,
+    syncState: getT3BrowserProfileSyncState(input.profile),
+  });
   const launchUrl = new URL(window.location.href);
   launchUrl.search = "";
   launchUrl.hash = "";
@@ -2111,6 +2719,10 @@ function buildBrowserWindowUrl(input: {
   launchUrl.searchParams.set("profile", input.profile.label);
   launchUrl.searchParams.set("profileId", input.profile.id);
   launchUrl.searchParams.set("fingerprint", input.profile.fingerprintPolicy);
+  launchUrl.searchParams.set("continuity", continuity.status);
+  launchUrl.searchParams.set("continuityMode", continuity.launchMode);
+  launchUrl.searchParams.set("deviceCount", String(continuity.deviceCount));
+  launchUrl.searchParams.set("siteOrigin", continuity.siteOrigin);
   if (input.isolatedApp) {
     launchUrl.searchParams.set("appId", input.isolatedApp.id);
     launchUrl.searchParams.set("appLabel", input.isolatedApp.label);
@@ -2232,5 +2844,208 @@ export function buildT3BrowserFingerprintSummary(input?: {
     policy: input?.policy ?? "native-transparent",
     stability: input?.remoteReference ? "remote-reference" : "native",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown",
+  };
+}
+
+function reduceOperationsStatus(
+  checks: readonly T3BrowserOperationsCheck[]
+): T3BrowserOperationsStatus {
+  if (checks.some((check) => check.status === "blocked")) {
+    return "blocked";
+  }
+  if (checks.some((check) => check.status === "attention")) {
+    return "attention";
+  }
+  return "ready";
+}
+
+function operationsStatusLabel(status: T3BrowserOperationsStatus) {
+  if (status === "blocked") {
+    return "Blocked";
+  }
+  if (status === "attention") {
+    return "Needs review";
+  }
+  return "Ready";
+}
+
+function buildT3BrowserTargetCheck(input: {
+  customUrl?: string | null;
+  providerId: T3BrowserProvider;
+}): T3BrowserOperationsCheck {
+  if (input.providerId !== "custom") {
+    const providerUrl = PROVIDER_URLS[input.providerId];
+    return {
+      id: "target",
+      label: "Target URL",
+      status: "ready",
+      summary: `${providerDisplayName(input.providerId)} opens through ${new URL(providerUrl).origin}.`,
+    };
+  }
+  const customUrl = readText(input.customUrl);
+  if (!customUrl) {
+    return {
+      id: "target",
+      label: "Target URL",
+      status: "blocked",
+      summary: "Enter an http or https site URL before opening a custom browser session.",
+    };
+  }
+  try {
+    const normalizedUrl = normalizeProductUrl(customUrl);
+    const parsed = new URL(normalizedUrl);
+    return {
+      id: "target",
+      label: "Target URL",
+      status: parsed.protocol === "https:" ? "ready" : "attention",
+      summary:
+        parsed.protocol === "https:"
+          ? `Custom site resolves to ${parsed.origin}.`
+          : `Custom site resolves to ${parsed.origin}; plain HTTP should be used only for trusted local workflows.`,
+    };
+  } catch (error) {
+    return {
+      id: "target",
+      label: "Target URL",
+      status: "blocked",
+      summary: error instanceof Error ? error.message : "Custom web product URL is invalid.",
+    };
+  }
+}
+
+function buildT3BrowserEndpointCheck(
+  profile: T3BrowserProfileDescriptor
+): T3BrowserOperationsCheck {
+  if (profile.source !== "remote-devtools") {
+    return {
+      id: "endpoint",
+      label: "Profile source",
+      status: "ready",
+      summary:
+        "Current browser profile is attached; browser-state capture must run through an authorized host/cloud sync path.",
+    };
+  }
+  if (!profile.endpointUrl) {
+    return {
+      id: "endpoint",
+      label: "Remote endpoint",
+      status: "blocked",
+      summary: "Remote DevTools profile is missing its sanitized endpoint reference.",
+    };
+  }
+  const endpoint = new URL(profile.endpointUrl);
+  return {
+    id: "endpoint",
+    label: "Remote endpoint",
+    status: endpoint.protocol === "https:" ? "ready" : "attention",
+    summary:
+      endpoint.protocol === "https:"
+        ? `Remote DevTools endpoint is stored as a credential-free HTTPS reference to ${endpoint.host}.`
+        : `Remote DevTools endpoint uses loopback HTTP at ${endpoint.host}; keep it local and protected.`,
+  };
+}
+
+export function buildT3BrowserProfileOperationsReport(input: {
+  customUrl?: string | null;
+  profile: T3BrowserProfileDescriptor;
+  providerId: T3BrowserProvider;
+  syncState?: T3BrowserProfileSyncState | null;
+}): T3BrowserProfileOperationsReport {
+  const syncState = input.syncState ?? getT3BrowserProfileSyncState(input.profile);
+  const remoteSessionAvailable =
+    syncState.accountPortability === "remote-session" && syncState.remoteSessionAvailable;
+  const targetCheck = buildT3BrowserTargetCheck(input);
+  const checks: T3BrowserOperationsCheck[] = [
+    buildT3BrowserEndpointCheck(input.profile),
+    targetCheck,
+    {
+      id: "fingerprint",
+      label: "Fingerprint",
+      status: "ready",
+      summary:
+        "Native fingerprint transparency is active; HugeCode does not spoof or randomize browser attributes.",
+    },
+    {
+      id: "credentials",
+      label: "Encrypted state",
+      status: "ready",
+      summary:
+        "Cookies, Local Storage, IndexedDB, extensions, and settings may sync only inside encrypted same-user cloud bundles.",
+    },
+    {
+      id: "proxy",
+      label: "Proxy hygiene",
+      status: input.profile.source === "remote-devtools" ? "ready" : "attention",
+      summary:
+        input.profile.source === "remote-devtools"
+          ? "Proxy, VPN, and IP leak checks are owned by the remote browser profile before launch."
+          : "The current browser profile uses the host browser network path; configure and verify proxy state outside HugeCode.",
+    },
+    {
+      id: "continuity",
+      label: "Continuity",
+      status: remoteSessionAvailable ? "ready" : "attention",
+      summary: remoteSessionAvailable
+        ? "Hugerouter remote-session metadata is available for cross-device continuity."
+        : "Sync the profile mock before creating team passes or cross-device handoff metadata.",
+    },
+  ];
+  const status = reduceOperationsStatus(checks);
+  const canOpenTarget = targetCheck.status !== "blocked";
+  return {
+    batchActions: [
+      {
+        id: "open-selected-profile",
+        label: "Open selected profile",
+        status: canOpenTarget ? "available" : "host-managed",
+        summary: canOpenTarget
+          ? "Launch the selected provider or custom site with the chosen profile reference."
+          : "Fix the target URL before launch.",
+      },
+      {
+        id: "sync-profile-metadata",
+        label: "Sync profile metadata",
+        status: "available",
+        summary: "Record device, health, and remote-session metadata without credential payloads.",
+      },
+      {
+        id: "create-isolated-app",
+        label: "Create isolated app",
+        status: canOpenTarget ? "available" : "host-managed",
+        summary:
+          "Create an app-scoped launch context; storage isolation is bound by the host when available.",
+      },
+      {
+        id: "create-guest-pass",
+        label: "Create guest pass",
+        status: remoteSessionAvailable ? "available" : "needs-sync",
+        summary:
+          "Grant revocable supervised remote-session access with sensitive actions blocked by default.",
+      },
+      {
+        id: "metadata-import-export",
+        label: "Version snapshots",
+        status: "host-managed",
+        summary:
+          "Browser-state versions are portable through authorized encrypted cloud restore, not raw local export.",
+      },
+    ],
+    checks,
+    credentialPolicy:
+      "Browser state can sync for the same user only as encrypted cloud-managed profile versions; raw credential export remains blocked.",
+    proxyPolicy:
+      input.profile.source === "remote-devtools"
+        ? "Remote profile owns proxy configuration and leak testing; HugeCode stores only the endpoint reference."
+        : "Current-browser networking is host-managed. Use a browser or OS profile for proxy routing and verify externally.",
+    status,
+    statusLabel: operationsStatusLabel(status),
+    summary:
+      status === "blocked"
+        ? "Resolve blocked profile or target checks before opening this browser workflow."
+        : status === "attention"
+          ? "Workflow can proceed after reviewing network, continuity, or sync gaps."
+          : "Profile, target, credential, and continuity checks are ready for launch.",
+    teamPolicy:
+      "Team access uses supervised Guest Pass or seat-pool metadata with owner approval for sensitive actions.",
   };
 }

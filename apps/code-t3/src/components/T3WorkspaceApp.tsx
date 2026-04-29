@@ -1,3 +1,4 @@
+import { Button, Card, Checkbox, Chip, Input } from "@heroui/react";
 import {
   AppWindow,
   Fingerprint,
@@ -33,8 +34,22 @@ import {
   statusLabel,
   T3ChatWorkspaceChrome,
 } from "./T3ChatWorkspaceChrome";
+import { T3BrowserCloudSyncCard } from "./T3BrowserCloudSyncCard";
+import { T3HugeRouterCommercialCard } from "./T3HugeRouterCommercialCard";
+import { T3ProductLaunchPanel } from "./T3ProductLaunchPanel";
+import {
+  accessModeTitle,
+  browserProviderTitle,
+  formatCredits,
+  formatSeatPrice,
+  providerTitle,
+} from "./t3WorkspaceLabels";
+import { useT3HugeRouterCommercialService } from "./useT3HugeRouterCommercialService";
+import { T3Wordmark } from "./T3Wordmark";
 import {
   buildT3BrowserFingerprintSummary,
+  buildT3BrowserProfileOperationsReport,
+  buildT3BrowserProductContinuity,
   buildT3AiGatewaySummaryMock,
   buildT3HugerouterSiteScope,
   addT3BrowserSeatPoolMemberMock,
@@ -44,6 +59,8 @@ import {
   createT3BrowserIsolatedAppMock,
   createT3BrowserGuestPassMock,
   createT3BrowserProfileBridge,
+  forceTakeoverT3BrowserProfileMigrationMock,
+  getT3BrowserProfileMigrationState,
   getT3BrowserProfileSyncState,
   getT3BrowserSeatPoolMock,
   listT3AiGatewayRoutesMock,
@@ -59,6 +76,9 @@ import {
   revokeT3BrowserGuestPassMock,
   settleT3HugerouterCapacityOrderMock,
   syncT3BrowserProfileToLocalMock,
+  openT3BrowserProfileMigrationMock,
+  restoreT3BrowserProfileVersionMock,
+  syncCloseT3BrowserProfileMigrationMock,
   updateT3BrowserSeatPoolCommercialMock,
   T3_AI_GATEWAY_ROUTE_MODE_OPTIONS,
   T3_BROWSER_MEMBERSHIP_PLAN_OPTIONS,
@@ -73,6 +93,9 @@ import {
   type T3BrowserGuestPass,
   type T3BrowserIsolatedApp,
   type T3BrowserMembershipPlanType,
+  type T3BrowserProfileMigrationState,
+  type T3BrowserProductContinuity,
+  type T3BrowserProfileOperationsReport,
   type T3BrowserProfileDescriptor,
   type T3BrowserProfileSyncState,
   type T3BrowserProvider,
@@ -143,56 +166,6 @@ const seatPoolRentalPlatformOptions = Object.entries(T3_SEAT_POOL_RENTAL_PLATFOR
   })
 );
 
-function formatSeatPrice(cents: number) {
-  return new Intl.NumberFormat(undefined, {
-    currency: "USD",
-    style: "currency",
-  }).format(cents / 100);
-}
-
-function formatCredits(credits: number) {
-  return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: 0,
-  }).format(credits);
-}
-
-function browserProviderTitle(provider: T3BrowserProvider) {
-  if (provider === "chatgpt") {
-    return "ChatGPT";
-  }
-  if (provider === "gemini") {
-    return "Gemini";
-  }
-  if (provider === "hugerouter") {
-    return "Hugerouter";
-  }
-  return "Custom URL";
-}
-
-function providerTitle(provider: T3CodeProviderKind) {
-  return provider === "codex" ? "Codex CLI" : "Claude Code CLI";
-}
-
-function accessModeTitle(mode: T3ComposerAccessMode) {
-  return mode === "full-access" ? "Autonomous" : "Supervised";
-}
-
-function T3Wordmark() {
-  return (
-    <svg
-      aria-label="T3"
-      className="t3-wordmark"
-      viewBox="15.5309 37 94.3941 56.96"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M33.4509 93V47.56H15.5309V37H64.3309V47.56H46.4109V93H33.4509ZM86.7253 93.96C82.832 93.96 78.9653 93.4533 75.1253 92.44C71.2853 91.3733 68.032 89.88 65.3653 87.96L70.4053 78.04C72.5386 79.5867 75.0186 80.8133 77.8453 81.72C80.672 82.6267 83.5253 83.08 86.4053 83.08C89.6586 83.08 92.2186 82.44 94.0853 81.16C95.952 79.88 96.8853 78.12 96.8853 75.88C96.8853 73.7467 96.0586 72.0667 94.4053 70.84C92.752 69.6133 90.0853 69 86.4053 69H80.4853V60.44L96.0853 42.76L97.5253 47.4H68.1653V37H107.365V45.4L91.8453 63.08L85.2853 59.32H89.0453C95.9253 59.32 101.125 60.8667 104.645 63.96C108.165 67.0533 109.925 71.0267 109.925 75.88C109.925 79.0267 109.099 81.9867 107.445 84.76C105.792 87.48 103.259 89.6933 99.8453 91.4C96.432 93.1067 92.0586 93.96 86.7253 93.96Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
 function formatGuestPassExpiry(expiresAt: number) {
   return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
@@ -200,6 +173,18 @@ function formatGuestPassExpiry(expiresAt: number) {
     month: "short",
     day: "numeric",
   }).format(new Date(expiresAt));
+}
+
+function formatBrowserSyncTime(value: number | null) {
+  if (value === null) {
+    return "Never";
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
 }
 
 function resolveRuntimeEventsEndpoint() {
@@ -283,6 +268,9 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   const [browserRecentSessions, setBrowserRecentSessions] = useState<T3BrowserRecentSession[]>([]);
   const [browserProfileSyncState, setBrowserProfileSyncState] =
     useState<T3BrowserProfileSyncState | null>(null);
+  const [browserProfileMigrationState, setBrowserProfileMigrationState] =
+    useState<T3BrowserProfileMigrationState | null>(null);
+  const [browserMigrationDeviceName, setBrowserMigrationDeviceName] = useState("This device");
   const [browserGuestPasses, setBrowserGuestPasses] = useState<T3BrowserGuestPass[]>([]);
   const [browserIsolatedApps, setBrowserIsolatedApps] = useState<T3BrowserIsolatedApp[]>([]);
   const [browserSeatPool, setBrowserSeatPool] = useState<T3BrowserSeatPool | null>(null);
@@ -468,9 +456,45 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       }),
     [selectedBrowserProfile]
   );
+  const browserProductContinuity = useMemo<T3BrowserProductContinuity | null>(() => {
+    if (!selectedBrowserProfile || (browserProvider === "custom" && !customProductUrl.trim())) {
+      return null;
+    }
+    try {
+      return buildT3BrowserProductContinuity({
+        customUrl: customProductUrl,
+        profile: selectedBrowserProfile,
+        providerId: browserProvider,
+        recentSessions: browserRecentSessions,
+        syncState: browserProfileSyncState ?? getT3BrowserProfileSyncState(selectedBrowserProfile),
+      });
+    } catch {
+      return null;
+    }
+  }, [
+    browserProfileSyncState,
+    browserProvider,
+    browserRecentSessions,
+    customProductUrl,
+    selectedBrowserProfile,
+  ]);
+  const browserProfileOperationsReport = useMemo<T3BrowserProfileOperationsReport | null>(() => {
+    if (!selectedBrowserProfile) {
+      return null;
+    }
+    return buildT3BrowserProfileOperationsReport({
+      customUrl: customProductUrl,
+      profile: selectedBrowserProfile,
+      providerId: browserProvider,
+      syncState: browserProfileSyncState ?? getT3BrowserProfileSyncState(selectedBrowserProfile),
+    });
+  }, [browserProfileSyncState, browserProvider, customProductUrl, selectedBrowserProfile]);
   useEffect(() => {
     setBrowserProfileSyncState(
       selectedBrowserProfile ? getT3BrowserProfileSyncState(selectedBrowserProfile) : null
+    );
+    setBrowserProfileMigrationState(
+      selectedBrowserProfile ? getT3BrowserProfileMigrationState(selectedBrowserProfile) : null
     );
     setBrowserGuestPasses(
       selectedBrowserProfile ? listT3BrowserGuestPasses(selectedBrowserProfile.id) : []
@@ -527,6 +551,22 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     () => buildT3AiGatewaySummaryMock(aiGatewayRoutes),
     [aiGatewayRoutes]
   );
+  const {
+    issueRouteToken: issueHugeRouterCommercialRouteToken,
+    snapshot: hugeRouterCommercialSnapshot,
+  } = useT3HugeRouterCommercialService({
+    aiGatewayConcurrency,
+    aiGatewayDailyBudget,
+    aiGatewayOwnerLabel,
+    aiGatewayRoutes,
+    hugerouterListings,
+    hugerouterOrders,
+    onAiGatewayRoutesChanged: setAiGatewayRoutes,
+    onNotice: setBrowserProfileNotice,
+    refreshRoutes,
+    runtimeBridge,
+    workspaceId,
+  });
   const effectiveSeatPoolProvider = browserProvider === "custom" ? "hugerouter" : browserProvider;
   const currentHugerouterSiteScope = useMemo(() => {
     try {
@@ -757,6 +797,78 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       );
     }
     setBrowserProfileNotice(nextState.summary);
+  }
+
+  function refreshBrowserMigrationState(profile = selectedBrowserProfile) {
+    if (!profile) {
+      setBrowserProfileMigrationState(null);
+      return null;
+    }
+    const nextState = getT3BrowserProfileMigrationState(profile);
+    setBrowserProfileMigrationState(nextState);
+    return nextState;
+  }
+
+  function openBrowserProfileMigrationMock() {
+    if (!selectedBrowserProfile) {
+      setBrowserProfileNotice("Select a browser profile before continuing on this device.");
+      return;
+    }
+    const nextState = openT3BrowserProfileMigrationMock({
+      deviceName: browserMigrationDeviceName,
+      profile: selectedBrowserProfile,
+    });
+    setBrowserProfileMigrationState(nextState);
+    setBrowserProfileNotice(nextState.summary);
+  }
+
+  function syncCloseBrowserProfileMigrationMock() {
+    if (!selectedBrowserProfile) {
+      setBrowserProfileNotice("Select a browser profile before syncing and closing.");
+      return;
+    }
+    const nextState = syncCloseT3BrowserProfileMigrationMock({
+      deviceName: browserMigrationDeviceName,
+      profile: selectedBrowserProfile,
+    });
+    setBrowserProfileMigrationState(nextState);
+    setBrowserProfileSyncState(getT3BrowserProfileSyncState(selectedBrowserProfile));
+    setBrowserProfileNotice(nextState.summary);
+  }
+
+  function forceTakeoverBrowserProfileMigrationMock() {
+    if (!selectedBrowserProfile) {
+      setBrowserProfileNotice("Select a browser profile before forcing takeover.");
+      return;
+    }
+    const nextState = forceTakeoverT3BrowserProfileMigrationMock({
+      deviceName: browserMigrationDeviceName,
+      profile: selectedBrowserProfile,
+    });
+    setBrowserProfileMigrationState(nextState);
+    setBrowserProfileNotice(
+      "Profile lock force-taken. Previous device state may be stale until it refreshes."
+    );
+  }
+
+  function restoreBrowserProfileVersionMock(versionId?: string | null) {
+    if (!selectedBrowserProfile) {
+      setBrowserProfileNotice("Select a browser profile before restoring a version.");
+      return;
+    }
+    try {
+      const nextState = restoreT3BrowserProfileVersionMock({
+        deviceName: browserMigrationDeviceName,
+        profile: selectedBrowserProfile,
+        versionId,
+      });
+      setBrowserProfileMigrationState(nextState);
+      setBrowserProfileNotice(nextState.summary);
+    } catch (error) {
+      setBrowserProfileNotice(
+        error instanceof Error ? error.message : "Unable to restore profile version."
+      );
+    }
   }
 
   function createBrowserGuestPassMock() {
@@ -1032,726 +1144,1271 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
 
   const browserManagementPage = (
     <section className="t3-browser-panel t3-browser-page" aria-label="Browser profiles">
-      <header>
-        <span>Browser</span>
-        <Globe2 size={14} />
-      </header>
-      <label>
-        <span>Provider</span>
-        <select
-          value={browserProvider}
-          onChange={(event) =>
-            setBrowserProvider(
-              event.target.value === "hugerouter"
-                ? "hugerouter"
-                : event.target.value === "gemini"
-                  ? "gemini"
-                  : event.target.value === "custom"
-                    ? "custom"
-                    : "chatgpt"
-            )
-          }
-        >
-          {browserProviderOrder.map((provider) => (
-            <option key={provider} value={provider}>
-              {browserProviderTitle(provider)}
-            </option>
-          ))}
-        </select>
-      </label>
-      {browserProvider === "custom" ? (
-        <label>
-          <span>Product URL</span>
-          <input
-            value={customProductUrl}
-            onChange={(event) => setCustomProductUrl(event.target.value)}
-            placeholder="https://example.com/app"
-            aria-label="Custom web product URL"
-          />
-        </label>
-      ) : null}
-      <label>
-        <span>Profile</span>
-        <select
-          value={selectedBrowserProfileId}
-          onChange={(event) => setSelectedBrowserProfileId(event.target.value)}
-        >
-          {browserProfiles.map((profile) => (
-            <option key={profile.id} value={profile.id}>
-              {profile.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="t3-browser-profile-actions">
-        <input
-          value={remoteProfileEndpoint}
-          onChange={(event) => setRemoteProfileEndpoint(event.target.value)}
-          placeholder="https://remote-host:9222"
-          aria-label="Remote DevTools endpoint"
-        />
-        <button
-          type="button"
-          onClick={saveRemoteBrowserProfile}
-          disabled={browserProfileBusy || !remoteProfileEndpoint.trim()}
-          aria-label="Save remote browser profile"
-        >
-          <Link2 size={14} />
-        </button>
-      </div>
-      <button
-        className="t3-browser-open"
-        type="button"
-        onClick={openBrowserProvider}
-        disabled={browserProfileBusy || (browserProvider === "custom" && !customProductUrl.trim())}
-      >
-        <ExternalLink size={14} />
-        Open
-      </button>
-      <div className="t3-browser-safety" aria-label="Browser session safety">
-        <span>No cookie export</span>
-        <span>No password access</span>
-        <span>
-          {selectedBrowserProfile?.securityModel === "remote-devtools-reference"
-            ? "Remote reference"
-            : "Browser session"}
-        </span>
-      </div>
-      <div className="t3-browser-isolated-apps" aria-label="Local isolated apps">
-        <header>
-          <span>
-            <AppWindow size={13} />
-            Isolated Apps
-          </span>
-          <em>{browserIsolatedApps.length} local</em>
-        </header>
-        <small>
-          Enable multiple app scopes locally for testing. Each app carries its own appId and launch
-          context; credentials remain in the selected browser profile.
-        </small>
-        <label>
-          <span>Name</span>
-          <input
-            value={isolatedAppName}
-            onChange={(event) => setIsolatedAppName(event.target.value)}
-            aria-label="Isolated app name"
-            placeholder="Gemini QA"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={createBrowserIsolatedAppMock}
-          disabled={browserProvider === "custom" && !customProductUrl.trim()}
-        >
-          Enable app
-        </button>
-        {browserIsolatedApps.length > 0 ? (
-          <div className="t3-browser-app-list">
-            {browserIsolatedApps.slice(0, 8).map((app) => (
-              <article key={app.id}>
-                <span>
-                  <strong>{app.label}</strong>
-                  <small>
-                    {app.providerId} · launches {app.launchCount} · {app.storageBoundary}
-                  </small>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void openBrowserIsolatedAppMock(app)}
-                  disabled={browserProfileBusy}
-                >
-                  Open
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeBrowserIsolatedAppMock(app.id)}
-                  disabled={browserProfileBusy}
-                >
-                  Remove
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <div className="t3-browser-fingerprint" aria-label="Fingerprint profile">
-        <header>
-          <span>
-            <Fingerprint size={13} />
-            Fingerprint
-          </span>
-          <em>Native</em>
-        </header>
+      <header className="t3-browser-page-hero">
         <div>
-          <span>{browserFingerprintSummary.browserFamily}</span>
-          <span>{browserFingerprintSummary.deviceClass}</span>
-          <span>{browserFingerprintSummary.timezone}</span>
-        </div>
-        <small>{browserFingerprintSummary.disclosure}</small>
-      </div>
-      <div className="t3-browser-sync" aria-label="Hugerouter profile sync mock">
-        <header>
-          <span>
-            <ShieldCheck size={13} />
-            Hugerouter Sync
-          </span>
-          <em>{browserProfileSyncState?.backend ?? "local-mock-hugerouter"}</em>
-        </header>
-        <div>
-          <span>{browserProfileSyncState?.status ?? "idle"}</span>
-          <span>{browserProfileSyncState?.accountPortability ?? "local-only"}</span>
-          <span>credentials blocked</span>
-        </div>
-        <small>
-          {browserProfileSyncState?.summary ??
-            "Local mock only. Sync profile metadata and a remote-session reference; do not sync cookies or tokens."}
-        </small>
-        <button type="button" onClick={syncBrowserProfileMock}>
-          Mock sync profile
-        </button>
-      </div>
-      <div className="t3-ai-gateway" aria-label="Hugerouter AI gateway mock">
-        <header>
-          <span>
+          <Chip color="success" size="sm" variant="soft">
             <Globe2 size={13} />
-            AI Gateway
-          </span>
-          <em>
-            {aiGatewaySummary.routableRouteCount}/{aiGatewaySummary.routeCount} routable
-          </em>
-        </header>
-        <div className="t3-ai-gateway-stats">
-          <span>{aiGatewaySummary.requestBudgetPerDay}/day</span>
-          <span>{aiGatewaySummary.maxConcurrentTasks} concurrent</span>
-          <span>{aiGatewaySummary.complianceStatus}</span>
+            Product surface
+          </Chip>
+          <h1>HugeRouter Browser</h1>
+          <p>
+            A dedicated product browser for supervised AI workflows, isolated app sessions, and
+            HugeRouter capacity routes.
+          </p>
         </div>
-        <small>
-          Register enterprise-routable capacity from approved API or local CLI backends. Personal
-          browser sessions remain owner-supervised and are not treated as shared accounts.
-        </small>
-        <label>
-          <span>Owner</span>
-          <input
-            value={aiGatewayOwnerLabel}
-            onChange={(event) => setAiGatewayOwnerLabel(event.target.value)}
-            aria-label="AI gateway route owner"
-            placeholder="Team member"
-          />
-        </label>
-        <label>
-          <span>Service</span>
-          <select
-            value={aiGatewayPlanType}
-            onChange={(event) =>
-              setAiGatewayPlanType(event.target.value as T3BrowserMembershipPlanType)
-            }
-            aria-label="AI gateway service type"
+        <div className="t3-browser-hero-metrics" aria-label="Browser workspace summary">
+          <span>
+            <strong>{browserProfiles.length}</strong>
+            Profiles
+          </span>
+          <span>
+            <strong>{browserIsolatedApps.length}</strong>
+            Apps
+          </span>
+          <span>
+            <strong>{aiGatewaySummary.routableRouteCount}</strong>
+            Routes
+          </span>
+        </div>
+      </header>
+      <div className="t3-browser-overview">
+        <section className="t3-browser-command-center" aria-label="Browser command center">
+          <Card
+            className="t3-browser-control-card t3-browser-launch-card"
+            variant="secondary"
+            aria-label="Browser launch"
           >
-            {commercialPlanOptions.map((plan) => (
-              <option key={plan.planType} value={plan.planType}>
-                {plan.planLabel} · {plan.serviceMultiplier}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Route</span>
-          <select
-            value={aiGatewayRouteMode}
-            onChange={(event) => setAiGatewayRouteMode(event.target.value as T3AiGatewayRouteMode)}
-            aria-label="AI gateway route mode"
-          >
-            {aiGatewayRouteModeOptions.map((option) => (
-              <option key={option.routeMode} value={option.routeMode}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Requests/day</span>
-          <input
-            value={aiGatewayDailyBudget}
-            onChange={(event) => setAiGatewayDailyBudget(event.target.value)}
-            aria-label="AI gateway daily request budget"
-            inputMode="numeric"
-            placeholder="500"
-          />
-        </label>
-        <label>
-          <span>Concurrency</span>
-          <input
-            value={aiGatewayConcurrency}
-            onChange={(event) => setAiGatewayConcurrency(event.target.value)}
-            aria-label="AI gateway concurrency"
-            inputMode="numeric"
-            placeholder="4"
-          />
-        </label>
-        <button type="button" onClick={registerAiGatewayRouteMock}>
-          Register capacity
-        </button>
-        {aiGatewayRoutes.length > 0 ? (
-          <div className="t3-ai-gateway-route-list">
-            {aiGatewayRoutes.slice(0, 4).map((route) => (
-              <article key={route.id}>
+            <Card.Header className="t3-browser-card-header">
+              <span>
+                <ExternalLink size={14} />
+                Launch browser
+              </span>
+              <Chip size="sm" variant="tertiary">
+                {selectedBrowserProfile?.source ?? "current-browser"}
+              </Chip>
+            </Card.Header>
+            <div className="t3-browser-product-preview" aria-label="Selected browser product">
+              <div className="t3-browser-preview-chrome" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+                <strong>{browserProviderTitle(browserProvider)}</strong>
+              </div>
+              <div className="t3-browser-preview-body">
                 <span>
-                  <strong>{route.ownerLabel}</strong>
+                  <Globe2 size={18} />
+                </span>
+                <strong>{browserProviderTitle(browserProvider)}</strong>
+                <small>
+                  {browserProvider === "custom" && customProductUrl.trim()
+                    ? customProductUrl
+                    : "hugerouter.openhuge.local"}
+                </small>
+              </div>
+            </div>
+            <div className="t3-browser-control-grid">
+              <label>
+                <span>Provider</span>
+                <select
+                  className="t3-browser-select"
+                  value={browserProvider}
+                  onChange={(event) =>
+                    setBrowserProvider(
+                      event.target.value === "hugerouter"
+                        ? "hugerouter"
+                        : event.target.value === "gemini"
+                          ? "gemini"
+                          : event.target.value === "custom"
+                            ? "custom"
+                            : "chatgpt"
+                    )
+                  }
+                >
+                  {browserProviderOrder.map((provider) => (
+                    <option key={provider} value={provider}>
+                      {browserProviderTitle(provider)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Profile</span>
+                <select
+                  className="t3-browser-select"
+                  value={selectedBrowserProfileId}
+                  onChange={(event) => setSelectedBrowserProfileId(event.target.value)}
+                >
+                  {browserProfiles.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            {browserProvider === "custom" ? (
+              <label htmlFor="t3-browser-custom-url">
+                <span>Product URL</span>
+                <Input
+                  id="t3-browser-custom-url"
+                  value={customProductUrl}
+                  onChange={(event) => setCustomProductUrl(event.target.value)}
+                  placeholder="https://example.com/app"
+                  aria-label="Custom web product URL"
+                  variant="secondary"
+                />
+              </label>
+            ) : null}
+            <Button
+              className="t3-browser-open"
+              type="button"
+              onPress={() => {
+                if (
+                  browserProfileBusy ||
+                  (browserProvider === "custom" && !customProductUrl.trim())
+                ) {
+                  return;
+                }
+                void openBrowserProvider();
+              }}
+              aria-disabled={
+                browserProfileBusy || (browserProvider === "custom" && !customProductUrl.trim())
+              }
+              size="md"
+              variant="primary"
+            >
+              <ExternalLink size={14} />
+              Open
+            </Button>
+            <div className="t3-browser-safety" aria-label="Browser session safety">
+              <Chip size="sm" variant="tertiary">
+                No cookie export
+              </Chip>
+              <Chip size="sm" variant="tertiary">
+                No password access
+              </Chip>
+              <Chip size="sm" variant="tertiary">
+                {selectedBrowserProfile?.securityModel === "remote-devtools-reference"
+                  ? "Remote reference"
+                  : "Browser session"}
+              </Chip>
+            </div>
+          </Card>
+        </section>
+        <aside className="t3-browser-status-rail" aria-label="Browser profile status">
+          <Card
+            className="t3-browser-fingerprint"
+            variant="secondary"
+            aria-label="Fingerprint profile"
+          >
+            <Card.Header className="t3-browser-card-header">
+              <span>
+                <Fingerprint size={13} />
+                Fingerprint
+              </span>
+              <Chip color="success" size="sm" variant="soft">
+                Native
+              </Chip>
+            </Card.Header>
+            <div>
+              <Chip size="sm" variant="tertiary">
+                {browserFingerprintSummary.browserFamily}
+              </Chip>
+              <Chip size="sm" variant="tertiary">
+                {browserFingerprintSummary.deviceClass}
+              </Chip>
+              <Chip size="sm" variant="tertiary">
+                {browserFingerprintSummary.timezone}
+              </Chip>
+            </div>
+            <small>{browserFingerprintSummary.disclosure}</small>
+          </Card>
+          {browserProfileOperationsReport ? (
+            <Card
+              className="t3-browser-operations"
+              variant="secondary"
+              aria-label="Browser profile operations"
+            >
+              <Card.Header className="t3-browser-card-header">
+                <span>
+                  <ShieldCheck size={13} />
+                  Operations
+                </span>
+                <Chip
+                  color={
+                    browserProfileOperationsReport.status === "ready"
+                      ? "success"
+                      : browserProfileOperationsReport.status === "blocked"
+                        ? "danger"
+                        : "warning"
+                  }
+                  size="sm"
+                  variant="soft"
+                >
+                  {browserProfileOperationsReport.statusLabel}
+                </Chip>
+              </Card.Header>
+              <small>{browserProfileOperationsReport.summary}</small>
+              <div className="t3-browser-check-list">
+                {browserProfileOperationsReport.checks.map((check) => (
+                  <span key={check.id} data-status={check.status}>
+                    <strong>{check.label}</strong>
+                    <small>{check.summary}</small>
+                  </span>
+                ))}
+              </div>
+              <div className="t3-browser-action-strip" aria-label="Available browser actions">
+                {browserProfileOperationsReport.batchActions.map((action) => (
+                  <Chip key={action.id} size="sm" variant="tertiary">
+                    {action.label}
+                  </Chip>
+                ))}
+              </div>
+              <small>{browserProfileOperationsReport.proxyPolicy}</small>
+            </Card>
+          ) : null}
+          <Card
+            className="t3-browser-sync"
+            variant="secondary"
+            aria-label="Hugerouter profile sync mock"
+          >
+            <Card.Header className="t3-browser-card-header">
+              <span>
+                <ShieldCheck size={13} />
+                Hugerouter Sync
+              </span>
+              <Chip size="sm" variant="tertiary">
+                {browserProfileSyncState?.backend ?? "local-mock-hugerouter"}
+              </Chip>
+            </Card.Header>
+            <div>
+              <Chip size="sm" variant="tertiary">
+                {browserProfileSyncState?.status ?? "idle"}
+              </Chip>
+              <Chip size="sm" variant="tertiary">
+                {browserProfileSyncState?.accountPortability ?? "local-only"}
+              </Chip>
+              <Chip size="sm" variant="tertiary">
+                credentials blocked
+              </Chip>
+            </div>
+            <small>
+              {browserProfileSyncState?.summary ??
+                "Local mock only. Sync profile metadata and a remote-session reference; do not sync cookies or tokens."}
+            </small>
+            <Button type="button" onPress={syncBrowserProfileMock} size="md" variant="outline">
+              Mock sync profile
+            </Button>
+          </Card>
+          {browserProfileMigrationState ? (
+            <Card
+              className="t3-browser-migration"
+              variant="secondary"
+              aria-label="Multi-device profile migration"
+            >
+              <Card.Header className="t3-browser-card-header">
+                <span>
+                  <RefreshCw size={13} />
+                  Device migration
+                </span>
+                <Chip
+                  color={
+                    browserProfileMigrationState.status === "available"
+                      ? "success"
+                      : browserProfileMigrationState.status === "conflict"
+                        ? "danger"
+                        : "warning"
+                  }
+                  size="sm"
+                  variant="soft"
+                >
+                  {browserProfileMigrationState.status}
+                </Chip>
+              </Card.Header>
+              <small>{browserProfileMigrationState.summary}</small>
+              {browserProfileMigrationState.lock ? (
+                <small>
+                  Force takeover can discard unsynced state from{" "}
+                  {browserProfileMigrationState.lock.deviceName}. Prefer migration after the active
+                  device syncs and closes.
+                </small>
+              ) : null}
+              <label htmlFor="t3-browser-migration-device">
+                <span>Device</span>
+                <Input
+                  id="t3-browser-migration-device"
+                  value={browserMigrationDeviceName}
+                  onChange={(event) => setBrowserMigrationDeviceName(event.target.value)}
+                  aria-label="Current device name"
+                  placeholder="MacBook Pro"
+                  variant="secondary"
+                />
+              </label>
+              <div className="t3-browser-migration-grid">
+                <span>
+                  <strong>Latest</strong>
                   <small>
-                    {route.planLabel} · {route.routeMode} · {route.requestBudgetPerDay}/day
+                    {browserProfileMigrationState.latestVersionNumber > 0
+                      ? `v${browserProfileMigrationState.latestVersionNumber}`
+                      : "none"}
                   </small>
                 </span>
-                <em>{route.status}</em>
-              </article>
-            ))}
-          </div>
-        ) : null}
+                <span>
+                  <strong>Synced</strong>
+                  <small>{formatBrowserSyncTime(browserProfileMigrationState.lastSyncedAt)}</small>
+                </span>
+                <span>
+                  <strong>Source</strong>
+                  <small>{browserProfileMigrationState.lastSourceDeviceName ?? "none"}</small>
+                </span>
+                <span>
+                  <strong>Lock</strong>
+                  <small>{browserProfileMigrationState.lock?.deviceName ?? "released"}</small>
+                </span>
+              </div>
+              <div className="t3-browser-action-strip">
+                <Button
+                  type="button"
+                  onPress={openBrowserProfileMigrationMock}
+                  size="sm"
+                  variant="outline"
+                >
+                  Continue here
+                </Button>
+                <Button
+                  type="button"
+                  onPress={syncCloseBrowserProfileMigrationMock}
+                  size="sm"
+                  variant="outline"
+                >
+                  Migrate device
+                </Button>
+                <Button
+                  type="button"
+                  onPress={forceTakeoverBrowserProfileMigrationMock}
+                  size="sm"
+                  variant="outline"
+                >
+                  Force takeover
+                </Button>
+                <Button
+                  type="button"
+                  onPress={() => restoreBrowserProfileVersionMock(null)}
+                  size="sm"
+                  variant="outline"
+                >
+                  Restore version
+                </Button>
+                <Button
+                  type="button"
+                  onPress={() => {
+                    refreshBrowserMigrationState();
+                  }}
+                  size="sm"
+                  variant="ghost"
+                >
+                  Refresh
+                </Button>
+              </div>
+              <div className="t3-browser-state-class-list" aria-label="Synced browser state">
+                {browserProfileMigrationState.stateClasses.map((stateClass) => (
+                  <Chip key={stateClass} size="sm" variant="tertiary">
+                    {stateClass}
+                  </Chip>
+                ))}
+              </div>
+              {browserProfileMigrationState.snapshots.length > 0 ? (
+                <div className="t3-browser-version-list">
+                  {browserProfileMigrationState.snapshots.slice(0, 3).map((snapshot) => (
+                    <article key={snapshot.id}>
+                      <span>
+                        <strong>v{snapshot.versionNumber}</strong>
+                        <small>
+                          {snapshot.sourceDeviceName} · {formatBrowserSyncTime(snapshot.createdAt)}
+                        </small>
+                      </span>
+                      <Button
+                        type="button"
+                        onPress={() => restoreBrowserProfileVersionMock(snapshot.id)}
+                        size="sm"
+                        variant="ghost"
+                      >
+                        Restore
+                      </Button>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+              {browserProfileMigrationState.auditLog.length > 0 ? (
+                <div className="t3-browser-audit-list">
+                  {browserProfileMigrationState.auditLog.slice(0, 3).map((entry) => (
+                    <span key={entry.id}>
+                      <strong>{entry.action}</strong>
+                      <small>
+                        {entry.actorDeviceName} · {formatBrowserSyncTime(entry.createdAt)}
+                      </small>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+          ) : null}
+          <T3BrowserCloudSyncCard
+            customProductUrl={customProductUrl}
+            profile={selectedBrowserProfile}
+            providerId={browserProvider}
+            recentSessions={browserRecentSessions}
+            syncState={browserProfileSyncState}
+          />
+          {browserProductContinuity ? (
+            <Card
+              className="t3-browser-product-continuity"
+              variant="secondary"
+              aria-label="Web product continuity"
+            >
+              <Card.Header className="t3-browser-card-header">
+                <span>
+                  <Globe2 size={13} />
+                  Product continuity
+                </span>
+                <Chip
+                  color={browserProductContinuity.status === "ready" ? "success" : "warning"}
+                  size="sm"
+                  variant="soft"
+                >
+                  {browserProductContinuity.status}
+                </Chip>
+              </Card.Header>
+              <div>
+                <Chip size="sm" variant="tertiary">
+                  {browserProductContinuity.siteLabel}
+                </Chip>
+                <Chip size="sm" variant="tertiary">
+                  {browserProductContinuity.deviceCount} devices
+                </Chip>
+                <Chip size="sm" variant="tertiary">
+                  {browserProductContinuity.launchMode}
+                </Chip>
+              </div>
+              <small>{browserProductContinuity.summary}</small>
+              {browserProductContinuity.recentProductSessions.length > 0 ? (
+                <div className="t3-browser-continuity-sessions">
+                  {browserProductContinuity.recentProductSessions.map((session) => (
+                    <span key={session.id}>{session.isolatedAppLabel ?? session.profileLabel}</span>
+                  ))}
+                </div>
+              ) : null}
+            </Card>
+          ) : null}
+          <Card
+            className="t3-browser-profile-tools"
+            variant="secondary"
+            aria-label="Browser profile tools"
+          >
+            <Card.Header className="t3-browser-card-header">
+              <span>
+                <Settings size={13} />
+                Profile tools
+              </span>
+              <Chip size="sm" variant="tertiary">
+                {remoteBrowserProfiles.length} remote
+              </Chip>
+            </Card.Header>
+            <small>
+              Add a remote DevTools profile only when you need to reference an external browser.
+            </small>
+            <div className="t3-browser-profile-actions">
+              <Input
+                value={remoteProfileEndpoint}
+                onChange={(event) => setRemoteProfileEndpoint(event.target.value)}
+                placeholder="https://remote-host:9222"
+                aria-label="Remote DevTools endpoint"
+                variant="secondary"
+              />
+              <Button
+                type="button"
+                onPress={() => {
+                  if (browserProfileBusy || !remoteProfileEndpoint.trim()) {
+                    return;
+                  }
+                  void saveRemoteBrowserProfile();
+                }}
+                aria-disabled={browserProfileBusy || !remoteProfileEndpoint.trim()}
+                aria-label="Save remote browser profile"
+                isIconOnly
+                size="md"
+                variant="outline"
+              >
+                <Link2 size={14} />
+              </Button>
+            </div>
+          </Card>
+          <T3HugeRouterCommercialCard
+            snapshot={hugeRouterCommercialSnapshot}
+            onIssueRouteToken={() => void issueHugeRouterCommercialRouteToken()}
+          />
+        </aside>
       </div>
-      <div className="t3-hugerouter-market" aria-label="Hugerouter membership marketplace mock">
-        <header>
+      <section className="t3-browser-workbench" aria-label="Browser commercial workbench">
+        <header className="t3-browser-section-heading">
           <span>
             <ShieldCheck size={13} />
-            Hugerouter Market
+            Routing and access
           </span>
-          <em>
-            {hugerouterOrders.filter((order) => order.status === "escrow-held").length} escrow
-          </em>
+          <Chip size="sm" variant="tertiary">
+            {browserGuestPasses.filter((pass) => pass.status === "active").length} guest passes
+          </Chip>
         </header>
-        <small>
-          Trade Hugerouter-native AI credits or Hugerouter-authorized capacity. Payments, routing,
-          and settlement are local mocks for the future Hugerouter service.
-        </small>
-        <label>
-          <span>Seller</span>
-          <input
-            value={hugerouterSellerLabel}
-            onChange={(event) => setHugerouterSellerLabel(event.target.value)}
-            aria-label="Hugerouter seller"
-            placeholder="Hugerouter seller"
-          />
-        </label>
-        <label>
-          <span>Tier</span>
-          <select
-            value={hugerouterTier}
-            onChange={(event) =>
-              setHugerouterTier(event.target.value as T3HugerouterMembershipTier)
-            }
-            aria-label="Hugerouter membership tier"
-          >
-            {hugerouterTierOptions.map((option) => (
-              <option key={option.tier} value={option.tier}>
-                {option.label} · {option.multiplier}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Source</span>
-          <select
-            value={hugerouterSourceKind}
-            onChange={(event) =>
-              setHugerouterSourceKind(event.target.value as T3HugerouterCapacitySource)
-            }
-            aria-label="Hugerouter capacity source"
-          >
-            {hugerouterCapacitySourceOptions.map((option) => (
-              <option key={option.sourceKind} value={option.sourceKind}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Credits</span>
-          <input
-            value={hugerouterTotalCredits}
-            onChange={(event) => setHugerouterTotalCredits(event.target.value)}
-            aria-label="Hugerouter listing credits"
-            inputMode="numeric"
-            placeholder="1000000"
-          />
-        </label>
-        <label>
-          <span>Min buy</span>
-          <input
-            value={hugerouterMinCredits}
-            onChange={(event) => setHugerouterMinCredits(event.target.value)}
-            aria-label="Hugerouter minimum purchase credits"
-            inputMode="numeric"
-            placeholder="50000"
-          />
-        </label>
-        <label>
-          <span>$/1k</span>
-          <input
-            value={hugerouterUnitPrice}
-            onChange={(event) => setHugerouterUnitPrice(event.target.value)}
-            aria-label="Hugerouter unit price"
-            inputMode="decimal"
-            placeholder="0.08"
-          />
-        </label>
-        <button type="button" onClick={publishHugerouterCapacityListingMock}>
-          Publish credits
-        </button>
-        <label>
-          <span>Buyer</span>
-          <input
-            value={hugerouterBuyerLabel}
-            onChange={(event) => setHugerouterBuyerLabel(event.target.value)}
-            aria-label="Hugerouter buyer"
-            placeholder="Internal buyer"
-          />
-        </label>
-        <label>
-          <span>Buy credits</span>
-          <input
-            value={hugerouterBuyCredits}
-            onChange={(event) => setHugerouterBuyCredits(event.target.value)}
-            aria-label="Hugerouter buy credits"
-            inputMode="numeric"
-            placeholder="100000"
-          />
-        </label>
-        {hugerouterListings.length > 0 ? (
-          <div className="t3-hugerouter-listing-list">
-            {hugerouterListings.slice(0, 4).map((listing) => (
-              <article key={listing.id}>
-                <span>
-                  <strong>{listing.tierLabel}</strong>
-                  <small>
-                    {formatCredits(listing.availableCredits)} credits ·{" "}
-                    {formatSeatPrice(listing.unitPriceCentsPerThousand)} / 1k
-                  </small>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => buyHugerouterCapacityMock(listing.id)}
-                  disabled={listing.status !== "listed"}
-                >
-                  Buy
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : null}
-        {hugerouterOrders.length > 0 ? (
-          <div className="t3-hugerouter-order-list">
-            {hugerouterOrders.slice(0, 4).map((order) => (
-              <article key={order.id}>
-                <span>
-                  <strong>{order.buyerLabel}</strong>
-                  <small>
-                    {formatCredits(order.creditsPurchased)} credits ·{" "}
-                    {formatSeatPrice(order.totalPriceCents)} · {order.status}
-                  </small>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => settleHugerouterOrderMock(order.id)}
-                  disabled={order.status !== "escrow-held"}
-                >
-                  Settle
-                </button>
-                <button
-                  type="button"
-                  onClick={() => refundHugerouterOrderMock(order.id)}
-                  disabled={order.status !== "escrow-held"}
-                >
-                  Refund
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <div className="t3-browser-guest-pass" aria-label="Guest pass sharing mock">
-        <header>
-          <span>
-            <UserPlus size={13} />
-            Guest Pass
-          </span>
-          <em>{browserGuestPasses.filter((pass) => pass.status === "active").length} active</em>
-        </header>
-        <small>
-          Share supervised remote-session use with a friend. Passwords, cookies, billing, and
-          security settings stay blocked.
-        </small>
-        <label>
-          <span>Guest</span>
-          <input
-            value={guestPassRecipient}
-            onChange={(event) => setGuestPassRecipient(event.target.value)}
-            aria-label="Guest pass recipient"
-            placeholder="Friend"
-          />
-        </label>
-        <label>
-          <span>Expires</span>
-          <select
-            value={guestPassDurationHours}
-            onChange={(event) => setGuestPassDurationHours(Number(event.target.value))}
-            aria-label="Guest pass duration"
-          >
-            <option value={1}>1 hour</option>
-            <option value={2}>2 hours</option>
-            <option value={8}>8 hours</option>
-            <option value={24}>24 hours</option>
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={createBrowserGuestPassMock}
-          disabled={browserProvider === "custom" && !customProductUrl.trim()}
-        >
-          Create guest pass
-        </button>
-        {browserGuestPasses.length > 0 ? (
-          <div className="t3-browser-guest-list">
-            {browserGuestPasses.slice(0, 3).map((pass) => (
-              <article key={pass.id}>
-                <span>
-                  <strong>{pass.guestLabel}</strong>
-                  <small>
-                    {pass.providerId} · {pass.status} · expires{" "}
-                    {formatGuestPassExpiry(pass.expiresAt)}
-                  </small>
-                </span>
-                <code>{pass.inviteCode}</code>
-                <button
-                  type="button"
-                  onClick={() => revokeBrowserGuestPassMock(pass.id)}
-                  disabled={pass.status !== "active"}
-                >
-                  Revoke
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <div className="t3-browser-seat-pool" aria-label="Membership seat pool mock">
-        <header>
-          <span>
-            <Users size={13} />
-            Seat Pool
-          </span>
-          <em>
-            {browserSeatPool?.memberCount ?? 0}/
-            {browserSeatPool?.seatLimit === null
-              ? "unlimited"
-              : (browserSeatPool?.seatLimit ?? "unlimited")}
-          </em>
-        </header>
-        <small>
-          {isHugerouterNativeProvider
-            ? "Hugerouter manages every website by origin. Site policy is cloud-controlled; local data only uses the first-level URL as the site id."
-            : "Hugerouter manages this website by origin. Third-party site policy and plan compliance are controlled by Hugerouter cloud."}
-        </small>
-        {currentHugerouterSiteScope ? (
-          <div className="t3-ai-gateway-stats" aria-label="Hugerouter site identity">
-            <span>{currentHugerouterSiteScope.siteId}</span>
-            <span>policy: cloud</span>
-          </div>
-        ) : null}
-        <label>
-          <span>Tier</span>
-          <select
-            value={commercialPlanType}
-            onChange={(event) =>
-              setCommercialPlanType(event.target.value as T3BrowserMembershipPlanType)
-            }
-            aria-label="Commercial membership tier"
-          >
-            {sellerCommercialPlanOptions.map((plan) => (
-              <option key={plan.planType} value={plan.planType}>
-                {plan.planLabel} · {plan.serviceMultiplier}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Seat price</span>
-          <input
-            value={commercialSeatPrice}
-            onChange={(event) => setCommercialSeatPrice(event.target.value)}
-            aria-label="Commercial seat price"
-            inputMode="decimal"
-            placeholder="7.99"
-          />
-        </label>
-        <label className="t3-browser-platform-rental-toggle">
-          <span>Platform rental</span>
-          <input
-            checked={platformRentalEnabled}
-            onChange={(event) => setPlatformRentalEnabled(event.target.checked)}
-            aria-label="Enable platform rental discount"
-            type="checkbox"
-          />
-        </label>
-        <label>
-          <span>Platform price</span>
-          <input
-            value={platformRentalDiscountPrice}
-            onChange={(event) => setPlatformRentalDiscountPrice(event.target.value)}
-            aria-label="Platform rental discount price"
-            disabled={!platformRentalEnabled}
-            inputMode="decimal"
-            placeholder="6.39"
-          />
-        </label>
-        <div className="t3-browser-platform-rental-options" aria-label="Supported rental platforms">
-          {seatPoolRentalPlatformOptions.map((option) => (
-            <label key={option.platform}>
-              <input
-                checked={platformRentalPlatforms.includes(option.platform)}
-                onChange={() => togglePlatformRentalPlatform(option.platform)}
-                disabled={!platformRentalEnabled}
-                type="checkbox"
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
+        <div className="t3-browser-capability-strip" aria-label="Browser product capabilities">
+          <article>
+            <ShieldCheck size={15} />
+            <strong>Private sessions</strong>
+            <small>Use the selected profile without exporting cookies or passwords.</small>
+          </article>
+          <article>
+            <AppWindow size={15} />
+            <strong>Isolated apps</strong>
+            <small>Create app-scoped launches when a workflow needs separate context.</small>
+          </article>
+          <article>
+            <Globe2 size={15} />
+            <strong>Cross-device product</strong>
+            <small>
+              Resume the same site through remote-session metadata, not credential sync.
+            </small>
+          </article>
         </div>
-        <label>
-          <span>Seat limit</span>
-          <input
-            value={commercialSeatLimit}
-            onChange={(event) => setCommercialSeatLimit(event.target.value)}
-            aria-label="Commercial seat limit"
-            inputMode="numeric"
-            placeholder="unlimited"
+        <div className="t3-browser-workbench-grid">
+          <T3ProductLaunchPanel
+            hugeRouterSnapshot={hugeRouterCommercialSnapshot}
+            onNotice={setBrowserProfileNotice}
+            routes={routes}
           />
-        </label>
-        <button
-          type="button"
-          onClick={publishSeatPoolListingMock}
-          disabled={browserProvider === "custom" && !customProductUrl.trim()}
-        >
-          Publish listing
-        </button>
-        <label>
-          <span>Member</span>
-          <input
-            value={seatPoolMemberName}
-            onChange={(event) => setSeatPoolMemberName(event.target.value)}
-            aria-label="Seat pool member name"
-            placeholder="Member name"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={addBrowserSeatPoolMemberMock}
-          disabled={browserProvider === "custom" && !customProductUrl.trim()}
-        >
-          Add seat
-        </button>
-        {browserSeatPool && browserSeatPool.members.length > 0 ? (
-          <div className="t3-browser-seat-list">
-            {browserSeatPool.members.map((member) => (
-              <article key={member.id}>
-                <span>
-                  <strong>
-                    {member.seatNumber}. {member.label}
-                  </strong>
-                  <small>
-                    {browserSeatPool.providerId} · {member.status} · {member.inviteCode}
-                  </small>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => pauseBrowserSeatPoolMemberMock(member.id)}
-                  disabled={member.status !== "active"}
-                >
-                  Pause
-                </button>
-              </article>
-            ))}
-          </div>
-        ) : null}
-        <div className="t3-browser-marketplace" aria-label="Membership service marketplace">
-          <label>
-            <span>Find service</span>
-            <select
-              value={seatListingFilter}
-              onChange={(event) =>
-                setSeatListingFilter(event.target.value as T3BrowserMembershipPlanType | "all")
-              }
-              aria-label="Membership service filter"
+          <Card
+            className="t3-browser-isolated-apps"
+            variant="secondary"
+            aria-label="Local isolated apps"
+          >
+            <Card.Header className="t3-browser-card-header">
+              <span>
+                <AppWindow size={13} />
+                Isolated Apps
+              </span>
+              <Chip size="sm" variant="tertiary">
+                {browserIsolatedApps.length} local
+              </Chip>
+            </Card.Header>
+            <small>
+              Enable multiple app scopes locally for testing. Each app carries its own appId and
+              launch context; credentials remain in the selected browser profile.
+            </small>
+            <label htmlFor="t3-browser-isolated-app-name">
+              <span>Name</span>
+              <Input
+                id="t3-browser-isolated-app-name"
+                value={isolatedAppName}
+                onChange={(event) => setIsolatedAppName(event.target.value)}
+                aria-label="Isolated app name"
+                placeholder="Gemini QA"
+                variant="secondary"
+              />
+            </label>
+            <Button
+              type="button"
+              onPress={() => {
+                if (browserProvider === "custom" && !customProductUrl.trim()) {
+                  return;
+                }
+                createBrowserIsolatedAppMock();
+              }}
+              aria-disabled={browserProvider === "custom" && !customProductUrl.trim()}
+              size="md"
+              variant="secondary"
             >
-              <option value="all">All membership services</option>
-              {commercialPlanOptions.map((plan) => (
-                <option key={plan.planType} value={plan.planType}>
-                  {plan.planLabel} · {plan.serviceMultiplier}
-                </option>
-              ))}
-            </select>
-          </label>
-          {browserSeatListings.length > 0 ? (
-            <div className="t3-browser-listing-list">
-              {browserSeatListings.slice(0, 6).map((listing) => (
-                <article key={listing.poolId}>
-                  <span>
-                    <strong>{listing.commercial.planLabel}</strong>
-                    <small>{listing.siteLabel}</small>
-                    <small>
-                      {formatSeatPrice(listing.commercial.seatPriceCents)} / seat ·{" "}
-                      {listing.availableSeats === null
-                        ? "unlimited"
-                        : `${listing.availableSeats} available`}
-                    </small>
-                    {listing.commercial.platformRental.enabled ? (
+              Enable app
+            </Button>
+            {browserIsolatedApps.length > 0 ? (
+              <div className="t3-browser-app-list">
+                {browserIsolatedApps.slice(0, 8).map((app) => (
+                  <article key={app.id}>
+                    <span>
+                      <strong>{app.label}</strong>
                       <small>
-                        Platform rental{" "}
-                        {formatSeatPrice(listing.commercial.platformRental.discountPriceCents)} ·{" "}
-                        {listing.commercial.platformRental.supportedPlatforms.join(", ")}
+                        {app.providerId} · launches {app.launchCount} · {app.storageBoundary}
                       </small>
-                    ) : null}
-                  </span>
-                  <em>{listing.commercial.serviceMultiplier}</em>
-                </article>
+                    </span>
+                    <Button
+                      type="button"
+                      onPress={() => {
+                        if (browserProfileBusy) {
+                          return;
+                        }
+                        void openBrowserIsolatedAppMock(app);
+                      }}
+                      aria-disabled={browserProfileBusy}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Open
+                    </Button>
+                    <Button
+                      type="button"
+                      onPress={() => {
+                        if (browserProfileBusy) {
+                          return;
+                        }
+                        removeBrowserIsolatedAppMock(app.id);
+                      }}
+                      aria-disabled={browserProfileBusy}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Remove
+                    </Button>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </Card>
+          <div className="t3-ai-gateway" aria-label="Hugerouter AI gateway mock">
+            <header>
+              <span>
+                <Globe2 size={13} />
+                AI Gateway
+              </span>
+              <em>
+                {aiGatewaySummary.routableRouteCount}/{aiGatewaySummary.routeCount} routable
+              </em>
+            </header>
+            <div className="t3-ai-gateway-stats">
+              <span>{aiGatewaySummary.requestBudgetPerDay}/day</span>
+              <span>{aiGatewaySummary.maxConcurrentTasks} concurrent</span>
+              <span>{aiGatewaySummary.complianceStatus}</span>
+            </div>
+            <small>
+              Register enterprise-routable capacity from built-in Codex, local Codex or Claude, an
+              arbitrary provider relay, or HugeRouter commercial route tokens. Personal browser
+              sessions remain owner-supervised.
+            </small>
+            <label>
+              <span>Owner</span>
+              <input
+                value={aiGatewayOwnerLabel}
+                onChange={(event) => setAiGatewayOwnerLabel(event.target.value)}
+                aria-label="AI gateway route owner"
+                placeholder="Team member"
+              />
+            </label>
+            <label>
+              <span>Service</span>
+              <select
+                value={aiGatewayPlanType}
+                onChange={(event) =>
+                  setAiGatewayPlanType(event.target.value as T3BrowserMembershipPlanType)
+                }
+                aria-label="AI gateway service type"
+              >
+                {commercialPlanOptions.map((plan) => (
+                  <option key={plan.planType} value={plan.planType}>
+                    {plan.planLabel} · {plan.serviceMultiplier}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Route</span>
+              <select
+                value={aiGatewayRouteMode}
+                onChange={(event) =>
+                  setAiGatewayRouteMode(event.target.value as T3AiGatewayRouteMode)
+                }
+                aria-label="AI gateway route mode"
+              >
+                {aiGatewayRouteModeOptions.map((option) => (
+                  <option key={option.routeMode} value={option.routeMode}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Requests/day</span>
+              <input
+                value={aiGatewayDailyBudget}
+                onChange={(event) => setAiGatewayDailyBudget(event.target.value)}
+                aria-label="AI gateway daily request budget"
+                inputMode="numeric"
+                placeholder="500"
+              />
+            </label>
+            <label>
+              <span>Concurrency</span>
+              <input
+                value={aiGatewayConcurrency}
+                onChange={(event) => setAiGatewayConcurrency(event.target.value)}
+                aria-label="AI gateway concurrency"
+                inputMode="numeric"
+                placeholder="4"
+              />
+            </label>
+            <button type="button" onClick={registerAiGatewayRouteMock}>
+              Register capacity
+            </button>
+            {aiGatewayRoutes.length > 0 ? (
+              <div className="t3-ai-gateway-route-list">
+                {aiGatewayRoutes.slice(0, 4).map((route) => (
+                  <article key={route.id}>
+                    <span>
+                      <strong>{route.ownerLabel}</strong>
+                      <small>
+                        {route.planLabel} · {route.routeMode} · {route.requestBudgetPerDay}/day
+                      </small>
+                    </span>
+                    <em>{route.status}</em>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <div className="t3-hugerouter-market" aria-label="Hugerouter membership marketplace mock">
+            <header>
+              <span>
+                <ShieldCheck size={13} />
+                Hugerouter Market
+              </span>
+              <em>
+                {hugerouterOrders.filter((order) => order.status === "escrow-held").length} escrow
+              </em>
+            </header>
+            <small>
+              Local fixture for listing and ordering HugeRouter capacity shape. HugeRouter remains
+              the authority for merchant, metering, settlement, route receipts, and production
+              routing.
+            </small>
+            <label>
+              <span>Seller</span>
+              <input
+                value={hugerouterSellerLabel}
+                onChange={(event) => setHugerouterSellerLabel(event.target.value)}
+                aria-label="Hugerouter seller"
+                placeholder="Hugerouter seller"
+              />
+            </label>
+            <label>
+              <span>Tier</span>
+              <select
+                value={hugerouterTier}
+                onChange={(event) =>
+                  setHugerouterTier(event.target.value as T3HugerouterMembershipTier)
+                }
+                aria-label="Hugerouter membership tier"
+              >
+                {hugerouterTierOptions.map((option) => (
+                  <option key={option.tier} value={option.tier}>
+                    {option.label} · {option.multiplier}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Source</span>
+              <select
+                value={hugerouterSourceKind}
+                onChange={(event) =>
+                  setHugerouterSourceKind(event.target.value as T3HugerouterCapacitySource)
+                }
+                aria-label="Hugerouter capacity source"
+              >
+                {hugerouterCapacitySourceOptions.map((option) => (
+                  <option key={option.sourceKind} value={option.sourceKind}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Credits</span>
+              <input
+                value={hugerouterTotalCredits}
+                onChange={(event) => setHugerouterTotalCredits(event.target.value)}
+                aria-label="Hugerouter listing credits"
+                inputMode="numeric"
+                placeholder="1000000"
+              />
+            </label>
+            <label>
+              <span>Min buy</span>
+              <input
+                value={hugerouterMinCredits}
+                onChange={(event) => setHugerouterMinCredits(event.target.value)}
+                aria-label="Hugerouter minimum purchase credits"
+                inputMode="numeric"
+                placeholder="50000"
+              />
+            </label>
+            <label>
+              <span>$/1k</span>
+              <input
+                value={hugerouterUnitPrice}
+                onChange={(event) => setHugerouterUnitPrice(event.target.value)}
+                aria-label="Hugerouter unit price"
+                inputMode="decimal"
+                placeholder="0.08"
+              />
+            </label>
+            <button type="button" onClick={publishHugerouterCapacityListingMock}>
+              Publish credits
+            </button>
+            <label>
+              <span>Buyer</span>
+              <input
+                value={hugerouterBuyerLabel}
+                onChange={(event) => setHugerouterBuyerLabel(event.target.value)}
+                aria-label="Hugerouter buyer"
+                placeholder="Internal buyer"
+              />
+            </label>
+            <label>
+              <span>Buy credits</span>
+              <input
+                value={hugerouterBuyCredits}
+                onChange={(event) => setHugerouterBuyCredits(event.target.value)}
+                aria-label="Hugerouter buy credits"
+                inputMode="numeric"
+                placeholder="100000"
+              />
+            </label>
+            {hugerouterListings.length > 0 ? (
+              <div className="t3-hugerouter-listing-list">
+                {hugerouterListings.slice(0, 4).map((listing) => (
+                  <article key={listing.id}>
+                    <span>
+                      <strong>{listing.tierLabel}</strong>
+                      <small>
+                        {formatCredits(listing.availableCredits)} credits ·{" "}
+                        {formatSeatPrice(listing.unitPriceCentsPerThousand)} / 1k
+                      </small>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => buyHugerouterCapacityMock(listing.id)}
+                      disabled={listing.status !== "listed"}
+                    >
+                      Buy
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            {hugerouterOrders.length > 0 ? (
+              <div className="t3-hugerouter-order-list">
+                {hugerouterOrders.slice(0, 4).map((order) => (
+                  <article key={order.id}>
+                    <span>
+                      <strong>{order.buyerLabel}</strong>
+                      <small>
+                        {formatCredits(order.creditsPurchased)} credits ·{" "}
+                        {formatSeatPrice(order.totalPriceCents)} · {order.status}
+                      </small>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => settleHugerouterOrderMock(order.id)}
+                      disabled={order.status !== "escrow-held"}
+                    >
+                      Settle
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => refundHugerouterOrderMock(order.id)}
+                      disabled={order.status !== "escrow-held"}
+                    >
+                      Refund
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <Card
+            className="t3-browser-guest-pass"
+            variant="secondary"
+            aria-label="Guest pass sharing mock"
+          >
+            <Card.Header className="t3-browser-card-header">
+              <span>
+                <UserPlus size={13} />
+                Guest Pass
+              </span>
+              <Chip color="success" size="sm" variant="soft">
+                {browserGuestPasses.filter((pass) => pass.status === "active").length} active
+              </Chip>
+            </Card.Header>
+            <small>
+              Share supervised remote-session use with a friend. Passwords, cookies, billing, and
+              security settings stay blocked.
+            </small>
+            <label htmlFor="t3-browser-guest-pass-recipient">
+              <span>Guest</span>
+              <Input
+                id="t3-browser-guest-pass-recipient"
+                value={guestPassRecipient}
+                onChange={(event) => setGuestPassRecipient(event.target.value)}
+                aria-label="Guest pass recipient"
+                placeholder="Friend"
+                variant="secondary"
+              />
+            </label>
+            <label>
+              <span>Expires</span>
+              <select
+                value={guestPassDurationHours}
+                onChange={(event) => setGuestPassDurationHours(Number(event.target.value))}
+                aria-label="Guest pass duration"
+              >
+                <option value={1}>1 hour</option>
+                <option value={2}>2 hours</option>
+                <option value={8}>8 hours</option>
+                <option value={24}>24 hours</option>
+              </select>
+            </label>
+            <Button
+              type="button"
+              onPress={() => {
+                if (browserProvider === "custom" && !customProductUrl.trim()) {
+                  return;
+                }
+                createBrowserGuestPassMock();
+              }}
+              aria-disabled={browserProvider === "custom" && !customProductUrl.trim()}
+              size="md"
+              variant="secondary"
+            >
+              Create guest pass
+            </Button>
+            {browserGuestPasses.length > 0 ? (
+              <div className="t3-browser-guest-list">
+                {browserGuestPasses.slice(0, 3).map((pass) => (
+                  <article key={pass.id}>
+                    <span>
+                      <strong>{pass.guestLabel}</strong>
+                      <small>
+                        {pass.providerId} · {pass.status} · expires{" "}
+                        {formatGuestPassExpiry(pass.expiresAt)}
+                      </small>
+                    </span>
+                    <code>{pass.inviteCode}</code>
+                    <Button
+                      type="button"
+                      onPress={() => {
+                        if (pass.status !== "active") {
+                          return;
+                        }
+                        revokeBrowserGuestPassMock(pass.id);
+                      }}
+                      aria-disabled={pass.status !== "active"}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Revoke
+                    </Button>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </Card>
+          <Card
+            className="t3-browser-seat-pool"
+            variant="secondary"
+            aria-label="Membership seat pool mock"
+          >
+            <Card.Header className="t3-browser-card-header">
+              <span>
+                <Users size={13} />
+                Seat Pool
+              </span>
+              <Chip size="sm" variant="tertiary">
+                {browserSeatPool?.memberCount ?? 0}/
+                {browserSeatPool?.seatLimit === null
+                  ? "unlimited"
+                  : (browserSeatPool?.seatLimit ?? "unlimited")}
+              </Chip>
+            </Card.Header>
+            <small>
+              {isHugerouterNativeProvider
+                ? "Hugerouter manages every website by origin. Site policy is cloud-controlled; local data only uses the first-level URL as the site id."
+                : "Hugerouter manages this website by origin. Third-party site policy and plan compliance are controlled by Hugerouter cloud."}
+            </small>
+            {currentHugerouterSiteScope ? (
+              <div className="t3-ai-gateway-stats" aria-label="Hugerouter site identity">
+                <span>{currentHugerouterSiteScope.siteId}</span>
+                <span>policy: cloud</span>
+              </div>
+            ) : null}
+            <label>
+              <span>Tier</span>
+              <select
+                value={commercialPlanType}
+                onChange={(event) =>
+                  setCommercialPlanType(event.target.value as T3BrowserMembershipPlanType)
+                }
+                aria-label="Commercial membership tier"
+              >
+                {sellerCommercialPlanOptions.map((plan) => (
+                  <option key={plan.planType} value={plan.planType}>
+                    {plan.planLabel} · {plan.serviceMultiplier}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label htmlFor="t3-browser-seat-price">
+              <span>Seat price</span>
+              <Input
+                id="t3-browser-seat-price"
+                value={commercialSeatPrice}
+                onChange={(event) => setCommercialSeatPrice(event.target.value)}
+                aria-label="Commercial seat price"
+                inputMode="decimal"
+                placeholder="7.99"
+                variant="secondary"
+              />
+            </label>
+            <Checkbox
+              className="t3-browser-platform-rental-toggle"
+              isSelected={platformRentalEnabled}
+              onChange={setPlatformRentalEnabled}
+              aria-label="Enable platform rental discount"
+            >
+              Platform rental
+            </Checkbox>
+            <label htmlFor="t3-browser-platform-price">
+              <span>Platform price</span>
+              <Input
+                id="t3-browser-platform-price"
+                value={platformRentalDiscountPrice}
+                onChange={(event) => setPlatformRentalDiscountPrice(event.target.value)}
+                aria-label="Platform rental discount price"
+                disabled={!platformRentalEnabled}
+                inputMode="decimal"
+                placeholder="6.39"
+                variant="secondary"
+              />
+            </label>
+            <div
+              className="t3-browser-platform-rental-options"
+              aria-label="Supported rental platforms"
+            >
+              {seatPoolRentalPlatformOptions.map((option) => (
+                <label key={option.platform}>
+                  <input
+                    checked={platformRentalPlatforms.includes(option.platform)}
+                    onChange={() => togglePlatformRentalPlatform(option.platform)}
+                    disabled={!platformRentalEnabled}
+                    type="checkbox"
+                  />
+                  <span>{option.label}</span>
+                </label>
               ))}
             </div>
-          ) : (
-            <small>No listings match this service filter.</small>
-          )}
+            <label htmlFor="t3-browser-seat-limit">
+              <span>Seat limit</span>
+              <Input
+                id="t3-browser-seat-limit"
+                value={commercialSeatLimit}
+                onChange={(event) => setCommercialSeatLimit(event.target.value)}
+                aria-label="Commercial seat limit"
+                inputMode="numeric"
+                placeholder="unlimited"
+                variant="secondary"
+              />
+            </label>
+            <Button
+              type="button"
+              onPress={() => {
+                if (browserProvider === "custom" && !customProductUrl.trim()) {
+                  return;
+                }
+                publishSeatPoolListingMock();
+              }}
+              aria-disabled={browserProvider === "custom" && !customProductUrl.trim()}
+              size="md"
+              variant="secondary"
+            >
+              Publish listing
+            </Button>
+            <label htmlFor="t3-browser-seat-member">
+              <span>Member</span>
+              <Input
+                id="t3-browser-seat-member"
+                value={seatPoolMemberName}
+                onChange={(event) => setSeatPoolMemberName(event.target.value)}
+                aria-label="Seat pool member name"
+                placeholder="Member name"
+                variant="secondary"
+              />
+            </label>
+            <Button
+              type="button"
+              onPress={() => {
+                if (browserProvider === "custom" && !customProductUrl.trim()) {
+                  return;
+                }
+                addBrowserSeatPoolMemberMock();
+              }}
+              aria-disabled={browserProvider === "custom" && !customProductUrl.trim()}
+              size="md"
+              variant="outline"
+            >
+              Add seat
+            </Button>
+            {browserSeatPool && browserSeatPool.members.length > 0 ? (
+              <div className="t3-browser-seat-list">
+                {browserSeatPool.members.map((member) => (
+                  <article key={member.id}>
+                    <span>
+                      <strong>
+                        {member.seatNumber}. {member.label}
+                      </strong>
+                      <small>
+                        {browserSeatPool.providerId} · {member.status} · {member.inviteCode}
+                      </small>
+                    </span>
+                    <Button
+                      type="button"
+                      onPress={() => {
+                        if (member.status !== "active") {
+                          return;
+                        }
+                        pauseBrowserSeatPoolMemberMock(member.id);
+                      }}
+                      aria-disabled={member.status !== "active"}
+                      size="sm"
+                      variant="outline"
+                    >
+                      Pause
+                    </Button>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            <div className="t3-browser-marketplace" aria-label="Membership service marketplace">
+              <label>
+                <span>Find service</span>
+                <select
+                  value={seatListingFilter}
+                  onChange={(event) =>
+                    setSeatListingFilter(event.target.value as T3BrowserMembershipPlanType | "all")
+                  }
+                  aria-label="Membership service filter"
+                >
+                  <option value="all">All membership services</option>
+                  {commercialPlanOptions.map((plan) => (
+                    <option key={plan.planType} value={plan.planType}>
+                      {plan.planLabel} · {plan.serviceMultiplier}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {browserSeatListings.length > 0 ? (
+                <div className="t3-browser-listing-list">
+                  {browserSeatListings.slice(0, 6).map((listing) => (
+                    <article key={listing.poolId}>
+                      <span>
+                        <strong>{listing.commercial.planLabel}</strong>
+                        <small>{listing.siteLabel}</small>
+                        <small>
+                          {formatSeatPrice(listing.commercial.seatPriceCents)} / seat ·{" "}
+                          {listing.availableSeats === null
+                            ? "unlimited"
+                            : `${listing.availableSeats} available`}
+                        </small>
+                        {listing.commercial.platformRental.enabled ? (
+                          <small>
+                            Platform rental{" "}
+                            {formatSeatPrice(listing.commercial.platformRental.discountPriceCents)}{" "}
+                            · {listing.commercial.platformRental.supportedPlatforms.join(", ")}
+                          </small>
+                        ) : null}
+                      </span>
+                      <Chip size="sm" variant="tertiary">
+                        {listing.commercial.serviceMultiplier}
+                      </Chip>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <small>No listings match this service filter.</small>
+              )}
+            </div>
+          </Card>
         </div>
-      </div>
+      </section>
       {browserRecentSessions.length > 0 ? (
-        <div className="t3-browser-recent" aria-label="Recent browser sessions">
+        <Card
+          className="t3-browser-recent"
+          variant="secondary"
+          aria-label="Recent browser sessions"
+        >
+          <Card.Header className="t3-browser-card-header">
+            <span>
+              <RefreshCw size={13} />
+              Recent sessions
+            </span>
+            <Chip size="sm" variant="tertiary">
+              {browserRecentSessions.length}
+            </Chip>
+          </Card.Header>
           {browserRecentSessions.slice(0, 3).map((session) => (
-            <button
+            <Button
               type="button"
               key={session.id}
-              onClick={() => {
+              className="t3-browser-recent-item"
+              onPress={() => {
                 setBrowserProvider(session.providerId);
                 setCustomProductUrl(session.url);
                 setSelectedBrowserProfileId(session.profileId);
               }}
+              variant="outline"
             >
               <strong>{session.title}</strong>
               <span>{session.profileLabel}</span>
-            </button>
+            </Button>
           ))}
-        </div>
+        </Card>
       ) : null}
       {remoteBrowserProfiles.length > 0 ? (
-        <div className="t3-browser-profile-list">
+        <Card className="t3-browser-profile-list" variant="secondary">
+          <Card.Header className="t3-browser-card-header">
+            <span>
+              <Settings size={13} />
+              Remote profiles
+            </span>
+            <Chip size="sm" variant="tertiary">
+              {remoteBrowserProfiles.length}
+            </Chip>
+          </Card.Header>
           {remoteBrowserProfiles.map((profile) => (
             <div key={profile.id}>
               <span>{profile.label}</span>
-              <button
+              <Button
                 type="button"
-                onClick={() => void removeRemoteBrowserProfile(profile.id)}
-                disabled={browserProfileBusy}
+                onPress={() => {
+                  if (browserProfileBusy) {
+                    return;
+                  }
+                  void removeRemoteBrowserProfile(profile.id);
+                }}
+                aria-disabled={browserProfileBusy}
                 aria-label={`Remove ${profile.label}`}
+                isIconOnly
+                size="sm"
+                variant="outline"
               >
                 <Trash2 size={13} />
-              </button>
+              </Button>
             </div>
           ))}
-        </div>
+        </Card>
       ) : null}
       {browserProfileNotice ? <small>{browserProfileNotice}</small> : null}
     </section>

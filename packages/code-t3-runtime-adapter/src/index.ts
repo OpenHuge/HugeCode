@@ -9,6 +9,11 @@ import type {
   ReasonEffort,
   RuntimeBackendSummary,
 } from "@ku0/code-runtime-host-contract";
+import type {
+  HugeRouterCommercialServiceSnapshot,
+  HugeRouterRouteTokenIssueRequest,
+  HugeRouterRouteTokenIssueResponse,
+} from "@ku0/code-runtime-host-contract/codeRuntimeRpc";
 
 export type T3CodeProviderKind = "codex" | "claudeAgent";
 
@@ -184,6 +189,10 @@ export type T3CodeThreadLaunchInput = {
 export type HugeCodeRuntimeBridge = {
   listBackends(): Promise<RuntimeBackendSummary[]>;
   listModels(): Promise<ModelPoolEntry[]>;
+  readHugeRouterCommercialService?(): Promise<HugeRouterCommercialServiceSnapshot | null>;
+  issueHugeRouterRouteToken?(
+    request?: HugeRouterRouteTokenIssueRequest
+  ): Promise<HugeRouterRouteTokenIssueResponse>;
   startAgentTask(request: AgentTaskStartRequest): Promise<unknown>;
   interruptTurn(turnId: string | null, reason?: string | null): Promise<unknown>;
   approveRequest(requestId: string, approved: boolean): Promise<unknown>;
@@ -221,6 +230,7 @@ const PROVIDER_CAPABILITY_MARKERS = {
 const DEFAULT_CODEX_GATEWAY_PROVIDER_ID = "hugerouter";
 const DEFAULT_CODEX_GATEWAY_DISPLAY_NAME = "HugeRouter";
 const DEFAULT_CODEX_GATEWAY_API_KEY_ENV = "HUGEROUTER_ROUTE_TOKEN";
+const DEFAULT_CODEX_GATEWAY_MODEL_ALIAS = "agent-coding-default";
 const CODEX_GATEWAY_WIRE_API: T3GatewayWireApi = "responses";
 
 function nowMs() {
@@ -804,6 +814,56 @@ export function createT3CodexGatewayProviderRoute(
   };
 }
 
+export function mapHugeRouterCommercialSnapshotToT3ProviderRoute(
+  snapshot: HugeRouterCommercialServiceSnapshot | null
+): T3CodeProviderRoute | null {
+  if (!snapshot || snapshot.connection.status !== "connected") {
+    return null;
+  }
+  const routeToken = snapshot.routeToken;
+  if (!routeToken || (routeToken.status !== "active" && routeToken.status !== "expiring")) {
+    return null;
+  }
+  const routeBaseUrl = optionalText(snapshot.connection.routeBaseUrl);
+  if (!routeBaseUrl) {
+    return null;
+  }
+  const plan = snapshot.capacity?.planName ?? snapshot.availablePlans[0]?.name ?? "HugeRouter";
+  const modelAlias = DEFAULT_CODEX_GATEWAY_MODEL_ALIAS;
+  const projectId = optionalText(snapshot.connection.projectId);
+  const tenantId = optionalText(snapshot.connection.tenantId);
+  const profile = buildT3CodexGatewayProviderProfile({
+    apiKey: "managed-by-hugerouter-route-token",
+    apiKeyEnvKey: routeToken.envKey,
+    baseUrl: routeBaseUrl,
+    commercial: {
+      capacitySource:
+        snapshot.capacity?.capacityKind === "external_relay"
+          ? "provider_authorized_pool"
+          : "hugerouter_native_credits",
+      planId: snapshot.capacity?.planId ?? null,
+      projectId,
+      tenantId,
+    },
+    displayName: "HugeRouter",
+    modelAlias,
+  });
+  const route = createT3CodexGatewayProviderRoute(profile);
+  return {
+    ...route,
+    authState: "authenticated",
+    capabilities: [...route.capabilities, "route_token", routeToken.envKey],
+    installed: true,
+    reasons: [
+      ...route.reasons,
+      `route_token:${routeToken.status}`,
+      ...(snapshot.order?.status ? [`order:${snapshot.order.status}`] : []),
+    ],
+    status: "ready",
+    summary: `${plan} is connected through HugeRouter commercial route token ${routeToken.envKey}.`,
+  };
+}
+
 function mapRouteModelToServerProviderModel(
   provider: T3CodeProviderKind,
   model: T3CodeProviderModel
@@ -868,13 +928,15 @@ export function mapT3ServerProvidersToModelOptionsByProvider(
     claudeAgent: [],
   };
   for (const serverProvider of serverProviders) {
-    grouped[serverProvider.provider] = serverProvider.models.map((model) => ({
-      name: model.name,
-      ...(model.runtimeProvider ? { runtimeProvider: model.runtimeProvider } : {}),
-      ...(model.shortName ? { shortName: model.shortName } : {}),
-      slug: model.slug,
-      ...(model.subProvider ? { subProvider: model.subProvider } : {}),
-    }));
+    grouped[serverProvider.provider].push(
+      ...serverProvider.models.map((model) => ({
+        name: model.name,
+        ...(model.runtimeProvider ? { runtimeProvider: model.runtimeProvider } : {}),
+        ...(model.shortName ? { shortName: model.shortName } : {}),
+        slug: model.slug,
+        ...(model.subProvider ? { subProvider: model.subProvider } : {}),
+      }))
+    );
   }
   return grouped;
 }
@@ -882,9 +944,18 @@ export function mapT3ServerProvidersToModelOptionsByProvider(
 export function buildT3ProviderCatalog(
   backends: readonly RuntimeBackendSummary[],
   models: readonly ModelPoolEntry[] = [],
-  checkedAt = new Date().toISOString()
+  checkedAt = new Date().toISOString(),
+  options: {
+    hugeRouterCommercialService?: HugeRouterCommercialServiceSnapshot | null;
+  } = {}
 ): T3CodeProviderCatalog {
-  const routes = mapHugeCodeBackendPoolToT3ProviderRoutes(backends, models);
+  const hugeRouterRoute = mapHugeRouterCommercialSnapshotToT3ProviderRoute(
+    options.hugeRouterCommercialService ?? null
+  );
+  const routes = [
+    ...(hugeRouterRoute ? [hugeRouterRoute] : []),
+    ...mapHugeCodeBackendPoolToT3ProviderRoutes(backends, models),
+  ];
   const serverProviders = mapT3ProviderRoutesToServerProviders(routes, checkedAt);
   return {
     checkedAt,
@@ -1092,15 +1163,33 @@ export function mapHugeCodeRuntimeEventToT3TimelineEvent(
 }
 
 export async function refreshT3ProviderRoutes(
-  bridge: Pick<HugeCodeRuntimeBridge, "listBackends" | "listModels">
+  bridge: Pick<
+    HugeCodeRuntimeBridge,
+    "listBackends" | "listModels" | "readHugeRouterCommercialService"
+  >
 ): Promise<T3CodeProviderRoute[]> {
-  const [backends, models] = await Promise.all([bridge.listBackends(), bridge.listModels()]);
-  return buildT3ProviderCatalog(backends, models).routes;
+  const [backends, models, hugeRouterCommercialService] = await Promise.all([
+    bridge.listBackends(),
+    bridge.listModels(),
+    bridge.readHugeRouterCommercialService?.() ?? Promise.resolve(null),
+  ]);
+  return buildT3ProviderCatalog(backends, models, undefined, {
+    hugeRouterCommercialService,
+  }).routes;
 }
 
 export async function refreshT3ProviderCatalog(
-  bridge: Pick<HugeCodeRuntimeBridge, "listBackends" | "listModels">
+  bridge: Pick<
+    HugeCodeRuntimeBridge,
+    "listBackends" | "listModels" | "readHugeRouterCommercialService"
+  >
 ): Promise<T3CodeProviderCatalog> {
-  const [backends, models] = await Promise.all([bridge.listBackends(), bridge.listModels()]);
-  return buildT3ProviderCatalog(backends, models);
+  const [backends, models, hugeRouterCommercialService] = await Promise.all([
+    bridge.listBackends(),
+    bridge.listModels(),
+    bridge.readHugeRouterCommercialService?.() ?? Promise.resolve(null),
+  ]);
+  return buildT3ProviderCatalog(backends, models, undefined, {
+    hugeRouterCommercialService,
+  });
 }

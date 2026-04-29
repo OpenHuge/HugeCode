@@ -12,10 +12,13 @@ checkpoints, and Review Pack evidence.
 
 For the first public release, the product priority has changed:
 
-- use the mature Codex execution kernel for local agent work
-- route model/provider access through OpenHuge/HugeRouter
-- keep account access, route policy, shared capacity, usage, ledger, and
-  merchant or relay governance in HugeRouter
+- use the built-in Codex app-server as the mainline execution path
+- support local Codex and Claude as provider routes
+- route model/provider access through OpenHuge/HugeRouter, including both
+  arbitrary relay/provider+key paths and the official HugeRouter commercial
+  service path
+- keep merchant, metering, settlement, route receipts, and actual route
+  decisions in HugeRouter
 - move the repo-owned native runtime to a separate lab branch for later
   development
 
@@ -39,7 +42,32 @@ The mainline runtime boundary becomes a thin adapter layer. It may start and
 supervise Codex app-server, write an isolated Codex config, pass a revocable
 HugeRouter route token through environment variables, and render Codex thread,
 turn, item, approval, diff, and review events. It must not rebuild HugeRouter's
-provider routing, account pool, marketplace, pricing, or ledger behavior.
+provider routing, merchant, metering, settlement, route receipt, or route
+decision behavior.
+
+The UI shell boundary should be a single runtime RPC invoker shape:
+
+```text
+shell / desktop bridge / web gateway / future embedded Codex app-server
+  -> invoke(method, params)
+  -> HugeCode runtime bridge facade
+  -> T3-shaped provider, model, task, approval, and route-token adapters
+```
+
+Do not add separate per-shell implementations for each T3 runtime method. New
+shells and the built-in Codex app-server path should provide only the invoker
+transport and reuse the same method mapping. This keeps desktop preload, web
+gateway, standalone Vite, and future app-server integrations compatible without
+duplicating route-token, task-start, interrupt, approval, model, or backend
+mapping logic.
+
+This follows the current upstream Codex app-server direction: the app-server is
+a rich-client control surface over JSON-RPC 2.0, exposes thread/turn/item
+primitives, streams turn notifications, requires an initialize handshake, and
+can generate version-matched TypeScript or JSON schema artifacts for the exact
+Codex version being embedded. HugeCode should consume that boundary as a
+transport-agnostic adapter surface instead of copying Codex agent lifecycle
+logic into each product shell.
 
 ## V1 Ownership
 
@@ -48,6 +76,8 @@ HugeCode owns:
 - desktop onboarding and workspace selection
 - embedded Codex app-server lifecycle management
 - Codex task entry, event rendering, approval presentation, and Review Lite UI
+- typed connection, capacity, plan, order, and route-token UI and contract
+  surfaces
 - local configuration hygiene for a HugeRouter-backed Codex provider
 - clear degraded-state messaging when Codex app-server or HugeRouter is not
   ready
@@ -55,13 +85,13 @@ HugeCode owns:
 HugeRouter owns:
 
 - tenant, project, principal, and virtual-key identity
-- provider resources and provenance classes
-- route policies, route receipts, admission, retry, and fallback decisions
-- shared or brokered capacity eligibility
-- usage events, metering, budgets, ledger, pricing, and merchant or relay
-  governance
-- compliance policy for account rental, seat sharing, and external relay
-  capacity
+- arbitrary relay/provider+key execution paths
+- official HugeRouter commercial service routing
+- merchant, metering, settlement, pricing, and ledger behavior
+- route receipts, admission, retry, fallback, and actual route decisions
+- provider resources, provenance classes, and shared or brokered capacity
+  eligibility
+- compliance policy for external relay capacity
 
 Native runtime lab owns:
 
@@ -81,8 +111,9 @@ Mainline V1 must not:
   raw provider session material
 - implement third-party password sharing or cookie sync
 - hide shared or brokered capacity behind an official-provider label
-- maintain a second provider routing or billing system inside HugeCode
-- extend the native runtime kernel for launch-critical features
+- maintain a second provider routing, merchant, metering, settlement, or billing
+  system inside HugeCode
+- extend the repo-owned native runtime kernel for launch-critical features
 
 ## Integration Requirements
 
@@ -101,6 +132,11 @@ HugeCode should treat a successful HugeRouter route receipt as the source of
 truth for selected target, provenance, fallback, usage, and support
 diagnostics. HugeCode UI may summarize that truth, but it must not infer a
 different routing explanation.
+
+For V1, built-in Codex/app-server is the mainline path. Local Codex and Claude
+remain supported provider routes. Repo-owned native runtime work stays in
+future/lab development until it can return without duplicating Codex execution
+or HugeRouter routing responsibilities.
 
 ## Consequences
 
@@ -125,3 +161,11 @@ Initial implementation should add focused tests around:
 - Codex provider config generation
 - refusal to persist secret route token values
 - refusal to configure endpoint URLs below `/responses` or `/chat/completions`
+- shell/runtime-gateway/app-server invoker reuse for T3 runtime bridge methods
+
+## Reference Inputs
+
+- OpenAI Codex app-server README:
+  <https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md>
+- OpenAI Codex config reference entrypoint:
+  <https://developers.openai.com/codex/config-reference>
