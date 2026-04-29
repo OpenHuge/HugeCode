@@ -3,6 +3,8 @@ import { SettingsField, SettingsFieldGroup } from "./SettingsSectionGrammar";
 import { settingsServerCompactSelectProps } from "./settingsServerControlPlaneShared";
 import { SettingsAutomationSection } from "./SettingsAutomationSection";
 import { SettingsBackendPoolSection } from "./SettingsBackendPoolSection";
+import { SettingsHugeRouterCommercialSection } from "./SettingsHugeRouterCommercialSection";
+import { SettingsRelayAssistantSection } from "./SettingsRelayAssistantSection";
 import { SettingsRuntimeCompositionFieldGroup } from "./SettingsRuntimeCompositionFieldGroup";
 import {
   createSettingsServerOperabilityState,
@@ -15,6 +17,8 @@ export function SettingsServerControlPlaneSection({
   defaultRemoteExecutionBackendId,
   onSetDefaultExecutionBackend,
   workspaceOptions,
+  hugeRouterCommercial,
+  relayAssistant,
   backendPoolVisible,
   backendPool,
   backendPoolLoading = false,
@@ -87,6 +91,10 @@ export function SettingsServerControlPlaneSection({
         defaultRemoteExecutionBackendId={defaultRemoteExecutionBackendId}
       />
 
+      <SettingsHugeRouterCommercialSection surface={hugeRouterCommercial} />
+
+      <SettingsRelayAssistantSection surface={relayAssistant} />
+
       {backendPoolVisible ? (
         <SettingsFieldGroup
           title="Backend pool state"
@@ -138,5 +146,7 @@ export function SettingsServerControlPlaneSection({
 export {
   SettingsAutomationSection,
   SettingsBackendPoolSection,
+  SettingsHugeRouterCommercialSection,
+  SettingsRelayAssistantSection,
   SettingsRuntimeCompositionFieldGroup,
 };
