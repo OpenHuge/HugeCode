@@ -40,9 +40,6 @@ jobs:
       - name: Build code workspace (attempt ${{ matrix.attempt }})
         run: pnpm code:build
 
-      - name: Desktop runtime fast verify (attempt ${{ matrix.attempt }})
-        run: pnpm desktop:verify:fast
-
   runtime_proving_lane:
     runs-on: ubuntu-latest
     timeout-minutes: 60

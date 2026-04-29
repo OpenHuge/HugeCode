@@ -13,10 +13,9 @@ This file exists so Gemini CLI loads the same repo-level guidance as Codex and C
 
 - Official product context is `HugeCode`.
 - Legacy names such as `Keep-Up` and `Reader` are historical only.
-- Active product surfaces are `apps/code`, `apps/code-web`, and `apps/code-electron`.
-- `apps/code-web` is the Cloudflare-platform web implementation for public routes, SSR, and deploy wiring.
-- `apps/code` remains the shared workspace client implementation that `apps/code-web` reuses for client-only `/app` flows.
-- The local Agent Command Center in `apps/code` is intentionally slim: keep it
+- Active product surface is `apps/code-t3`.
+- `apps/code`, `apps/code-web`, and `apps/code-electron` have been removed from the active workspace.
+- The local Agent Command Center in `apps/code-t3` is intentionally slim: keep it
   to intent capture, runtime orchestration, and WebMCP controls rather than a
   local task board or governance dashboard.
 - `continuity readiness` is post-launch runtime truth. When runtime publishes
@@ -29,7 +28,7 @@ This file exists so Gemini CLI loads the same repo-level guidance as Codex and C
 
 ## Architecture Guardrails
 
-- Keep `apps/code` runtime access behind `apps/code/src/application/runtime/*`.
+- Keep `apps/code-t3` runtime access behind `apps/code-t3/src/runtime/*`.
 - Do not orchestrate runtime, desktop-host, or transport ports directly from UI components or feature hooks.
 - New remote execution behavior should enter through an application/runtime facade or service first.
 - Do not introduce new wide aggregation ports like `desktopSettings` or `desktopWorkspaces` for fresh feature work.
@@ -40,8 +39,8 @@ This file exists so Gemini CLI loads the same repo-level guidance as Codex and C
 - TypeScript, React 19, pnpm 10 monorepo, Turbo, Vite, Rust native accelerators.
 - `@ku0/*` for TypeScript packages and `ku0-*` for Rust crates.
 - Loro only; do not add Yjs.
-- Use `vanilla-extract` (`.css.ts`) and shared design tokens on active UI surfaces.
-- Do not add Tailwind or inline styles on repo-owned UI surfaces.
+- Use the local t3 styling stack in `apps/code-t3`; shared packages continue to use `vanilla-extract` and shared design tokens.
+- Do not add inline styles on repo-owned UI surfaces.
 - Do not use `any`, `var`, array-index React keys, or clickable non-semantic elements.
 
 ## Commands
@@ -49,8 +48,8 @@ This file exists so Gemini CLI loads the same repo-level guidance as Codex and C
 - Setup: `pnpm install`, `pnpm dev`, `pnpm build`, `pnpm preflight:codex`
 - Validation: `pnpm validate:fast`, `pnpm validate`, `pnpm validate:full`
 - Boundary checks: `pnpm ui:contract`, `pnpm check:runtime-contract`
-- Desktop verification: `pnpm desktop:verify:fast`, `pnpm desktop:verify`
-- Targeted browser checks: `pnpm test:component`, `pnpm test:e2e:{core,blocks,collab,annotations,features,smoke,a11y}`
+- T3 app checks: `pnpm --filter @ku0/code-t3 test`, `pnpm --filter @ku0/code-t3 typecheck`, `pnpm code-t3:build`
+- Targeted browser checks: `pnpm test:e2e:{core,blocks,collab,annotations,features,smoke,a11y}`
 
 ## Delivery Expectations
 

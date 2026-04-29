@@ -5,7 +5,7 @@ If it conflicts with `AGENTS.md`, follow `AGENTS.md`.
 
 ## 30-Second Product Read
 
-HugeCode is a desktop-first mission control for coding agents.
+HugeCode is a t3-derived mission control for coding agents.
 The current product center is supervised delegated engineering work, with two defining capabilities:
 
 - `AutoDrive` for bounded autonomous execution
@@ -21,7 +21,7 @@ Recent commits show a consistent direction rather than a broad platform sprawl. 
 
 - runtime-owned task truth, checkpoint truth, and review handoff are being closed and frozen
 - backend pool operability, diagnostics, and settings grammar are active product work
-- `apps/code` is being aligned with runtime truth instead of preserving UI-side reconstruction
+- `apps/code-t3` is the active app surface and is being aligned with runtime truth
 - docs and agent entrypoints are being tightened to reduce stale guidance and historical drift
 
 Treat that as the working north star unless a newer active spec explicitly changes it.
@@ -40,16 +40,13 @@ Use this order when starting repo-wide work:
 ## Current Repo Shape
 
 - Official product context is `HugeCode`.
-- Active app surfaces are `apps/code`, `apps/code-web`, and `apps/code-electron`.
+- Active app surface is `apps/code-t3`.
 - Core runtime layers are `packages/code-runtime-service-rs`, `packages/code-runtime-host-contract`, and `packages/native-runtime-host-contract`.
-- `apps/code-web` is the current Cloudflare-platform web implementation for
-  public routes, SSR, and deploy wiring; it is not a second independent
-  workspace app.
-- `apps/code` is still the main workspace client implementation and does not
-  fully replace `apps/code-web` for web deployment tasks.
+- `apps/code`, `apps/code-web`, and `apps/code-electron` have been removed from
+  the active workspace.
 - `multi-agent`, `sub-agent`, and `parallel-agent` execution are core product
   capabilities, not deprecated experiments.
-- The local `Agent Command Center` in `apps/code` is intentionally slim:
+- The local `Agent Command Center` in `apps/code-t3` is intentionally slim:
   treat it as intent capture + launch readiness + runtime orchestration +
   WebMCP controls, not as
   a local task board, governance dashboard, or audit-log manager.
@@ -87,7 +84,7 @@ Use this order when starting repo-wide work:
   `/apps` command as part of the active product surface.
 - Do not expect a runtime `list-runtime-apps` tool or `appsListV1` app-layer
   compatibility RPC; that discovery path has been removed.
-- Runtime/UI work in `apps/code` must stay behind `src/application/runtime/*`.
+- Runtime/UI work in `apps/code-t3` must stay behind `src/runtime/*`.
 - Treat the Track 1 runtime lifecycle boundary as frozen:
   - approved product-facing reads flow through
     `features/shared/hooks/useWorkspaceRuntimeToolLifecycle.ts`
@@ -116,14 +113,11 @@ Use deeper docs to refine a higher-level source, not to replace it.
 - Reading `docs/archive/**` and treating archived product language or structure as current.
 - Treating `docs/plans/**` working notes as more authoritative than active specs or current source.
 - Restoring deleted `Keep-Up` or `Reader` names into active code or docs.
-- Starting shared workspace-client feature work from `apps/code-web` instead of
-  `apps/code`, or starting Cloudflare route/deploy work from `apps/code`
-  instead of `apps/code-web`.
-- Assuming `apps/code-web` is redundant and moving Cloudflare/Start concerns
-  into `apps/code` without an explicit consolidation plan.
+- Reintroducing `apps/code`, `apps/code-web`, or `apps/code-electron` without a
+  new ADR and tracked manifest.
 - Reintroducing `apps/connectors` as if they were still an active extension
   strategy, instead of using `skills` as the extension model.
-- Bypassing `apps/code/src/application/runtime/*` and wiring runtime behavior directly in UI code.
+- Bypassing `apps/code-t3/src/runtime/*` and wiring runtime behavior directly in UI code.
 - Citing commands that are not present in the current root `package.json`.
 - Running overly broad validation when a narrower gate exists, or skipping contract/boundary checks when a change crosses those surfaces.
 
@@ -135,8 +129,8 @@ Use deeper docs to refine a higher-level source, not to replace it.
   `docs/prd.md`, `docs/specs/apps/code-product-shape-2026.md`
 - Runtime, contracts, backend routing, or review-pack behavior:
   `docs/arch.md`, `docs/agents-system-design.md`, `docs/runtime/README.md`
-- Cloudflare web publishing, public routes, or Start/SSR shell work:
-  `apps/code-web/README.md`, `apps/code/README.md`, `docs/workspace-map.md`
+- T3 app work:
+  `apps/code-t3/README.md`, `docs/workspace-map.md`
 - Commands and validation:
   `docs/development/README.md`, `docs/testing.md`
 - Historical comparison only:
@@ -155,9 +149,8 @@ Use deeper docs to refine a higher-level source, not to replace it.
 - Isolated changes: `pnpm validate:fast`
 - Multi-file or behavior changes: `pnpm validate`
 - Shared contracts, CI, or release-risk work: `pnpm validate:full`
-- UI/runtime boundary changes: add `pnpm ui:contract`
+- UI/runtime boundary changes: add `pnpm ui:contract` and the relevant `@ku0/code-t3` check
 - Runtime contract changes: add `pnpm check:runtime-contract`
-- Desktop/Electron changes: add `pnpm desktop:verify:fast`
 - Docs-only changes: skip runtime validation and state `docs-only, no runtime impact`
 
 ## Authoring Guidance

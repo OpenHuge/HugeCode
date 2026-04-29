@@ -71,7 +71,7 @@ describe("ci merge-queue fast PR path", () => {
 
   it("keeps runtime contract parity scoped to runtime-owned surfaces instead of CI plumbing", () => {
     const workflow = readWorkflow();
-    const runtimeContractFilter = readFilterBlock(workflow, "runtime_contract", "desktop_host");
+    const runtimeContractFilter = readFilterBlock(workflow, "runtime_contract", "repo_sot");
 
     expect(runtimeContractFilter).not.toContain(".github/workflows/ci.yml");
     expect(runtimeContractFilter).not.toContain(
@@ -80,18 +80,6 @@ describe("ci merge-queue fast PR path", () => {
     expect(runtimeContractFilter).not.toContain(".github/actions/setup-node-pnpm/**");
     expect(runtimeContractFilter).not.toContain(".github/actions/install-linux-desktop-deps/**");
     expect(runtimeContractFilter).not.toContain(".github/actions/setup-rust-ci/**");
-  });
-
-  it("keeps desktop fast verify scoped to desktop host-owned changes", () => {
-    const workflow = readWorkflow();
-
-    expect(workflow).toContain("desktop_host_changed");
-    expect(workflow).toContain("desktop_host:");
-    expect(workflow).toContain("apps/code-electron/**");
-    expect(workflow).toContain("desktop_fast_verify_required");
-    expect(workflow).toContain(
-      "desktop_fast_verify_required: ${{ needs.changes.outputs.desktop_fast_verify_required == 'true' }}"
-    );
   });
 
   it("keeps the merge-queue required affected summary green on push", () => {

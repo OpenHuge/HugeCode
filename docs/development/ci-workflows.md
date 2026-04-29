@@ -26,8 +26,7 @@ Treat the CI check names as explicit requests for missing local proof:
   This lane is where `format`, `lint`, `ui:contract`, `check:circular`, and
   affected typecheck fail. If a PR changes TypeScript behavior, runtime/UI
   boundaries, or import shape, the author should already have run the matching
-  local gate before opening the PR. PR desktop packaging proof stays in the
-  dedicated `Desktop (Electron)` workflow instead of being duplicated here.
+  local gate before opening the PR.
 - `PR Affected Checks / PR Affected Checks`
   This lane validates affected builds and tests. If it fails, the usual fix is
   to reproduce with `pnpm build:affected` and `pnpm test:affected` or the
@@ -38,7 +37,7 @@ Treat the CI check names as explicit requests for missing local proof:
   sign that the PR changed shell startup, runtime readiness, bundle-sensitive
   code, or frontend-owning dependencies without running
   `pnpm validate:frontend-optimization` locally first. Workflow-only CI
-  plumbing edits and generic feature-level `apps/code` UI edits should stay in
+  plumbing edits and generic feature-level `apps/code-t3` UI edits should stay in
   repository-governance or affected-build/test lanes instead of waking this
   browser/build gate.
 
@@ -62,10 +61,6 @@ Key reusable mappings currently in use:
 - `.github/workflows/_reusable-ci-pr-affected-build.yml`
 - `.github/workflows/_reusable-ci-pr-affected-tests.yml`
 - `.github/workflows/_reusable-ci-frontend-optimization.yml`
-- `.github/workflows/_reusable-desktop-prepare-frontend.yml`
-- `.github/workflows/_reusable-desktop-build-pr.yml`
-- `.github/workflows/_reusable-desktop-build-release.yml`
-- `.github/workflows/_reusable-electron-beta.yml`
 
 Public workflow entrypoints currently include:
 
@@ -74,8 +69,6 @@ Public workflow entrypoints currently include:
 - `.github/workflows/codex-nightly.yml`
 - `.github/workflows/dependency-review.yml`
 - `.github/workflows/dependabot-auto-merge.yml`
-- `.github/workflows/desktop.yml`
-- `.github/workflows/electron-beta.yml`
 - `.github/workflows/nightly.yml`
 - `.github/workflows/pr-branch-maintenance.yml`
 - `.github/workflows/pr-auto-merge.yml`
@@ -92,15 +85,14 @@ Public workflow entrypoints currently include:
   `merge_group` runs by default.
 - Required checks that protect `main` should keep a stable aggregate check name even when the underlying reusable workflow fans out into parallel sub-jobs. This lets branch protection and merge queue wait on `Quality / Quality` and `PR Affected Checks / PR Affected Checks` while still shrinking wall-clock time.
 - Shared Node/pnpm bootstrap should stay lockfile-first: prefetch with `pnpm fetch --frozen-lockfile`, then install with `pnpm install --offline --frozen-lockfile` unless a workflow has a documented reason to require a different install path.
-- PR workflow gates may classify manifest-only dependency bumps before deciding whether expensive desktop or frontend lanes are needed; keep that classification script-backed and explicit instead of scattering ad hoc shell heuristics across workflows.
-- Low-risk Dependabot development-version bumps may skip the expensive affected build/test lane when the remaining quality, frontend, or desktop gates already cover the touched risk surface.
+- PR workflow gates may classify manifest-only dependency bumps before deciding whether expensive frontend lanes are needed; keep that classification script-backed and explicit instead of scattering ad hoc shell heuristics across workflows.
+- Low-risk Dependabot development-version bumps may skip the expensive affected build/test lane when the remaining quality or frontend gates already cover the touched risk surface.
 - `dependency-review.yml` should stay as the PR-time supply-chain gate for newly introduced vulnerable dependencies, with repo-owned policy living in `.github/dependency-review-config.yml`.
 - `release.yml` should stay on the staged hybrid npm path until npm trusted publisher setup is complete: keep `id-token: write` and provenance enabled in GitHub Actions, but retain token auth as the temporary fallback release path.
 - Public npm packages should publish with repo-owned `repository` metadata and `publishConfig.provenance: true` so npm provenance resolves back to the correct package directory in this monorepo.
 - CodeQL should stay language-scoped and merge-queue-aware: npm-only updates should not queue Rust analysis, Rust-only updates should not queue JavaScript analysis, and when `MERGE_QUEUE_ENABLED=true` the PR path should fast-skip long CodeQL analysis in favor of `merge_group`, `push`, and scheduled scans.
 - When a required workflow lane is intentionally idle, prefer a fast explicit skip inside the job over removing the check name entirely; this keeps branch protection stable while still reducing runner time.
 - The shared `Quality` lane should reserve global governance checks for `repo_sot`-class changes. On normal product PRs, only run `ui:contract`, `check:circular`, and code-integration watch when their owned surfaces changed.
-- Desktop build lanes should install the active Electron shell plus the `@ku0/code...` workspace surfaces they package, without relying on a full workspace install.
 - Expensive frontend optimization lanes should restore Turbo cache before rebuilding so bundle-budget and targeted browser gates keep their coverage without recompiling from a cold local cache on every PR.
 - Shared Playwright bootstrap should cache browser binaries by OS and lockfile
   so repeated frontend/browser gates do not redownload Chromium on every run.
@@ -120,7 +112,7 @@ Public workflow entrypoints currently include:
 - Frontend optimization classification should stay focused on runtime or build-affecting frontend dependencies; pure type-package bumps should normally be covered by quality/typecheck instead of forcing bundle and browser lanes.
 - Frontend optimization should wake for startup/build shell files,
   runtime-readiness wiring, Playwright/E2E owners, design-system surfaces,
-  bundle-budget scripts, and frontend dependency churn. Generic `apps/code`
+  bundle-budget scripts, and frontend dependency churn. Generic `apps/code-t3`
   feature/component edits should normally stay out of that lane.
 - Frontend optimization should not fan out for generic CI plumbing edits. Workflow-governance and shared action changes belong in repository governance lanes unless they also touch runtime-owning frontend or bundle-budget surfaces.
 - Frontend optimization reusable-workflow edits should stay covered by workflow governance and validation, not by forcing the full browser and bundle lane on infrastructure-only pull requests.
@@ -135,20 +127,9 @@ Public workflow entrypoints currently include:
 - Workflow-governance regression tests for merge-queue paths, repo SOT, and CI
   scope classification should remain on the repository-governance path instead
   of waking product-facing quality or affected lanes by themselves.
-- PR-triggered desktop and CodeQL lanes should stay path-scoped so dependency-only or docs-only changes do not fan out into full desktop matrices or static-analysis runs before `main`; keep broader protection on `push` to `main` and scheduled scans.
-- PR-triggered desktop builds should stay host-owned in merge-queue mode: wake them for `apps/code-electron/**`, not for generic `apps/code` frontend churn. Workflow or shared-action edits may still trigger the workflow for visibility, but those PRs should fast-skip packaging jobs unless host-owned surfaces also changed. In queue mode, even host-owned PRs should stay on the Linux-only PR lane and leave the broader three-platform matrix to `push`/mainline coverage.
-- Linux-only PR desktop fast paths should not pay a separate `Prepare frontend dist` job plus artifact round-trip. When the PR only needs the single Linux verify lane, prepare the frontend locally inside that build job and reserve any shared artifact workflow for full PR matrices and non-PR release coverage.
-- Those Linux-only non host-owned PR fast paths should also avoid full desktop packaging. After the local frontend prebuild, use the Electron verification lane and let host-owned PRs plus mainline keep the heavier packaging proof.
-- In merge-queue mode, host-owned PRs may still keep a Linux-only full desktop verification lane, but they should not wake the cross-platform PR matrix before queue/mainline validation.
-- The `CI` workflow should apply the same rule to `desktop:verify:fast`: PRs should only run that fast desktop gate for desktop-owned surfaces, while root dependency, lockfile churn, and generic CI workflow plumbing stay covered by the dedicated desktop workflow or repository-governance validation instead of the shared `Quality` lane.
-- `Quality Baseline` on `push` to `main` should follow the same host-owned rule: keep `Desktop Runtime Fast Verify` for `apps/code-electron/**` or desktop-manifest shifts, but do not make ordinary app/frontend churn pay that extra desktop gate inside the required aggregate.
-- Electron beta lanes should run the staged Forge entrypoints (`desktop:electron:verify`, `desktop:electron:make:smoke`, `desktop:electron:publish:dry-run`, `desktop:electron:publish`) instead of calling Forge directly from the workspace package root.
-- Electron beta change classification should stay script-backed (`scripts/classify-electron-beta-scope.mjs`) so workflow-wrapper edits can keep a lightweight verification lane without accidentally waking the three-platform packaging matrix.
-- Electron beta PR lanes should keep stable check names, but internal changes detection should fast-skip the full verify/make/publish chain when a PR does not touch electron-owned packaging surfaces.
-- Electron beta wrapper or workflow-only changes should now stop at the detection job; keep heavy verify and packaging work for electron-owned product surfaces or broader `push` to `main` coverage.
-- Electron beta PR triggers should stay packaging-owned as well: `apps/code-electron/**`, electron release scripts, and workflow wrappers may run on PRs, while shared package churn stays on the broader `push` to `main` workflow.
-- Repo-governance-only pull requests should keep repository governance and required workflow visibility, but they should not wake up product-facing `Quality`, `frontend_optimization`, affected-build/test execution, or desktop builds when no product-owned surface changed.
-- Public desktop, electron, and CodeQL workflows may still trigger for workflow-governance edits so syntax and required check names stay visible, but workflow-only changes should fast-skip heavyweight packaging or language-analysis lanes unless the owned product or build-runtime surfaces changed.
+- PR-triggered CodeQL lanes should stay path-scoped so dependency-only or docs-only changes do not fan out into static-analysis runs before `main`; keep broader protection on `push` to `main` and scheduled scans.
+- Repo-governance-only pull requests should keep repository governance and required workflow visibility, but they should not wake up product-facing `Quality`, `frontend_optimization`, or affected-build/test execution when no product-owned surface changed.
+- Public CodeQL workflows may still trigger for workflow-governance edits so syntax and required check names stay visible, but workflow-only changes should fast-skip heavyweight language-analysis lanes unless the owned product or build-runtime surfaces changed.
 - Dependabot auto-merge must stay selective: only low-risk grouped updates such as `devcontainers-safe` and `github-actions-safe` should auto-enable merge after checks pass; runtime, frontend, and Rust dependency bumps remain manual-review lanes.
 - Cross-directory Rust updates should prefer Dependabot `group-by: dependency-name` so the same crate bump lands in one PR across monorepo manifests instead of fan-out duplicates.
 - Approved repo-hosted PRs may be updated with GitHub-native branch-update

@@ -29,9 +29,9 @@ When working from multiple git worktrees, `pnpm run` / `pnpm exec` now warn inst
 `node_modules` looks stale for the current branch metadata. Treat the warning as a prompt to run
 `pnpm install` when dependencies, lockfile contents, or workspace package manifests actually changed.
 
-Root build, lint, and typecheck include the Cloudflare web shell through the
-default workspace graph. Use the explicit `pnpm web:*` commands when you need
-to run or deploy the Cloudflare shell directly.
+Root build, lint, and typecheck include the active t3 app through the default
+workspace graph. Use `pnpm dev`, `pnpm dev:code:t3`, and `pnpm code-t3:build`
+for the active app.
 
 - `pnpm check:workflow-governance`
   Required when CI workflow docs, workflow files, or reusable workflow mappings change.
@@ -54,7 +54,6 @@ Validation gates are engineering checks, not product-health promises. In particu
 - `pnpm validate:fast` is the narrow local gate for touched UI or TS surfaces; it does not prove every runtime, desktop, or end-to-end path is green.
 - `pnpm validate` and `pnpm validate:fast` keep workflow-governance-only changes and self-covered validation guard script edits on the targeted path instead of auto-escalating to `validate:full`.
 - style token, style stack, and inline-style checks should stay change-aware in `validate` / `validate:fast`; repo-wide style scans belong to `validate:full` or explicit lint commands.
-- `pnpm desktop:verify:fast` is the narrow desktop confidence pass; it does not replace full packaging or release verification.
 - operator-facing docs and UI copy should describe the actual supported execution, review, and degraded paths rather than implying that a single script guarantees product-wide readiness.
 
 ## Common PR CI Failures
@@ -74,13 +73,13 @@ Practical usage:
 
 - If the change is mostly TypeScript correctness, run `pnpm validate` or at
   least `pnpm typecheck:affected`.
-- If the change is visible in the browser, especially `apps/code` settings,
-  auth, or copy, run `pnpm build:affected` and `pnpm test:affected`, then add
-  `pnpm test:component` when the risk is interaction-heavy.
+- If the change is visible in the browser, especially `apps/code-t3` settings,
+  auth, or copy, run `pnpm --filter @ku0/code-t3 test`,
+  `pnpm --filter @ku0/code-t3 typecheck`, and `pnpm code-t3:build`.
 - If the change can alter startup timing, browser boot, runtime service
   readiness, or bundle output, run `pnpm validate:frontend-optimization` before
   pushing.
-- Do not wake `frontend_optimization` for generic `apps/code` feature or
+- Do not wake `frontend_optimization` for generic `apps/code-t3` feature or
   component edits alone. That lane is reserved for startup/build,
   runtime-readiness, Playwright/E2E, design-system, bundle-budget, and
   frontend dependency churn.
@@ -127,18 +126,12 @@ Practical usage:
 - Add the `manual-merge` label to keep an approved PR out of auto-merge and the
   merge queue until a human explicitly merges it.
 
-## Runtime And Desktop Checks
+## Runtime Checks
 
 - `pnpm ui:contract`
-  Required when `apps/code` UI/runtime boundaries change.
+  Required when app/runtime boundaries change.
 - `pnpm check:runtime-contract`
   Required when runtime host contracts or frozen runtime specs change.
-- `pnpm desktop:verify:fast`
-  Default desktop verification gate for Electron/runtime integration work.
-- `pnpm desktop:verify`
-  Use when packaging or full desktop build risk is in scope.
-
-Electron desktop update and release-channel behavior is documented in [Electron Updates](./electron-updates.md).
 
 ## Control-Plane Operator Guidance
 
@@ -153,7 +146,9 @@ Electron desktop update and release-channel behavior is documented in [Electron 
 Use targeted suites instead of broad default runs:
 
 ```bash
-pnpm test:component
+pnpm --filter @ku0/code-t3 test
+pnpm --filter @ku0/code-t3 typecheck
+pnpm code-t3:build
 pnpm test:e2e:core
 pnpm test:e2e:blocks
 pnpm test:e2e:collab
@@ -163,13 +158,12 @@ pnpm test:e2e:smoke
 pnpm test:e2e:a11y
 ```
 
-## Web Platform Commands
+## App Commands
 
-- Run Cloudflare web work through the explicit `pnpm web:*` command family.
-- The legacy `pnpm experimental:web:*` aliases have been removed. Use the canonical `pnpm web:*` commands directly.
-- For Cloudflare web publishing, public routes, or Start/SSR shell work,
-  `apps/code-web` is still the current repo-owned shell. Do not assume
-  `apps/code` fully replaces it just because the workspace client is shared.
+- Run active app work through `pnpm dev`, `pnpm dev:code:t3`, and
+  `pnpm code-t3:build`.
+- `apps/code`, `apps/code-web`, and `apps/code-electron` are retired app
+  workspaces and should not be used for new app work.
 
 ## Docs-Only Changes
 

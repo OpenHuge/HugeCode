@@ -31,7 +31,7 @@ const activeBiomeCompatibilityFiles = new Set([
   "scripts/check-repo-sot.mjs",
   "tests/scripts/check-repo-sot.test.ts",
 ]);
-const biomeHistoricalPathPrefixes = ["docs/archive/", "docs/plans/"];
+const biomeHistoricalPathPrefixes = ["docs/archive/", "docs/plans/", "apps/code-t3/upstream/"];
 const biomeResiduePatterns = [
   /@biomejs\/biome/u,
   /\bbiome-ignore\b/u,
@@ -86,7 +86,7 @@ const requiredChecks = [
     includes: [
       `# ${product}`,
       `Official product context: **${product}**`,
-      "apps/code",
+      "apps/code-t3",
       "Do not reintroduce deleted placeholder surfaces, product-branded policy package names, or pre-`project-context:*` generator sentinels.",
       "Use `runtime-policy` for policy-domain package/module examples and `project-context:*` for generated AGENTS section markers.",
     ],
@@ -106,8 +106,7 @@ const requiredChecks = [
       "pnpm check:runtime-contract",
       "Do not restore deleted placeholder surfaces, product-branded runtime policy names, or pre-`project-context:*` generator sentinels.",
       "Use `runtime-policy` for policy-domain packages, examples, fixtures, and docs.",
-      "Treat `apps/code/src/application/runtime/*` as the stable runtime API for the UI.",
-      "Do not import `apps/code/src/services/*` runtime internals directly from feature/UI code.",
+      "Treat `apps/code-t3/src/runtime/*` as the active t3 runtime integration boundary.",
     ],
   },
   {
@@ -117,48 +116,9 @@ const requiredChecks = [
       "pnpm dev",
       "pnpm check:workflow-governance",
       "pnpm check:runtime-contract",
-      "pnpm web:*",
-      "Root build, lint, and",
-      "typecheck include the Cloudflare web shell",
+      "pnpm code-t3:build",
+      "apps/code-t3",
     ],
-  },
-  {
-    file: "apps/code-web/README.md",
-    includes: [
-      "`apps/code-web` is the current Cloudflare-platform web implementation for",
-      "packages/code-workspace-client",
-      "packages/code-application",
-      "pnpm web:*",
-    ],
-    excludes: [
-      "Open Fast",
-      "reuses the existing `apps/code` workspace shell",
-      "excluded from the root default dev/build/validate workflows",
-    ],
-  },
-  {
-    file: "apps/code-web/wrangler.jsonc",
-    includes: ['"name": "hugecode-web"'],
-    excludes: ['"name": "open-fast-web"'],
-  },
-  {
-    file: "apps/code-web/app/routes/_public.index.tsx",
-    includes: ['title: "HugeCode Web"'],
-    excludes: ['title: "Open Fast Web"', "Open Fast web runtime"],
-  },
-  {
-    file: "apps/code-web/app/components/WebChrome.tsx",
-    includes: ["<span className={chromeBrandMeta}>HugeCode Web</span>"],
-    excludes: ["Open Fast Web", ">OF<"],
-  },
-  {
-    file: "apps/code-web/app/components/WebAboutPage.tsx",
-    includes: ['aria-label="About HugeCode"'],
-    excludes: ['aria-label="About Open Fast"'],
-  },
-  {
-    file: "apps/code-web/tsconfig.json",
-    excludes: ["@ku0/code/workspace-surface"],
   },
   {
     file: "scripts/lib/viteWorkspaceAliases.ts",
@@ -167,27 +127,6 @@ const requiredChecks = [
   {
     file: "vitest.aliases.ts",
     excludes: ["@ku0/code/workspace-surface"],
-  },
-  {
-    file: "apps/code/package.json",
-    excludes: ['"./workspace-surface"'],
-  },
-  {
-    file: "scripts/config/code-web-bundle-budget.config.mjs",
-    includes: ["knownLargeChunkPrefixes: {}"],
-    excludes: [
-      "MainAppContainerCore-",
-      "MainApp-",
-      "Home-",
-      "SettingsView-",
-      "xterm-",
-      "GitDiffViewer-",
-      "emacs-lisp-",
-      "cpp-",
-      "wasm-",
-      "esm-",
-      "lib-",
-    ],
   },
   {
     file: "docs/development/ci-workflows.md",
@@ -201,7 +140,6 @@ const requiredChecks = [
       "release.yml",
       "id-token: write",
       "publishConfig.provenance: true",
-      "_reusable-desktop-prepare-frontend.yml",
     ],
   },
   {
@@ -238,11 +176,10 @@ const requiredChecks = [
     includes: [
       `# ${product} Workspace Map`,
       "Active Application Surfaces",
-      "Runtime Boundary Inside `apps/code`",
+      "Runtime Boundary Inside `apps/code-t3`",
       "Legacy And Non-Workspace Directories",
       "internal/runtime-policy-rs",
-      "`src/application/runtime/*`",
-      "`src/services/*`",
+      "`src/runtime/*`",
       "Removed historical placeholder app surfaces must stay absent unless a new ADR explicitly restores them with a tracked manifest and documented ownership.",
       "Use neutral technical names such as `runtime-policy` for internal modules rather than restoring retired product-branded package families.",
     ],
@@ -299,7 +236,7 @@ const requiredChecks = [
       "Define -> Delegate -> Observe -> Review -> Decide",
       "`Workspace`",
       "`Review Pack`",
-      "`apps/code-web`",
+      "`apps/code-t3`",
     ],
     excludes: ["docs/PRD.md"],
   },
@@ -394,39 +331,6 @@ const requiredChecks = [
   {
     file: ".github/workflows/_reusable-ci-frontend-optimization.yml",
     includes: ["name: _reusable-ci-frontend-optimization", "name: frontend_optimization"],
-  },
-  {
-    file: ".github/workflows/desktop.yml",
-    includes: [
-      "name: Desktop (Electron)",
-      "uses: ./.github/workflows/_reusable-desktop-prepare-frontend.yml",
-      "uses: ./.github/workflows/_reusable-desktop-build-pr.yml",
-      "uses: ./.github/workflows/_reusable-desktop-build-release.yml",
-    ],
-  },
-  {
-    file: ".github/workflows/_reusable-desktop-prepare-frontend.yml",
-    includes: [
-      "name: _reusable-desktop-prepare-frontend",
-      "name: Prepare frontend dist",
-      "Skip dedicated frontend dist preparation",
-    ],
-  },
-  {
-    file: ".github/workflows/_reusable-desktop-build-pr.yml",
-    includes: [
-      "name: _reusable-desktop-build-pr",
-      "name: Build PR",
-      "Skip dedicated packaging PR lane",
-    ],
-  },
-  {
-    file: ".github/workflows/_reusable-desktop-build-release.yml",
-    includes: [
-      "name: _reusable-desktop-build-release",
-      "name: Build",
-      "Skip dedicated release packaging lane",
-    ],
   },
   {
     file: releaseWorkflowRelativePath,

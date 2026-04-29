@@ -2,7 +2,7 @@
 
 HugeCode is a runtime-first mission control for coding agents with **AutoDrive** and **multi-remote server control** as core product capabilities.
 
-The product helps engineers move from the current repo state to a desired engineering outcome through supervised autonomous execution. Users define the destination, guardrails, and budget; AutoDrive plans a route, executes waypoints, reroutes when needed, and stops safely with a reviewable evidence trail. The client can also manage multiple remote execution servers and route each run through an explicit backend preference or a shared default backend. The active product surface is the coding workspace built around `apps/code`, `apps/code-electron`, and the shared Rust runtime.
+The product helps engineers move from the current repo state to a desired engineering outcome through supervised autonomous execution. Users define the destination, guardrails, and budget; AutoDrive plans a route, executes waypoints, reroutes when needed, and stops safely with a reviewable evidence trail. The client can also manage multiple remote execution servers and route each run through an explicit backend preference or a shared default backend. The active product surface is the t3-derived coding workspace in `apps/code-t3` and the shared Rust runtime.
 
 Official product context is **HugeCode**. Older documents may still mention **Keep-Up** or **Reader**; treat those names as historical unless a file is explicitly archived.
 
@@ -46,7 +46,7 @@ Launch readiness is not a second placement engine. It is a small operator-facing
 - is there approval or degraded-state pressure that should be resolved before launch
 - is the runtime tool execution channel healthy enough to launch more work now
 
-The current shipped surface is the Mission Control launch area inside `apps/code`.
+The current shipped surface is the t3-derived workspace inside `apps/code-t3`.
 Execution reliability in this context is still launch-scoped advisory truth derived from existing
 runtime diagnostics such as `runtimeToolMetricsRead` and `runtimeToolGuardrailRead`.
 The current shipped gate is moderately conservative: unavailable diagnostics channels, open runtime
@@ -72,8 +72,8 @@ Interpret the extension boundary carefully:
 - `multi-agent`, `sub-agent`, and `parallel-agent` execution remain core product capabilities
 - `skills` are the active extension model for reusable operator and agent behavior
 - the local Agent Command Center no longer owns a project-task board, governance
-  automation panel, or audit-log workflow; `apps/code` now keeps that surface to
-  intent capture, launch readiness, runtime orchestration, and WebMCP controls
+  automation panel, or audit-log workflow; `apps/code-t3` is the active workspace
+  shell for intent capture, launch readiness, runtime orchestration, and WebMCP controls
 - ChatGPT apps/connectors and the `/apps` user surface are no longer part of the active product surface
 - low-level runtime apps discovery tools and compatibility RPCs have been removed from the app layer
 - do not reintroduce an apps/connectors product narrative when reading older docs or compatibility code
@@ -89,9 +89,7 @@ The canonical product-definition sources are:
 
 The active engineering center of this repo is:
 
-- `apps/code`: primary React 19 + Vite coding workspace UI
-- `apps/code-web`: Cloudflare platform web implementation for public routes, SSR, and deploy wiring
-- `apps/code-electron`: desktop container and host bridge around the shared `apps/code` renderer
+- `apps/code-t3`: primary t3-derived React 19 + Vite coding workspace UI
 - `packages/code-workspace-client`: shared workspace client boot and compatibility adapters for web and desktop shells
 - `packages/code-runtime-service-rs`: Rust-first runtime orchestrator
 - `packages/code-runtime-host-contract`: canonical TypeScript runtime contract
@@ -101,10 +99,10 @@ Packages such as `packages/design-system`, `packages/shared`, and `packages/nati
 
 Internal helper crates such as `internal/runtime-policy-rs` remain in-repo for parity fixtures and tooling, but do not define the active product surface.
 
-## Web Platform
+## App Platform
 
-- `apps/code-web`: current Cloudflare platform web implementation. It owns the web route shell, public routes, SSR, and Wrangler deployment wiring, while reusing `packages/code-workspace-client` for the client-only workspace shell.
-- Root build/lint/typecheck quality gates now include `apps/code-web`; use `pnpm web:*` for explicit Cloudflare web runs.
+- `apps/code-t3`: current app implementation. Root dev/build flows now route through this package.
+- `apps/code`, `apps/code-web`, and `apps/code-electron` have been removed from the active app workspace.
 
 ## Toolchain
 
@@ -123,13 +121,10 @@ pnpm dev
 
 Useful entrypoints:
 
-- `pnpm dev`: default code workspace and runtime flow
-- `pnpm dev:code:ui`: Vite UI only
+- `pnpm dev`: default t3 workspace flow
+- `pnpm dev:code:ui`: t3 Vite UI only
 - `pnpm dev:code:service`: runtime service only
-- `pnpm dev:desktop`: Electron desktop shell flow
-- `pnpm desktop:electron:dev`: explicit Electron desktop shell flow
-- `pnpm desktop:electron:make:smoke`: Electron beta installer smoke build on the current host
-- `pnpm desktop:electron:publish:dry-run`: Electron beta release configuration dry-run
+- `pnpm code-t3:build`: t3 production build
 
 ## Validation
 
@@ -138,12 +133,12 @@ Use the narrowest gate that matches the blast radius:
 - `pnpm validate:fast`: isolated UI or TypeScript changes
 - `pnpm validate`: standard multi-file behavior changes
 - `pnpm validate:full`: shared contracts, CI, or release-sensitive changes
-- `pnpm test:component`: browser-backed component and interaction checks for `apps/code`
+- `pnpm --filter @ku0/code-t3 test`: t3 app unit/runtime checks
 - `pnpm check:runtime-contract`: runtime contract freeze and source-of-truth checks
-- `pnpm ui:contract`: UI/runtime boundary checks for `apps/code`
+- `pnpm ui:contract`: platform boundary checks
 - `pnpm preflight:codex`: canonical repo preflight
 
-Docs, CI, and automation should prefer the canonical command families `repo:*`, `desktop:*`, `validate:*`, `preflight:codex`, and `ui:contract`.
+Docs, CI, and automation should prefer the canonical command families `repo:*`, `validate:*`, `preflight:codex`, `ui:contract`, and `code-t3:*`.
 
 ## Documentation
 

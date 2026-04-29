@@ -34,14 +34,11 @@ HugeCode is not:
 
 The active product surfaces are:
 
-- `apps/code`
-  Main coding workspace and desktop-facing control-plane UI
-- `apps/code-web`
-  Web-facing publishing, SSR, and Cloudflare-platform shell
-- `apps/code-electron`
-  Desktop container and host bridge for the coding workspace
+- `apps/code-t3`
+  Main t3-derived coding workspace and control-plane UI
 
-These surfaces form one product. They should not drift into separate app identities.
+This is the single active app surface. Retired app workspaces must not drift
+back into separate app identities without a new ADR and tracked manifest.
 
 ## 4. Primary Product Objects
 

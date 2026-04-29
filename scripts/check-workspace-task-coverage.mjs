@@ -7,15 +7,7 @@ const repoRoot = process.cwd();
 
 const ACTIVE_WORKSPACE_TASKS = [
   {
-    manifestPath: "apps/code/package.json",
-    requiredScripts: ["build", "lint", "test", "typecheck"],
-  },
-  {
-    manifestPath: "apps/code-web/package.json",
-    requiredScripts: ["build", "lint", "typecheck"],
-  },
-  {
-    manifestPath: "apps/code-electron/package.json",
+    manifestPath: "apps/code-t3/package.json",
     requiredScripts: ["build", "lint", "test", "typecheck"],
   },
   {

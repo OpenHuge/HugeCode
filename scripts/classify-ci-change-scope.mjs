@@ -61,7 +61,6 @@ const REPO_GOVERNANCE_TEST_FILES = new Set([
   "tests/scripts/check-repo-sot.test.ts",
   "tests/scripts/check-workflow-governance.test.ts",
   "tests/scripts/classify-ci-change-scope.test.ts",
-  "tests/scripts/classify-electron-beta-scope.test.ts",
   "tests/scripts/ci-merge-queue-fast-path.test.ts",
   "tests/scripts/codeql-merge-queue-fast-path.test.ts",
   "tests/scripts/optional-pr-workflow-scope.test.ts",
@@ -128,10 +127,10 @@ function isDesignSystemExcludedFile(file) {
 
 const FRONTEND_OPTIMIZATION_EXACT_FILES = new Set([
   ".codex/e2e-map.json",
-  "apps/code/index.html",
-  "apps/code/package.json",
-  "apps/code/src/main.tsx",
-  "apps/code/vite.config.ts",
+  "apps/code-t3/index.html",
+  "apps/code-t3/package.json",
+  "apps/code-t3/src/main.tsx",
+  "apps/code-t3/vite.config.ts",
   "playwright.config.local.ts",
   "scripts/check-code-bundle-budget.mjs",
   "scripts/config/code-bundle-budget.config.mjs",
@@ -143,10 +142,8 @@ const FRONTEND_OPTIMIZATION_EXACT_FILES = new Set([
 ]);
 
 const FRONTEND_OPTIMIZATION_PREFIXES = [
-  "apps/code/src/application/runtime/",
-  "apps/code/src/bootstrap/",
-  "apps/code/src/services/runtimeClient",
-  "apps/code/src/web/",
+  "apps/code-t3/src/runtime/",
+  "apps/code-t3/src/components/",
   "packages/design-system/",
   "tests/e2e/",
 ];
@@ -182,7 +179,7 @@ function isUiContractFile(file) {
     return true;
   }
 
-  if (file.startsWith("apps/code/") || file.startsWith("apps/code-web/")) {
+  if (file.startsWith("apps/code-t3/")) {
     return !isMarkdownLikeFile(file) && !isUiTestLikeFile(file);
   }
 
@@ -198,7 +195,9 @@ function isUiContractFile(file) {
 }
 
 function isAppCircularFile(file) {
-  return file.startsWith("apps/code/src/") && !isUiTestLikeFile(file) && !isMarkdownLikeFile(file);
+  return (
+    file.startsWith("apps/code-t3/src/") && !isUiTestLikeFile(file) && !isMarkdownLikeFile(file)
+  );
 }
 
 function isFrontendOptimizationFile(file) {
@@ -236,7 +235,6 @@ function isRepoGovernanceOnlyFile(file) {
     file === "scripts/check-workflow-governance.mjs" ||
     file === "scripts/check-workspace-task-coverage.mjs" ||
     file === "scripts/classify-ci-change-scope.mjs" ||
-    file === "scripts/classify-electron-beta-scope.mjs" ||
     file === "scripts/codex-preflight.mjs" ||
     file === "scripts/workflow-list.mjs"
   );
@@ -266,20 +264,15 @@ const manifestDiff = manifestFiles.length
   ? runGit(["diff", "--unified=0", ...diffArgs, "--", ...manifestFiles]).stdout
   : "";
 
-const desktopFileSignals = ["apps/code-electron/package.json"];
 const frontendFileSignals = [
-  "apps/code/package.json",
+  "apps/code-t3/package.json",
   "packages/design-system/package.json",
   "tests/e2e/package.json",
 ];
 
-const desktopManifestPattern = /@electron-forge\/|electron|desktop:|desktop:electron/i;
 const frontendManifestPattern =
   /@cloudflare\/vite-plugin|@playwright\/|@vanilla-extract\/|@vitest\/|playwright|postcss|react-dom|react|rollup|terrazzo|vite|vitest/i;
 
-const desktopManifestChanged =
-  desktopFileSignals.some((file) => changedFiles.has(file)) ||
-  desktopManifestPattern.test(manifestDiff);
 const frontendManifestChanged =
   frontendFileSignals.some((file) => changedFiles.has(file)) ||
   frontendManifestPattern.test(manifestDiff);
@@ -293,6 +286,5 @@ writeOutput("repo_governance_only", repoGovernanceOnly ? "true" : "false");
 writeOutput("quality_core_changed", qualityCoreChanged ? "true" : "false");
 writeOutput("ui_contract_required", uiContractRequired ? "true" : "false");
 writeOutput("circular_required", circularRequired ? "true" : "false");
-writeOutput("desktop_manifest_changed", desktopManifestChanged ? "true" : "false");
 writeOutput("frontend_manifest_changed", frontendManifestChanged ? "true" : "false");
 writeOutput("frontend_optimization_changed", frontendOptimizationChanged ? "true" : "false");

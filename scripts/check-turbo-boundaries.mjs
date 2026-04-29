@@ -6,7 +6,7 @@ import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 
 const strict = process.argv.includes("--strict");
 const boundaryFilters = [
-  "@ku0/code",
+  "@ku0/code-t3",
   "@ku0/code-runtime-client",
   "@ku0/code-runtime-webmcp-client",
   "@ku0/code-runtime-host-contract",
