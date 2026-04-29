@@ -386,12 +386,27 @@ const internalIdentityChecks = [
     forbids: ["# Open Fast Architecture Specification", "architecture for **Open Fast**"],
   },
   {
+    file: "apps/code-t3/index.html",
+    includes: ["<title>HugeCode T3</title>"],
+    forbids: ["Open Fast T3"],
+  },
+  {
+    file: "apps/code-t3/package.json",
+    includes: ['"name": "@ku0/code-t3"'],
+    forbids: ["@ku0/open-fast-t3"],
+  },
+  {
     file: "docs/specs/agentic/README.md",
     includes: ["Owner: HugeCode (Code Runtime Support Contracts)"],
   },
   {
     file: "package.json",
     forbids: ["open_fast_web"],
+  },
+  {
+    file: "scripts/config/code-web-bundle-budget.config.mjs",
+    includes: ["knownLargeChunkPrefixes: {}"],
+    forbids: ["MainAppContainerCore-"],
   },
   {
     file: "scripts/verify_pr.sh",

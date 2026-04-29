@@ -26,9 +26,8 @@ const requiredEntries = [
   "rust-toolchain.toml",
   "docs",
   ".github/workflows",
-  path.join("apps", "code", "package.json"),
-  path.join("apps", "code-electron", "package.json"),
-  path.join("apps", "code-web"),
+  path.join("apps", "code-t3", "index.html"),
+  path.join("apps", "code-t3", "package.json"),
   path.join("internal", "runtime-policy-rs", "Cargo.toml"),
   path.join("packages", "code-runtime-service-rs", "Cargo.toml"),
   path.join("packages", "discovery-rs", "Cargo.toml"),
@@ -462,45 +461,38 @@ describe("check-repo-sot", () => {
   );
 
   it(
-    "fails when the active web shell reintroduces Open Fast branding",
+    "fails when the active t3 app reintroduces Open Fast branding",
     async () => {
       const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
       tempRoots.push(tempRoot);
       await createTrackedFixtureRepo(tempRoot);
 
-      const webIndexPath = path.join(
-        tempRoot,
-        "apps",
-        "code-web",
-        "app",
-        "routes",
-        "_public.index.tsx"
-      );
+      const webIndexPath = path.join(tempRoot, "apps", "code-t3", "index.html");
       const webIndex = await readFile(webIndexPath, "utf8");
-      await writeFile(webIndexPath, webIndex.replace("HugeCode Web", "Open Fast Web"), "utf8");
+      await writeFile(webIndexPath, webIndex.replace("HugeCode T3", "Open Fast T3"), "utf8");
       stageFixtureChanges(tempRoot);
 
       const result = runRepoSot(tempRoot);
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("apps/code-web/app/routes/_public.index.tsx");
-      expect(result.stderr).toContain("Open Fast Web");
+      expect(result.stderr).toContain("apps/code-t3/index.html");
+      expect(result.stderr).toContain("Open Fast T3");
     },
     repoSotTestTimeoutMs
   );
 
   it(
-    "fails when the active web deployment name reintroduces the Open Fast worker id",
+    "fails when the active t3 package name reintroduces the Open Fast id",
     async () => {
       const tempRoot = await mkdtemp(path.join(tmpdir(), "repo-sot-"));
       tempRoots.push(tempRoot);
       await createTrackedFixtureRepo(tempRoot);
 
-      const wranglerPath = path.join(tempRoot, "apps", "code-web", "wrangler.jsonc");
-      const wrangler = await readFile(wranglerPath, "utf8");
+      const packagePath = path.join(tempRoot, "apps", "code-t3", "package.json");
+      const packageJson = await readFile(packagePath, "utf8");
       await writeFile(
-        wranglerPath,
-        wrangler.replace('"name": "hugecode-web"', '"name": "open-fast-web"'),
+        packagePath,
+        packageJson.replace('"name": "@ku0/code-t3"', '"name": "@ku0/open-fast-t3"'),
         "utf8"
       );
       stageFixtureChanges(tempRoot);
@@ -508,8 +500,8 @@ describe("check-repo-sot", () => {
       const result = runRepoSot(tempRoot);
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("apps/code-web/wrangler.jsonc");
-      expect(result.stderr).toContain("open-fast-web");
+      expect(result.stderr).toContain("apps/code-t3/package.json");
+      expect(result.stderr).toContain("@ku0/open-fast-t3");
     },
     repoSotTestTimeoutMs
   );

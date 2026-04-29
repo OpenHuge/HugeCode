@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   CODE_RUNTIME_CANONICAL_MISSION_LAUNCH_METHODS,
@@ -11,9 +11,8 @@ import { describe, expect, it } from "vitest";
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
 const productLaunchRoots = [
-  "apps/code/src/features",
-  "apps/code/src/application/runtime/facades",
-  "apps/code/src/application/runtime/kernel",
+  "apps/code-t3/src",
+  "packages/code-application/src",
   "packages/code-workspace-client/src/workspace",
 ];
 
@@ -23,6 +22,7 @@ function grepProductLaunchSources(pattern: string): string {
       "rg",
       [
         "-n",
+        "--pcre2",
         pattern,
         ...productLaunchRoots,
         "--glob",
@@ -45,48 +45,6 @@ function grepProductLaunchSources(pattern: string): string {
       (error as { status?: number }).status === 1
     ) {
       return "";
-    }
-
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      (error as { code?: string }).code === "ENOENT"
-    ) {
-      const matcher = new RegExp(pattern, "u");
-      const hits: string[] = [];
-
-      const visit = (relativeDir: string) => {
-        const absoluteDir = path.resolve(repoRoot, relativeDir);
-        for (const entry of readdirSync(absoluteDir, { withFileTypes: true })) {
-          const relativePath = path.posix.join(relativeDir, entry.name);
-          if (entry.isDirectory()) {
-            if (entry.name === "dist") {
-              continue;
-            }
-            visit(relativePath);
-            continue;
-          }
-
-          if (/\.(test|spec)\.[^.]+(?:\.[^.]+)?$/u.test(entry.name)) {
-            continue;
-          }
-
-          const source = readFileSync(path.resolve(repoRoot, relativePath), "utf8");
-          const lines = source.split(/\r?\n/u);
-          for (let index = 0; index < lines.length; index += 1) {
-            if (matcher.test(lines[index] ?? "")) {
-              hits.push(`${relativePath}:${index + 1}:${lines[index]}`);
-            }
-          }
-        }
-      };
-
-      for (const root of productLaunchRoots) {
-        visit(root);
-      }
-
-      return hits.join("\n");
     }
 
     throw error;
@@ -144,33 +102,6 @@ describe("runtime launch path governance", () => {
     expect(CODE_RUNTIME_RPC_METHOD_LIST).not.toContain("code_kernel_job_start_v3");
   });
 
-  it("keeps PlanPanel observe/interrupt only and out of direct relaunch flow", () => {
-    const source = readFileSync(
-      path.resolve(repoRoot, "apps/code/src/features/plan/components/PlanPanel.tsx"),
-      "utf8"
-    );
-
-    expect(source).not.toMatch(/startRuntimeRunWithRemoteSelection/);
-    expect(source).not.toMatch(/startRuntimeJob\b/);
-    expect(source).not.toMatch(/getRuntimeJob\b/);
-    expect(source).not.toMatch(/onRetryNode=/);
-  });
-
-  it("keeps product launch helper on prepare_v2 plus start_v2", () => {
-    const source = readFileSync(
-      path.resolve(
-        repoRoot,
-        "apps/code/src/application/runtime/facades/runtimeRemoteExecutionFacade.ts"
-      ),
-      "utf8"
-    );
-
-    expect(source).toMatch(/prepareRuntimeRunV2/);
-    expect(source).toMatch(/startRuntimeRunV2/);
-    expect(source).not.toMatch(/startRuntimeJob\b/);
-    expect(source).not.toMatch(/kernelJobStartV3/);
-  });
-
   it("keeps runtime replay launch fixtures on prepare_v2 plus start_v2", () => {
     const source = readFileSync(
       path.resolve(repoRoot, "tests/e2e/src/code/runtime-core-replay.spec.ts"),
@@ -182,21 +113,6 @@ describe("runtime launch path governance", () => {
     expect(source).not.toMatch(/code_runtime_run_start(?!_v2)/);
   });
 
-  it("does not re-export legacy job control through the app runtime port", () => {
-    const source = readFileSync(
-      path.resolve(repoRoot, "apps/code/src/application/runtime/ports/runtimeJobs.ts"),
-      "utf8"
-    );
-
-    expect(source).not.toMatch(/\bRuntimeJobInterventionAck\b/);
-    expect(source).not.toMatch(/\bcancelRuntimeJob\b/);
-    expect(source).not.toMatch(/\bresumeRuntimeJob\b/);
-    expect(source).not.toMatch(/\binterveneRuntimeJob\b/);
-    expect(source).not.toMatch(/\bsubscribeRuntimeJob\b/);
-    expect(source).not.toMatch(/\blistRuntimeJobs\b/);
-    expect(source).not.toMatch(/\bKernelJob[A-Za-z]+V3\b/);
-  });
-
   it("rejects non-canonical product launch entry points in product-facing sources", () => {
     const legacyHelperHits = grepProductLaunchSources(
       "startRuntimeJobWithRemoteSelection|resolvePreferredBackendIdsForRuntimeJobStart"
@@ -204,11 +120,15 @@ describe("runtime launch path governance", () => {
     const legacyKernelLaunchHits = grepProductLaunchSources(
       "KERNEL_JOB_START_V3|code_kernel_job_start_v3"
     );
-    const legacyRunStartHits = grepProductLaunchSources("RUN_START[^_V]|code_runtime_run_start");
+    const legacyRunStartHits = grepProductLaunchSources("code_runtime_run_start(?!_v2)");
+    const legacyJobControlHits = grepProductLaunchSources(
+      "startRuntimeJob\\b|getRuntimeJob\\b|RuntimeJobInterventionAck|cancelRuntimeJob|resumeRuntimeJob|interveneRuntimeJob|subscribeRuntimeJob|listRuntimeJobs|KernelJob[A-Za-z]+V3"
+    );
 
     expect(legacyHelperHits).toBe("");
     expect(legacyKernelLaunchHits).toBe("");
     expect(legacyRunStartHits).toBe("");
+    expect(legacyJobControlHits).toBe("");
   });
 
   it("keeps mission navigation/control-plane wiring on shared package imports", () => {
@@ -221,37 +141,10 @@ describe("runtime launch path governance", () => {
     expect(legacyControlPlaneCompatHits).toBe("");
   });
 
-  it("keeps raw app-server event subscriptions isolated to approved compatibility consumers", () => {
-    expect(listProductLaunchFiles("subscribeAppServerEvents\\(")).toEqual([
-      "apps/code/src/features/app/hooks/useAppServerEvents.ts",
-      "apps/code/src/features/threads/hooks/useThreadLiveSubscription.ts",
-    ]);
-  });
-
-  it("keeps legacy account login completion events out of shared product routing", () => {
-    const source = readFileSync(
-      path.resolve(repoRoot, "apps/code/src/features/app/hooks/useAppServerEvents.ts"),
-      "utf8"
-    );
-
-    expect(source).not.toMatch(/account\/login\/completed/);
-    expect(source).not.toMatch(/loginChatGptComplete/);
-    expect(source).not.toMatch(/account\/updated/);
-    expect(source).not.toMatch(/authStatusChange/);
-  });
-
-  it("keeps autodrive thread launch on the compat facade instead of direct turn rpc ports", () => {
-    const source = readFileSync(
-      path.resolve(
-        repoRoot,
-        "apps/code/src/application/runtime/facades/runtimeAutoDriveThreadLaunch.ts"
-      ),
-      "utf8"
-    );
-
-    expect(source).toMatch(/createRuntimeSessionCommandFacade/);
-    expect(source).toMatch(/telemetrySource:\s*"runtime_autodrive_thread_launch"/);
-    expect(source).not.toMatch(/sendUserMessage/);
-    expect(source).not.toMatch(/ports\/runtimeThreads/);
+  it("keeps deleted app-server and direct thread ports out of active product routing", () => {
+    expect(listProductLaunchFiles("subscribeAppServerEvents\\(")).toEqual([]);
+    expect(grepProductLaunchSources("account/login/completed|loginChatGptComplete")).toBe("");
+    expect(grepProductLaunchSources("account/updated|authStatusChange")).toBe("");
+    expect(grepProductLaunchSources("sendUserMessage|ports/runtimeThreads")).toBe("");
   });
 });
