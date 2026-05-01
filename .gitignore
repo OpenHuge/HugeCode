@@ -134,6 +134,15 @@ e2e/.temp/
 /tests/e2e/tmp-*.mjs
 /tests/e2e/src/tmp-*.mjs
 
+# Local browser visual validation artifacts
+artifacts/**/*.gif
+artifacts/**/*.jpeg
+artifacts/**/*.jpg
+artifacts/**/*.png
+artifacts/**/*.webp
+/ldxp-*.png
+/t3-*.png
+
 perf-artifacts/
 *.heapsnapshot
 *.cpuprofile
