@@ -2,6 +2,10 @@ import type {
   RuntimeCompositionProfile,
   RuntimeCompositionProfileLaunchOverride,
 } from "@ku0/code-runtime-host-contract";
+import {
+  RUNTIME_COMPOSITION_BUILT_IN_CODEX_BACKEND_ID,
+  RUNTIME_COMPOSITION_BUILT_IN_CODEX_ROUTE_PLUGIN_ID,
+} from "@ku0/code-platform-interfaces";
 
 export type { RuntimeCompositionProfileLaunchOverride } from "@ku0/code-runtime-host-contract";
 
@@ -26,9 +30,16 @@ const DEFAULT_RUNTIME_COMPOSITION_PROFILES: RuntimeCompositionProfile[] = [
     name: "Built-in Default",
     scope: "built_in",
     enabled: true,
-    pluginSelectors: [],
+    pluginSelectors: [
+      {
+        matchBy: "pluginId",
+        matchValue: RUNTIME_COMPOSITION_BUILT_IN_CODEX_ROUTE_PLUGIN_ID,
+        action: "prefer",
+        reason: "Prefer the built-in Codex app-server route when runtime publishes it.",
+      },
+    ],
     routePolicy: {
-      preferredRoutePluginIds: [],
+      preferredRoutePluginIds: [RUNTIME_COMPOSITION_BUILT_IN_CODEX_ROUTE_PLUGIN_ID],
       providerPreference: [],
       allowRuntimeFallback: true,
     },
@@ -66,7 +77,7 @@ const DEFAULT_RUNTIME_COMPOSITION_PROFILES: RuntimeCompositionProfile[] = [
       allowRuntimeFallback: true,
     },
     backendPolicy: {
-      preferredBackendIds: ["backend-default"],
+      preferredBackendIds: [RUNTIME_COMPOSITION_BUILT_IN_CODEX_BACKEND_ID],
       resolvedBackendId: null,
     },
     trustPolicy: {
@@ -99,7 +110,7 @@ const DEFAULT_RUNTIME_COMPOSITION_PROFILES: RuntimeCompositionProfile[] = [
       allowRuntimeFallback: true,
     },
     backendPolicy: {
-      preferredBackendIds: ["backend-primary", "backend-fallback"],
+      preferredBackendIds: [RUNTIME_COMPOSITION_BUILT_IN_CODEX_BACKEND_ID, "backend-fallback"],
       resolvedBackendId: null,
     },
     trustPolicy: {

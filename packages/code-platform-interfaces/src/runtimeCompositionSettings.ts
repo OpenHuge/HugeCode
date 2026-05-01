@@ -5,6 +5,7 @@ export const RUNTIME_COMPOSITION_SETTINGS_BY_WORKSPACE_ID_KEY =
 
 export type RuntimeCompositionSettingsSelection = {
   profileId: string | null;
+  preferredRoutePluginIds: string[];
   preferredBackendIds: string[];
 };
 
@@ -117,6 +118,7 @@ export function createDefaultRuntimeCompositionSettingsEntry(
   return {
     selection: {
       profileId: null,
+      preferredRoutePluginIds: [],
       preferredBackendIds: normalizedBackendId ? [normalizedBackendId] : [],
     },
     launchOverride: null,
@@ -144,6 +146,7 @@ export function normalizeRuntimeCompositionSettingsEntry(
   return {
     selection: {
       profileId: normalizeOptionalText(selection?.profileId) ?? fallback.selection.profileId,
+      preferredRoutePluginIds: normalizeStringArray(selection?.preferredRoutePluginIds),
       preferredBackendIds:
         normalizeStringArray(selection?.preferredBackendIds).length > 0
           ? normalizeStringArray(selection?.preferredBackendIds)

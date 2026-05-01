@@ -9,6 +9,7 @@ const mockRuntimeComposition = {
   settings: {
     selection: {
       profileId: "profile-1",
+      preferredRoutePluginIds: ["route:codex:embedded-app-server"],
       preferredBackendIds: ["backend-1"],
     },
     persistence: {
@@ -49,9 +50,9 @@ const mockRuntimeComposition = {
     id: "profile-1",
     name: "Workspace Default",
   },
-  previewProfileId: null,
-  previewResolution: null,
-  previewSnapshot: null,
+  previewProfileId: null as string | null,
+  previewResolution: null as Record<string, unknown> | null,
+  previewSnapshot: null as Record<string, unknown> | null,
   isLoading: false,
   isMutating: false,
   error: null,
@@ -464,10 +465,13 @@ describe("SettingsServerControlPlaneSection", () => {
           { id: "backend-2", label: "Backend Two" },
         ]}
         defaultRemoteExecutionBackendId="backend-1"
+        onSetDefaultExecutionBackend={vi.fn()}
         workspaceOptions={[
           { id: "workspace-1", label: "Workspace One" },
           { id: "workspace-2", label: "Workspace Two" },
         ]}
+        backendPoolVisible={false}
+        backendPool={null}
       />
     );
 

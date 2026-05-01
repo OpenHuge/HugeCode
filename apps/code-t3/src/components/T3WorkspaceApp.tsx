@@ -38,6 +38,10 @@ import { T3BrowserCloudSyncCard } from "./T3BrowserCloudSyncCard";
 import { T3HugeRouterCommercialCard } from "./T3HugeRouterCommercialCard";
 import { T3ProductLaunchPanel } from "./T3ProductLaunchPanel";
 import {
+  T3WorkspaceAssistantEntries,
+  T3WorkspaceAssistantThreadRows,
+} from "./T3WorkspaceAssistantEntries";
+import {
   accessModeTitle,
   browserProviderTitle,
   formatCredits,
@@ -104,6 +108,10 @@ import {
   type T3BrowserSeatPoolListing,
   type T3SeatPoolRentalPlatform,
 } from "../runtime/t3BrowserProfiles";
+import {
+  readT3RuntimeEventSnapshot,
+  resolveT3RuntimeEventsEndpoint,
+} from "../runtime/t3RuntimeEventSnapshot";
 
 type T3WorkspaceAppProps = {
   runtimeBridge: HugeCodeRuntimeBridge;
@@ -185,67 +193,6 @@ function formatBrowserSyncTime(value: number | null) {
     month: "short",
     day: "numeric",
   }).format(new Date(value));
-}
-
-function resolveRuntimeEventsEndpoint() {
-  const configuredEndpoint = import.meta.env.VITE_CODE_RUNTIME_GATEWAY_EVENTS_ENDPOINT?.trim();
-  if (configuredEndpoint) {
-    return configuredEndpoint;
-  }
-  return import.meta.env.DEV ? "http://127.0.0.1:8788/events" : null;
-}
-
-function parseRuntimeEventStream(text: string): unknown[] {
-  return text.split(/\n\n/u).flatMap((frame) => {
-    const data = frame
-      .split(/\n/u)
-      .filter((line) => line.startsWith("data:"))
-      .map((line) => line.slice(5).trim())
-      .join("\n");
-    if (!data) {
-      return [];
-    }
-    try {
-      return [JSON.parse(data) as unknown];
-    } catch {
-      return [];
-    }
-  });
-}
-
-async function readRuntimeEventSnapshot(endpoint: string): Promise<unknown[]> {
-  const response = await fetch(endpoint, {
-    headers: {
-      accept: "text/event-stream",
-    },
-  });
-  const reader = response.body?.getReader();
-  if (!reader) {
-    return [];
-  }
-  const decoder = new TextDecoder();
-  const chunks: string[] = [];
-  const deadline = Date.now() + 1800;
-  try {
-    while (Date.now() < deadline) {
-      const timeoutMs = Math.max(1, deadline - Date.now());
-      const result = await Promise.race([
-        reader.read(),
-        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), timeoutMs)),
-      ]);
-      if (!result) {
-        break;
-      }
-      if (result.done) {
-        break;
-      }
-      chunks.push(decoder.decode(result.value, { stream: true }));
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-  chunks.push(decoder.decode());
-  return parseRuntimeEventStream(chunks.join(""));
 }
 
 export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
@@ -341,6 +288,11 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     window.history.pushState(null, "", nextUrl);
   }
 
+  function openChatFromSidebar() {
+    navigateT3Page("chat");
+    setSidebarOpen(false);
+  }
+
   useEffect(() => {
     function syncPageFromLocation() {
       const searchParams = new URLSearchParams(window.location.search);
@@ -400,7 +352,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   }, [browserProfileBridge]);
 
   useEffect(() => {
-    const endpoint = resolveRuntimeEventsEndpoint();
+    const endpoint = resolveT3RuntimeEventsEndpoint();
     if (!endpoint) {
       return;
     }
@@ -425,7 +377,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       }
     };
     const intervalId = window.setInterval(() => {
-      void readRuntimeEventSnapshot(endpoint)
+      void readT3RuntimeEventSnapshot(endpoint)
         .then((events) => events.forEach(appendRuntimeEvent))
         .catch(() => undefined);
     }, 3000);
@@ -627,6 +579,19 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     )?.model.name ??
     selectedModelId ??
     "Runtime model";
+
+  function applyRelayRoute(route: T3CodeProviderRoute) {
+    setRoutes((currentRoutes) => [
+      route,
+      ...currentRoutes.filter((candidate) => candidate.backendId !== route.backendId),
+    ]);
+    setSelectedProvider("codex");
+    setSelectedModelByProvider((current) => ({
+      ...current,
+      codex: route.modelId ?? "agent-coding-default",
+    }));
+    setNotice(`${route.backendLabel} 已设为内置 Codex 中转路由。`);
+  }
 
   async function launchTask() {
     const trimmedPrompt = prompt.trim();
@@ -2467,10 +2432,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           <button
             className={activePage === "chat" ? "t3-thread-row active" : "t3-thread-row"}
             type="button"
-            onClick={() => {
-              navigateT3Page("chat");
-              setSidebarOpen(false);
-            }}
+            onClick={openChatFromSidebar}
           >
             <span className="t3-thread-status assistant" />
             <span>
@@ -2478,15 +2440,13 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
               <small>{selectedRoute?.modelId ?? "runtime default"}</small>
             </span>
           </button>
+          <T3WorkspaceAssistantThreadRows onOpenChat={openChatFromSidebar} />
           {visibleTimeline.slice(-3).map((event) => (
             <button
               className="t3-thread-row"
               type="button"
               key={`thread-${event.id}`}
-              onClick={() => {
-                navigateT3Page("chat");
-                setSidebarOpen(false);
-              }}
+              onClick={openChatFromSidebar}
             >
               <span className={`t3-thread-status ${eventClassName(event)}`} />
               <span>
@@ -2587,6 +2547,13 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           onNotice={setNotice}
           onPromptChange={setPrompt}
           onToggleSidebar={() => setSidebarOpen((current) => !current)}
+          quickEntries={
+            <T3WorkspaceAssistantEntries
+              routes={routes}
+              onApplyRelayRoute={applyRelayRoute}
+              onNotice={setNotice}
+            />
+          }
         />
       )}
     </main>

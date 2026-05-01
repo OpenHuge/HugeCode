@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildT3LdxpEmbeddedCheckoutState,
   buildT3LdxpFulfillmentActions,
   createT3LdxpPurchasePlan,
   markT3LdxpQrPaymentScanned,
@@ -53,6 +54,25 @@ describe("t3LdxpPurchaseAssistant", () => {
         status: "payment_code_ready",
       })
     );
+  });
+
+  it("keeps ldxp checkout state inside the app from cashier and fulfillment prompts", () => {
+    const plan = createT3LdxpPurchasePlan({
+      budgetCents: 10,
+      need: "购买 ku0 AI 充值测试商品",
+    });
+    const state = buildT3LdxpEmbeddedCheckoutState({
+      plan,
+      cashierPrompt:
+        "商品：AI 充值 0.1 测试商品 金额：￥0.10 付款码：https://pay.ldxp.cn/cashier/qr/abc123",
+      fulfillmentPrompt: "订单号：LDXP202605010001 卡密：AI-2026-CODE-88",
+    });
+
+    expect(state.readyForUserPayment).toBe(true);
+    expect(state.plan.stage).toBe("redeem_ready");
+    expect(state.payment.paymentCode).toBe("https://pay.ldxp.cn/cashier/qr/abc123");
+    expect(state.fulfillment.cardKeys).toEqual(["AI-2026-CODE-88"]);
+    expect(JSON.stringify(state)).not.toContain("apiKey");
   });
 
   it("parses order, pickup, card key, and redemption clues from page prompts", () => {

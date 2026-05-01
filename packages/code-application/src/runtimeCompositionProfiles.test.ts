@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  RUNTIME_COMPOSITION_BUILT_IN_CODEX_BACKEND_ID,
+  RUNTIME_COMPOSITION_BUILT_IN_CODEX_ROUTE_PLUGIN_ID,
+} from "@ku0/code-platform-interfaces";
 import type { RuntimeCompositionProfile } from "@ku0/code-runtime-host-contract";
 import {
   applyRuntimeCompositionProfileUpdates,
@@ -14,6 +18,19 @@ describe("runtimeCompositionProfiles", () => {
     const second = buildDefaultRuntimeCompositionProfiles();
 
     expect(first.map((profile) => profile.scope)).toEqual(["built_in", "user", "workspace"]);
+    expect(first[0]?.pluginSelectors).toEqual([
+      expect.objectContaining({
+        action: "prefer",
+        matchBy: "pluginId",
+        matchValue: RUNTIME_COMPOSITION_BUILT_IN_CODEX_ROUTE_PLUGIN_ID,
+      }),
+    ]);
+    expect(first[0]?.routePolicy.preferredRoutePluginIds).toEqual([
+      RUNTIME_COMPOSITION_BUILT_IN_CODEX_ROUTE_PLUGIN_ID,
+    ]);
+    expect(first[1]?.backendPolicy.preferredBackendIds).toEqual([
+      RUNTIME_COMPOSITION_BUILT_IN_CODEX_BACKEND_ID,
+    ]);
     expect(second).toEqual(first);
 
     first[0]?.trustPolicy.blockedPublishers?.push("Mutated Publisher");

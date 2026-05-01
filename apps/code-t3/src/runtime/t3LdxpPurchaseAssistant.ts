@@ -25,6 +25,14 @@ export type T3LdxpPurchasePlan = {
   userNeed: string;
 };
 
+export type T3LdxpEmbeddedCheckoutState = {
+  fulfillment: T3LdxpFulfillmentPrompt;
+  payment: T3LdxpPaymentPrompt;
+  plan: T3LdxpPurchasePlan;
+  readyForUserPayment: boolean;
+  summary: string;
+};
+
 export type T3LdxpFulfillmentPrompt = {
   cardKeys: readonly string[];
   orderId: string | null;
@@ -168,6 +176,35 @@ export function createT3LdxpPurchasePlan(input: {
     product: preferredProduct,
     stage: "awaiting_qr_payment",
     userNeed,
+  };
+}
+
+export function buildT3LdxpEmbeddedCheckoutState(input: {
+  cashierPrompt: string;
+  fulfillmentPrompt: string;
+  plan: T3LdxpPurchasePlan;
+}): T3LdxpEmbeddedCheckoutState {
+  const payment = parseT3LdxpPaymentPrompt(input.cashierPrompt);
+  const fulfillment = parseT3LdxpFulfillmentPrompt(input.fulfillmentPrompt);
+  return {
+    fulfillment,
+    payment,
+    plan: {
+      ...input.plan,
+      stage:
+        fulfillment.status === "redeem_ready"
+          ? "redeem_ready"
+          : payment.status === "payment_code_ready"
+            ? "awaiting_qr_payment"
+            : input.plan.stage,
+    },
+    readyForUserPayment: payment.status === "payment_code_ready",
+    summary:
+      fulfillment.status === "redeem_ready"
+        ? "Delivery details are ready inside the app."
+        : payment.status === "payment_code_ready"
+          ? "Payment code is ready. User can pay without opening the shop page."
+          : "Waiting for cashier details from the configured ldxp checkout bridge.",
   };
 }
 

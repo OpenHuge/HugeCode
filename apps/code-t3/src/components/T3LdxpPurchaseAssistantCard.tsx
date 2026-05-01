@@ -1,7 +1,7 @@
 import { Button, Card, Chip, Input, TextArea } from "@heroui/react";
 import {
   ClipboardCheck,
-  ExternalLink,
+  CreditCard,
   KeyRound,
   PackageCheck,
   QrCode,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
+  buildT3LdxpEmbeddedCheckoutState,
   buildT3LdxpFulfillmentActions,
   createT3LdxpPurchasePlan,
   markT3LdxpQrPaymentScanned,
@@ -22,7 +23,6 @@ import {
 
 export type T3LdxpPurchaseAssistantCardProps = {
   onNotice: (notice: string) => void;
-  onOpenShop?: (url: string) => void | Promise<void>;
 };
 
 function formatPrice(cents: number) {
@@ -32,24 +32,35 @@ function formatPrice(cents: number) {
   }).format(cents / 100);
 }
 
-export function T3LdxpPurchaseAssistantCard({
-  onNotice,
-  onOpenShop,
-}: T3LdxpPurchaseAssistantCardProps) {
+export function T3LdxpPurchaseAssistantCard({ onNotice }: T3LdxpPurchaseAssistantCardProps) {
   const [need, setNeed] = useState("访问测试店铺 ku0，选择 AI 充值分类，购买 0.1 的商品");
   const [budget, setBudget] = useState("0.1");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     "ldxp-ku0-ai-recharge-0_1"
   );
   const [purchasePlan, setPurchasePlan] = useState<T3LdxpPurchasePlan | null>(null);
+  const [cashierPrompt, setCashierPrompt] = useState(
+    "商品：AI 充值 0.1 测试商品\n金额：￥0.10\n付款码："
+  );
   const [fulfillmentPrompt, setFulfillmentPrompt] = useState("");
   const parsedFulfillment = useMemo(
     () => parseT3LdxpFulfillmentPrompt(fulfillmentPrompt),
     [fulfillmentPrompt]
   );
+  const checkoutState = useMemo(
+    () =>
+      purchasePlan
+        ? buildT3LdxpEmbeddedCheckoutState({
+            cashierPrompt,
+            fulfillmentPrompt,
+            plan: purchasePlan,
+          })
+        : null,
+    [cashierPrompt, fulfillmentPrompt, purchasePlan]
+  );
   const fulfillmentActions = useMemo(
-    () => buildT3LdxpFulfillmentActions(parsedFulfillment),
-    [parsedFulfillment]
+    () => buildT3LdxpFulfillmentActions(checkoutState?.fulfillment ?? parsedFulfillment),
+    [checkoutState, parsedFulfillment]
   );
   const budgetCents = Math.round(Number(budget) * 100);
   const recommendations = useMemo(
@@ -70,7 +81,7 @@ export function T3LdxpPurchaseAssistantCard({
       });
       setSelectedProductId(plan.product.id);
       setPurchasePlan(plan);
-      onNotice(`已为 ldxp.cn 生成购买建议：${plan.product.label}。`);
+      onNotice(`已在程序内生成 ldxp.cn 订单草稿：${plan.product.label}。`);
       return plan;
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Unable to create ldxp.cn purchase plan.");
@@ -87,37 +98,31 @@ export function T3LdxpPurchaseAssistantCard({
     onNotice("已进入取货提示解析步骤。请粘贴 ldxp.cn 支付后页面提示。");
   }
 
-  function openShop() {
+  function prepareCashier() {
     const plan = purchasePlan ?? createPlan();
     if (!plan) {
       return;
     }
-    if (onOpenShop) {
-      void onOpenShop(plan.checkoutUrl);
-      return;
-    }
-    const launchUrl = new URL(window.location.href);
-    launchUrl.search = "";
-    launchUrl.hash = "";
-    launchUrl.searchParams.set("hcbrowser", "1");
-    launchUrl.searchParams.set("target", plan.checkoutUrl);
-    launchUrl.searchParams.set("provider", "custom");
-    launchUrl.searchParams.set("profile", "Current browser profile");
-    launchUrl.searchParams.set("profileId", "current-browser");
-    launchUrl.searchParams.set("appLabel", "ldxp.cn AI 充值");
-    launchUrl.searchParams.set("ldxpAssistant", "1");
-    window.open(launchUrl.toString(), "_blank", "popup,width=1180,height=860,noopener,noreferrer");
-    onNotice("已在 T3 内置浏览器打开 ldxp.cn 测试店铺。付款请由用户扫码完成。");
+    setCashierPrompt(
+      [
+        `商品：${plan.product.label}`,
+        `金额：${formatPrice(plan.product.budgetCents)}`,
+        "付款码：",
+      ].join("\n")
+    );
+    onNotice("已准备程序内收银信息。粘贴支付桥返回的付款码后，用户可在程序内确认付款。");
   }
 
-  const activeStage = purchasePlan?.stage ?? "selecting";
+  const activeStage = checkoutState?.plan.stage ?? purchasePlan?.stage ?? "selecting";
+  const payment = checkoutState?.payment;
+  const fulfillment = checkoutState?.fulfillment ?? parsedFulfillment;
 
   return (
-    <Card className="t3-ldxp-assistant" variant="secondary" aria-label="ldxp.cn AI purchase">
+    <Card className="t3-ldxp-assistant" variant="secondary" aria-label="账户充值">
       <Card.Header className="t3-browser-card-header">
         <span>
           <ShoppingBag size={13} />
-          ldxp.cn AI 购买助手
+          账户充值
         </span>
         <Chip size="sm" variant="tertiary">
           {activeStage}
@@ -125,7 +130,8 @@ export function T3LdxpPurchaseAssistantCard({
       </Card.Header>
       <small>
         测试目标：店铺 ku0，分类 {T3_LDXP_TEST_CATEGORY_LABEL}，商品金额{" "}
-        {formatPrice(T3_LDXP_TEST_AMOUNT_CENTS)}。内置浏览器会展示商品信息和付款码给用户支付。
+        {formatPrice(T3_LDXP_TEST_AMOUNT_CENTS)}
+        。程序内只处理商品、付款码和取货提示，不在前端保存密钥。
       </small>
       <div className="t3-ldxp-flow" aria-label="ldxp.cn purchase flow">
         <span data-active={activeStage === "selecting"}>
@@ -133,8 +139,8 @@ export function T3LdxpPurchaseAssistantCard({
           选品
         </span>
         <span data-active={activeStage === "awaiting_qr_payment"}>
-          <QrCode size={13} />
-          扫码
+          <CreditCard size={13} />
+          收银
         </span>
         <span data-active={activeStage === "awaiting_fulfillment_prompt"}>
           <PackageCheck size={13} />
@@ -152,7 +158,7 @@ export function T3LdxpPurchaseAssistantCard({
           value={need}
           onChange={(event) => setNeed(event.target.value)}
           aria-label="ldxp.cn AI purchase need"
-          rows={3}
+          rows={2}
           variant="secondary"
         />
       </label>
@@ -176,7 +182,6 @@ export function T3LdxpPurchaseAssistantCard({
             onClick={() => setSelectedProductId(product.id)}
           >
             <strong>{product.label}</strong>
-            <small>{product.summary}</small>
             <span>{formatPrice(product.budgetCents)}</span>
           </button>
         ))}
@@ -191,17 +196,17 @@ export function T3LdxpPurchaseAssistantCard({
       <div className="t3-product-actions">
         <Button type="button" size="md" variant="primary" onPress={createPlan}>
           <Sparkles size={14} />
-          生成建议
+          生成订单
         </Button>
         <Button
           type="button"
           size="md"
           variant="outline"
-          onPress={openShop}
+          onPress={prepareCashier}
           aria-disabled={!purchasePlan}
         >
-          <ExternalLink size={14} />
-          打开店铺
+          <CreditCard size={14} />
+          程序内收银
         </Button>
         <Button
           type="button"
@@ -211,9 +216,28 @@ export function T3LdxpPurchaseAssistantCard({
           aria-disabled={!purchasePlan}
         >
           <QrCode size={14} />
-          已扫码支付
+          已付款
         </Button>
       </div>
+      <label htmlFor="t3-ldxp-cashier">
+        <span>程序内收银提示 / 付款码</span>
+        <TextArea
+          id="t3-ldxp-cashier"
+          value={cashierPrompt}
+          onChange={(event) => setCashierPrompt(event.target.value)}
+          aria-label="ldxp.cn cashier prompt"
+          rows={3}
+          variant="secondary"
+        />
+      </label>
+      {payment ? (
+        <div className="t3-ldxp-payment" data-ready={payment.status === "payment_code_ready"}>
+          <strong>{payment.summary}</strong>
+          {payment.amountCents ? <span>金额：{formatPrice(payment.amountCents)}</span> : null}
+          {payment.productLabel ? <span>商品：{payment.productLabel}</span> : null}
+          {payment.paymentCode ? <span>付款码：{payment.paymentCode}</span> : null}
+        </div>
+      ) : null}
       <label htmlFor="t3-ldxp-fulfillment">
         <span>支付后页面提示 / 取货页文本</span>
         <TextArea
@@ -221,17 +245,15 @@ export function T3LdxpPurchaseAssistantCard({
           value={fulfillmentPrompt}
           onChange={(event) => setFulfillmentPrompt(event.target.value)}
           aria-label="ldxp.cn fulfillment page prompt"
-          rows={5}
+          rows={3}
           variant="secondary"
         />
       </label>
-      <div className="t3-ldxp-fulfillment" data-status={parsedFulfillment.status}>
-        <strong>{parsedFulfillment.summary}</strong>
-        {parsedFulfillment.orderId ? <span>订单：{parsedFulfillment.orderId}</span> : null}
-        {parsedFulfillment.pickupCode ? <span>取货码：{parsedFulfillment.pickupCode}</span> : null}
-        {parsedFulfillment.cardKeys.length > 0 ? (
-          <span>卡密：{parsedFulfillment.cardKeys[0]}</span>
-        ) : null}
+      <div className="t3-ldxp-fulfillment" data-status={fulfillment.status}>
+        <strong>{checkoutState?.summary ?? fulfillment.summary}</strong>
+        {fulfillment.orderId ? <span>订单：{fulfillment.orderId}</span> : null}
+        {fulfillment.pickupCode ? <span>取货码：{fulfillment.pickupCode}</span> : null}
+        {fulfillment.cardKeys.length > 0 ? <span>卡密：{fulfillment.cardKeys[0]}</span> : null}
       </div>
       <div className="t3-ldxp-actions" aria-label="ldxp.cn fulfillment actions">
         {fulfillmentActions.map((action) => (

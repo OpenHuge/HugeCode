@@ -927,6 +927,7 @@ code {
 .t3-browser-profile-tools small,
 .t3-product-launch small,
 .t3-ldxp-assistant small,
+.t3-relay-assistant small,
 .t3-hugerouter-commercial small,
 .t3-ai-gateway small,
 .t3-hugerouter-market small,
@@ -944,6 +945,7 @@ code {
 .t3-browser-profile-tools button,
 .t3-product-launch button,
 .t3-ldxp-assistant button,
+.t3-relay-assistant button,
 .t3-hugerouter-commercial button,
 .t3-ai-gateway button,
 .t3-hugerouter-market button,
@@ -962,6 +964,7 @@ code {
 .t3-browser-profile-tools button:disabled,
 .t3-product-launch button:disabled,
 .t3-ldxp-assistant button:disabled,
+.t3-relay-assistant button:disabled,
 .t3-hugerouter-commercial button:disabled,
 .t3-ai-gateway button:disabled,
 .t3-hugerouter-market button:disabled,
@@ -1295,6 +1298,113 @@ code {
   padding: 12px;
 }
 
+.t3-main-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.card.t3-relay-assistant {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border-color: color-mix(in srgb, #2563eb 26%, var(--border));
+  background:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, #60a5fa 14%, transparent),
+      transparent 34%
+    ),
+    color-mix(in srgb, var(--card) 96%, #60a5fa 4%);
+  padding: 12px;
+}
+
+.t3-relay-provider-list,
+.t3-relay-selected {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.t3-relay-provider-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: color-mix(in srgb, var(--background) 84%, var(--card));
+  padding: 8px;
+  text-align: left;
+}
+
+.t3-relay-provider-list button[data-selected="true"] {
+  border-color: color-mix(in srgb, #2563eb 48%, var(--border));
+  background: color-mix(in srgb, #60a5fa 10%, var(--background));
+}
+
+.t3-relay-provider-list span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.t3-relay-provider-list strong,
+.t3-relay-selected strong {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.t3-relay-provider-list em {
+  flex: 0 1 auto;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.t3-relay-provider-list em[data-configured="true"] {
+  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
+  color: var(--success-foreground);
+}
+
+.t3-relay-selected {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: color-mix(in srgb, var(--background) 76%, var(--card));
+  padding: 9px;
+}
+
+.t3-relay-selected[data-ready="true"] {
+  border-color: color-mix(in srgb, var(--success) 44%, var(--border));
+  background: color-mix(in srgb, var(--success) 9%, transparent);
+}
+
+.t3-relay-selected span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .t3-ldxp-flow,
 .t3-ldxp-actions,
 .t3-ldxp-fulfillment {
@@ -1413,6 +1523,7 @@ code {
 }
 
 .t3-ldxp-plan,
+.t3-ldxp-payment,
 .t3-ldxp-fulfillment {
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
@@ -1420,11 +1531,13 @@ code {
   padding: 9px;
 }
 
+.t3-ldxp-payment[data-ready="true"],
 .t3-ldxp-fulfillment[data-status="redeem_ready"] {
   border-color: color-mix(in srgb, var(--success) 44%, var(--border));
   background: color-mix(in srgb, var(--success) 9%, transparent);
 }
 
+.t3-ldxp-payment span,
 .t3-ldxp-fulfillment span {
   overflow: hidden;
   color: var(--muted-foreground);
@@ -1434,6 +1547,10 @@ code {
 }
 
 @media (max-width: 720px) {
+  .t3-main-entry-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .t3-ldxp-flow {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

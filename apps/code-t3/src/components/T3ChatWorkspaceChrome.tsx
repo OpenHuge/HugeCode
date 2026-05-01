@@ -6,6 +6,7 @@ import {
   SendHorizontal,
   Sidebar,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import type {
   T3CodeProviderKind,
   T3CodeProviderModelOption,
@@ -72,6 +73,7 @@ type T3ChatWorkspaceChromeProps = {
   launching: boolean;
   notice: string | null;
   prompt: string;
+  quickEntries?: ReactNode;
   selectedModelId: string | null;
   selectedModelLabel: string;
   selectedProvider: T3CodeProviderKind;
@@ -92,6 +94,7 @@ export function T3ChatWorkspaceChrome({
   launching,
   notice,
   prompt,
+  quickEntries,
   selectedModelId,
   selectedModelLabel,
   selectedProvider,
@@ -145,6 +148,7 @@ export function T3ChatWorkspaceChrome({
               </span>
             </div>
           ) : null}
+          {visibleTimeline.length === 0 && quickEntries ? quickEntries : null}
           {selectedRoute ? (
             <article className="t3-message work">
               <span>{selectedRoute.backendLabel}</span>

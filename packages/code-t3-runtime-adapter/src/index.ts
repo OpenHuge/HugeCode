@@ -44,7 +44,7 @@ export type T3HugerouterCommercialServiceInput = {
 };
 
 export type T3CodexGatewayProviderProfileInput = {
-  apiKey: string;
+  apiKey?: string | null;
   apiKeyEnvKey?: string | null;
   baseUrl: string;
   displayName?: string | null;
@@ -349,6 +349,11 @@ function buildCodexGatewayConfigToml(input: {
   ].join("\n");
 }
 
+function buildCodexGatewayEnvironment(apiKeyEnvKey: string, apiKey: string | null | undefined) {
+  const normalizedApiKey = optionalText(apiKey);
+  return normalizedApiKey ? { [apiKeyEnvKey]: normalizedApiKey } : {};
+}
+
 export function buildT3CodexGatewayProviderProfile(
   input: T3CodexGatewayProviderProfileInput
 ): T3CodexGatewayProviderProfile {
@@ -360,7 +365,6 @@ export function buildT3CodexGatewayProviderProfile(
       ? DEFAULT_CODEX_GATEWAY_DISPLAY_NAME
       : "Custom Gateway");
   const modelAlias = requiredText(input.modelAlias, "modelAlias");
-  const apiKey = requiredText(input.apiKey, "apiKey");
   const apiKeyEnvKey = normalizeApiKeyEnvKey(input.apiKeyEnvKey);
   const baseUrl = normalizeT3CodexGatewayBaseUrl(input.baseUrl);
   const executionTarget = input.executionTarget ?? "embedded_app_server";
@@ -379,9 +383,7 @@ export function buildT3CodexGatewayProviderProfile(
       providerId,
     }),
     displayName,
-    environment: {
-      [apiKeyEnvKey]: apiKey,
-    },
+    environment: buildCodexGatewayEnvironment(apiKeyEnvKey, input.apiKey),
     executionTarget,
     modelAlias,
     profileKind,

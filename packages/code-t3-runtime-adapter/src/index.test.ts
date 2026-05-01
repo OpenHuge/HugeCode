@@ -124,6 +124,26 @@ describe("code-t3-runtime-adapter", () => {
     expect(profile.configToml).toContain('env_key = "CUSTOM_RELAY_KEY"');
   });
 
+  it("builds an env-backed gateway profile without reading token material in the UI", () => {
+    const profile = buildT3CodexGatewayProviderProfile({
+      apiKeyEnvKey: "TOKENFLUX_API_KEY",
+      baseUrl: "https://tokenflux.dev/v1",
+      displayName: "TokenFlux",
+      modelAlias: "agent-coding-default",
+      profileKind: "custom_gateway",
+      providerId: "tokenflux",
+    });
+
+    expect(profile.environment).toEqual({});
+    expect(profile.configToml).toContain('env_key = "TOKENFLUX_API_KEY"');
+    expect(profile.configToml).toContain('base_url = "https://tokenflux.dev/v1"');
+    expect(createT3CodexGatewayProviderRoute(profile)).toMatchObject({
+      backendId: "codex-app-server-tokenflux",
+      backendLabel: "Embedded Codex app-server via TokenFlux",
+      status: "ready",
+    });
+  });
+
   it("rejects gateway operation endpoints instead of storing a broken Codex base URL", () => {
     expect(() => normalizeT3CodexGatewayBaseUrl("https://router.example/v1/responses")).toThrow(
       "operation endpoint"
