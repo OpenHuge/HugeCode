@@ -1376,21 +1376,11 @@ code {
   white-space: nowrap;
 }
 
-.t3-relay-provider-list em[data-configured="true"] {
-  border-color: color-mix(in srgb, var(--success) 42%, var(--border));
-  color: var(--success-foreground);
-}
-
 .t3-relay-selected {
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   background: color-mix(in srgb, var(--background) 76%, var(--card));
   padding: 9px;
-}
-
-.t3-relay-selected[data-ready="true"] {
-  border-color: color-mix(in srgb, var(--success) 44%, var(--border));
-  background: color-mix(in srgb, var(--success) 9%, transparent);
 }
 
 .t3-relay-selected span {

@@ -12,7 +12,7 @@ export type T3CodexRelayProvider = {
   baseUrl: string;
   envKey: string;
   modelAlias: string;
-  configured: boolean;
+  readinessLabel: string;
   summary: string;
 };
 
@@ -20,8 +20,8 @@ function envText(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
-function hasEnvKey(envKey: string) {
-  return Boolean(envText(import.meta.env[envKey]));
+export function resolveT3CodexRelayBackendId(providerId: T3CodexRelayProviderId): string {
+  return `codex-app-server-${providerId === "custom" ? "custom_relay" : providerId}`;
 }
 
 export function listT3CodexRelayProviders(): T3CodexRelayProvider[] {
@@ -39,7 +39,7 @@ export function listT3CodexRelayProviders(): T3CodexRelayProvider[] {
       baseUrl: envText(import.meta.env.VITE_TOKENFLUX_BASE_URL) ?? "https://tokenflux.dev/v1",
       envKey: tokenFluxEnvKey,
       modelAlias: envText(import.meta.env.VITE_TOKENFLUX_MODEL_ALIAS) ?? "agent-coding-default",
-      configured: hasEnvKey(tokenFluxEnvKey),
+      readinessLabel: "runtime env",
       summary: "OpenAI-compatible relay for embedded Codex app-server routing.",
     },
     {
@@ -50,7 +50,7 @@ export function listT3CodexRelayProviders(): T3CodexRelayProvider[] {
         "https://hugerouter.openhuge.local/v1",
       envKey: hugeRouterEnvKey,
       modelAlias: envText(import.meta.env.VITE_HUGEROUTER_MODEL_ALIAS) ?? "agent-coding-default",
-      configured: hasEnvKey(hugeRouterEnvKey),
+      readinessLabel: "runtime env",
       summary: "HugeCode commercial route token relay for built-in Codex.",
     },
     {
@@ -59,7 +59,7 @@ export function listT3CodexRelayProviders(): T3CodexRelayProvider[] {
       baseUrl: customBaseUrl ?? "https://relay.example/v1",
       envKey: customEnvKey,
       modelAlias: envText(import.meta.env.VITE_CODEX_RELAY_MODEL_ALIAS) ?? "agent-coding-default",
-      configured: Boolean(customBaseUrl) && hasEnvKey(customEnvKey),
+      readinessLabel: customBaseUrl ? "runtime env" : "base URL needed",
       summary: "Bring an env-backed OpenAI-compatible relay without exposing key material.",
     },
   ];

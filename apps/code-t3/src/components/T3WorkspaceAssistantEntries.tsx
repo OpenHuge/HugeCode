@@ -2,7 +2,11 @@ import { useMemo, useState } from "react";
 import type { T3CodeProviderRoute } from "@ku0/code-t3-runtime-adapter";
 import { T3CodexRelayAssistantCard } from "./T3CodexRelayAssistantCard";
 import { T3LdxpPurchaseAssistantCard } from "./T3LdxpPurchaseAssistantCard";
-import { listT3CodexRelayProviders } from "../runtime/t3CodexRelayAssistant";
+import {
+  listT3CodexRelayProviders,
+  resolveT3CodexRelayBackendId,
+  type T3CodexRelayProviderId,
+} from "../runtime/t3CodexRelayAssistant";
 
 type T3WorkspaceAssistantEntriesProps = {
   routes: readonly T3CodeProviderRoute[];
@@ -15,14 +19,15 @@ export function T3WorkspaceAssistantEntries({
   onApplyRelayRoute,
   onNotice,
 }: T3WorkspaceAssistantEntriesProps) {
-  const [selectedRelayProviderId, setSelectedRelayProviderId] = useState("tokenflux");
+  const [selectedRelayProviderId, setSelectedRelayProviderId] =
+    useState<T3CodexRelayProviderId>("tokenflux");
   const relayProviders = useMemo(() => listT3CodexRelayProviders(), []);
   const activeRelayRoute = useMemo(
     () =>
       routes.find(
         (route) =>
           route.provider === "codex" &&
-          route.backendId === `codex-app-server-${selectedRelayProviderId}`
+          route.backendId === resolveT3CodexRelayBackendId(selectedRelayProviderId)
       ),
     [routes, selectedRelayProviderId]
   );

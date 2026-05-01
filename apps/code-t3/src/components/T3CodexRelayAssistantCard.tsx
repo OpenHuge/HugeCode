@@ -4,13 +4,14 @@ import type { T3CodeProviderRoute } from "@ku0/code-t3-runtime-adapter";
 import {
   createT3CodexRelayRoute,
   type T3CodexRelayProvider,
+  type T3CodexRelayProviderId,
 } from "../runtime/t3CodexRelayAssistant";
 
 export type T3CodexRelayAssistantCardProps = {
   providers: T3CodexRelayProvider[];
-  selectedProviderId: string;
+  selectedProviderId: T3CodexRelayProviderId;
   activeRoute: T3CodeProviderRoute | undefined;
-  onSelectProvider: (providerId: string) => void;
+  onSelectProvider: (providerId: T3CodexRelayProviderId) => void;
   onApplyRoute: (route: T3CodeProviderRoute, provider: T3CodexRelayProvider) => void;
 };
 
@@ -22,7 +23,6 @@ export function T3CodexRelayAssistantCard({
   onSelectProvider,
 }: T3CodexRelayAssistantCardProps) {
   const selectedProvider = providers.find((provider) => provider.id === selectedProviderId);
-  const selectedReady = selectedProvider?.configured ?? false;
   return (
     <Card className="t3-relay-assistant" variant="secondary" aria-label="中转助手">
       <Card.Header className="t3-browser-card-header">
@@ -31,11 +31,11 @@ export function T3CodexRelayAssistantCard({
           中转助手
         </span>
         <Chip size="sm" variant="tertiary">
-          {selectedReady ? "env ready" : "env required"}
+          {selectedProvider?.readinessLabel ?? "select relay"}
         </Chip>
       </Card.Header>
       <small>
-        为内置 Codex 选择 OpenAI-compatible 中转站。Token 只从运行环境读取，前端不接收也不保存 key。
+        为内置 Codex 选择 OpenAI-compatible 中转站。Token 由运行时环境读取，前端不检测也不保存 key。
       </small>
       <div className="t3-relay-provider-list" aria-label="Codex relay providers">
         {providers.map((provider) => (
@@ -49,19 +49,17 @@ export function T3CodexRelayAssistantCard({
               <strong>{provider.label}</strong>
               <small>{provider.baseUrl}</small>
             </span>
-            <em data-configured={provider.configured}>{provider.envKey}</em>
+            <em>{provider.envKey}</em>
           </button>
         ))}
       </div>
       {selectedProvider ? (
-        <div className="t3-relay-selected" data-ready={selectedProvider.configured}>
+        <div className="t3-relay-selected">
           <strong>{selectedProvider.label}</strong>
           <small>{selectedProvider.summary}</small>
           <span>
             <ShieldCheck size={13} />
-            {selectedProvider.configured
-              ? `${selectedProvider.envKey} is present in env`
-              : `Set ${selectedProvider.envKey} in env before production routing`}
+            Runtime must provide {selectedProvider.envKey}; browser does not read token material
           </span>
           <span>
             <Route size={13} />

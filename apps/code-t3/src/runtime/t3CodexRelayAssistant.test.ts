@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createT3CodexRelayRoute, listT3CodexRelayProviders } from "./t3CodexRelayAssistant";
+import {
+  createT3CodexRelayRoute,
+  listT3CodexRelayProviders,
+  resolveT3CodexRelayBackendId,
+} from "./t3CodexRelayAssistant";
 
 describe("t3CodexRelayAssistant", () => {
   it("lists TokenFlux as an env-backed built-in Codex relay", () => {
@@ -10,6 +14,7 @@ describe("t3CodexRelayAssistant", () => {
         id: "tokenflux",
         baseUrl: "https://tokenflux.dev/v1",
         envKey: "TOKENFLUX_API_KEY",
+        readinessLabel: "runtime env",
       })
     );
   });
@@ -27,5 +32,17 @@ describe("t3CodexRelayAssistant", () => {
       status: "ready",
     });
     expect(JSON.stringify(route)).not.toContain("TOKENFLUX_API_KEY=");
+  });
+
+  it("resolves custom relay backend ids with the adapter provider id mapping", () => {
+    const customRelay = listT3CodexRelayProviders().find((provider) => provider.id === "custom");
+    if (!customRelay) {
+      throw new Error("Expected custom relay provider.");
+    }
+
+    expect(resolveT3CodexRelayBackendId("custom")).toBe("codex-app-server-custom_relay");
+    expect(createT3CodexRelayRoute(customRelay).backendId).toBe(
+      resolveT3CodexRelayBackendId("custom")
+    );
   });
 });
