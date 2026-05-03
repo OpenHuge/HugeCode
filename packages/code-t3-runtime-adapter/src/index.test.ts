@@ -9,6 +9,7 @@ import {
   mapHugeCodeModelPoolToT3ProviderModels,
   mapHugeCodeRuntimeEventToT3TimelineEvent,
   mapT3ProviderRoutesToServerProviders,
+  mapT3ServerProvidersToModelOptionsByInstance,
   mapT3ServerProvidersToModelOptionsByProvider,
   normalizeT3CodexGatewayBaseUrl,
   resolveModelProviderForT3Selection,
@@ -51,8 +52,8 @@ function backend(overrides: Partial<RuntimeBackendSummary>): RuntimeBackendSumma
 
 function model(overrides: Partial<ModelPoolEntry>): ModelPoolEntry {
   return {
-    id: "gpt-5.4",
-    displayName: "GPT-5.4",
+    id: "gpt-5.5",
+    displayName: "GPT-5.5",
     provider: "openai",
     pool: "codex",
     source: "oauth-account",
@@ -288,7 +289,7 @@ describe("code-t3-runtime-adapter", () => {
 
   it("maps HugeCode model pool entries into t3 provider model options", () => {
     const models = mapHugeCodeModelPoolToT3ProviderModels([
-      model({ id: "gpt-5.4", displayName: "GPT-5.4", pool: "codex", provider: "openai" }),
+      model({ id: "gpt-5.5", displayName: "GPT-5.5", pool: "codex", provider: "openai" }),
       model({
         id: "claude-opus-4-6",
         displayName: "Claude Opus 4.6",
@@ -306,8 +307,8 @@ describe("code-t3-runtime-adapter", () => {
 
     expect(models.codex).toEqual([
       expect.objectContaining({
-        slug: "gpt-5.4",
-        name: "GPT-5.4",
+        slug: "gpt-5.5",
+        name: "GPT-5.5",
         subProvider: "OpenAI",
       }),
     ]);
@@ -323,15 +324,15 @@ describe("code-t3-runtime-adapter", () => {
   it("attaches runtime model options to provider routes", () => {
     const routes = mapHugeCodeBackendPoolToT3ProviderRoutes(
       [backend({ backendId: "local-codex-a" })],
-      [model({ id: "gpt-5.4", displayName: "GPT-5.4" })]
+      [model({ id: "gpt-5.5", displayName: "GPT-5.5" })]
     );
 
     expect(routes.find((route) => route.provider === "codex")).toMatchObject({
-      modelId: "gpt-5.4",
+      modelId: "gpt-5.5",
       models: [
         expect.objectContaining({
-          slug: "gpt-5.4",
-          name: "GPT-5.4",
+          slug: "gpt-5.5",
+          name: "GPT-5.5",
         }),
       ],
     });
@@ -341,7 +342,7 @@ describe("code-t3-runtime-adapter", () => {
     const routes = mapHugeCodeBackendPoolToT3ProviderRoutes(
       [backend({ backendId: "local-codex-a" })],
       [
-        model({ id: "gpt-5.4", displayName: "GPT-5.4" }),
+        model({ id: "gpt-5.5", displayName: "GPT-5.5" }),
         model({
           id: "claude-sonnet-4-5",
           displayName: "Claude Sonnet 4.5",
@@ -395,26 +396,50 @@ describe("code-t3-runtime-adapter", () => {
   it("projects provider routes into the t3 server provider shape", () => {
     const routes = mapHugeCodeBackendPoolToT3ProviderRoutes(
       [backend({ backendId: "local-codex-a" })],
-      [model({ id: "gpt-5.4", displayName: "GPT-5.4" })]
+      [model({ id: "gpt-5.5", displayName: "GPT-5.5" })]
     );
 
     expect(mapT3ProviderRoutesToServerProviders(routes, "2026-01-01T00:00:00.000Z")).toEqual([
       expect.objectContaining({
         provider: "codex",
         displayName: "Codex",
+        driver: "codex",
+        instanceId: "codex",
+        availability: "available",
         enabled: true,
-        auth: { status: "authenticated" },
+        status: "ready",
+        auth: {
+          label: "Local Codex CLI",
+          status: "authenticated",
+          type: "codex_oauth",
+        },
         checkedAt: "2026-01-01T00:00:00.000Z",
+        continuation: { groupKey: "codex" },
         models: [
           expect.objectContaining({
-            slug: "gpt-5.4",
-            name: "GPT-5.4",
+            slug: "gpt-5.5",
+            name: "GPT-5.5",
             capabilities: {
               optionDescriptors: [
                 expect.objectContaining({
                   id: "reasoningEffort",
                   label: "Reasoning",
                   type: "select",
+                }),
+                expect.objectContaining({
+                  id: "contextWindow",
+                  label: "Context",
+                  type: "select",
+                }),
+                expect.objectContaining({
+                  id: "agent",
+                  label: "Agent",
+                  type: "select",
+                }),
+                expect.objectContaining({
+                  id: "fastMode",
+                  label: "Fast Mode",
+                  type: "boolean",
                 }),
               ],
             },
@@ -429,7 +454,7 @@ describe("code-t3-runtime-adapter", () => {
   it("builds a t3 provider catalog for upstream picker integration", () => {
     const catalog = buildT3ProviderCatalog(
       [backend({ backendId: "local-codex-a" })],
-      [model({ id: "gpt-5.4", displayName: "GPT-5.4" })],
+      [model({ id: "gpt-5.5", displayName: "GPT-5.5" })],
       "2026-01-01T00:00:00.000Z"
     );
 
@@ -438,19 +463,50 @@ describe("code-t3-runtime-adapter", () => {
     expect(catalog.serverProviders).toEqual([
       expect.objectContaining({
         provider: "codex",
+        driver: "codex",
+        instanceId: "codex",
         models: [
           expect.objectContaining({
-            slug: "gpt-5.4",
+            slug: "gpt-5.5",
           }),
         ],
       }),
     ]);
-    expect(catalog.modelOptionsByProvider.codex).toEqual([
+    expect(catalog.modelOptionsByInstance.codex).toEqual([
       expect.objectContaining({
-        slug: "gpt-5.4",
-        name: "GPT-5.4",
+        slug: "gpt-5.5",
+        name: "GPT-5.5",
       }),
     ]);
+    expect(catalog.modelOptionsByProvider.codex).toEqual([
+      expect.objectContaining({
+        slug: "gpt-5.5",
+        name: "GPT-5.5",
+      }),
+    ]);
+  });
+
+  it("projects multiple routes for one provider as distinct upstream instances", () => {
+    const routes = mapHugeCodeBackendPoolToT3ProviderRoutes(
+      [
+        backend({ backendId: "local-codex-a", displayName: "Local Codex A" }),
+        backend({ backendId: "local-codex-b", displayName: "Local Codex B" }),
+      ],
+      [model({ id: "gpt-5.5", displayName: "GPT-5.5" })]
+    );
+    const serverProviders = mapT3ProviderRoutesToServerProviders(
+      routes,
+      "2026-01-01T00:00:00.000Z"
+    );
+
+    expect(serverProviders.map((provider) => provider.instanceId)).toEqual([
+      "codex",
+      "codex_local_codex_b",
+    ]);
+    expect(mapT3ServerProvidersToModelOptionsByInstance(serverProviders)).toMatchObject({
+      codex: [{ slug: "gpt-5.5" }],
+      codex_local_codex_b: [{ slug: "gpt-5.5" }],
+    });
   });
 
   it("maps t3 server providers into upstream model picker options", () => {

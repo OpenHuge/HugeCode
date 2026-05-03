@@ -32,6 +32,8 @@ When working from multiple git worktrees, `pnpm run` / `pnpm exec` now warn inst
 Root build, lint, and typecheck include the active t3 app through the default
 workspace graph. Use `pnpm dev`, `pnpm dev:code:t3`, and `pnpm code-t3:build`
 for the active app.
+Use `pnpm dev:desktop` when the active t3 app needs to run in the local
+Electron desktop shell.
 
 - `pnpm check:workflow-governance`
   Required when CI workflow docs, workflow files, or reusable workflow mappings change.
@@ -162,6 +164,8 @@ pnpm test:e2e:a11y
 
 - Run active app work through `pnpm dev`, `pnpm dev:code:t3`, and
   `pnpm code-t3:build`.
+- Run the active t3 Electron shell through `pnpm dev:desktop`; build its
+  renderer and Electron main/preload bundle with `pnpm code-t3:desktop:build`.
 - `apps/code`, `apps/code-web`, and `apps/code-electron` are retired app
   workspaces and should not be used for new app work.
 

@@ -14,6 +14,9 @@ Interpret this carefully:
 - `apps/code`, `apps/code-web`, and `apps/code-electron` have been removed from
   the active workspace and must stay absent unless a new ADR explicitly restores
   them with a tracked manifest and documented ownership.
+- The desktop product support matrix is Windows x64, macOS Apple Silicon
+  (`darwin/arm64`), and macOS Intel (`darwin/x64`). This support statement is a
+  distribution target policy, not permission to recreate retired app workspaces.
 - `packages/code-workspace-client` remains a supporting shared workspace-client
   layer for runtime-backed shell code.
 - `packages/code-application` is the shared application-layer package for

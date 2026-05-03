@@ -13,6 +13,8 @@ import type {
   KernelProjectionDelta,
   KernelProjectionSubscriptionRequest,
   OAuthAccountSummary,
+  OAuthCodexAuthJsonImportRequest,
+  OAuthCodexAuthJsonImportResponse,
   OAuthPoolAccountBindRequest,
   OAuthPoolApplyInput,
   OAuthPoolMember,
@@ -121,6 +123,9 @@ export type WorkspaceClientRuntimeOauthBindings = {
   setPrimaryAccount: (input: OAuthPrimaryAccountSetInput) => Promise<OAuthPrimaryAccountSummary>;
   applyPool: (input: OAuthPoolApplyInput) => Promise<unknown>;
   bindPoolAccount: (input: OAuthPoolAccountBindRequest) => Promise<unknown>;
+  importCodexAuthJson: (
+    input: OAuthCodexAuthJsonImportRequest
+  ) => Promise<OAuthCodexAuthJsonImportResponse>;
   runLogin: (
     workspaceId: string,
     options: { forceOAuth: true }

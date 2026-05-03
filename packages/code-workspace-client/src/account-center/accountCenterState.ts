@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   OAuthAccountSummary,
+  OAuthCodexAuthJsonImportResponse,
   OAuthPoolMember,
   OAuthPoolSummary,
   OAuthPrimaryAccountSummary,
@@ -12,6 +13,7 @@ import {
 } from "../workspace/WorkspaceClientBindingsProvider";
 
 const DEFAULT_RUNTIME_WORKSPACE_ID = "workspace-local";
+const CONNECT_CODEX_ACCOUNT_BUSY_ID = "__connect_codex_account__";
 const PROVIDER_ORDER: OAuthProviderId[] = ["codex", "gemini", "claude_code"];
 const PROVIDER_LABELS: Record<OAuthProviderId, string> = {
   codex: "Codex",
@@ -47,6 +49,9 @@ export type SharedAccountCenterState = {
     connectedAccounts: AccountCenterCodexAccountSummary[];
     defaultRouteBusyAccountId: string | null;
     reauthenticatingAccountId: string | null;
+    connecting: boolean;
+    authJsonImporting: boolean;
+    authJsonImportResult: OAuthCodexAuthJsonImportResponse | null;
   };
   providers: AccountCenterProviderSummary[];
   workspaceAccounts: Array<{
@@ -56,6 +61,8 @@ export type SharedAccountCenterState = {
     planLabel: string;
   }>;
   refresh: () => Promise<void>;
+  connectCodexAccount: () => Promise<void>;
+  importCodexAuthJson: (input: { authJson: string; sourceLabel?: string | null }) => Promise<void>;
   setCodexDefaultRouteAccount: (accountId: string) => Promise<void>;
   reauthenticateCodexAccount: (accountId: string) => Promise<void>;
 };
@@ -216,6 +223,11 @@ function resolveCodexOAuthWorkspaceId(input: {
   );
 }
 
+function resolveNewCodexOAuthWorkspaceId(workspaces: Array<{ id: string; connected: boolean }>) {
+  const connectedWorkspace = workspaces.find((workspace) => workspace.connected) ?? null;
+  return connectedWorkspace?.id ?? workspaces[0]?.id ?? DEFAULT_RUNTIME_WORKSPACE_ID;
+}
+
 export function useSharedAccountCenterState(): SharedAccountCenterState {
   const runtime = useWorkspaceClientRuntimeBindings();
   const host = useWorkspaceClientHostBindings();
@@ -231,6 +243,9 @@ export function useSharedAccountCenterState(): SharedAccountCenterState {
   const [error, setError] = useState<string | null>(null);
   const [defaultRouteBusyAccountId, setDefaultRouteBusyAccountId] = useState<string | null>(null);
   const [reauthenticatingAccountId, setReauthenticatingAccountId] = useState<string | null>(null);
+  const [authJsonImporting, setAuthJsonImporting] = useState(false);
+  const [authJsonImportResult, setAuthJsonImportResult] =
+    useState<OAuthCodexAuthJsonImportResponse | null>(null);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -356,6 +371,33 @@ export function useSharedAccountCenterState(): SharedAccountCenterState {
     [codexAccounts, codexDefaultRouteAccountId]
   );
 
+  const runCodexOAuthLogin = useCallback(
+    async (workspaceId: string, baselineUpdatedAt: number) => {
+      const popup = host.platform === "web" ? host.intents.createOauthPopupWindow() : null;
+      if (host.platform === "web" && !popup) {
+        throw new Error("OAuth popup was blocked. Please allow pop-ups and try again.");
+      }
+      const { authUrl, immediateSuccess } = await runtime.oauth.runLogin(workspaceId, {
+        forceOAuth: true,
+      });
+
+      if (immediateSuccess) {
+        await refresh();
+        return;
+      }
+
+      await host.intents.openOauthAuthorizationUrl(authUrl, popup);
+      const synced = await host.intents.waitForOauthBinding(workspaceId, baselineUpdatedAt);
+      if (!synced) {
+        throw new Error(
+          "OAuth completed but account sync was not detected. Check runtime logs and retry."
+        );
+      }
+      await refresh();
+    },
+    [host, refresh, runtime.oauth]
+  );
+
   const setCodexDefaultRouteAccount = useCallback(
     async (accountId: string) => {
       if (accountId === codexDefaultRouteAccountId) {
@@ -403,6 +445,22 @@ export function useSharedAccountCenterState(): SharedAccountCenterState {
     [codexDefaultPool, codexDefaultRouteAccountId, refresh, runtime.oauth]
   );
 
+  const connectCodexAccount = useCallback(async () => {
+    setReauthenticatingAccountId(CONNECT_CODEX_ACCOUNT_BUSY_ID);
+    setError(null);
+    try {
+      const workspaces = await runtime.workspaceCatalog.listWorkspaces().catch(() => []);
+      const workspaceId = resolveNewCodexOAuthWorkspaceId(workspaces);
+      await runCodexOAuthLogin(workspaceId, maxCodexAccountTimestamp(codexAccounts));
+    } catch (nextError) {
+      setError(normalizeErrorMessage(nextError, "Unable to connect Codex account."));
+    } finally {
+      if (isMountedRef.current) {
+        setReauthenticatingAccountId(null);
+      }
+    }
+  }, [codexAccounts, runCodexOAuthLogin, runtime.workspaceCatalog]);
+
   const reauthenticateCodexAccount = useCallback(
     async (accountId: string) => {
       const account = codexAccounts.find((entry) => entry.accountId === accountId);
@@ -412,33 +470,12 @@ export function useSharedAccountCenterState(): SharedAccountCenterState {
       setReauthenticatingAccountId(accountId);
       setError(null);
       try {
-        const popup = host.platform === "web" ? host.intents.createOauthPopupWindow() : null;
-        if (host.platform === "web" && !popup) {
-          throw new Error("OAuth popup was blocked. Please allow pop-ups and try again.");
-        }
         const workspaces = await runtime.workspaceCatalog.listWorkspaces().catch(() => []);
         const workspaceId = resolveCodexOAuthWorkspaceId({
           account,
           workspaces,
         });
-        const baselineUpdatedAt = maxCodexAccountTimestamp(codexAccounts);
-        const { authUrl, immediateSuccess } = await runtime.oauth.runLogin(workspaceId, {
-          forceOAuth: true,
-        });
-
-        if (immediateSuccess) {
-          await refresh();
-          return;
-        }
-
-        await host.intents.openOauthAuthorizationUrl(authUrl, popup);
-        const synced = await host.intents.waitForOauthBinding(workspaceId, baselineUpdatedAt);
-        if (!synced) {
-          throw new Error(
-            "OAuth completed but account sync was not detected. Check runtime logs and retry."
-          );
-        }
-        await refresh();
+        await runCodexOAuthLogin(workspaceId, maxCodexAccountTimestamp(codexAccounts));
       } catch (nextError) {
         setError(normalizeErrorMessage(nextError, `Unable to re-authenticate ${accountId}.`));
       } finally {
@@ -447,7 +484,30 @@ export function useSharedAccountCenterState(): SharedAccountCenterState {
         }
       }
     },
-    [codexAccounts, host, refresh, runtime.oauth, runtime.workspaceCatalog]
+    [codexAccounts, runCodexOAuthLogin, runtime.workspaceCatalog]
+  );
+
+  const importCodexAuthJson = useCallback(
+    async (input: { authJson: string; sourceLabel?: string | null }) => {
+      setAuthJsonImporting(true);
+      setError(null);
+      try {
+        const result = await runtime.oauth.importCodexAuthJson(input);
+        await refresh();
+        if (isMountedRef.current) {
+          setAuthJsonImportResult(result);
+        }
+      } catch (nextError) {
+        if (isMountedRef.current) {
+          setError(normalizeErrorMessage(nextError, "Unable to import Codex auth.json."));
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setAuthJsonImporting(false);
+        }
+      }
+    },
+    [refresh, runtime.oauth]
   );
 
   return {
@@ -460,10 +520,15 @@ export function useSharedAccountCenterState(): SharedAccountCenterState {
       connectedAccounts,
       defaultRouteBusyAccountId,
       reauthenticatingAccountId,
+      connecting: reauthenticatingAccountId === CONNECT_CODEX_ACCOUNT_BUSY_ID,
+      authJsonImporting,
+      authJsonImportResult,
     },
     providers,
     workspaceAccounts,
     refresh,
+    connectCodexAccount,
+    importCodexAuthJson,
     setCodexDefaultRouteAccount,
     reauthenticateCodexAccount,
   };

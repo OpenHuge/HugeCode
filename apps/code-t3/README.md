@@ -3,9 +3,18 @@
 `apps/code-t3/upstream` is a pinned copy of the T3CODE web UI. Treat it as vendored source:
 
 - do not edit files under `upstream` directly
-- keep HugeCode behavior in `src/runtime/*`, `src/components/BrowserLaunchPage.tsx`, and `@ku0/code-t3-runtime-adapter`
+- keep HugeCode behavior in `src/shell/*`, `src/runtime/*`, `src/components/BrowserLaunchPage.tsx`, and `@ku0/code-t3-runtime-adapter`
 - keep upstream chat shell alignment in `src/components/T3ChatWorkspaceChrome.tsx`; avoid mixing runtime orchestration into that component
-- when updating T3CODE, refresh `upstream/UPSTREAM.json`, re-audit `upstream-sync.json`, then run `pnpm -C apps/code-t3 sync:check`
+- when updating T3CODE, refresh `upstream/UPSTREAM.json`, re-audit `upstream-sync.json`, then run `pnpm -C apps/code-t3 sync:status` and `pnpm -C apps/code-t3 sync:check`
+
+`src/shell/T3CodeShell.tsx` is the stable local entry boundary. Keep launch routing,
+query-param compatibility, and HugeCode-only host composition there so `src/main.tsx`
+stays nearly static when upstream code is refreshed.
+
+Use `pnpm -C apps/code-t3 sync:status` before pulling or replacing the upstream snapshot.
+It prints local upstream drift and the overlay roots that should receive product work.
+Use `pnpm -C apps/code-t3 sync:guard` when a branch is expected to contain no vendored
+upstream edits outside a deliberate upstream refresh commit.
 
 The long-term target is to replace local UI shims with upstream components. New runtime data should therefore use T3-shaped contracts first, then map to HugeCode runtime contracts at the adapter boundary.
 

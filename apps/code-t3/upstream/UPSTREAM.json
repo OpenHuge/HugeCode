@@ -1,7 +1,7 @@
 {
   "remote": "https://github.com/pingdotgg/t3code.git",
   "ref": "main",
-  "commit": "ada410bccff144ce4cfed0e2c6e18974b045f968",
-  "syncedAt": "2026-04-25T18:43:36.322Z",
+  "commit": "0ce7e56e436ba31e2f0b51f3203a09758c866cd1",
+  "syncedAt": "2026-05-03T03:31:53.447Z",
   "note": "Do not edit upstream files directly. Adapt through @ku0/code-t3-runtime-adapter and apps/code-t3/src."
 }

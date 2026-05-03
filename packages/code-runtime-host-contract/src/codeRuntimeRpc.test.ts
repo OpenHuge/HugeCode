@@ -1493,6 +1493,7 @@ describe("agent and oauth rpc methods", () => {
   it("lists canonical candidates for codex oauth login start and cancel", () => {
     expect(CODE_RUNTIME_RPC_METHOD_LIST).toContain("code_oauth_codex_login_start");
     expect(CODE_RUNTIME_RPC_METHOD_LIST).toContain("code_oauth_codex_login_cancel");
+    expect(CODE_RUNTIME_RPC_METHOD_LIST).toContain("code_oauth_codex_auth_json_import");
     expect(
       listCodeRuntimeRpcMethodCandidates(
         "code_oauth_codex_login_start" as (typeof CODE_RUNTIME_RPC_METHOD_LIST)[number]
@@ -1503,6 +1504,11 @@ describe("agent and oauth rpc methods", () => {
         "code_oauth_codex_login_cancel" as (typeof CODE_RUNTIME_RPC_METHOD_LIST)[number]
       )
     ).toEqual(["code_oauth_codex_login_cancel"]);
+    expect(
+      listCodeRuntimeRpcMethodCandidates(
+        "code_oauth_codex_auth_json_import" as (typeof CODE_RUNTIME_RPC_METHOD_LIST)[number]
+      )
+    ).toEqual(["code_oauth_codex_auth_json_import"]);
   });
 
   it("lists canonical candidates for cockpit-tools codex import", () => {

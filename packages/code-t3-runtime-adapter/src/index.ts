@@ -14,6 +14,39 @@ import type {
   HugeRouterRouteTokenIssueRequest,
   HugeRouterRouteTokenIssueResponse,
 } from "@ku0/code-runtime-host-contract/codeRuntimeRpc";
+import {
+  DEFAULT_CODEX_CONTEXT_WINDOWS,
+  contextWindowsFromCapabilities,
+  mapT3ProviderRoutesToServerProviders,
+  mapT3ServerProvidersToModelOptionsByInstance,
+  mapT3ServerProvidersToModelOptionsByProvider,
+} from "./providerCatalog";
+import type {
+  T3CodeProviderModelOptionsByInstance,
+  T3CodeProviderOptionBooleanDescriptor,
+  T3CodeProviderOptionDescriptor,
+  T3CodeProviderOptionSelectDescriptor,
+  T3CodeServerProvider,
+  T3CodeServerProviderAvailability,
+  T3CodeServerProviderModel,
+  T3CodeServerProviderState,
+} from "./providerCatalog";
+
+export {
+  mapT3ProviderRoutesToServerProviders,
+  mapT3ServerProvidersToModelOptionsByInstance,
+  mapT3ServerProvidersToModelOptionsByProvider,
+};
+export type {
+  T3CodeProviderModelOptionsByInstance,
+  T3CodeProviderOptionBooleanDescriptor,
+  T3CodeProviderOptionDescriptor,
+  T3CodeProviderOptionSelectDescriptor,
+  T3CodeServerProvider,
+  T3CodeServerProviderAvailability,
+  T3CodeServerProviderModel,
+  T3CodeServerProviderState,
+};
 
 export type T3CodeProviderKind = "codex" | "claudeAgent";
 
@@ -82,6 +115,7 @@ export type T3CodexGatewayProviderProfile = {
 export type T3CodeProviderModel = {
   available: boolean;
   capabilities: string[];
+  contextWindows?: string[];
   name: string;
   reasoningEfforts: ReasonEffort[];
   runtimeProvider: ModelProvider;
@@ -91,44 +125,6 @@ export type T3CodeProviderModel = {
   subProvider?: string;
   supportsReasoning: boolean;
   supportsVision: boolean;
-};
-
-export type T3CodeServerProviderModel = {
-  capabilities: {
-    optionDescriptors: Array<{
-      id: string;
-      label: string;
-      options: Array<{
-        id: string;
-        isDefault?: boolean;
-        label: string;
-      }>;
-      type: "select";
-    }>;
-  };
-  isCustom: boolean;
-  name: string;
-  runtimeProvider?: ModelProvider;
-  shortName?: string;
-  slug: string;
-  subProvider?: string;
-};
-
-export type T3CodeServerProvider = {
-  auth: {
-    status: T3CodeProviderAuthState;
-  };
-  checkedAt: string;
-  displayName: string;
-  enabled: boolean;
-  installed: boolean;
-  models: T3CodeServerProviderModel[];
-  provider: T3CodeProviderKind;
-  showInteractionModeToggle: boolean;
-  skills: [];
-  slashCommands: [];
-  status: T3CodeProviderRouteStatus;
-  version: string | null;
 };
 
 export type T3CodeProviderModelOption = {
@@ -146,6 +142,7 @@ export type T3CodeProviderModelOptionsByProvider = Record<
 
 export type T3CodeProviderCatalog = {
   checkedAt: string;
+  modelOptionsByInstance: T3CodeProviderModelOptionsByInstance;
   modelOptionsByProvider: T3CodeProviderModelOptionsByProvider;
   routes: T3CodeProviderRoute[];
   serverProviders: T3CodeServerProvider[];
@@ -477,15 +474,15 @@ function inferProviderFromBackend(backend: RuntimeBackendSummary): T3CodeProvide
 }
 
 function providerModelFallback(provider: T3CodeProviderKind) {
-  return provider === "codex" ? "gpt-5.3-codex" : "claude-sonnet-4-5";
+  return provider === "codex" ? "gpt-5.5" : "claude-sonnet-4-5";
 }
 
 const FALLBACK_PROVIDER_MODELS = {
   codex: [
     {
-      slug: "gpt-5.4",
-      name: "GPT-5.4",
-      shortName: "GPT-5.4",
+      slug: "gpt-5.5",
+      name: "GPT-5.5",
+      shortName: "GPT-5.5",
       subProvider: "OpenAI",
     },
     {
@@ -519,6 +516,7 @@ function fallbackProviderModels(provider: T3CodeProviderKind): T3CodeProviderMod
     ...model,
     available: true,
     capabilities: ["chat", "coding", "reasoning"],
+    ...(provider === "codex" ? { contextWindows: [...DEFAULT_CODEX_CONTEXT_WINDOWS] } : {}),
     reasoningEfforts: ["medium", "high", "xhigh"],
     runtimeProvider: provider === "codex" ? "openai" : "anthropic",
     source: "fallback",
@@ -610,6 +608,7 @@ export function mapHugeCodeModelPoolToT3ProviderModels(
     const candidate = {
       available: model.available,
       capabilities: asStringList(model.capabilities),
+      contextWindows: contextWindowsFromCapabilities(model.capabilities, provider),
       name: model.displayName.trim() || model.id,
       reasoningEfforts: asStringList(model.reasoningEfforts) as ReasonEffort[],
       runtimeProvider: model.provider,
@@ -772,6 +771,7 @@ export function createT3CodexGatewayProviderRoute(
       "reasoning",
       profile.profileKind === "hugerouter_commercial" ? "hugerouter-commercial" : "gateway",
     ],
+    contextWindows: [...DEFAULT_CODEX_CONTEXT_WINDOWS],
     name: profile.modelAlias,
     reasoningEfforts: ["medium", "high", "xhigh"],
     runtimeProvider: "openai",
@@ -866,83 +866,6 @@ export function mapHugeRouterCommercialSnapshotToT3ProviderRoute(
   };
 }
 
-function mapRouteModelToServerProviderModel(
-  provider: T3CodeProviderKind,
-  model: T3CodeProviderModel
-): T3CodeServerProviderModel {
-  const optionId = provider === "codex" ? "reasoningEffort" : "effort";
-  return {
-    capabilities: {
-      optionDescriptors: model.supportsReasoning
-        ? [
-            {
-              id: optionId,
-              label: "Reasoning",
-              options: (model.reasoningEfforts.length > 0
-                ? model.reasoningEfforts
-                : (["medium", "high", "xhigh"] as ReasonEffort[])
-              ).map((effort) => ({
-                id: effort,
-                label: effort,
-                ...(effort === "medium" ? { isDefault: true } : {}),
-              })),
-              type: "select",
-            },
-          ]
-        : [],
-    },
-    isCustom: model.source !== "fallback" && model.source !== "oauth-account",
-    name: model.name,
-    runtimeProvider: model.runtimeProvider,
-    ...(model.shortName ? { shortName: model.shortName } : {}),
-    slug: model.slug,
-    ...(model.subProvider ? { subProvider: model.subProvider } : {}),
-  };
-}
-
-export function mapT3ProviderRoutesToServerProviders(
-  routes: readonly T3CodeProviderRoute[],
-  checkedAt = new Date().toISOString()
-): T3CodeServerProvider[] {
-  return routes.map((route) => ({
-    auth: {
-      status: route.authState,
-    },
-    checkedAt,
-    displayName: route.provider === "codex" ? "Codex" : "Claude",
-    enabled: route.status === "ready" || route.status === "attention",
-    installed: route.installed,
-    models: route.models.map((model) => mapRouteModelToServerProviderModel(route.provider, model)),
-    provider: route.provider,
-    showInteractionModeToggle: true,
-    skills: [],
-    slashCommands: [],
-    status: route.status,
-    version: null,
-  }));
-}
-
-export function mapT3ServerProvidersToModelOptionsByProvider(
-  serverProviders: readonly T3CodeServerProvider[]
-): T3CodeProviderModelOptionsByProvider {
-  const grouped: T3CodeProviderModelOptionsByProvider = {
-    codex: [],
-    claudeAgent: [],
-  };
-  for (const serverProvider of serverProviders) {
-    grouped[serverProvider.provider].push(
-      ...serverProvider.models.map((model) => ({
-        name: model.name,
-        ...(model.runtimeProvider ? { runtimeProvider: model.runtimeProvider } : {}),
-        ...(model.shortName ? { shortName: model.shortName } : {}),
-        slug: model.slug,
-        ...(model.subProvider ? { subProvider: model.subProvider } : {}),
-      }))
-    );
-  }
-  return grouped;
-}
-
 export function buildT3ProviderCatalog(
   backends: readonly RuntimeBackendSummary[],
   models: readonly ModelPoolEntry[] = [],
@@ -961,6 +884,7 @@ export function buildT3ProviderCatalog(
   const serverProviders = mapT3ProviderRoutesToServerProviders(routes, checkedAt);
   return {
     checkedAt,
+    modelOptionsByInstance: mapT3ServerProvidersToModelOptionsByInstance(serverProviders),
     modelOptionsByProvider: mapT3ServerProvidersToModelOptionsByProvider(serverProviders),
     routes,
     serverProviders,

@@ -366,7 +366,7 @@ fn provider_default_model_source(provider: RuntimeProvider) -> &'static str {
 
 fn provider_default_model_display_name(provider: RuntimeProvider) -> &'static str {
     match provider {
-        RuntimeProvider::OpenAI => "GPT-5.4",
+        RuntimeProvider::OpenAI => "GPT-5.5",
         RuntimeProvider::Anthropic => "Claude Sonnet 4.5",
         RuntimeProvider::ClaudeCodeLocal => "Claude Sonnet 4.5",
         RuntimeProvider::Google => "Gemini 2.5 Pro",

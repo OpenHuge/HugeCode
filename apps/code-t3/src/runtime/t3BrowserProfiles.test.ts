@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildT3BrowserFingerprintSummary,
-  buildT3BrowserProfileOperationsReport,
   buildT3BrowserProductContinuity,
   buildT3AiGatewaySummaryMock,
   addT3BrowserSeatPoolMemberMock,
@@ -34,6 +33,15 @@ import {
   updateT3BrowserSeatPoolCommercialMock,
   type T3BrowserProfileDescriptor,
 } from "./t3BrowserProfiles";
+import { buildT3BrowserProfileOperationsReport } from "./t3BrowserProfileOperations";
+import {
+  buildT3BrowserStaticDataBundle,
+  exportT3BrowserSiteDataToChrome,
+  importT3BrowserStaticDataBundle,
+  serializeT3BrowserStaticDataBundle,
+  serializeT3BrowserStaticDataBundleWithLoginState,
+  importT3BrowserStaticDataLoginStateBundles,
+} from "./t3BrowserStaticData";
 import {
   buildT3HugeRouterCommercialServiceSnapshotMock,
   T3_HUGEROUTER_ROUTE_TOKEN_ENV_KEY,
@@ -1128,24 +1136,10 @@ describe("t3BrowserProfiles", () => {
     );
   });
 
-  it("routes isolated app opens through an Electron managed partition when available", async () => {
+  it("opens isolated apps through the HugeCode built-in browser route", async () => {
     const bridge = createT3BrowserProfileBridge();
     const [profile] = await bridge.listProfiles();
     expect(profile).toBeDefined();
-    const openSession = vi.fn(async () => ({}));
-    (
-      window as Window & {
-        hugeCodeDesktopHost?: {
-          aiWebLab?: {
-            openSession: typeof openSession;
-          };
-        };
-      }
-    ).hugeCodeDesktopHost = {
-      aiWebLab: {
-        openSession,
-      },
-    };
 
     const geminiApp = createT3BrowserIsolatedAppMock({
       label: "Gemini Partition A",
@@ -1159,16 +1153,16 @@ describe("t3BrowserProfiles", () => {
       providerId: "gemini",
     });
 
-    expect(openSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        partitionKey: `${profile!.id}:https://gemini.google.com:${geminiApp.id}`,
-        preferredSessionMode: "managed",
-        preferredViewMode: "window",
-        providerId: "gemini",
-        url: "https://gemini.google.com/app",
-      })
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining("hcbrowser=1"),
+      "_blank",
+      "popup,width=1180,height=860,noopener,noreferrer"
     );
-    expect(window.open).not.toHaveBeenCalled();
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining(`appId=${encodeURIComponent(geminiApp.id)}`),
+      "_blank",
+      "popup,width=1180,height=860,noopener,noreferrer"
+    );
     expect(listT3BrowserIsolatedApps(profile!.id)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -1184,5 +1178,297 @@ describe("t3BrowserProfiles", () => {
         siteId: "https://gemini.google.com",
       }),
     ]);
+  });
+
+  it("exports and imports browser metadata as a static credential-blocked bundle", async () => {
+    const bridge = createT3BrowserProfileBridge();
+    const [profile] = await bridge.listProfiles();
+    expect(profile).toBeDefined();
+
+    await bridge.saveRemoteProfile({
+      endpointUrl: "https://remote.example.com:9222",
+      label: "Remote static profile",
+    });
+    syncT3BrowserProfileToLocalMock(profile!);
+    syncCloseT3BrowserProfileMigrationMock({
+      deviceName: "Office Mac",
+      profile: profile!,
+    });
+    createT3BrowserIsolatedAppMock({
+      label: "Gemini Static",
+      profile: profile!,
+      providerId: "gemini",
+    });
+    await bridge.openProvider({
+      profileId: profile!.id,
+      providerId: "gemini",
+    });
+    createT3AiGatewayRouteMock({
+      maxConcurrentTasks: 3,
+      ownerLabel: "Static owner",
+      planType: "hugerouter-pro",
+      requestBudgetPerDay: 1200,
+      routeMode: "official-api",
+    });
+
+    const serialized = serializeT3BrowserStaticDataBundle();
+    const exported = buildT3BrowserStaticDataBundle();
+    expect(exported.payloadPolicy).toBe("host-encrypted-browser-state");
+    expect(serialized).toContain("hugecode.t3-browser-static-data/v1");
+    expect(serialized).toContain("loginStateBundles");
+    expect(serialized).not.toContain("accessToken");
+    expect(serialized).not.toContain("bearerToken");
+
+    window.localStorage.clear();
+
+    const result = importT3BrowserStaticDataBundle(serialized);
+
+    expect(result.importedCounts.remoteProfiles).toBe(1);
+    expect(result.importedCounts.recentSessions).toBe(1);
+    expect(result.importedCounts.isolatedApps).toBe(1);
+    expect(result.importedCounts.loginStateBundles).toBe(0);
+    expect(result.profiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Remote static profile",
+          source: "remote-devtools",
+        }),
+      ])
+    );
+    expect(getT3BrowserProfileSyncState(profile!)).toEqual(
+      expect.objectContaining({
+        credentialPayload: "blocked",
+        remoteSessionAvailable: true,
+      })
+    );
+    expect(getT3BrowserProfileMigrationState(profile!)).toEqual(
+      expect.objectContaining({
+        credentialPayload: "blocked",
+        latestVersionNumber: 1,
+        syncPayload: "host-managed-encrypted",
+      })
+    );
+    expect(listT3BrowserRecentSessions()).toEqual([
+      expect.objectContaining({
+        providerId: "gemini",
+        siteId: "https://gemini.google.com",
+      }),
+    ]);
+    expect(listT3BrowserIsolatedApps(profile!.id)).toEqual([
+      expect.objectContaining({
+        credentialPayload: "blocked",
+        label: "Gemini Static",
+      }),
+    ]);
+    expect(listT3AiGatewayRoutesMock()).toEqual([
+      expect.objectContaining({
+        credentialPayload: "blocked",
+        ownerLabel: "Static owner",
+      }),
+    ]);
+  });
+
+  it("drops imported browser sessions with embedded URL credentials", () => {
+    const maliciousBundle = JSON.stringify({
+      payloadPolicy: "metadata-only-no-raw-credentials",
+      schemaVersion: "hugecode.t3-browser-static-data/v1",
+      payload: {
+        recentSessions: [
+          {
+            id: "session:credential-url",
+            openedAt: Date.now(),
+            profileId: "current-browser",
+            profileLabel: "Current browser profile",
+            providerId: "custom",
+            siteId: "https://example.com",
+            siteLabel: "example.com",
+            siteOrigin: "https://example.com",
+            title: "credential URL",
+            url: "https://user:pass@example.com/app",
+          },
+        ],
+      },
+    });
+
+    const result = importT3BrowserStaticDataBundle(maliciousBundle);
+
+    expect(result.importedCounts.recentSessions).toBe(0);
+    expect(listT3BrowserRecentSessions()).toEqual([]);
+  });
+
+  it("includes host-encrypted login state when the desktop bridge can export it", async () => {
+    (
+      window as Window & {
+        hugeCodeDesktopHost?: {
+          browserStaticData?: {
+            exportLoginState: () => Promise<{
+              cookieCount: number;
+              createdAt: number;
+              encryptedPayloadBase64: string;
+              encryption: "electron-safe-storage";
+              id: string;
+              originCount: number;
+              payloadFormat: "electron-session-cookies/v1" | "electron-session-state/v2";
+              stateByteCount?: number;
+              stateFileCount?: number;
+              summary: string;
+            }>;
+          };
+        };
+      }
+    ).hugeCodeDesktopHost = {
+      browserStaticData: {
+        exportLoginState: async () => ({
+          cookieCount: 2,
+          createdAt: 1700000000000,
+          encryptedPayloadBase64: "encrypted-cookie-payload",
+          encryption: "electron-safe-storage",
+          id: "electron-login-state:test",
+          originCount: 1,
+          payloadFormat: "electron-session-state/v2",
+          stateByteCount: 512,
+          stateFileCount: 3,
+          summary: "Encrypted cookies and local browser storage.",
+        }),
+      },
+    };
+
+    const serialized = await serializeT3BrowserStaticDataBundleWithLoginState();
+    const result = importT3BrowserStaticDataBundle(serialized);
+
+    expect(result.importedCounts.loginStateBundles).toBe(1);
+    expect(result.loginStateBundles).toEqual([
+      expect.objectContaining({
+        cookieCount: 2,
+        encryptedPayloadBase64: "encrypted-cookie-payload",
+        encryption: "electron-safe-storage",
+        payloadFormat: "electron-session-state/v2",
+        stateFileCount: 3,
+      }),
+    ]);
+    expect(serialized).not.toContain("raw-cookie-value");
+  });
+
+  it("restores host-encrypted browser state bundles through the desktop bridge", async () => {
+    (
+      window as Window & {
+        hugeCodeDesktopHost?: {
+          browserStaticData?: {
+            importLoginState: (bundle: unknown) => Promise<{
+              importedCookies: number;
+              originCount: number;
+              restoredBytes: number;
+              restoredFiles: number;
+            }>;
+          };
+        };
+      }
+    ).hugeCodeDesktopHost = {
+      browserStaticData: {
+        importLoginState: async () => ({
+          importedCookies: 2,
+          originCount: 1,
+          restoredBytes: 512,
+          restoredFiles: 3,
+        }),
+      },
+    };
+
+    await expect(
+      importT3BrowserStaticDataLoginStateBundles([
+        {
+          cookieCount: 2,
+          createdAt: 1700000000000,
+          encryptedPayloadBase64: "encrypted-browser-state-payload",
+          encryption: "electron-safe-storage",
+          id: "electron-login-state:test",
+          originCount: 1,
+          payloadFormat: "electron-session-state/v2",
+          stateByteCount: 512,
+          stateFileCount: 3,
+          summary: "Encrypted cookies and local browser storage.",
+        },
+      ])
+    ).resolves.toBe(
+      "Restored 2 encrypted login cookies and 3 local browser files (512 bytes) across 1 origins."
+    );
+  });
+
+  it("opens provider sessions through the HugeCode built-in browser route", async () => {
+    const bridge = createT3BrowserProfileBridge();
+    const [profile] = await bridge.listProfiles();
+    expect(profile).toBeDefined();
+
+    await bridge.openProvider({
+      profileId: profile!.id,
+      providerId: "chatgpt",
+    });
+
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining("hcbrowser=1"),
+      "_blank",
+      "popup,width=1180,height=860,noopener,noreferrer"
+    );
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining("target=https%3A%2F%2Fchatgpt.com%2F"),
+      "_blank",
+      "popup,width=1180,height=860,noopener,noreferrer"
+    );
+  });
+
+  it("opens assistant workflows through explicit standalone browser entries", async () => {
+    const bridge = createT3BrowserProfileBridge();
+
+    await bridge.openProvider({
+      assistant: "chatgpt",
+      profileId: "current-browser",
+      providerId: "chatgpt",
+    });
+
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining("chatgptAssistant=1"),
+      "_blank",
+      "popup,width=1180,height=860,noopener,noreferrer"
+    );
+  });
+
+  it("exports built-in browser site data into a managed Chrome profile through the desktop bridge", async () => {
+    (
+      window as Window & {
+        hugeCodeDesktopHost?: {
+          browserStaticData?: {
+            exportToChrome: (input: { targetUrl: string }) => Promise<{
+              chromeExecutablePath: string;
+              profilePath: string;
+              restoredBytes: number;
+              restoredFiles: number;
+              summary: string;
+              targetUrl: string;
+            }>;
+          };
+        };
+      }
+    ).hugeCodeDesktopHost = {
+      browserStaticData: {
+        exportToChrome: async (input) => ({
+          chromeExecutablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+          profilePath: "/tmp/hugecode-chrome-export/Default",
+          restoredBytes: 2048,
+          restoredFiles: 4,
+          summary: "Exported 4 browser site-data files into a HugeCode-managed Chrome profile.",
+          targetUrl: input.targetUrl,
+        }),
+      },
+    };
+
+    await expect(
+      exportT3BrowserSiteDataToChrome({ targetUrl: "https://chatgpt.com/" })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        profilePath: "/tmp/hugecode-chrome-export/Default",
+        restoredFiles: 4,
+        targetUrl: "https://chatgpt.com/",
+      })
+    );
   });
 });

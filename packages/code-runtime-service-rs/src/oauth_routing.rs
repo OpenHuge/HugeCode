@@ -273,9 +273,14 @@ pub(super) async fn recover_local_codex_cli_api_credential(
     if let Some(id_token) = id_token {
         if let Ok(api_key) = exchange_codex_openai_api_key(client, id_token).await {
             if persist_local_codex_auth_updates {
-                if let Err(error) =
-                    persist_local_codex_cli_auth_updates(None, None, None, Some(api_key.as_str()))
-                {
+                if let Err(error) = persist_local_codex_cli_auth_updates(
+                    None,
+                    None,
+                    None,
+                    Some(api_key.as_str()),
+                    None,
+                    None,
+                ) {
                     warn!(
                         error = error.as_str(),
                         "failed to persist local codex auth update after id_token exchange"
@@ -332,6 +337,8 @@ pub(super) async fn recover_local_codex_cli_api_credential(
             refreshed_access_token.as_deref(),
             refreshed_refresh_token,
             exchanged_api_key.as_deref(),
+            None,
+            None,
         ) {
             warn!(
                 error = error.as_str(),

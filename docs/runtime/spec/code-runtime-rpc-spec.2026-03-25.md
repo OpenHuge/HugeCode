@@ -1,9 +1,9 @@
 # Code Runtime RPC Frozen Spec
 
-- Generated at: `2026-04-25T23:42:48.736Z`
+- Generated at: `2026-05-03T05:04:36.167Z`
 - Contract version: `2026-03-25`
 - Freeze effective at: `2026-03-25`
-- Method-set hash: `9db6870dadcc8890`
+- Method-set hash: `277213264ebe613e`
 
 ## Features
 
@@ -206,6 +206,7 @@
 - `code_oauth_chatgpt_auth_tokens_refresh`
 - `code_oauth_codex_login_start`
 - `code_oauth_codex_login_cancel`
+- `code_oauth_codex_auth_json_import`
 - `code_oauth_codex_accounts_import_from_cockpit_tools`
 - `code_live_skills_list`
 - `code_live_skill_execute`
@@ -309,6 +310,7 @@
 - `code_oauth_accounts_list`
 - `code_oauth_chatgpt_auth_tokens_refresh`
 - `code_oauth_codex_accounts_import_from_cockpit_tools`
+- `code_oauth_codex_auth_json_import`
 - `code_oauth_codex_login_cancel`
 - `code_oauth_codex_login_start`
 - `code_oauth_pool_account_bind`

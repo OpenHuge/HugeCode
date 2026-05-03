@@ -3,6 +3,7 @@ import { CODE_RUNTIME_RPC_METHODS } from "@ku0/code-runtime-host-contract";
 import { RUNTIME_COMPOSITION_SETTINGS_BY_WORKSPACE_ID_KEY } from "@ku0/code-platform-interfaces";
 import { WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY } from "@ku0/shared/runtimeGatewayEnv";
 import {
+  createBrowserWorkspaceClientHostBindings,
   createBrowserWorkspaceClientRuntimeBindings,
   createBrowserWorkspaceClientRuntimeGatewayBindings,
 } from "./browserBindings";
@@ -71,6 +72,82 @@ describe("browser workspace bindings", () => {
     };
     expect(prepareRequest.method).toBe(CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2);
     expect(startRequest.method).toBe(CODE_RUNTIME_RPC_METHODS.RUN_START_V2);
+  });
+
+  it("starts Codex OAuth login through the browser runtime gateway", async () => {
+    process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)) as {
+        method?: string;
+        params?: Record<string, unknown>;
+      };
+      expect(request.method).toBe(CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_LOGIN_START);
+      expect(request.params).toEqual({
+        workspaceId: "workspace-1",
+        forceOAuth: true,
+      });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          result: {
+            loginId: "login-1",
+            authUrl: "https://auth.example.test/codex",
+            immediateSuccess: false,
+          },
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const runtime = createBrowserWorkspaceClientRuntimeBindings();
+    await expect(
+      runtime.oauth.runLogin("workspace-1", {
+        forceOAuth: true,
+      })
+    ).resolves.toEqual({
+      loginId: "login-1",
+      authUrl: "https://auth.example.test/codex",
+      immediateSuccess: false,
+    });
+  });
+
+  it("detects Codex OAuth binding completion from runtime account updates", async () => {
+    process.env[WEB_RUNTIME_GATEWAY_ENDPOINT_ENV_KEY] = "http://127.0.0.1:8788/rpc";
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body)) as {
+        method?: string;
+        params?: Record<string, unknown>;
+      };
+      expect(request.method).toBe(CODE_RUNTIME_RPC_METHODS.OAUTH_ACCOUNTS_LIST);
+      expect(request.params).toEqual({ provider: "codex" });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          result: [
+            {
+              accountId: "codex-oauth-1",
+              provider: "codex",
+              externalAccountId: "workspace-1",
+              email: "codex@example.test",
+              displayName: "Codex",
+              status: "enabled",
+              disabledReason: null,
+              metadata: { apiKeyConfigured: true },
+              createdAt: 100,
+              updatedAt: 200,
+            },
+          ],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const host = createBrowserWorkspaceClientHostBindings();
+    await expect(host.intents.waitForOauthBinding("workspace-1", 100)).resolves.toBe(true);
   });
 
   it("routes browser sub-agent control through canonical runtime sub-agent rpc methods", async () => {

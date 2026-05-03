@@ -195,21 +195,36 @@ pub(super) fn persist_local_codex_cli_auth_updates(
     access_token: Option<&str>,
     refresh_token: Option<&str>,
     openai_api_key: Option<&str>,
+    account_id: Option<&str>,
+    auth_mode: Option<&str>,
 ) -> Result<(), String> {
     let Some(path) = resolve_local_codex_auth_path() else {
         return Err("local codex auth path unavailable".to_string());
     };
-    let raw = fs::read_to_string(path.as_path()).map_err(|error| {
-        format!(
-            "read local codex auth profile {}: {error}",
-            path.to_string_lossy()
-        )
-    })?;
-    let mut payload: Value = serde_json::from_str(raw.as_str())
-        .map_err(|error| format!("parse local codex auth profile json: {error}"))?;
+    let mut payload: Value = match fs::read_to_string(path.as_path()) {
+        Ok(raw) => {
+            if raw.trim().is_empty() {
+                json!({})
+            } else {
+                serde_json::from_str(raw.as_str())
+                    .map_err(|error| format!("parse local codex auth profile json: {error}"))?
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => json!({}),
+        Err(error) => {
+            return Err(format!(
+                "read local codex auth profile {}: {error}",
+                path.to_string_lossy()
+            ));
+        }
+    };
     let Some(object) = payload.as_object_mut() else {
         return Err("local codex auth profile is not an object".to_string());
     };
+
+    if let Some(value) = auth_mode.map(str::trim).filter(|value| !value.is_empty()) {
+        object.insert("auth_mode".to_string(), Value::String(value.to_string()));
+    }
 
     if let Some(value) = openai_api_key
         .map(str::trim)
@@ -245,6 +260,9 @@ pub(super) fn persist_local_codex_cli_auth_updates(
             Value::String(value.to_string()),
         );
     }
+    if let Some(value) = account_id.map(str::trim).filter(|value| !value.is_empty()) {
+        tokens.insert("account_id".to_string(), Value::String(value.to_string()));
+    }
 
     let refreshed_at = OffsetDateTime::now_utc()
         .format(&Rfc3339)
@@ -253,6 +271,14 @@ pub(super) fn persist_local_codex_cli_auth_updates(
 
     let serialized = serde_json::to_string_pretty(&payload)
         .map_err(|error| format!("serialize local codex auth profile json: {error}"))?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "create local codex auth directory {}: {error}",
+                parent.to_string_lossy()
+            )
+        })?;
+    }
     fs::write(path.as_path(), serialized.as_bytes()).map_err(|error| {
         format!(
             "write local codex auth profile {}: {error}",
@@ -290,9 +316,32 @@ fn decode_jwt_base64_segment(segment: &str) -> Option<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_local_codex_cli_auth_profile_from_value;
+    use super::{
+        parse_local_codex_cli_auth_profile_from_value, persist_local_codex_cli_auth_updates,
+    };
+    use crate::local_codex_exec_path::local_codex_exec_env_lock;
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
     use serde_json::{json, Value};
+    use std::{env, fs, path::PathBuf};
+    use uuid::Uuid;
+
+    struct TempDir {
+        path: PathBuf,
+    }
+
+    impl TempDir {
+        fn new(prefix: &str) -> Self {
+            let path = env::temp_dir().join(format!("{prefix}-{}", Uuid::new_v4()));
+            fs::create_dir_all(path.as_path()).expect("create temp dir");
+            Self { path }
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(self.path.as_path());
+        }
+    }
 
     fn encode_jwt(payload: Value) -> String {
         let header = URL_SAFE_NO_PAD.encode(br#"{"alg":"none","typ":"JWT"}"#);
@@ -342,5 +391,65 @@ mod tests {
                 .and_then(|workspace| workspace.title.as_deref()),
             Some("MarcosSauerkraokpq")
         );
+    }
+
+    #[test]
+    fn persist_local_codex_cli_auth_updates_creates_auth_json_for_detected_home() {
+        let _guard = local_codex_exec_env_lock()
+            .lock()
+            .expect("local codex auth env lock poisoned");
+        let previous_runtime_home = env::var_os("CODE_RUNTIME_LOCAL_CODEX_HOME");
+        let previous_codex_home = env::var_os("CODEX_HOME");
+        let temp_dir = TempDir::new("runtime-codex-auth");
+
+        unsafe {
+            env::set_var("CODE_RUNTIME_LOCAL_CODEX_HOME", temp_dir.path.as_os_str());
+            env::remove_var("CODEX_HOME");
+        }
+
+        persist_local_codex_cli_auth_updates(
+            Some("id-token"),
+            Some("access-token"),
+            Some("refresh-token"),
+            Some("sk-openai"),
+            Some("acct-123"),
+            Some("chatgpt"),
+        )
+        .expect("persist local codex auth");
+
+        let auth_path = temp_dir.path.join("auth.json");
+        let payload: Value = serde_json::from_str(
+            fs::read_to_string(auth_path.as_path())
+                .expect("read auth json")
+                .as_str(),
+        )
+        .expect("parse auth json");
+        assert_eq!(
+            payload.get("auth_mode").and_then(Value::as_str),
+            Some("chatgpt")
+        );
+        assert_eq!(
+            payload.get("OPENAI_API_KEY").and_then(Value::as_str),
+            Some("sk-openai")
+        );
+        assert_eq!(
+            payload
+                .get("tokens")
+                .and_then(Value::as_object)
+                .and_then(|tokens| tokens.get("account_id"))
+                .and_then(Value::as_str),
+            Some("acct-123")
+        );
+
+        unsafe {
+            match previous_runtime_home {
+                Some(value) => env::set_var("CODE_RUNTIME_LOCAL_CODEX_HOME", value),
+                None => env::remove_var("CODE_RUNTIME_LOCAL_CODEX_HOME"),
+            }
+            match previous_codex_home {
+                Some(value) => env::set_var("CODEX_HOME", value),
+                None => env::remove_var("CODEX_HOME"),
+            }
+        }
     }
 }

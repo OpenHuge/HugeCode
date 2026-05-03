@@ -1573,6 +1573,40 @@ async fn build_run_record_v2(ctx: &AppContext, run_id: &str) -> Result<Value, Rp
     }))
 }
 
+fn build_run_record_v2_from_start_payload(
+    start_payload: &Value,
+    prepare_payload: &Value,
+) -> Result<Value, RpcError> {
+    let mut run = start_payload.clone();
+    let run_object = run
+        .as_object_mut()
+        .ok_or_else(|| RpcError::internal("runtime run start payload must be an object."))?;
+    let mission_run = run_object
+        .get("runSummary")
+        .cloned()
+        .ok_or_else(|| RpcError::internal("runtime run start payload missing runSummary"))?;
+    let review_pack = run_object.get("reviewPackSummary").cloned().unwrap_or(Value::Null);
+    run_object.remove("runSummary");
+    run_object.remove("reviewPackSummary");
+
+    Ok(json!({
+        "run": run,
+        "missionRun": mission_run,
+        "reviewPack": review_pack,
+        "autonomyProfile": prepare_payload.get("autonomyProfile").cloned().unwrap_or(Value::Null),
+        "wakePolicy": prepare_payload.get("wakePolicy").cloned().unwrap_or(Value::Null),
+        "intentSnapshot": prepare_payload.get("intentSnapshot").cloned().unwrap_or(Value::Null),
+        "opportunityQueue": prepare_payload.get("opportunityQueue").cloned().unwrap_or(Value::Null),
+        "researchTrace": prepare_payload.get("researchTrace").cloned().unwrap_or(Value::Null),
+        "executionEligibility": prepare_payload.get("executionEligibility").cloned().unwrap_or(Value::Null),
+        "wakeReason": mission_run.get("wakeReason").cloned().unwrap_or(Value::Null),
+        "selectedOpportunityId": mission_run
+            .get("selectedOpportunityId")
+            .cloned()
+            .unwrap_or(Value::Null),
+    }))
+}
+
 pub(crate) async fn handle_runtime_run_prepare_v2(
     ctx: &AppContext,
     params: &Value,
@@ -1610,7 +1644,7 @@ pub(crate) async fn handle_runtime_run_start_v2(
     if normalize_execution_mode_v2(request.execution_mode.as_deref())? == "distributed" {
         materialize_parallel_safe_sub_agent_lanes(ctx, run_id, &request, &prepare).await;
     }
-    build_run_record_v2(ctx, run_id).await
+    build_run_record_v2_from_start_payload(&start, &prepare)
 }
 
 pub(crate) async fn handle_runtime_run_get_v2(

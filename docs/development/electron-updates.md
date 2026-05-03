@@ -73,11 +73,23 @@ The Electron renderer must also consume pushed updater state from the main proce
 
 ## Artifact Requirements
 
+HugeCode desktop product distribution support is:
+
+| Platform | Architecture | Required release assets                                 |
+| -------- | ------------ | ------------------------------------------------------- |
+| Windows  | x64          | Packaged app, Squirrel `.exe`, `.nupkg`, and `RELEASES` |
+| macOS    | arm64        | Packaged app, `.dmg`, and ZIP update artifact           |
+| macOS    | x64          | Packaged app, `.dmg`, and ZIP update artifact           |
+
+Windows ARM64 and Linux desktop distribution are not active product support
+targets unless a future ADR explicitly adds them. Linux artifacts, when used by
+internal automation, are not a supported desktop product update channel.
+
 ### Stable
 
-- macOS: packaged app, `.dmg`, and ZIP update artifact
-- Windows: packaged app, Squirrel `.exe`, `.nupkg`, and `RELEASES`
-- Linux: manual updates only; build artifacts stay release assets, not auto-update feeds
+- macOS Apple Silicon and Intel: packaged app, `.dmg`, and ZIP update artifact
+- Windows x64: packaged app, Squirrel `.exe`, `.nupkg`, and `RELEASES`
+- Linux internal artifacts, when produced: manual release assets only, not a supported desktop product update feed
 
 Stable GitHub publishing must be non-prerelease, because the public Electron update service ignores prereleases.
 
@@ -101,6 +113,8 @@ If no static feed root is configured, beta builds remain manual and point users 
 
 ## Verification Commands
 
+- `pnpm check:desktop-product-support`
+  Verifies the active desktop product support matrix: Windows x64, macOS Apple Silicon, and macOS Intel.
 - `pnpm desktop:electron:verify`
   Verifies package-time updater wiring, packaged runtime contents, and configured fuse hardening.
 - `pnpm desktop:electron:make:smoke`

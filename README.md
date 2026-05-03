@@ -104,6 +104,16 @@ Internal helper crates such as `internal/runtime-policy-rs` remain in-repo for p
 - `apps/code-t3`: current app implementation. Root dev/build flows now route through this package.
 - `apps/code`, `apps/code-web`, and `apps/code-electron` have been removed from the active app workspace.
 
+Desktop product distribution targets are Windows and macOS:
+
+| Platform | Architecture | Support                                   |
+| -------- | ------------ | ----------------------------------------- |
+| Windows  | x64          | Supported desktop target                  |
+| macOS    | arm64        | Supported Apple Silicon / M-series target |
+| macOS    | x64          | Supported Intel target                    |
+
+Windows ARM64 and Linux desktop distribution are not active product support targets unless a future ADR explicitly adds them.
+
 ## Toolchain
 
 - **Node**: `24.11.1`
@@ -123,8 +133,10 @@ Useful entrypoints:
 
 - `pnpm dev`: default t3 workspace flow
 - `pnpm dev:code:ui`: t3 Vite UI only
+- `pnpm dev:desktop`: t3 Electron desktop shell
 - `pnpm dev:code:service`: runtime service only
 - `pnpm code-t3:build`: t3 production build
+- `pnpm code-t3:desktop:build`: t3 renderer plus Electron main/preload build
 
 ## Validation
 

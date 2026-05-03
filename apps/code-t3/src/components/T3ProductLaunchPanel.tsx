@@ -22,7 +22,7 @@ import {
   type T3ProductLanguage,
   type T3ProductTransportMode,
 } from "../runtime/t3ProductLaunch";
-import { T3LdxpPurchaseAssistantCard } from "./T3LdxpPurchaseAssistantCard";
+import { T3AccountRentalAssistantCard } from "./T3AccountRentalAssistantCard";
 
 export type T3ProductLaunchPanelProps = {
   hugeRouterSnapshot: HugeRouterCommercialServiceSnapshot;
@@ -326,7 +326,7 @@ export function T3ProductLaunchPanel({
         </span>
         <span>{remainingCredits}</span>
       </div>
-      <T3LdxpPurchaseAssistantCard onNotice={onNotice} />
+      <T3AccountRentalAssistantCard onNotice={onNotice} />
     </Card>
   );
 }

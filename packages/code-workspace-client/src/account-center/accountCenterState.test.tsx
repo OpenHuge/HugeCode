@@ -90,6 +90,16 @@ function createBindings(): WorkspaceClientBindings {
         })),
         applyPool: vi.fn(async () => undefined),
         bindPoolAccount: vi.fn(async () => undefined),
+        importCodexAuthJson: vi.fn(async () => ({
+          accountId: null,
+          displayName: null,
+          email: null,
+          imported: false,
+          updated: false,
+          sourceLabel: null,
+          formats: [],
+          message: null,
+        })),
         runLogin: vi.fn(async () => ({ authUrl: "", immediateSuccess: true })),
         getAccountInfo: vi.fn(async () => ({ result: { requiresOpenaiAuth: false, plan: "Pro" } })),
         getProvidersCatalog: vi.fn(async () => []),
@@ -118,6 +128,14 @@ function createBindings(): WorkspaceClientBindings {
         resumeRuntimeRun: vi.fn(),
         interveneRuntimeRun: vi.fn(),
         submitRuntimeJobApprovalDecision: vi.fn(),
+      },
+      subAgents: {
+        spawn: vi.fn(),
+        send: vi.fn(),
+        wait: vi.fn(),
+        status: vi.fn(),
+        interrupt: vi.fn(),
+        close: vi.fn(),
       },
       threads: {
         listThreads: vi.fn(async () => []),
@@ -231,6 +249,60 @@ describe("useSharedAccountCenterState", () => {
       provider: "codex",
       accountId: "codex-a2",
     });
+  });
+
+  it("starts a Codex OAuth connection flow through the shared browser host bindings", async () => {
+    const bindings = createBindings();
+    const { result } = renderHook(() => useSharedAccountCenterState(), {
+      wrapper: wrapper(bindings),
+    });
+
+    await act(async () => {
+      await result.current.refresh();
+      await result.current.connectCodexAccount();
+    });
+
+    expect(bindings.runtime.oauth.runLogin).toHaveBeenCalledWith("w1", {
+      forceOAuth: true,
+    });
+  });
+
+  it("imports pasted Codex auth json through runtime oauth bindings", async () => {
+    const bindings = createBindings();
+    vi.mocked(bindings.runtime.oauth.importCodexAuthJson).mockResolvedValueOnce({
+      accountId: "codex-auth-json:abc",
+      displayName: "Imported Codex",
+      email: "imported@example.com",
+      imported: true,
+      updated: false,
+      sourceLabel: "pasted",
+      formats: [
+        {
+          formatId: "sub2api",
+          fileName: "codex.sub2api.json",
+          contentType: "application/json",
+          content: "{}",
+          notes: ["Sub2API-compatible OpenAI adapter token bundle."],
+        },
+      ],
+      message: "Imported Codex account from auth.json.",
+    });
+    const { result } = renderHook(() => useSharedAccountCenterState(), {
+      wrapper: wrapper(bindings),
+    });
+
+    await act(async () => {
+      await result.current.importCodexAuthJson({
+        authJson: '{"auth_mode":"chatgpt"}',
+        sourceLabel: "pasted",
+      });
+    });
+
+    expect(bindings.runtime.oauth.importCodexAuthJson).toHaveBeenCalledWith({
+      authJson: '{"auth_mode":"chatgpt"}',
+      sourceLabel: "pasted",
+    });
+    expect(result.current.codex.authJsonImportResult?.formats[0]?.formatId).toBe("sub2api");
   });
 
   it("subscribes to oauth runtime updates and refreshes shared state", async () => {

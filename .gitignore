@@ -219,6 +219,7 @@ artifacts/figma-codegen/
 dist/
 build/
 apps/code-t3/dist/
+apps/code-t3/dist-electron/
 apps/code-electron/dist-electron/
 apps/code-electron/out/
 **/target/

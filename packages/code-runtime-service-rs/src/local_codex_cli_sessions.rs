@@ -60,7 +60,6 @@ pub(super) fn load_local_codex_cli_auth_profile_from_path(
     auth::load_local_codex_cli_auth_profile_from_path(path, cache)
 }
 
-#[cfg(test)]
 pub(super) fn parse_local_codex_cli_auth_profile_from_value(
     payload: &Value,
 ) -> Option<LocalCodexCliAuthProfile> {
@@ -72,12 +71,16 @@ pub(super) fn persist_local_codex_cli_auth_updates(
     access_token: Option<&str>,
     refresh_token: Option<&str>,
     openai_api_key: Option<&str>,
+    account_id: Option<&str>,
+    auth_mode: Option<&str>,
 ) -> Result<(), String> {
     auth::persist_local_codex_cli_auth_updates(
         id_token,
         access_token,
         refresh_token,
         openai_api_key,
+        account_id,
+        auth_mode,
     )
 }
 

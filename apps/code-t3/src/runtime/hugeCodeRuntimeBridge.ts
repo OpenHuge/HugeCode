@@ -2,6 +2,7 @@ import type {
   AgentTaskStartRequest,
   ModelPoolEntry,
   RuntimeBackendSummary,
+  RuntimeRunPrepareV2Response,
   TurnInterruptRequest,
 } from "@ku0/code-runtime-host-contract";
 import type {
@@ -14,6 +15,7 @@ import {
   CODE_RUNTIME_RPC_METHODS,
 } from "@ku0/code-runtime-host-contract";
 import type { HugeCodeRuntimeBridge } from "@ku0/code-t3-runtime-adapter";
+import type { BrowserChromeBridgeGlobal } from "./t3BrowserChromeBridge";
 
 type RuntimeBridgeGlobal = Partial<HugeCodeRuntimeBridge>;
 type RuntimeRpcInvoker = <Result>(
@@ -21,8 +23,12 @@ type RuntimeRpcInvoker = <Result>(
   params: Record<string, unknown>
 ) => Promise<Result>;
 type DesktopHostBridgeGlobal = {
+  browserChrome?: BrowserChromeBridgeGlobal;
   core?: {
     invoke?<Result>(command: string, payload?: Record<string, unknown>): Promise<Result>;
+  };
+  shell?: {
+    openExternalUrl?: (url: string) => Promise<boolean | void> | boolean | void;
   };
 };
 type RuntimeRpcEnvelope<Result> =
@@ -104,8 +110,8 @@ function fallbackBackends(connected: boolean) {
 function fallbackModels(): ModelPoolEntry[] {
   return [
     {
-      id: "gpt-5.4",
-      displayName: "GPT-5.4",
+      id: "gpt-5.5",
+      displayName: "GPT-5.5",
       provider: "openai",
       pool: "codex",
       source: "fallback",
@@ -154,6 +160,14 @@ function fallbackModels(): ModelPoolEntry[] {
   ];
 }
 
+function buildTurnInterruptPayload(request: TurnInterruptRequest): Record<string, unknown> {
+  return {
+    ...request,
+    turnId: request.turnId ?? null,
+    reason: request.reason ?? null,
+  };
+}
+
 function buildTurnSendPayload(request: AgentTaskStartRequest): Record<string, unknown> {
   const prompt =
     request.steps.find((step) => typeof step.input === "string" && step.input.trim().length > 0)
@@ -187,12 +201,12 @@ function buildTurnSendPayload(request: AgentTaskStartRequest): Record<string, un
   };
 }
 
-function buildTurnInterruptPayload(request: TurnInterruptRequest): Record<string, unknown> {
-  return {
-    ...request,
-    turnId: request.turnId ?? null,
-    reason: request.reason ?? null,
-  };
+function approvedPlanVersionFromPrepare(response: RuntimeRunPrepareV2Response): string {
+  const planVersion = response.plan?.planVersion?.trim();
+  if (!planVersion) {
+    throw new Error("Runtime prepare v2 did not publish plan.planVersion.");
+  }
+  return planVersion;
 }
 
 export function createHugeCodeT3RuntimeBridgeFromInvoker(
@@ -211,11 +225,18 @@ export function createHugeCodeT3RuntimeBridgeFromInvoker(
         CODE_RUNTIME_RPC_EMPTY_PARAMS
       );
     },
-    readHugeRouterCommercialService() {
-      return invoke<HugeRouterCommercialServiceSnapshot | null>(
-        CODE_RUNTIME_RPC_METHODS.HUGEROUTER_COMMERCIAL_SERVICE_READ,
-        CODE_RUNTIME_RPC_EMPTY_PARAMS
-      );
+    async readHugeRouterCommercialService() {
+      try {
+        return await invoke<HugeRouterCommercialServiceSnapshot | null>(
+          CODE_RUNTIME_RPC_METHODS.HUGEROUTER_COMMERCIAL_SERVICE_READ,
+          CODE_RUNTIME_RPC_EMPTY_PARAMS
+        );
+      } catch (error) {
+        if (isMissingDesktopRuntimeHandler(error)) {
+          return null;
+        }
+        throw error;
+      }
     },
     issueHugeRouterRouteToken(request: HugeRouterRouteTokenIssueRequest = {}) {
       return invoke<HugeRouterRouteTokenIssueResponse>(
@@ -223,7 +244,14 @@ export function createHugeCodeT3RuntimeBridgeFromInvoker(
         request as Record<string, unknown>
       );
     },
-    startAgentTask(request: AgentTaskStartRequest) {
+    async startAgentTask(request: AgentTaskStartRequest) {
+      const prepare = await invoke<RuntimeRunPrepareV2Response>(
+        CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,
+        request as Record<string, unknown>
+      );
+      approvedPlanVersionFromPrepare(prepare);
+      // Temporary bridge fallback: manual-thread run_start_v2 currently overflows the runtime
+      // service. Keep canonical prepare truth, then dispatch execution through the stable turn API.
       return invoke(CODE_RUNTIME_RPC_METHODS.TURN_SEND, buildTurnSendPayload(request));
     },
     interruptTurn(turnId: string | null, reason?: string | null) {
@@ -362,7 +390,11 @@ function createRuntimeGatewayBridge(endpoint: string): HugeCodeRuntimeBridge {
 }
 
 function isMissingDesktopRuntimeHandler(error: unknown) {
-  return error instanceof Error && error.message.includes("No handler registered");
+  return (
+    error instanceof Error &&
+    (error.message.includes("No handler registered") ||
+      error.message.includes("Unsupported RPC method"))
+  );
 }
 
 export function createHugeCodeT3RuntimeBridge(): HugeCodeRuntimeBridge {
@@ -432,14 +464,18 @@ export function createHugeCodeT3RuntimeBridge(): HugeCodeRuntimeBridge {
       return firstRuntimeBridgeResult(
         [
           ...(runtimeBridge?.readHugeRouterCommercialService
-            ? [{ run: () => runtimeBridge.readHugeRouterCommercialService!() }]
+            ? [
+                {
+                  run: () => runtimeBridge.readHugeRouterCommercialService!(),
+                  shouldContinue: isMissingDesktopRuntimeHandler,
+                },
+              ]
             : []),
           ...(desktopRuntimeBridge?.readHugeRouterCommercialService
             ? [
                 {
                   run: () => desktopRuntimeBridge.readHugeRouterCommercialService!(),
-                  shouldContinue: (error: unknown) =>
-                    shouldContinueFromDesktopToGateway(runtimeGatewayBridge, error),
+                  shouldContinue: isMissingDesktopRuntimeHandler,
                 },
               ]
             : []),
@@ -447,7 +483,9 @@ export function createHugeCodeT3RuntimeBridge(): HugeCodeRuntimeBridge {
             ? [
                 {
                   run: () => runtimeGatewayBridge.readHugeRouterCommercialService!(),
-                  shouldContinue: shouldContinueFromGatewayToDevFallback,
+                  shouldContinue: (error: unknown) =>
+                    isMissingDesktopRuntimeHandler(error) ||
+                    shouldContinueFromGatewayToDevFallback(error),
                 },
               ]
             : []),

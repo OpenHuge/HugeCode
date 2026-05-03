@@ -7,6 +7,7 @@ mod agent_tasks;
 mod codex_cloud_tasks;
 mod codex_exec_run;
 mod codex_oauth_handlers;
+mod codex_oauth_html;
 mod composition_host_registry;
 mod diagnostics_export;
 mod distributed;
@@ -18,6 +19,7 @@ pub mod live_skills;
 mod local_claude_exec_path;
 mod local_claude_exec_turn;
 mod local_codex_account_sync;
+mod local_codex_auth_json_import;
 mod local_codex_cli_sessions;
 mod local_codex_exec_path;
 mod local_codex_exec_turn;
@@ -197,9 +199,11 @@ use local_codex_account_sync::{
 use local_codex_account_sync::{
     sync_local_codex_cli_account_from_profile, sync_local_codex_cli_account_without_profile,
 };
+use local_codex_auth_json_import::import_codex_auth_json_content;
 use local_codex_cli_sessions::{
     list_local_cli_sessions, load_local_codex_cached_model_slugs,
-    persist_local_codex_cli_auth_updates,
+    persist_local_codex_cli_auth_updates, resolve_local_codex_auth_path,
+    resolve_local_codex_config_path, resolve_local_codex_home_dir,
 };
 #[cfg(test)]
 use local_codex_cli_sessions::{
@@ -332,7 +336,7 @@ const MAX_RUNTIME_WS_MAX_CONNECTIONS_HARD: usize = 4_096;
 const WS_CONNECTION_LIMIT_RETRY_AFTER_SECONDS: &str = "1";
 const WS_CONNECTION_LIMIT_CACHE_CONTROL: &str = "no-store";
 
-const DEFAULT_OPENAI_MODEL_ID: &str = "gpt-5.4";
+const DEFAULT_OPENAI_MODEL_ID: &str = "gpt-5.5";
 const DEFAULT_ANTHROPIC_MODEL_ID: &str = "claude-sonnet-4-5";
 const DEFAULT_GEMINI_MODEL_ID: &str = "gemini-3.1-pro";
 const DISTRIBUTED_STATE_SYNC_INTERVAL_MS: u64 = 1_500;

@@ -62,7 +62,7 @@ export const RELAY_ASSISTANT_PRESETS: SettingsRelayAssistantPreset[] = [
     pool: "relay_new_api",
     baseUrlPlaceholder: "https://new-api.example.com/v1",
     tokenEnvKey: "CODE_RUNTIME_SERVICE_RELAY_NEW_API_KEY",
-    defaultModelId: "gpt-5.4",
+    defaultModelId: "gpt-5.5",
     aliases: ["new-api", "newapi"],
     summary:
       "OpenAI-compatible relay. Use the deployment host plus /v1, then issue a token in the dashboard.",
@@ -79,7 +79,7 @@ export const RELAY_ASSISTANT_PRESETS: SettingsRelayAssistantPreset[] = [
     pool: "relay_one_api",
     baseUrlPlaceholder: "https://one-api.example.com/v1",
     tokenEnvKey: "CODE_RUNTIME_SERVICE_RELAY_ONE_API_KEY",
-    defaultModelId: "gpt-5.4",
+    defaultModelId: "gpt-5.5",
     aliases: ["one-api", "oneapi"],
     summary:
       "OpenAI-compatible relay. Configure upstream channels in One API, then use its token against /v1.",
@@ -96,7 +96,7 @@ export const RELAY_ASSISTANT_PRESETS: SettingsRelayAssistantPreset[] = [
     pool: "relay_sub2api",
     baseUrlPlaceholder: "https://sub2api.example.com/v1",
     tokenEnvKey: "CODE_RUNTIME_SERVICE_RELAY_SUB2API_KEY",
-    defaultModelId: "gpt-5.4",
+    defaultModelId: "gpt-5.5",
     aliases: ["sub2api"],
     summary:
       "Multi-format relay. Select its OpenAI-compatible endpoint for HugeCode runtime routing.",
@@ -113,7 +113,7 @@ export const RELAY_ASSISTANT_PRESETS: SettingsRelayAssistantPreset[] = [
     pool: "relay_openai_compatible",
     baseUrlPlaceholder: "https://relay.example.com/v1",
     tokenEnvKey: "CODE_RUNTIME_SERVICE_RELAY_API_KEY",
-    defaultModelId: "gpt-5.4",
+    defaultModelId: "gpt-5.5",
     aliases: ["relay"],
     summary: "Generic OpenAI-compatible endpoint for self-hosted or vendor-managed relay services.",
     notes: [

@@ -341,41 +341,13 @@ export type T3BrowserFingerprintSummary = {
   timezone: string;
 };
 
-export type T3BrowserOperationsStatus = "ready" | "attention" | "blocked";
-
-export type T3BrowserOperationsActionStatus = "available" | "needs-sync" | "host-managed";
-
-export type T3BrowserOperationsCheck = {
-  id: string;
-  label: string;
-  status: T3BrowserOperationsStatus;
-  summary: string;
-};
-
-export type T3BrowserOperationsAction = {
-  id: string;
-  label: string;
-  status: T3BrowserOperationsActionStatus;
-  summary: string;
-};
-
-export type T3BrowserProfileOperationsReport = {
-  batchActions: readonly T3BrowserOperationsAction[];
-  checks: readonly T3BrowserOperationsCheck[];
-  credentialPolicy: string;
-  proxyPolicy: string;
-  status: T3BrowserOperationsStatus;
-  statusLabel: string;
-  summary: string;
-  teamPolicy: string;
-};
-
 export type SaveT3RemoteBrowserProfileInput = {
   endpointUrl: string;
   label?: string | null;
 };
 
 export type OpenT3BrowserProviderInput = {
+  assistant?: "chatgpt" | "ldxp" | null;
   customUrl?: string | null;
   isolatedAppId?: string | null;
   profileId: string;
@@ -390,18 +362,6 @@ export type T3BrowserProfileBridge = {
 };
 
 type BrowserProfileBridgeGlobal = Partial<T3BrowserProfileBridge>;
-type DesktopAiWebLabBridgeGlobal = {
-  aiWebLab?: {
-    openSession?(input?: {
-      partitionKey?: string | null;
-      preferredSessionMode?: "attached" | "managed" | null;
-      preferredViewMode?: "docked" | "window" | null;
-      providerId?: T3BrowserProvider | null;
-      url?: string | null;
-    }): Promise<unknown>;
-  };
-};
-
 declare global {
   interface Window {
     __HUGECODE_T3_BROWSER_PROFILES__?: BrowserProfileBridgeGlobal;
@@ -613,6 +573,17 @@ function normalizeEndpointUrl(value: string): string {
   return parsed.toString().replace(/\/+$/u, "");
 }
 
+function safeNormalizeEndpointUrl(value: string | null) {
+  if (!value) {
+    return null;
+  }
+  try {
+    return normalizeEndpointUrl(value);
+  } catch {
+    return null;
+  }
+}
+
 function normalizeProductUrl(value: string): string {
   const parsed = new URL(value);
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
@@ -622,6 +593,17 @@ function normalizeProductUrl(value: string): string {
     throw new Error("Web product URL must not include embedded credentials.");
   }
   return parsed.toString();
+}
+
+function safeNormalizeProductUrl(value: string | null) {
+  if (!value) {
+    return null;
+  }
+  try {
+    return normalizeProductUrl(value);
+  } catch {
+    return null;
+  }
 }
 
 export function buildT3HugerouterSiteScope(url: string): T3HugerouterSiteScope {
@@ -848,7 +830,7 @@ function normalizeStoredProfile(value: unknown): T3BrowserProfileDescriptor | nu
     return null;
   }
   const record = value as Partial<T3BrowserProfileDescriptor>;
-  const endpointUrl = readText(record.endpointUrl);
+  const endpointUrl = safeNormalizeEndpointUrl(readText(record.endpointUrl));
   const id = readText(record.id);
   const label = readText(record.label);
   if (!id || !label || !endpointUrl || record.source !== "remote-devtools") {
@@ -888,44 +870,47 @@ function writeStoredRemoteProfiles(profiles: readonly T3BrowserProfileDescriptor
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(remoteProfiles));
 }
 
+function normalizeSyncRecords(value: unknown): Record<string, T3BrowserProfileSyncState> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const records: Record<string, T3BrowserProfileSyncState> = {};
+  for (const [profileId, recordValue] of Object.entries(value)) {
+    const record = recordValue as Partial<T3BrowserProfileSyncState>;
+    if (
+      typeof record.profileId !== "string" ||
+      typeof record.profileLabel !== "string" ||
+      record.backend !== "local-mock-hugerouter"
+    ) {
+      continue;
+    }
+    records[profileId] = {
+      accountPortability:
+        record.accountPortability === "remote-session" ? "remote-session" : "local-only",
+      backend: "local-mock-hugerouter",
+      credentialPayload: "blocked",
+      deviceCount: typeof record.deviceCount === "number" ? record.deviceCount : 1,
+      deviceLimit: null,
+      devicePolicy: "web-unbounded-mock",
+      lastSyncedAt: typeof record.lastSyncedAt === "number" ? record.lastSyncedAt : null,
+      membershipAccountUsable: record.membershipAccountUsable === true,
+      profileId: record.profileId,
+      profileLabel: record.profileLabel,
+      remoteSessionAvailable: record.remoteSessionAvailable === true,
+      status: record.status === "synced" ? "synced" : "idle",
+      summary:
+        readText(record.summary) ??
+        "Local mock has not synced this browser profile to Hugerouter yet.",
+    };
+  }
+  return records;
+}
+
 function readMockSyncRecords(): Record<string, T3BrowserProfileSyncState> {
   try {
-    const parsed = JSON.parse(
-      window.localStorage.getItem(PROFILE_SYNC_STORAGE_KEY) ?? "{}"
-    ) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-    const records: Record<string, T3BrowserProfileSyncState> = {};
-    for (const [profileId, value] of Object.entries(parsed)) {
-      const record = value as Partial<T3BrowserProfileSyncState>;
-      if (
-        typeof record.profileId !== "string" ||
-        typeof record.profileLabel !== "string" ||
-        record.backend !== "local-mock-hugerouter"
-      ) {
-        continue;
-      }
-      records[profileId] = {
-        accountPortability:
-          record.accountPortability === "remote-session" ? "remote-session" : "local-only",
-        backend: "local-mock-hugerouter",
-        credentialPayload: "blocked",
-        deviceCount: typeof record.deviceCount === "number" ? record.deviceCount : 1,
-        deviceLimit: null,
-        devicePolicy: "web-unbounded-mock",
-        lastSyncedAt: typeof record.lastSyncedAt === "number" ? record.lastSyncedAt : null,
-        membershipAccountUsable: record.membershipAccountUsable === true,
-        profileId: record.profileId,
-        profileLabel: record.profileLabel,
-        remoteSessionAvailable: record.remoteSessionAvailable === true,
-        status: record.status === "synced" ? "synced" : "idle",
-        summary:
-          readText(record.summary) ??
-          "Local mock has not synced this browser profile to Hugerouter yet.",
-      };
-    }
-    return records;
+    return normalizeSyncRecords(
+      JSON.parse(window.localStorage.getItem(PROFILE_SYNC_STORAGE_KEY) ?? "{}") as unknown
+    );
   } catch {
     return {};
   }
@@ -1113,22 +1098,25 @@ function normalizeMigrationState(value: unknown): T3BrowserProfileMigrationState
   };
 }
 
+function normalizeMigrationRecords(value: unknown): Record<string, T3BrowserProfileMigrationState> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const records: Record<string, T3BrowserProfileMigrationState> = {};
+  for (const [profileId, recordValue] of Object.entries(value)) {
+    const record = normalizeMigrationState(recordValue);
+    if (record && record.profileId === profileId) {
+      records[profileId] = record;
+    }
+  }
+  return records;
+}
+
 function readMigrationRecords(): Record<string, T3BrowserProfileMigrationState> {
   try {
-    const parsed = JSON.parse(
-      window.localStorage.getItem(PROFILE_MIGRATION_STORAGE_KEY) ?? "{}"
-    ) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return {};
-    }
-    const records: Record<string, T3BrowserProfileMigrationState> = {};
-    for (const [profileId, value] of Object.entries(parsed)) {
-      const record = normalizeMigrationState(value);
-      if (record && record.profileId === profileId) {
-        records[profileId] = record;
-      }
-    }
-    return records;
+    return normalizeMigrationRecords(
+      JSON.parse(window.localStorage.getItem(PROFILE_MIGRATION_STORAGE_KEY) ?? "{}") as unknown
+    );
   } catch {
     return {};
   }
@@ -1835,7 +1823,7 @@ function normalizeIsolatedApp(value: unknown): T3BrowserIsolatedApp | null {
   const label = readText(record.label);
   const profileId = readText(record.profileId);
   const profileLabel = readText(record.profileLabel);
-  const targetUrl = readText(record.targetUrl);
+  const targetUrl = safeNormalizeProductUrl(readText(record.targetUrl));
   const providerId = isBrowserProvider(record.providerId) ? record.providerId : null;
   const fallbackSiteScope = safeT3HugerouterSiteScope(targetUrl);
   const siteId = readText(record.siteId) ?? fallbackSiteScope?.siteId;
@@ -2526,7 +2514,7 @@ function normalizeRecentSession(value: unknown): T3BrowserRecentSession | null {
   const profileId = readText(record.profileId);
   const profileLabel = readText(record.profileLabel);
   const title = readText(record.title);
-  const url = readText(record.url);
+  const url = safeNormalizeProductUrl(readText(record.url));
   if (!id || !profileId || !profileLabel || !title || !url || typeof record.openedAt !== "number") {
     return null;
   }
@@ -2652,41 +2640,6 @@ function rememberRecentSession(input: {
   window.localStorage.setItem(RECENT_SESSIONS_STORAGE_KEY, JSON.stringify(nextSessions));
 }
 
-async function openProviderWithDesktopHost(
-  input: OpenT3BrowserProviderInput,
-  profile: T3BrowserProfileDescriptor
-) {
-  if (input.providerId === "custom") {
-    return false;
-  }
-  const desktopWindow = window as Window & {
-    hugeCodeDesktopHost?: DesktopAiWebLabBridgeGlobal;
-  };
-  const desktopAiWebLab = desktopWindow.hugeCodeDesktopHost?.aiWebLab;
-  if (!desktopAiWebLab?.openSession) {
-    return false;
-  }
-  const isolatedApp = input.isolatedAppId
-    ? (readIsolatedApps().find((app) => app.id === input.isolatedAppId) ?? null)
-    : null;
-  const openedApp = isolatedApp ? (markIsolatedAppOpened(isolatedApp.id) ?? isolatedApp) : null;
-  const url = openedApp?.targetUrl ?? resolveProviderUrl(input);
-  rememberRecentSession({
-    isolatedApp: openedApp,
-    profile,
-    providerId: openedApp?.providerId ?? input.providerId,
-    url,
-  });
-  await desktopAiWebLab.openSession({
-    partitionKey: openedApp ? `${profile.id}:${openedApp.siteId}:${openedApp.id}` : null,
-    preferredSessionMode: openedApp ? "managed" : "attached",
-    preferredViewMode: openedApp ? "window" : null,
-    providerId: openedApp?.providerId ?? input.providerId,
-    url,
-  });
-  return true;
-}
-
 function resolveProviderUrl(input: Pick<OpenT3BrowserProviderInput, "customUrl" | "providerId">) {
   if (input.providerId === "custom") {
     const customUrl = readText(input.customUrl);
@@ -2699,6 +2652,7 @@ function resolveProviderUrl(input: Pick<OpenT3BrowserProviderInput, "customUrl" 
 }
 
 function buildBrowserWindowUrl(input: {
+  assistant?: OpenT3BrowserProviderInput["assistant"];
   isolatedApp?: T3BrowserIsolatedApp | null;
   profile: T3BrowserProfileDescriptor;
   providerId: T3BrowserProvider;
@@ -2729,6 +2683,12 @@ function buildBrowserWindowUrl(input: {
     launchUrl.searchParams.set("appKey", input.isolatedApp.appKey);
     launchUrl.searchParams.set("isolation", input.isolatedApp.isolationMode);
   }
+  if (input.assistant === "chatgpt") {
+    launchUrl.searchParams.set("chatgptAssistant", "1");
+  }
+  if (input.assistant === "ldxp") {
+    launchUrl.searchParams.set("ldxpAssistant", "1");
+  }
   return launchUrl.toString();
 }
 
@@ -2751,6 +2711,7 @@ function openProviderWindow(
     buildBrowserWindowUrl({
       isolatedApp: openedApp,
       profile,
+      assistant: input.assistant,
       providerId: openedApp?.providerId ?? input.providerId,
       url,
     }),
@@ -2775,10 +2736,7 @@ export function createT3BrowserProfileBridge(): T3BrowserProfileBridge {
       const profiles = [currentBrowserProfile(), ...readStoredRemoteProfiles()];
       const profile =
         profiles.find((candidate) => candidate.id === input.profileId) ?? currentBrowserProfile();
-      const didOpenWithHost = await openProviderWithDesktopHost(input, profile);
-      if (!didOpenWithHost) {
-        openProviderWindow(input, profile);
-      }
+      openProviderWindow(input, profile);
       return {
         ...profile,
         status: "connected",
@@ -2844,208 +2802,5 @@ export function buildT3BrowserFingerprintSummary(input?: {
     policy: input?.policy ?? "native-transparent",
     stability: input?.remoteReference ? "remote-reference" : "native",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "unknown",
-  };
-}
-
-function reduceOperationsStatus(
-  checks: readonly T3BrowserOperationsCheck[]
-): T3BrowserOperationsStatus {
-  if (checks.some((check) => check.status === "blocked")) {
-    return "blocked";
-  }
-  if (checks.some((check) => check.status === "attention")) {
-    return "attention";
-  }
-  return "ready";
-}
-
-function operationsStatusLabel(status: T3BrowserOperationsStatus) {
-  if (status === "blocked") {
-    return "Blocked";
-  }
-  if (status === "attention") {
-    return "Needs review";
-  }
-  return "Ready";
-}
-
-function buildT3BrowserTargetCheck(input: {
-  customUrl?: string | null;
-  providerId: T3BrowserProvider;
-}): T3BrowserOperationsCheck {
-  if (input.providerId !== "custom") {
-    const providerUrl = PROVIDER_URLS[input.providerId];
-    return {
-      id: "target",
-      label: "Target URL",
-      status: "ready",
-      summary: `${providerDisplayName(input.providerId)} opens through ${new URL(providerUrl).origin}.`,
-    };
-  }
-  const customUrl = readText(input.customUrl);
-  if (!customUrl) {
-    return {
-      id: "target",
-      label: "Target URL",
-      status: "blocked",
-      summary: "Enter an http or https site URL before opening a custom browser session.",
-    };
-  }
-  try {
-    const normalizedUrl = normalizeProductUrl(customUrl);
-    const parsed = new URL(normalizedUrl);
-    return {
-      id: "target",
-      label: "Target URL",
-      status: parsed.protocol === "https:" ? "ready" : "attention",
-      summary:
-        parsed.protocol === "https:"
-          ? `Custom site resolves to ${parsed.origin}.`
-          : `Custom site resolves to ${parsed.origin}; plain HTTP should be used only for trusted local workflows.`,
-    };
-  } catch (error) {
-    return {
-      id: "target",
-      label: "Target URL",
-      status: "blocked",
-      summary: error instanceof Error ? error.message : "Custom web product URL is invalid.",
-    };
-  }
-}
-
-function buildT3BrowserEndpointCheck(
-  profile: T3BrowserProfileDescriptor
-): T3BrowserOperationsCheck {
-  if (profile.source !== "remote-devtools") {
-    return {
-      id: "endpoint",
-      label: "Profile source",
-      status: "ready",
-      summary:
-        "Current browser profile is attached; browser-state capture must run through an authorized host/cloud sync path.",
-    };
-  }
-  if (!profile.endpointUrl) {
-    return {
-      id: "endpoint",
-      label: "Remote endpoint",
-      status: "blocked",
-      summary: "Remote DevTools profile is missing its sanitized endpoint reference.",
-    };
-  }
-  const endpoint = new URL(profile.endpointUrl);
-  return {
-    id: "endpoint",
-    label: "Remote endpoint",
-    status: endpoint.protocol === "https:" ? "ready" : "attention",
-    summary:
-      endpoint.protocol === "https:"
-        ? `Remote DevTools endpoint is stored as a credential-free HTTPS reference to ${endpoint.host}.`
-        : `Remote DevTools endpoint uses loopback HTTP at ${endpoint.host}; keep it local and protected.`,
-  };
-}
-
-export function buildT3BrowserProfileOperationsReport(input: {
-  customUrl?: string | null;
-  profile: T3BrowserProfileDescriptor;
-  providerId: T3BrowserProvider;
-  syncState?: T3BrowserProfileSyncState | null;
-}): T3BrowserProfileOperationsReport {
-  const syncState = input.syncState ?? getT3BrowserProfileSyncState(input.profile);
-  const remoteSessionAvailable =
-    syncState.accountPortability === "remote-session" && syncState.remoteSessionAvailable;
-  const targetCheck = buildT3BrowserTargetCheck(input);
-  const checks: T3BrowserOperationsCheck[] = [
-    buildT3BrowserEndpointCheck(input.profile),
-    targetCheck,
-    {
-      id: "fingerprint",
-      label: "Fingerprint",
-      status: "ready",
-      summary:
-        "Native fingerprint transparency is active; HugeCode does not spoof or randomize browser attributes.",
-    },
-    {
-      id: "credentials",
-      label: "Encrypted state",
-      status: "ready",
-      summary:
-        "Cookies, Local Storage, IndexedDB, extensions, and settings may sync only inside encrypted same-user cloud bundles.",
-    },
-    {
-      id: "proxy",
-      label: "Proxy hygiene",
-      status: input.profile.source === "remote-devtools" ? "ready" : "attention",
-      summary:
-        input.profile.source === "remote-devtools"
-          ? "Proxy, VPN, and IP leak checks are owned by the remote browser profile before launch."
-          : "The current browser profile uses the host browser network path; configure and verify proxy state outside HugeCode.",
-    },
-    {
-      id: "continuity",
-      label: "Continuity",
-      status: remoteSessionAvailable ? "ready" : "attention",
-      summary: remoteSessionAvailable
-        ? "Hugerouter remote-session metadata is available for cross-device continuity."
-        : "Sync the profile mock before creating team passes or cross-device handoff metadata.",
-    },
-  ];
-  const status = reduceOperationsStatus(checks);
-  const canOpenTarget = targetCheck.status !== "blocked";
-  return {
-    batchActions: [
-      {
-        id: "open-selected-profile",
-        label: "Open selected profile",
-        status: canOpenTarget ? "available" : "host-managed",
-        summary: canOpenTarget
-          ? "Launch the selected provider or custom site with the chosen profile reference."
-          : "Fix the target URL before launch.",
-      },
-      {
-        id: "sync-profile-metadata",
-        label: "Sync profile metadata",
-        status: "available",
-        summary: "Record device, health, and remote-session metadata without credential payloads.",
-      },
-      {
-        id: "create-isolated-app",
-        label: "Create isolated app",
-        status: canOpenTarget ? "available" : "host-managed",
-        summary:
-          "Create an app-scoped launch context; storage isolation is bound by the host when available.",
-      },
-      {
-        id: "create-guest-pass",
-        label: "Create guest pass",
-        status: remoteSessionAvailable ? "available" : "needs-sync",
-        summary:
-          "Grant revocable supervised remote-session access with sensitive actions blocked by default.",
-      },
-      {
-        id: "metadata-import-export",
-        label: "Version snapshots",
-        status: "host-managed",
-        summary:
-          "Browser-state versions are portable through authorized encrypted cloud restore, not raw local export.",
-      },
-    ],
-    checks,
-    credentialPolicy:
-      "Browser state can sync for the same user only as encrypted cloud-managed profile versions; raw credential export remains blocked.",
-    proxyPolicy:
-      input.profile.source === "remote-devtools"
-        ? "Remote profile owns proxy configuration and leak testing; HugeCode stores only the endpoint reference."
-        : "Current-browser networking is host-managed. Use a browser or OS profile for proxy routing and verify externally.",
-    status,
-    statusLabel: operationsStatusLabel(status),
-    summary:
-      status === "blocked"
-        ? "Resolve blocked profile or target checks before opening this browser workflow."
-        : status === "attention"
-          ? "Workflow can proceed after reviewing network, continuity, or sync gaps."
-          : "Profile, target, credential, and continuity checks are ready for launch.",
-    teamPolicy:
-      "Team access uses supervised Guest Pass or seat-pool metadata with owner approval for sensitive actions.",
   };
 }

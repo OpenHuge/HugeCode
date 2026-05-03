@@ -524,7 +524,7 @@ fn embedded_runtime_service_config(
     let resolved_default_model_id = env_string("CODE_RUNTIME_SERVICE_DEFAULT_MODEL")
         .or_else(|| default_model_id.map(str::trim).map(str::to_string))
         .filter(|value| !value.trim().is_empty())
-        .unwrap_or_else(|| "gpt-5.4".to_string());
+        .unwrap_or_else(|| "gpt-5.5".to_string());
     let provider_extension_seeds = parse_provider_extension_seeds(
         std::env::var("CODE_RUNTIME_SERVICE_PROVIDER_EXTENSIONS_JSON")
             .ok()
@@ -690,7 +690,7 @@ mod tests {
 
     fn test_config() -> ServiceConfig {
         ServiceConfig {
-            default_model_id: "gpt-5.4".to_string(),
+            default_model_id: "gpt-5.5".to_string(),
             openai_api_key: Some("test-openai-key".to_string()),
             openai_endpoint: "https://api.openai.com/v1/responses".to_string(),
             openai_compat_base_url: None,
@@ -740,7 +740,7 @@ mod tests {
     }
 
     fn test_runtime() -> EmbeddedRuntime {
-        EmbeddedRuntime::from_config(create_initial_state("gpt-5.4"), test_config())
+        EmbeddedRuntime::from_config(create_initial_state("gpt-5.5"), test_config())
             .expect("embedded runtime should build")
     }
 
@@ -770,7 +770,7 @@ mod tests {
                 path: resolve_default_workspace_path(),
                 display_name: "Workspace".to_string(),
                 connected: true,
-                default_model_id: Some("gpt-5.4".to_string()),
+                default_model_id: Some("gpt-5.5".to_string()),
             })
             .await;
 
@@ -782,7 +782,7 @@ mod tests {
                 content: "Implement runtime parity".to_string(),
                 context_prefix: Some("[ATLAS_CONTEXT v1]\nplan: parity".to_string()),
                 provider: Some("openai".to_string()),
-                model_id: Some("gpt-5.4".to_string()),
+                model_id: Some("gpt-5.5".to_string()),
                 reason_effort: Some("high".to_string()),
                 service_tier: None,
                 mission_mode: Some("delegate".to_string()),
@@ -799,7 +799,7 @@ mod tests {
                     "settings": {
                         "id": "plan",
                         "developerInstructions": "Return a plan first.",
-                        "model": "gpt-5.4",
+                        "model": "gpt-5.5",
                         "reasoningEffort": "high"
                     }
                 })),
@@ -822,7 +822,7 @@ mod tests {
                 path: resolve_default_workspace_path(),
                 display_name: "Workspace".to_string(),
                 connected: true,
-                default_model_id: Some("gpt-5.4".to_string()),
+                default_model_id: Some("gpt-5.5".to_string()),
             })
             .await;
 
@@ -834,7 +834,7 @@ mod tests {
                 content: "Interrupt me".to_string(),
                 context_prefix: None,
                 provider: Some("openai".to_string()),
-                model_id: Some("gpt-5.4".to_string()),
+                model_id: Some("gpt-5.5".to_string()),
                 reason_effort: Some("high".to_string()),
                 service_tier: None,
                 mission_mode: Some("pair".to_string()),
@@ -871,7 +871,7 @@ mod tests {
                 path: resolve_default_workspace_path(),
                 display_name: "Workspace".to_string(),
                 connected: true,
-                default_model_id: Some("gpt-5.4".to_string()),
+                default_model_id: Some("gpt-5.5".to_string()),
             })
             .await;
         runtime
@@ -884,7 +884,7 @@ mod tests {
                 created_at: 1,
                 updated_at: 1,
                 provider: "openai".to_string(),
-                model_id: Some("gpt-5.4".to_string()),
+                model_id: Some("gpt-5.5".to_string()),
                 status: Some("idle".to_string()),
                 archived: false,
                 last_activity_at: Some(1),
@@ -965,7 +965,7 @@ mod tests {
                 path: resolve_default_workspace_path(),
                 display_name: "Workspace".to_string(),
                 connected: true,
-                default_model_id: Some("gpt-5.4".to_string()),
+                default_model_id: Some("gpt-5.5".to_string()),
             })
             .await;
         runtime
@@ -978,7 +978,7 @@ mod tests {
                 created_at: 1,
                 updated_at: 1,
                 provider: "openai".to_string(),
-                model_id: Some("gpt-5.4".to_string()),
+                model_id: Some("gpt-5.5".to_string()),
                 status: Some("idle".to_string()),
                 archived: false,
                 last_activity_at: Some(1),
@@ -1052,14 +1052,14 @@ mod tests {
                         path: resolve_default_workspace_path(),
                         display_name: "Workspace A".to_string(),
                         connected: true,
-                        default_model_id: Some("gpt-5.4".to_string()),
+                        default_model_id: Some("gpt-5.5".to_string()),
                     },
                     EmbeddedRuntimeWorkspaceSnapshot {
                         id: "workspace-b".to_string(),
                         path: resolve_default_workspace_path(),
                         display_name: "Workspace B".to_string(),
                         connected: true,
-                        default_model_id: Some("gpt-5.4".to_string()),
+                        default_model_id: Some("gpt-5.5".to_string()),
                     },
                 ],
                 threads: vec![
@@ -1072,7 +1072,7 @@ mod tests {
                         created_at: 1,
                         updated_at: 1,
                         provider: "openai".to_string(),
-                        model_id: Some("gpt-5.4".to_string()),
+                        model_id: Some("gpt-5.5".to_string()),
                         status: Some("idle".to_string()),
                         archived: false,
                         last_activity_at: Some(1),
@@ -1088,7 +1088,7 @@ mod tests {
                         created_at: 1,
                         updated_at: 1,
                         provider: "openai".to_string(),
-                        model_id: Some("gpt-5.4".to_string()),
+                        model_id: Some("gpt-5.5".to_string()),
                         status: Some("idle".to_string()),
                         archived: false,
                         last_activity_at: Some(1),
@@ -1141,14 +1141,14 @@ mod tests {
                         path: resolve_default_workspace_path(),
                         display_name: "Workspace A".to_string(),
                         connected: true,
-                        default_model_id: Some("gpt-5.4".to_string()),
+                        default_model_id: Some("gpt-5.5".to_string()),
                     },
                     EmbeddedRuntimeWorkspaceSnapshot {
                         id: "workspace-b".to_string(),
                         path: resolve_default_workspace_path(),
                         display_name: "Workspace B".to_string(),
                         connected: true,
-                        default_model_id: Some("gpt-5.4".to_string()),
+                        default_model_id: Some("gpt-5.5".to_string()),
                     },
                 ],
                 threads: vec![
@@ -1161,7 +1161,7 @@ mod tests {
                         created_at: 1,
                         updated_at: 1,
                         provider: "openai".to_string(),
-                        model_id: Some("gpt-5.4".to_string()),
+                        model_id: Some("gpt-5.5".to_string()),
                         status: Some("idle".to_string()),
                         archived: false,
                         last_activity_at: Some(1),
@@ -1177,7 +1177,7 @@ mod tests {
                         created_at: 1,
                         updated_at: 1,
                         provider: "openai".to_string(),
-                        model_id: Some("gpt-5.4".to_string()),
+                        model_id: Some("gpt-5.5".to_string()),
                         status: Some("idle".to_string()),
                         archived: false,
                         last_activity_at: Some(1),
@@ -1200,7 +1200,7 @@ mod tests {
                         path: resolve_default_workspace_path(),
                         display_name: "Workspace A".to_string(),
                         connected: true,
-                        default_model_id: Some("gpt-5.4".to_string()),
+                        default_model_id: Some("gpt-5.5".to_string()),
                     }],
                     threads: Vec::new(),
                 },
@@ -1237,7 +1237,7 @@ mod tests {
                     path: resolve_default_workspace_path(),
                     display_name: "Workspace A".to_string(),
                     connected: true,
-                    default_model_id: Some("gpt-5.4".to_string()),
+                    default_model_id: Some("gpt-5.5".to_string()),
                 }],
                 threads: vec![
                     EmbeddedRuntimeThreadSnapshot {
@@ -1249,7 +1249,7 @@ mod tests {
                         created_at: 1,
                         updated_at: 1,
                         provider: "openai".to_string(),
-                        model_id: Some("gpt-5.4".to_string()),
+                        model_id: Some("gpt-5.5".to_string()),
                         status: Some("idle".to_string()),
                         archived: false,
                         last_activity_at: Some(1),
@@ -1265,7 +1265,7 @@ mod tests {
                         created_at: 1,
                         updated_at: 1,
                         provider: "openai".to_string(),
-                        model_id: Some("gpt-5.4".to_string()),
+                        model_id: Some("gpt-5.5".to_string()),
                         status: Some("idle".to_string()),
                         archived: false,
                         last_activity_at: Some(1),
@@ -1289,7 +1289,7 @@ mod tests {
                         path: resolve_default_workspace_path(),
                         display_name: "Workspace A".to_string(),
                         connected: true,
-                        default_model_id: Some("gpt-5.4".to_string()),
+                        default_model_id: Some("gpt-5.5".to_string()),
                     }],
                     threads: Vec::new(),
                 },

@@ -412,6 +412,37 @@ export type OAuthCodexLoginCancelResponse = {
   status?: string | null;
 };
 
+export type OAuthCodexAuthJsonImportRequest = {
+  authJson: string;
+  sourceLabel?: string | null;
+};
+
+export type OAuthCodexAuthJsonCompatibleFormatId =
+  | "codex-auth-json"
+  | "cpa"
+  | "new-api"
+  | "sub2api"
+  | "openai-compatible-env";
+
+export type OAuthCodexAuthJsonCompatibleFormat = {
+  formatId: OAuthCodexAuthJsonCompatibleFormatId;
+  fileName: string;
+  contentType: "application/json" | "text/x-shellscript";
+  content: string;
+  notes: string[];
+};
+
+export type OAuthCodexAuthJsonImportResponse = {
+  accountId: string | null;
+  displayName: string | null;
+  email: string | null;
+  imported: boolean;
+  updated: boolean;
+  sourceLabel: string | null;
+  formats: OAuthCodexAuthJsonCompatibleFormat[];
+  message: string | null;
+};
+
 export type RuntimeCockpitToolsCodexImportResponse = {
   scanned: number;
   imported: number;

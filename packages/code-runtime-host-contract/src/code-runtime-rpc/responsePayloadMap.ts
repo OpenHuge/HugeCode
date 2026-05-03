@@ -21,6 +21,7 @@ import type {
   HugeRouterRouteTokenIssueResponse,
   OAuthAccountSummary,
   OAuthChatgptAuthTokensRefreshResponse,
+  OAuthCodexAuthJsonImportResponse,
   OAuthCodexLoginCancelResponse,
   OAuthCodexLoginStartResponse,
   OAuthPoolApplyResult,
@@ -258,6 +259,7 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.OAUTH_CHATGPT_AUTH_TOKENS_REFRESH]: OAuthChatgptAuthTokensRefreshResponse | null;
   [CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_LOGIN_START]: OAuthCodexLoginStartResponse;
   [CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_LOGIN_CANCEL]: OAuthCodexLoginCancelResponse;
+  [CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_AUTH_JSON_IMPORT]: OAuthCodexAuthJsonImportResponse;
   [CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_ACCOUNTS_IMPORT_FROM_COCKPIT_TOOLS]: RuntimeCockpitToolsCodexImportResponse;
   [CODE_RUNTIME_RPC_METHODS.LIVE_SKILLS_LIST]: LiveSkillSummary[];
   [CODE_RUNTIME_RPC_METHODS.LIVE_SKILL_EXECUTE]: LiveSkillExecutionResult;

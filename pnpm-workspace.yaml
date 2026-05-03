@@ -12,6 +12,7 @@ strictDepBuilds: true
 # the signal visible when a fresh install is actually needed.
 verifyDepsBeforeRun: warn
 allowBuilds:
+  electron: true
   esbuild: true
   fs-xattr: true
   sharp: true

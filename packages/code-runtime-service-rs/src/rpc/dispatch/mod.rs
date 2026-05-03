@@ -647,6 +647,21 @@ pub(crate) async fn handle_rpc(
             };
             Ok(json!(cancel_codex_oauth(ctx, input).await))
         }
+        "code_oauth_codex_auth_json_import" => {
+            let params = as_object(params)?;
+            let auth_json = read_optional_string(params, "authJson")
+                .or_else(|| read_optional_string(params, "auth_json"))
+                .ok_or_else(|| RpcError::invalid_params("authJson is required"))?;
+            let source_label = read_optional_string(params, "sourceLabel")
+                .or_else(|| read_optional_string(params, "source_label"));
+            let result = import_codex_auth_json_content(
+                ctx.oauth_pool.as_ref(),
+                auth_json.as_str(),
+                source_label.as_deref(),
+            )
+            .map_err(RpcError::invalid_params)?;
+            Ok(json!(result))
+        }
         "code_oauth_codex_accounts_import_from_cockpit_tools" => {
             let _params = as_object(params)?;
             let result = import_cockpit_tools_codex_accounts(ctx.oauth_pool.as_ref())

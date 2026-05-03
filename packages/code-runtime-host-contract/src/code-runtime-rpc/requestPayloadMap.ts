@@ -46,6 +46,7 @@ import type {
 import type {
   OAuthAccountUpsertInput,
   OAuthChatgptAuthTokensRefreshRequest,
+  OAuthCodexAuthJsonImportRequest,
   OAuthCodexLoginCancelRequest,
   OAuthCodexLoginStartRequest,
   HugeRouterRouteTokenIssueRequest,
@@ -582,6 +583,10 @@ export interface CodeRuntimeRpcRequestPayloadByMethod {
   };
   [CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_LOGIN_CANCEL]: OAuthCodexLoginCancelRequest & {
     workspace_id?: string;
+  };
+  [CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_AUTH_JSON_IMPORT]: OAuthCodexAuthJsonImportRequest & {
+    auth_json?: string;
+    source_label?: string | null;
   };
   [CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_ACCOUNTS_IMPORT_FROM_COCKPIT_TOOLS]: CodeRuntimeRpcEmptyParams;
   [CODE_RUNTIME_RPC_METHODS.LIVE_SKILLS_LIST]: CodeRuntimeRpcEmptyParams;

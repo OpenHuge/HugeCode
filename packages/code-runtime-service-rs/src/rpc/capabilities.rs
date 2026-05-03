@@ -165,6 +165,7 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_oauth_chatgpt_auth_tokens_refresh"),
     RpcMethodEntry::new("code_oauth_codex_login_start"),
     RpcMethodEntry::new("code_oauth_codex_login_cancel"),
+    RpcMethodEntry::new("code_oauth_codex_auth_json_import"),
     RpcMethodEntry::new("code_oauth_codex_accounts_import_from_cockpit_tools"),
     RpcMethodEntry::new("code_live_skills_list"),
     RpcMethodEntry::new("code_live_skill_execute"),
@@ -432,6 +433,9 @@ mod tests {
         assert!(methods
             .iter()
             .any(|method| method == "code_runtime_run_checkpoint_approval"));
+        assert!(methods
+            .iter()
+            .any(|method| method == "code_oauth_codex_auth_json_import"));
         assert!(methods
             .iter()
             .any(|method| method == "code_oauth_codex_accounts_import_from_cockpit_tools"));

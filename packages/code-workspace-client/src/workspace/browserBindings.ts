@@ -1,5 +1,6 @@
 import {
   CODE_RUNTIME_RPC_METHODS,
+  type OAuthAccountSummary,
   type CodeRuntimeRpcRequestPayloadByMethod,
   type CodeRuntimeRpcResponsePayloadByMethod,
   type KernelProjectionBootstrapRequest,
@@ -43,6 +44,8 @@ type UnknownRecord = Record<string, unknown>;
 
 const runtimeModeListeners = new Set<() => void>();
 let runtimeModeStorageSubscriptions = 0;
+const OAUTH_BINDING_POLL_INTERVAL_MS = 1_000;
+const OAUTH_BINDING_TIMEOUT_MS = 120_000;
 
 function isRecord(value: unknown): value is UnknownRecord {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -177,6 +180,42 @@ function openBrowserExternalUrl(url: string, popup: Window | null = null) {
   }
   const opened = window.open(safeUrl, "_blank", "noopener,noreferrer");
   opened?.focus?.();
+}
+
+function readOAuthAccountTimestamp(account: OAuthAccountSummary): number {
+  return Math.max(account.updatedAt ?? 0, account.createdAt ?? 0);
+}
+
+function hasCodexOauthBindingAfter(
+  accounts: readonly OAuthAccountSummary[],
+  baselineUpdatedAt: number
+): boolean {
+  return accounts.some(
+    (account) =>
+      account.provider === "codex" && readOAuthAccountTimestamp(account) > baselineUpdatedAt
+  );
+}
+
+async function waitForBrowserCodexOauthBinding(
+  workspaceId: string,
+  baselineUpdatedAt: number
+): Promise<boolean> {
+  const deadline = Date.now() + OAUTH_BINDING_TIMEOUT_MS;
+  while (Date.now() <= deadline) {
+    const accounts =
+      (await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.OAUTH_ACCOUNTS_LIST, {
+        provider: "codex",
+      })) ?? [];
+    if (hasCodexOauthBindingAfter(accounts, baselineUpdatedAt)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, OAUTH_BINDING_POLL_INTERVAL_MS));
+  }
+
+  await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_LOGIN_CANCEL, {
+    workspaceId,
+  }).catch(() => undefined);
+  return false;
 }
 
 export function readBrowserWorkspaceClientRuntimeMode(): WorkspaceClientRuntimeMode {
@@ -412,10 +451,16 @@ export function createBrowserWorkspaceClientRuntimeBindings(): WorkspaceClientRu
           CODE_RUNTIME_RPC_METHODS.OAUTH_POOL_ACCOUNT_BIND,
           input
         ),
-      runLogin: async () => ({
-        authUrl: "",
-        immediateSuccess: false,
-      }),
+      importCodexAuthJson: async (input) =>
+        await invokeBrowserWorkspaceRuntime(
+          CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_AUTH_JSON_IMPORT,
+          input
+        ),
+      runLogin: async (workspaceId, options) =>
+        await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.OAUTH_CODEX_LOGIN_START, {
+          workspaceId,
+          forceOAuth: options.forceOAuth,
+        }),
       getAccountInfo: async () => null,
       getProvidersCatalog: async () =>
         (await invokeBrowserWorkspaceRuntime(CODE_RUNTIME_RPC_METHODS.PROVIDERS_CATALOG, {})) ?? [],
@@ -556,7 +601,7 @@ export function createBrowserWorkspaceClientHostBindings(): WorkspaceClientHostB
         }
         return window.open("about:blank", "_blank");
       },
-      waitForOauthBinding: async () => false,
+      waitForOauthBinding: waitForBrowserCodexOauthBinding,
     },
     notifications: {
       testSound: () => undefined,

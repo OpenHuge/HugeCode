@@ -3,11 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js --port 5197",
     "build": "node ./node_modules/vite/bin/vite.js build",
+    "desktop:dev": "node scripts/start-electron-dev.mjs",
+    "desktop:build": "pnpm run build && node scripts/build-electron.mjs",
+    "desktop:preview": "pnpm run desktop:build && electron dist-electron/main.cjs",
     "preview": "node ./node_modules/vite/bin/vite.js preview --port 4197",
     "sync:check": "node scripts/check-upstream-sync.mjs",
+    "sync:status": "node scripts/check-upstream-sync.mjs --report-drift",
+    "sync:guard": "node scripts/check-upstream-sync.mjs --enforce-clean-upstream",
     "lint": "oxlint src",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
@@ -26,6 +32,8 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^41.5.0",
+    "esbuild": "^0.27.4",
     "typescript": "^5.9.3",
     "vite": "8.0.2",
     "vitest": "^4.1.1"

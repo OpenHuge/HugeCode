@@ -47,7 +47,7 @@ struct Cli {
     #[arg(
         long,
         env = "CODE_RUNTIME_SERVICE_DEFAULT_MODEL",
-        default_value = "gpt-5.4"
+        default_value = "gpt-5.5"
     )]
     default_model: String,
     #[arg(
@@ -661,7 +661,7 @@ mod tests {
 
     fn test_service_config() -> ServiceConfig {
         ServiceConfig {
-            default_model_id: "gpt-5.4".to_string(),
+            default_model_id: "gpt-5.5".to_string(),
             openai_api_key: None,
             openai_endpoint: "https://api.openai.com/v1/responses".to_string(),
             openai_compat_base_url: None,

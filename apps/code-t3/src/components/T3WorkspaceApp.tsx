@@ -5,13 +5,9 @@ import {
   ExternalLink,
   Globe2,
   Link2,
-  Loader2,
-  Plus,
   RefreshCw,
-  Search,
   Settings,
   ShieldCheck,
-  SquarePen,
   Trash2,
   UserPlus,
   Users,
@@ -29,30 +25,37 @@ import {
 } from "@ku0/code-t3-runtime-adapter";
 import type { HugeCodeRuntimeBridge } from "@ku0/code-t3-runtime-adapter";
 import {
-  eventClassName,
-  formatEventTime,
-  statusLabel,
   T3ChatWorkspaceChrome,
+  type T3ComposerAccessMode,
+  type T3ComposerMode,
+  type T3ComposerReasonEffort,
 } from "./T3ChatWorkspaceChrome";
+import { T3BrowserStaticDataActions } from "./T3BrowserStaticDataActions";
 import { T3BrowserCloudSyncCard } from "./T3BrowserCloudSyncCard";
 import { T3HugeRouterCommercialCard } from "./T3HugeRouterCommercialCard";
 import { T3ProductLaunchPanel } from "./T3ProductLaunchPanel";
 import {
   T3WorkspaceAssistantEntries,
-  T3WorkspaceAssistantThreadRows,
+  type T3WorkspaceAssistantPage,
 } from "./T3WorkspaceAssistantEntries";
+import { T3WorkspaceSidebar } from "./T3WorkspaceSidebar";
 import {
-  accessModeTitle,
   browserProviderTitle,
+  formatBrowserSyncTime,
   formatCredits,
+  formatGuestPassExpiry,
   formatSeatPrice,
-  providerTitle,
 } from "./t3WorkspaceLabels";
+import {
+  detectT3WorkspaceLocale,
+  getT3WorkspaceAccessModeLabel,
+  getT3WorkspaceMessages,
+  T3_WORKSPACE_LOCALE_STORAGE_KEY,
+  type T3WorkspaceLocale,
+} from "./t3WorkspaceLocale";
 import { useT3HugeRouterCommercialService } from "./useT3HugeRouterCommercialService";
-import { T3Wordmark } from "./T3Wordmark";
 import {
   buildT3BrowserFingerprintSummary,
-  buildT3BrowserProfileOperationsReport,
   buildT3BrowserProductContinuity,
   buildT3AiGatewaySummaryMock,
   buildT3HugerouterSiteScope,
@@ -75,6 +78,7 @@ import {
   listT3BrowserGuestPasses,
   listT3BrowserRecentSessions,
   pauseT3BrowserSeatPoolMemberMock,
+  providerUrl,
   removeT3BrowserIsolatedAppMock,
   refundT3HugerouterCapacityOrderMock,
   revokeT3BrowserGuestPassMock,
@@ -99,7 +103,6 @@ import {
   type T3BrowserMembershipPlanType,
   type T3BrowserProfileMigrationState,
   type T3BrowserProductContinuity,
-  type T3BrowserProfileOperationsReport,
   type T3BrowserProfileDescriptor,
   type T3BrowserProfileSyncState,
   type T3BrowserProvider,
@@ -108,6 +111,16 @@ import {
   type T3BrowserSeatPoolListing,
   type T3SeatPoolRentalPlatform,
 } from "../runtime/t3BrowserProfiles";
+import {
+  buildT3BrowserProfileOperationsReport,
+  type T3BrowserProfileOperationsReport,
+} from "../runtime/t3BrowserProfileOperations";
+import {
+  exportT3BrowserSiteDataToChrome,
+  importT3BrowserStaticDataLoginStateBundles,
+  importT3BrowserStaticDataBundle,
+  serializeT3BrowserStaticDataBundleWithLoginState,
+} from "../runtime/t3BrowserStaticData";
 import {
   readT3RuntimeEventSnapshot,
   resolveT3RuntimeEventsEndpoint,
@@ -118,26 +131,24 @@ type T3WorkspaceAppProps = {
 };
 
 type T3WorkspacePage = "chat" | "browser";
-type T3ComposerMode = "build" | "plan";
-type T3ComposerAccessMode = "on-request" | "full-access";
-type T3ComposerReasonEffort = "medium" | "high" | "xhigh";
+
+const T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY = "hugecode:t3-browser-imported-data-ready";
 
 const providerOrder: T3CodeProviderKind[] = ["codex", "claudeAgent"];
 const browserProviderOrder: T3BrowserProvider[] = ["hugerouter", "chatgpt", "gemini", "custom"];
-const composerCommands = [
-  {
-    command: "/model",
-    description: "Switch response model for this thread",
-  },
-  {
-    command: "/plan",
-    description: "Switch this thread into plan mode",
-  },
-  {
-    command: "/default",
-    description: "Switch this thread back to normal build mode",
-  },
-] as const;
+type BrowserAssistantEntry = {
+  kind: "chatgpt" | "ldxp";
+  label: string;
+};
+
+function isLdxpBrowserAssistantUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.hostname === "pay.ldxp.cn" && parsed.pathname.startsWith("/shop/ku0");
+  } catch {
+    return false;
+  }
+}
 
 const commercialPlanOptions = Object.entries(T3_BROWSER_MEMBERSHIP_PLAN_OPTIONS).map(
   ([planType, plan]) => ({
@@ -174,28 +185,8 @@ const seatPoolRentalPlatformOptions = Object.entries(T3_SEAT_POOL_RENTAL_PLATFOR
   })
 );
 
-function formatGuestPassExpiry(expiresAt: number) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(expiresAt));
-}
-
-function formatBrowserSyncTime(value: number | null) {
-  if (value === null) {
-    return "Never";
-  }
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    month: "short",
-    day: "numeric",
-  }).format(new Date(value));
-}
-
 export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
+  const [locale, setLocale] = useState<T3WorkspaceLocale>(() => detectT3WorkspaceLocale());
   const [routes, setRoutes] = useState<T3CodeProviderRoute[]>([]);
   const [providerModelOptionsByProvider, setProviderModelOptionsByProvider] =
     useState<T3CodeProviderModelOptionsByProvider>({
@@ -264,18 +255,47 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   const [customProductUrl, setCustomProductUrl] = useState("");
   const [browserProfileBusy, setBrowserProfileBusy] = useState(false);
   const [browserProfileNotice, setBrowserProfileNotice] = useState<string | null>(null);
+  const [browserDataImported, setBrowserDataImported] = useState(
+    () => window.localStorage.getItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY) === "1"
+  );
   const [prompt, setPrompt] = useState("");
   const [workspaceId] = useState("workspace-web");
   const [composerMode, setComposerMode] = useState<T3ComposerMode>("build");
-  const [composerAccessMode] = useState<T3ComposerAccessMode>("on-request");
-  const [composerReasonEffort] = useState<T3ComposerReasonEffort>("medium");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [composerAccessMode, setComposerAccessMode] = useState<T3ComposerAccessMode>("full-access");
+  const [composerReasonEffort, setComposerReasonEffort] = useState<T3ComposerReasonEffort>("xhigh");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loadingRoutes, setLoadingRoutes] = useState(true);
   const [launching, setLaunching] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<T3CodeTimelineEvent[]>([]);
+  const [assistantPage, setAssistantPage] = useState<T3WorkspaceAssistantPage>("home");
+  const browserStaticDataImportInputRef = useRef<HTMLInputElement | null>(null);
   const runtimeEventsMountedAt = useRef(Date.now());
   const browserProfileBridge = useMemo(() => createT3BrowserProfileBridge(), []);
+  const text = getT3WorkspaceMessages(locale);
+  const composerCommands = useMemo(
+    () =>
+      [
+        {
+          command: "/model",
+          description: text.commandModelDescription,
+        },
+        {
+          command: "/plan",
+          description: text.commandPlanDescription,
+        },
+        {
+          command: "/default",
+          description: text.commandDefaultDescription,
+        },
+      ] as const,
+    [text]
+  );
+
+  useEffect(() => {
+    window.localStorage.setItem(T3_WORKSPACE_LOCALE_STORAGE_KEY, locale);
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+  }, [locale]);
 
   function navigateT3Page(page: T3WorkspacePage) {
     setActivePage(page);
@@ -289,8 +309,13 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   }
 
   function openChatFromSidebar() {
+    setAssistantPage("home");
     navigateT3Page("chat");
-    setSidebarOpen(false);
+  }
+
+  function openAssistantFromSidebar(page: T3WorkspaceAssistantPage) {
+    setAssistantPage(page);
+    navigateT3Page("chat");
   }
 
   useEffect(() => {
@@ -520,6 +545,21 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     workspaceId,
   });
   const effectiveSeatPoolProvider = browserProvider === "custom" ? "hugerouter" : browserProvider;
+  const browserAssistantEntry = useMemo<BrowserAssistantEntry | null>(() => {
+    if (browserProvider === "chatgpt") {
+      return {
+        kind: "chatgpt",
+        label: "Open ChatGPT assistant",
+      };
+    }
+    if (browserProvider === "custom" && isLdxpBrowserAssistantUrl(customProductUrl)) {
+      return {
+        kind: "ldxp",
+        label: "Open ldxp assistant",
+      };
+    }
+    return null;
+  }, [browserProvider, customProductUrl]);
   const currentHugerouterSiteScope = useMemo(() => {
     try {
       const url =
@@ -542,7 +582,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       return [];
     }
     return composerCommands.filter((item) => item.command.startsWith(commandText));
-  }, [prompt]);
+  }, [composerCommands, prompt]);
   const canLaunchTask = prompt.trim().length > 0 && !launching;
   const composerModelOptions = useMemo(
     () =>
@@ -590,13 +630,13 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       ...current,
       codex: route.modelId ?? "agent-coding-default",
     }));
-    setNotice(`${route.backendLabel} 已设为内置 Codex 中转路由。`);
+    setNotice(text.relayRouteAppliedNotice(route.backendLabel));
   }
 
   async function launchTask() {
     const trimmedPrompt = prompt.trim();
     if (!trimmedPrompt) {
-      setNotice("Enter an instruction before launching a task.");
+      setNotice(text.enterInstructionNotice);
       return;
     }
     const dispatchPrompt =
@@ -611,7 +651,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
         prompt: dispatchPrompt,
         title:
           composerMode === "plan"
-            ? `Plan: ${trimmedPrompt.slice(0, 72)}`
+            ? `${text.planTitlePrefix}: ${trimmedPrompt.slice(0, 72)}`
             : trimmedPrompt.slice(0, 80),
         selection: {
           provider: selectedProvider,
@@ -623,7 +663,10 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
         reasonEffort: composerReasonEffort,
         taskSource: {
           kind: "manual_thread",
-          label: `T3 composer (${composerMode}, ${accessModeTitle(composerAccessMode)})`,
+          label: `T3 composer (${composerMode}, ${getT3WorkspaceAccessModeLabel(
+            locale,
+            composerAccessMode
+          )})`,
           title: trimmedPrompt.slice(0, 80) || "T3 task",
           workspaceId: workspaceId.trim() || "default",
           threadId: null,
@@ -639,10 +682,15 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           kind: "task.started",
           title: request.title ?? "Task launched",
           body: [
-            `Mode: ${composerMode === "plan" ? "Plan" : "Build"}`,
-            `Access: ${accessModeTitle(composerAccessMode)}`,
-            `Reasoning: ${composerReasonEffort}`,
-            `Preferred backends: ${request.preferredBackendIds?.join(", ") || "runtime fallback"}`,
+            `${text.modeTimelineLabel}: ${composerMode === "plan" ? text.plan : text.build}`,
+            `${text.accessTimelineLabel}: ${getT3WorkspaceAccessModeLabel(
+              locale,
+              composerAccessMode
+            )}`,
+            `${text.reasoningTimelineLabel}: ${composerReasonEffort}`,
+            `${text.preferredBackendsTimelineLabel}: ${
+              request.preferredBackendIds?.join(", ") || text.runtimeFallback
+            }`,
           ].join(" · "),
           createdAt: Date.now(),
           source: "hugecode-runtime",
@@ -700,7 +748,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     }
   }
 
-  async function openBrowserProvider() {
+  async function openBrowserProvider(assistant?: BrowserAssistantEntry["kind"]) {
     if (browserProvider === "custom" && !customProductUrl.trim()) {
       setBrowserProfileNotice("Enter a web product URL before opening a custom browser session.");
       return;
@@ -709,6 +757,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     setBrowserProfileNotice(null);
     try {
       const profile = await browserProfileBridge.openProvider({
+        assistant,
         customUrl: customProductUrl,
         profileId: selectedBrowserProfileId,
         providerId: browserProvider,
@@ -721,6 +770,29 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     } catch (error) {
       setBrowserProfileNotice(
         error instanceof Error ? error.message : "Unable to open the browser provider."
+      );
+    } finally {
+      setBrowserProfileBusy(false);
+    }
+  }
+
+  async function openChatGptBuiltInBrowser() {
+    setBrowserProfileBusy(true);
+    setBrowserProfileNotice(null);
+    try {
+      const profile = await browserProfileBridge.openProvider({
+        customUrl: null,
+        profileId: selectedBrowserProfileId,
+        providerId: "chatgpt",
+      });
+      setBrowserProfiles((profiles) =>
+        profiles.map((candidate) => (candidate.id === profile.id ? profile : candidate))
+      );
+      setBrowserRecentSessions(listT3BrowserRecentSessions());
+      setBrowserProfileNotice("ChatGPT opened in a separate built-in browser window.");
+    } catch (error) {
+      setBrowserProfileNotice(
+        error instanceof Error ? error.message : "Unable to open the ChatGPT browser window."
       );
     } finally {
       setBrowserProfileBusy(false);
@@ -742,6 +814,138 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       );
     } finally {
       setBrowserProfileBusy(false);
+    }
+  }
+
+  function refreshBrowserStaticDataState(profiles: readonly T3BrowserProfileDescriptor[]) {
+    const nextSelectedProfile =
+      profiles.find((profile) => profile.id === selectedBrowserProfileId) ??
+      profiles.find((profile) => profile.id === "current-browser") ??
+      profiles[0] ??
+      null;
+    setBrowserProfiles([...profiles]);
+    if (nextSelectedProfile) {
+      setSelectedBrowserProfileId(nextSelectedProfile.id);
+      setBrowserProfileSyncState(getT3BrowserProfileSyncState(nextSelectedProfile));
+      setBrowserProfileMigrationState(getT3BrowserProfileMigrationState(nextSelectedProfile));
+      setBrowserGuestPasses(listT3BrowserGuestPasses(nextSelectedProfile.id));
+      setBrowserIsolatedApps(listT3BrowserIsolatedApps(nextSelectedProfile.id));
+    }
+    setBrowserRecentSessions(listT3BrowserRecentSessions());
+    setAiGatewayRoutes(listT3AiGatewayRoutesMock());
+    setHugerouterListings(listT3HugerouterCapacityListingsMock());
+    setHugerouterOrders(listT3HugerouterCapacityOrdersMock());
+    setBrowserSeatListings(
+      listT3BrowserSeatPoolListings({
+        planType: seatListingFilter,
+        providerId: "all",
+      })
+    );
+  }
+
+  async function exportBrowserStaticData() {
+    setBrowserProfileBusy(true);
+    setBrowserProfileNotice(null);
+    try {
+      const blob = new Blob([await serializeT3BrowserStaticDataBundleWithLoginState()], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `hugecode-browser-data-${new Date().toISOString().slice(0, 10)}.hcbrowser`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setBrowserProfileNotice("Browser data exported as a host-encrypted HugeCode browser file.");
+    } catch (error) {
+      setBrowserProfileNotice(
+        error instanceof Error ? error.message : "Unable to export browser data file."
+      );
+    } finally {
+      setBrowserProfileBusy(false);
+    }
+  }
+
+  function markBrowserDataImported() {
+    window.localStorage.setItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY, "1");
+    setBrowserDataImported(true);
+  }
+
+  function openBrowserStaticDataImportPicker() {
+    if (browserProfileBusy) {
+      return;
+    }
+    browserStaticDataImportInputRef.current?.click();
+  }
+
+  async function exportBrowserSiteDataToChrome(targetUrlOverride?: string) {
+    setBrowserProfileBusy(true);
+    setBrowserProfileNotice(null);
+    try {
+      const targetUrl =
+        targetUrlOverride ??
+        (browserProvider === "custom" && customProductUrl.trim()
+          ? customProductUrl.trim()
+          : providerUrl(browserProvider === "custom" ? "chatgpt" : browserProvider));
+      const result = await exportT3BrowserSiteDataToChrome({ targetUrl });
+      setBrowserProfileNotice(
+        `${result.summary} Chrome opened ${result.targetUrl} with profile ${result.profilePath}.`
+      );
+      setNotice(
+        targetUrlOverride
+          ? "ChatGPT account data was handed off to the local browser profile."
+          : null
+      );
+      return true;
+    } catch (error) {
+      setBrowserProfileNotice(
+        error instanceof Error ? error.message : "Unable to export browser site data to Chrome."
+      );
+      if (targetUrlOverride) {
+        setNotice(
+          error instanceof Error ? error.message : "Unable to import ChatGPT account locally."
+        );
+      }
+      return false;
+    } finally {
+      setBrowserProfileBusy(false);
+    }
+  }
+
+  async function openChatGptAccountLoginBrowser() {
+    await openChatGptBuiltInBrowser();
+  }
+
+  async function importBrowserStaticDataFile(file: File) {
+    setBrowserProfileBusy(true);
+    setBrowserProfileNotice(null);
+    let shouldOpenChatGptBrowser = false;
+    try {
+      const result = importT3BrowserStaticDataBundle(await file.text());
+      refreshBrowserStaticDataState(result.profiles);
+      const loginStateSummary = await importT3BrowserStaticDataLoginStateBundles(
+        result.loginStateBundles
+      );
+      if (result.loginStateBundles.length > 0) {
+        markBrowserDataImported();
+        shouldOpenChatGptBrowser = true;
+      }
+      setBrowserProfileNotice(
+        loginStateSummary ? `${result.summary} ${loginStateSummary}` : result.summary
+      );
+      setNotice(loginStateSummary ? `${result.summary} ${loginStateSummary}` : result.summary);
+    } catch (error) {
+      setBrowserProfileNotice(
+        error instanceof Error ? error.message : "Unable to import browser data file."
+      );
+      setNotice(error instanceof Error ? error.message : "Unable to import browser data file.");
+    } finally {
+      setBrowserProfileBusy(false);
+    }
+    if (shouldOpenChatGptBrowser) {
+      await openChatGptBuiltInBrowser();
     }
   }
 
@@ -1245,6 +1449,29 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
               <ExternalLink size={14} />
               Open
             </Button>
+            {browserAssistantEntry ? (
+              <Button
+                type="button"
+                onPress={() => {
+                  if (
+                    browserProfileBusy ||
+                    (browserProvider === "custom" && !customProductUrl.trim())
+                  ) {
+                    return;
+                  }
+                  void openBrowserProvider(browserAssistantEntry.kind);
+                }}
+                aria-disabled={
+                  browserProfileBusy || (browserProvider === "custom" && !customProductUrl.trim())
+                }
+                aria-label={browserAssistantEntry.label}
+                size="md"
+                variant="outline"
+              >
+                <AppWindow size={14} />
+                Assistant
+              </Button>
+            ) : null}
             <div className="t3-browser-safety" aria-label="Browser session safety">
               <Chip size="sm" variant="tertiary">
                 No cookie export
@@ -1607,6 +1834,17 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
                 <Link2 size={14} />
               </Button>
             </div>
+            <T3BrowserStaticDataActions
+              busy={browserProfileBusy}
+              onExport={() => void exportBrowserStaticData()}
+              onExportToChrome={() => void exportBrowserSiteDataToChrome()}
+              onImportClick={openBrowserStaticDataImportPicker}
+            />
+            <small>
+              Static files include Electron cookies and local browser storage as host-encrypted
+              session state. Chrome export writes a HugeCode-managed Chrome profile, not the default
+              Chrome profile. Export requires administrator approval before session data is read.
+            </small>
           </Card>
           <T3HugeRouterCommercialCard
             snapshot={hugeRouterCommercialSnapshot}
@@ -2381,152 +2619,51 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
 
   return (
     <main className={sidebarOpen ? "t3-shell sidebar-open" : "t3-shell"}>
-      {sidebarOpen ? (
-        <button
-          className="t3-sidebar-scrim"
-          type="button"
-          aria-label="Close sidebar"
-          onClick={() => setSidebarOpen(false)}
-        />
-      ) : null}
-      <aside className="t3-sidebar" aria-label="HugeCode T3 navigation">
-        <div className="t3-sidebar-header">
-          <div className="t3-brand">
-            <T3Wordmark />
-            <strong>Code</strong>
-            <span className="t3-stage-pill">Dev</span>
-          </div>
-          <button
-            className="t3-icon-button"
-            type="button"
-            aria-label="New thread"
-            title="New thread"
-          >
-            <SquarePen size={15} />
-          </button>
-        </div>
-
-        <button className="t3-search" type="button">
-          <Search size={14} />
-          <span>Search</span>
-        </button>
-
-        <section className="t3-sidebar-group" aria-label="Current project">
-          <header>
-            <span>Projects</span>
-            <button type="button" aria-label="Add project">
-              <Plus size={14} />
-            </button>
-          </header>
-          <button className="t3-project-row active" type="button">
-            <span className="t3-project-dot" />
-            <span>
-              <strong>hugecode</strong>
-              <small>{workspaceId}</small>
-            </span>
-          </button>
-        </section>
-
-        <section className="t3-sidebar-group" aria-label="Threads">
-          <header>Threads</header>
-          <button
-            className={activePage === "chat" ? "t3-thread-row active" : "t3-thread-row"}
-            type="button"
-            onClick={openChatFromSidebar}
-          >
-            <span className="t3-thread-status assistant" />
-            <span>
-              <strong>{providerTitle(selectedProvider)}</strong>
-              <small>{selectedRoute?.modelId ?? "runtime default"}</small>
-            </span>
-          </button>
-          <T3WorkspaceAssistantThreadRows onOpenChat={openChatFromSidebar} />
-          {visibleTimeline.slice(-3).map((event) => (
-            <button
-              className="t3-thread-row"
-              type="button"
-              key={`thread-${event.id}`}
-              onClick={openChatFromSidebar}
-            >
-              <span className={`t3-thread-status ${eventClassName(event)}`} />
-              <span>
-                <strong>{event.title}</strong>
-                <small>{formatEventTime(event.createdAt)}</small>
-              </span>
-            </button>
-          ))}
-        </section>
-
-        <section className="t3-sidebar-group t3-provider-panel" aria-label="Local providers">
-          <header>
-            <span>Providers</span>
-            <button type="button" onClick={refreshRoutes} aria-label="Refresh local providers">
-              {loadingRoutes ? <Loader2 size={14} className="spin" /> : <RefreshCw size={14} />}
-            </button>
-          </header>
-          <div className="t3-provider-list">
-            {providerOrder.map((provider) => {
-              const route = routes.find((candidate) => candidate.provider === provider);
-              return (
-                <button
-                  type="button"
-                  key={provider}
-                  className={selectedProvider === provider ? "selected" : ""}
-                  onClick={() => {
-                    setSelectedProvider(provider);
-                    setSidebarOpen(false);
-                  }}
-                >
-                  <span>
-                    <strong>{providerTitle(provider)}</strong>
-                    <small>{route?.modelId ?? "local CLI"}</small>
-                  </span>
-                  <em className={route?.status ?? "blocked"}>{statusLabel(route)}</em>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section
-          className="t3-sidebar-group t3-browser-entry"
-          aria-label="Hugerouter browser entry"
-        >
-          <header>
-            <span>Browser</span>
-            <Globe2 size={14} />
-          </header>
-          <button
-            className={activePage === "browser" ? "t3-thread-row active" : "t3-thread-row"}
-            type="button"
-            onClick={() => {
-              navigateT3Page("browser");
-              setSidebarOpen(false);
-            }}
-          >
-            <span className="t3-thread-status assistant" />
-            <span>
-              <strong>Hugerouter Browser</strong>
-              <small>{currentHugerouterSiteScope?.siteLabel ?? "profiles and marketplace"}</small>
-            </span>
-          </button>
-        </section>
-
-        <footer className="t3-sidebar-footer">
-          <button type="button">
-            <Settings size={14} />
-            <span>Settings</span>
-          </button>
-        </footer>
-      </aside>
+      <input
+        ref={browserStaticDataImportInputRef}
+        className="t3-browser-static-data-input"
+        type="file"
+        accept="application/json,.json,.hcbrowser"
+        aria-label="Import encrypted browser data file"
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.value = "";
+          if (file) {
+            void importBrowserStaticDataFile(file);
+          }
+        }}
+      />
+      <T3WorkspaceSidebar
+        activePage={activePage}
+        assistantPage={assistantPage}
+        loadingRoutes={loadingRoutes}
+        locale={locale}
+        providerOrder={providerOrder}
+        routes={routes}
+        selectedProvider={selectedProvider}
+        selectedRoute={selectedRoute}
+        sidebarOpen={sidebarOpen}
+        text={text}
+        timeline={visibleTimeline}
+        workspaceId={workspaceId}
+        onOpenAssistantPage={openAssistantFromSidebar}
+        onOpenBrowser={() => navigateT3Page("browser")}
+        onOpenChat={openChatFromSidebar}
+        onRefreshRoutes={refreshRoutes}
+        onSelectProvider={setSelectedProvider}
+      />
 
       {activePage === "browser" ? (
         browserManagementPage
       ) : (
         <T3ChatWorkspaceChrome
           canLaunchTask={canLaunchTask}
+          composerAccessMode={composerAccessMode}
           composerCommandMatches={composerCommandMatches}
+          composerMode={composerMode}
           composerModelOptions={composerModelOptions}
+          composerReasonEffort={composerReasonEffort}
+          locale={locale}
           launching={launching}
           notice={notice}
           prompt={prompt}
@@ -2536,6 +2673,10 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           selectedRoute={selectedRoute}
           visibleTimeline={visibleTimeline}
           onApplyComposerCommand={applyComposerCommand}
+          onComposerAccessModeChange={setComposerAccessMode}
+          onLocaleChange={setLocale}
+          onComposerModeChange={setComposerMode}
+          onComposerReasonEffortChange={setComposerReasonEffort}
           onLaunchTask={() => void launchTask()}
           onModelSelection={(provider, modelId) => {
             setSelectedProvider(provider);
@@ -2544,13 +2685,20 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
               [provider]: modelId,
             }));
           }}
-          onNotice={setNotice}
           onPromptChange={setPrompt}
           onToggleSidebar={() => setSidebarOpen((current) => !current)}
           quickEntries={
             <T3WorkspaceAssistantEntries
+              activePage={assistantPage}
+              browserDataImported={browserDataImported}
+              browserImportBusy={browserProfileBusy}
+              locale={locale}
               routes={routes}
               onApplyRelayRoute={applyRelayRoute}
+              onAssistantPageChange={setAssistantPage}
+              onImportBrowserData={openBrowserStaticDataImportPicker}
+              onLoginChatGptAccount={() => void openChatGptAccountLoginBrowser()}
+              onOpenBrowser={() => navigateT3Page("browser")}
               onNotice={setNotice}
             />
           }

@@ -20,6 +20,18 @@ export const accountCenterHeader = style({
   marginBottom: spacing[8],
 });
 
+export const accountCenterHeaderRow = style({
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: spacing[4],
+  "@media": {
+    "screen and (max-width: 720px)": {
+      flexDirection: "column",
+    },
+  },
+});
+
 export const accountCenterTitle = style({
   margin: 0,
   fontSize: typographyValues.titleLg.fontSize,
@@ -48,6 +60,50 @@ export const accountGrid = style({
   "@media": {
     "screen and (max-width: 900px)": {
       gridTemplateColumns: "1fr",
+    },
+  },
+});
+
+export const primaryActionButton = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: spacing[2],
+  minHeight: "2.5rem",
+  padding: `${spacing[2]} ${spacing[4]}`,
+  border: "none",
+  borderRadius: "0.5rem",
+  backgroundColor: semanticColors.accentAiStrong,
+  color: semanticColors.surface0,
+  fontWeight: "600",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  selectors: {
+    "&:disabled": {
+      cursor: "not-allowed",
+      opacity: 0.6,
+    },
+  },
+});
+
+export const secondaryActionButton = style({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: spacing[2],
+  minHeight: "2rem",
+  padding: `${spacing[1]} ${spacing[3]}`,
+  border: `1px solid ${semanticColors.border}`,
+  borderRadius: "0.5rem",
+  backgroundColor: semanticColors.surface2,
+  color: semanticColors.foreground,
+  fontWeight: "600",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  selectors: {
+    "&:disabled": {
+      cursor: "not-allowed",
+      opacity: 0.6,
     },
   },
 });
@@ -162,4 +218,111 @@ export const workspaceListMeta = style({
   color: semanticColors.mutedForeground,
   fontSize: typographyValues.meta.fontSize,
   lineHeight: typographyValues.meta.lineHeight,
+});
+
+export const accountList = style({
+  margin: 0,
+  padding: 0,
+  listStyle: "none",
+  display: "grid",
+  gap: spacing[3],
+});
+
+export const accountListItem = style({
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
+  alignItems: "center",
+  gap: spacing[4],
+  padding: `${spacing[2]} 0`,
+  borderBottom: `1px solid ${semanticColors.border}`,
+  selectors: {
+    "&:last-child": {
+      borderBottom: "none",
+    },
+  },
+  "@media": {
+    "screen and (max-width: 720px)": {
+      gridTemplateColumns: "1fr",
+    },
+  },
+});
+
+export const accountActions = style({
+  display: "flex",
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+  gap: spacing[2],
+});
+
+export const authImportTextarea = style({
+  width: "100%",
+  minHeight: "10rem",
+  resize: "vertical",
+  boxSizing: "border-box",
+  border: `1px solid ${semanticColors.border}`,
+  borderRadius: "0.5rem",
+  backgroundColor: semanticColors.surface0,
+  color: semanticColors.foreground,
+  padding: spacing[3],
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  fontSize: typographyValues.meta.fontSize,
+  lineHeight: "1.5",
+});
+
+export const authImportActions = style({
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: spacing[3],
+  marginTop: spacing[3],
+});
+
+export const authImportFileInput = style({
+  position: "absolute",
+  width: "1px",
+  height: "1px",
+  opacity: 0,
+  pointerEvents: "none",
+});
+
+export const authImportFormats = style({
+  display: "grid",
+  gap: spacing[3],
+  marginTop: spacing[5],
+});
+
+export const authImportFormat = style({
+  display: "grid",
+  gap: spacing[2],
+  paddingTop: spacing[3],
+  borderTop: `1px solid ${semanticColors.border}`,
+});
+
+export const authImportFormatHeader = style({
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: spacing[3],
+  "@media": {
+    "screen and (max-width: 720px)": {
+      flexDirection: "column",
+    },
+  },
+});
+
+export const authImportFormatContent = style({
+  maxHeight: "10rem",
+  overflow: "auto",
+  margin: 0,
+  padding: spacing[3],
+  border: `1px solid ${semanticColors.border}`,
+  borderRadius: "0.5rem",
+  backgroundColor: semanticColors.surface0,
+  color: semanticColors.foreground,
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  fontSize: typographyValues.meta.fontSize,
+  lineHeight: "1.5",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
 });

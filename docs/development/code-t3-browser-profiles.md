@@ -83,9 +83,11 @@ products from the t3code-style workspace.
 
 ## Product Shape
 
-- The web fallback opens a HugeCode Browser launch window before navigating to the target site. This
-  window exposes browser-like chrome: tab title, address bar, HTTPS status, profile label, quick
-  starts, fingerprint profile, and explicit "Open Site" navigation.
+- The Electron desktop browser opens a persistent Chrome-like HugeCode Browser shell with tabs,
+  an address/search bar, HTTPS status, quick starts, and embedded web content hosted below the
+  renderer chrome. This applies to normal provider launches and the ChatGPT assistant launch.
+  The web fallback keeps the Chrome-like launch page and navigates away to the target site because
+  browser-hosted cross-origin pages cannot be embedded reliably there.
 - Browser profile, Hugerouter marketplace, Guest Pass, and Seat Pool controls live behind the
   dedicated Browser entry page in `apps/code-t3`. Keep the t3code workspace/sidebar close to upstream
   shape by exposing only a lightweight sidebar entry instead of embedding product management forms in

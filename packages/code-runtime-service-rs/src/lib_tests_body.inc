@@ -8579,7 +8579,7 @@ exit 1
             cache_path.as_path(),
             r#"{
   "models": [
-    { "slug": "gpt-5.4", "visibility": "list", "supported_in_api": true }
+    { "slug": "gpt-5.5", "visibility": "list", "supported_in_api": true }
   ]
 }"#,
         )
@@ -8618,7 +8618,7 @@ exit 1
         assert_eq!(payload["ok"], Value::Bool(true));
         let models = payload["result"].as_array().expect("models array");
         assert!(models.iter().any(|entry| {
-            entry["id"] == Value::String("gpt-5.4".to_string())
+            entry["id"] == Value::String("gpt-5.5".to_string())
                 && entry["provider"] == Value::String("openai".to_string())
                 && entry["available"] == Value::Bool(true)
                 && entry["source"] == Value::String("local-codex".to_string())

@@ -2,20 +2,28 @@ import { Button, Card, Chip, Input, TextArea } from "@heroui/react";
 import {
   ArrowLeft,
   ArrowRight,
+  Camera,
   ClipboardCheck,
   Copy,
   CreditCard,
-  ExternalLink,
+  Grid3X3,
   Globe2,
-  Key,
+  Home,
   KeyRound,
   Lock,
+  Mic,
+  MoreVertical,
   PackageCheck,
+  Pencil,
+  Plus,
   QrCode,
   RefreshCw,
   Search,
   ShieldCheck,
+  Star,
   TriangleAlert,
+  UserCircle,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -30,6 +38,7 @@ import {
   type T3ChatGptEncryptedSessionEnvelope,
   type T3ChatGptSessionAssessment,
 } from "../runtime/t3ChatGptRechargeAssistant";
+import { T3ChatGptBrowserAssistantCard } from "./T3ChatGptBrowserAssistantCard";
 import {
   buildT3LdxpFulfillmentActions,
   parseT3LdxpFulfillmentPrompt,
@@ -38,6 +47,13 @@ import {
   T3_LDXP_TEST_AMOUNT_CENTS,
   T3_LDXP_TEST_CATEGORY_LABEL,
 } from "../runtime/t3LdxpPurchaseAssistant";
+import { startT3CodexOAuthLogin } from "../runtime/t3CodexOAuth";
+import {
+  getT3BrowserChromeBridge,
+  type BrowserChromeCommandResult,
+  type BrowserChromeSnapshot,
+  type BrowserChromeTabState,
+} from "../runtime/t3BrowserChromeBridge";
 
 type BrowserLaunchPageProps = {
   initialContinuityMode: string | null;
@@ -46,6 +62,7 @@ type BrowserLaunchPageProps = {
   initialAppId: string | null;
   initialAppKey: string | null;
   initialAppLabel: string | null;
+  initialChatGptAssistant: boolean;
   initialIsolationMode: string | null;
   initialLdxpAssistant: boolean;
   initialProfileId: string;
@@ -56,14 +73,17 @@ type BrowserLaunchPageProps = {
 
 const QUICK_STARTS = [
   { label: "ChatGPT", url: "https://chatgpt.com/" },
-  { label: "Gemini", url: "https://gemini.google.com/app" },
   { label: "GitHub", url: "https://github.com/" },
+  { label: "Gemini", url: "https://gemini.google.com/app" },
+  { label: "Gmail", url: "https://mail.google.com/" },
+  { label: "YouTube", url: "https://www.youtube.com/" },
+  { label: "Maps", url: "https://maps.google.com/" },
   { label: "Linear", url: "https://linear.app/" },
-  { label: "Notion", url: "https://www.notion.so/" },
-  { label: "Slack", url: "https://app.slack.com/" },
 ] as const;
 
 export const T3_LDXP_BROWSER_DRAFT_STORAGE_KEY = "hugecode:ldxp-assistant-draft:v1";
+const T3_CODEX_OAUTH_BROWSER_WORKSPACE_ID = "workspace-web";
+const GOOGLE_SEARCH_URL = "https://www.google.com/search";
 
 type T3LdxpBrowserDraft = {
   fulfillmentText: string;
@@ -77,7 +97,22 @@ type LdxpTradeCheck = {
   summary: string;
 };
 
-function normalizeAddressInput(value: string) {
+const EMPTY_BROWSER_CHROME_SNAPSHOT: BrowserChromeSnapshot = {
+  activeTabId: "new-tab",
+  tabs: [
+    {
+      canGoBack: false,
+      canGoForward: false,
+      id: "new-tab",
+      loading: false,
+      securityState: "internal",
+      title: "New Tab",
+      url: "",
+    },
+  ],
+};
+
+export function normalizeAddressInput(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
     return null;
@@ -85,7 +120,22 @@ function normalizeAddressInput(value: string) {
   if (/^https?:\/\//iu.test(trimmed)) {
     return new URL(trimmed).toString();
   }
+  if (shouldOpenAsGoogleSearch(trimmed)) {
+    const searchUrl = new URL(GOOGLE_SEARCH_URL);
+    searchUrl.searchParams.set("q", trimmed);
+    return searchUrl.toString();
+  }
   return new URL(`https://${trimmed}`).toString();
+}
+
+function shouldOpenAsGoogleSearch(value: string) {
+  if (/\s/u.test(value)) {
+    return true;
+  }
+  if (value === "localhost" || value.includes(".") || value.includes(":")) {
+    return false;
+  }
+  return true;
 }
 
 function hostLabel(url: string) {
@@ -102,16 +152,6 @@ function isSecureUrl(url: string) {
   } catch {
     return false;
   }
-}
-
-function providerLabel(provider: string) {
-  if (provider === "chatgpt") {
-    return "ChatGPT";
-  }
-  if (provider === "gemini") {
-    return "Gemini";
-  }
-  return "Web";
 }
 
 function formatCny(cents: number) {
@@ -312,17 +352,435 @@ function localizeLdxpFulfillmentAction(action: string) {
   return action;
 }
 
+function BrowserChromeDesktopShell({
+  initialTargetUrl,
+}: Pick<BrowserLaunchPageProps, "initialTargetUrl">) {
+  const browserChromeBridge = useMemo(() => getT3BrowserChromeBridge(), []);
+  const [snapshot, setSnapshot] = useState<BrowserChromeSnapshot>(EMPTY_BROWSER_CHROME_SNAPSHOT);
+  const [addressDraft, setAddressDraft] = useState(initialTargetUrl);
+  const [error, setError] = useState<string | null>(null);
+  const activeTab = useMemo(
+    () => snapshot.tabs.find((tab) => tab.id === snapshot.activeTabId) ?? snapshot.tabs[0] ?? null,
+    [snapshot]
+  );
+  const activeTabUrl = activeTab?.url ?? "";
+  const activeTabTitle = activeTab?.title ?? "New Tab";
+  const showChromeHome = !activeTabUrl.trim();
+  const secure = activeTab?.securityState === "secure";
+  const insecure = activeTab?.securityState === "insecure";
+
+  useEffect(() => {
+    if (!browserChromeBridge) {
+      return undefined;
+    }
+    let mounted = true;
+    void browserChromeBridge
+      .getSnapshot()
+      .then((nextSnapshot) => {
+        if (mounted) {
+          setSnapshot(nextSnapshot);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setError("Unable to connect to the desktop browser host.");
+        }
+      });
+    const unsubscribe = browserChromeBridge.subscribe((nextSnapshot) => {
+      if (mounted) {
+        setSnapshot(nextSnapshot);
+      }
+    });
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [browserChromeBridge]);
+
+  useEffect(() => {
+    setAddressDraft(activeTabUrl);
+  }, [activeTab?.id, activeTabUrl]);
+
+  async function runBrowserChromeCommand(
+    command: () => Promise<BrowserChromeCommandResult>,
+    fallbackMessage: string
+  ) {
+    if (!browserChromeBridge) {
+      setError("Desktop browser host is unavailable.");
+      return;
+    }
+    try {
+      const result = await command();
+      setSnapshot(result.snapshot);
+      setError(result.ok ? null : result.errorMessage);
+    } catch {
+      setError(fallbackMessage);
+    }
+  }
+
+  function navigateActiveTab(nextAddress = addressDraft) {
+    void runBrowserChromeCommand(
+      () =>
+        browserChromeBridge!.navigate({
+          tabId: activeTab?.id ?? null,
+          url: nextAddress,
+        }),
+      "Unable to navigate this tab."
+    );
+  }
+
+  function createNewTab(url?: string) {
+    void runBrowserChromeCommand(
+      () => browserChromeBridge!.createTab({ activate: true, url: url ?? null }),
+      "Unable to create a new browser tab."
+    );
+  }
+
+  async function copyActiveAddress() {
+    try {
+      const normalized = normalizeAddressInput(activeTabUrl || addressDraft);
+      if (!normalized) {
+        setError("Open a page before copying the address.");
+        return;
+      }
+      await writeBrowserTextClipboard(normalized);
+      setError(null);
+    } catch {
+      setError("Unable to copy this address in the current browser context.");
+    }
+  }
+
+  function tabLabel(tab: BrowserChromeTabState) {
+    return tab.title.trim() || hostLabel(tab.url);
+  }
+
+  return (
+    <main className="browser-product-shell browser-product-shell-chrome browser-product-shell-desktop">
+      <header className="browser-product-topbar" aria-label="Browser window controls">
+        <div className="browser-product-window-controls" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+        <div className="browser-product-tab-strip" role="tablist" aria-label="Browser tabs">
+          {snapshot.tabs.map((tab) => (
+            <div
+              className="browser-product-tab"
+              data-active={tab.id === snapshot.activeTabId}
+              key={tab.id}
+              role="presentation"
+            >
+              <button
+                type="button"
+                className="browser-product-tab-main"
+                role="tab"
+                aria-selected={tab.id === snapshot.activeTabId}
+                onClick={() =>
+                  void runBrowserChromeCommand(
+                    () => browserChromeBridge!.activateTab({ tabId: tab.id }),
+                    "Unable to activate this tab."
+                  )
+                }
+              >
+                <Globe2 size={14} />
+                <span>{tabLabel(tab)}</span>
+              </button>
+              <Button
+                type="button"
+                aria-label={`Close ${tabLabel(tab)}`}
+                className="browser-product-tab-close"
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                onPress={() =>
+                  void runBrowserChromeCommand(
+                    () => browserChromeBridge!.closeTab({ tabId: tab.id }),
+                    "Unable to close this tab."
+                  )
+                }
+              >
+                <X size={13} />
+              </Button>
+            </div>
+          ))}
+        </div>
+        <Button
+          type="button"
+          aria-label="New tab"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          onPress={() => createNewTab()}
+        >
+          <Plus size={16} />
+        </Button>
+        <div className="browser-product-topbar-spacer" />
+      </header>
+
+      <section className="browser-product-toolbar" aria-label="Browser toolbar">
+        <Button
+          type="button"
+          aria-label="Back"
+          aria-disabled={!activeTab?.canGoBack}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          onPress={() => {
+            if (activeTab?.canGoBack) {
+              void runBrowserChromeCommand(
+                () => browserChromeBridge!.goBack({ tabId: activeTab.id }),
+                "Unable to go back."
+              );
+            }
+          }}
+        >
+          <ArrowLeft size={15} />
+        </Button>
+        <Button
+          type="button"
+          aria-label="Forward"
+          aria-disabled={!activeTab?.canGoForward}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          onPress={() => {
+            if (activeTab?.canGoForward) {
+              void runBrowserChromeCommand(
+                () => browserChromeBridge!.goForward({ tabId: activeTab.id }),
+                "Unable to go forward."
+              );
+            }
+          }}
+        >
+          <ArrowRight size={15} />
+        </Button>
+        <Button
+          type="button"
+          aria-label={activeTab?.loading ? "Stop" : "Reload"}
+          onPress={() =>
+            void runBrowserChromeCommand(
+              () =>
+                activeTab?.loading
+                  ? browserChromeBridge!.stop({ tabId: activeTab.id })
+                  : browserChromeBridge!.reload({ tabId: activeTab?.id ?? null }),
+              activeTab?.loading ? "Unable to stop loading." : "Unable to reload."
+            )
+          }
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          {activeTab?.loading ? <X size={15} /> : <RefreshCw size={15} />}
+        </Button>
+        <Button
+          type="button"
+          aria-label="Home"
+          onPress={() => {
+            setAddressDraft("");
+            createNewTab();
+          }}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <Home size={15} />
+        </Button>
+        <form
+          className={`browser-product-address ${secure ? "secure" : ""} ${insecure ? "insecure" : ""}`}
+          onSubmit={(event) => {
+            event.preventDefault();
+            navigateActiveTab();
+          }}
+        >
+          {secure ? (
+            <Lock size={14} />
+          ) : insecure ? (
+            <TriangleAlert size={14} />
+          ) : (
+            <Search size={14} />
+          )}
+          <Input
+            value={addressDraft}
+            onChange={(event) => setAddressDraft(event.target.value)}
+            aria-label="Browser address"
+            placeholder="Search Google or type a URL"
+            spellCheck={false}
+            variant="secondary"
+          />
+          <Button type="submit" aria-label="Go to address" isIconOnly size="sm" variant="ghost">
+            <Search size={14} />
+          </Button>
+        </form>
+        <Button
+          className="browser-product-desktop-action"
+          type="button"
+          aria-label="Bookmark"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <Star size={15} />
+        </Button>
+        <Button
+          className="browser-product-desktop-action"
+          type="button"
+          aria-label="Copy address"
+          onPress={() => void copyActiveAddress()}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <Copy size={15} />
+        </Button>
+        <Button
+          className="browser-product-desktop-action"
+          type="button"
+          aria-label="Chrome profile"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <UserCircle size={16} />
+        </Button>
+        <Button
+          className="browser-product-desktop-action"
+          type="button"
+          aria-label="Chrome menu"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <MoreVertical size={16} />
+        </Button>
+      </section>
+
+      <section
+        className={`browser-product-page browser-product-page-chrome ${showChromeHome ? "" : "browser-product-page-webview"}`}
+        aria-label="Desktop browser content"
+      >
+        {showChromeHome ? (
+          <section className="browser-product-start browser-product-chrome-home">
+            <nav className="browser-product-chrome-links" aria-label="Chrome home links">
+              <Button
+                className="browser-product-mobile-hidden"
+                type="button"
+                size="sm"
+                variant="ghost"
+              >
+                Gmail
+              </Button>
+              <Button
+                className="browser-product-mobile-hidden"
+                type="button"
+                size="sm"
+                variant="ghost"
+              >
+                Images
+              </Button>
+              <Button type="button" aria-label="Google apps" isIconOnly size="sm" variant="ghost">
+                <Grid3X3 size={16} />
+              </Button>
+              <Button
+                type="button"
+                aria-label="Chrome profile"
+                isIconOnly
+                size="sm"
+                variant="ghost"
+              >
+                <UserCircle size={18} />
+              </Button>
+            </nav>
+
+            <div className="browser-product-google-logo" aria-label="Google">
+              <span data-color="blue">G</span>
+              <span data-color="red">o</span>
+              <span data-color="yellow">o</span>
+              <span data-color="blue">g</span>
+              <span data-color="green">l</span>
+              <span data-color="red">e</span>
+            </div>
+
+            <form
+              className="browser-product-chrome-search"
+              aria-label="Search Google or type a URL"
+              onSubmit={(event) => {
+                event.preventDefault();
+                navigateActiveTab(addressDraft);
+              }}
+            >
+              <Search size={18} />
+              <Input
+                value={addressDraft}
+                onChange={(event) => setAddressDraft(event.target.value)}
+                aria-label="Search Google or type a URL"
+                placeholder="Search Google or type a URL"
+                spellCheck={false}
+                variant="secondary"
+              />
+              <Button type="button" aria-label="Voice search" isIconOnly size="sm" variant="ghost">
+                <Mic size={16} />
+              </Button>
+              <Button
+                type="button"
+                aria-label="Search by image"
+                isIconOnly
+                size="sm"
+                variant="ghost"
+              >
+                <Camera size={16} />
+              </Button>
+            </form>
+
+            {error ? <div className="browser-product-error">{error}</div> : null}
+
+            <div className="browser-product-grid" aria-label="Quick starts">
+              {QUICK_STARTS.map((entry) => (
+                <Button
+                  type="button"
+                  key={entry.url}
+                  className="browser-product-quick-start"
+                  onPress={() => navigateActiveTab(entry.url)}
+                  variant="ghost"
+                >
+                  <span>{entry.label.slice(0, 1)}</span>
+                  <strong>{entry.label}</strong>
+                </Button>
+              ))}
+              <Button
+                type="button"
+                className="browser-product-quick-start"
+                onPress={() => createNewTab()}
+                variant="ghost"
+              >
+                <span>
+                  <Plus size={20} />
+                </span>
+                <strong>Add shortcut</strong>
+              </Button>
+            </div>
+
+            <Button type="button" className="browser-product-customize" size="sm" variant="ghost">
+              <Pencil size={14} />
+              Customize Chrome
+            </Button>
+          </section>
+        ) : (
+          <div
+            className="browser-product-webview-placeholder"
+            aria-label="Desktop browser web content"
+          >
+            {error ? <div className="browser-product-error">{error}</div> : null}
+            <span>{activeTab?.loading ? `Opening ${activeTabTitle}` : activeTabTitle}</span>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
 export function BrowserLaunchPage({
-  initialAppId,
-  initialAppKey,
-  initialAppLabel,
-  initialContinuityMode,
-  initialContinuityStatus,
-  initialDeviceCount,
-  initialIsolationMode,
+  initialChatGptAssistant,
   initialLdxpAssistant,
-  initialProfileId,
-  initialProfileLabel,
   initialProvider,
   initialTargetUrl,
 }: BrowserLaunchPageProps) {
@@ -343,6 +801,8 @@ export function BrowserLaunchPage({
   const [chatGptCdkCode, setChatGptCdkCode] = useState("");
   const [chatGptVaultPassphrase, setChatGptVaultPassphrase] = useState("");
   const [chatGptVaultNotice, setChatGptVaultNotice] = useState<string | null>(null);
+  const [codexOAuthBusy, setCodexOAuthBusy] = useState(false);
+  const [codexOAuthNotice, setCodexOAuthNotice] = useState<string | null>(null);
   const [chatGptVaultAssessment, setChatGptVaultAssessment] =
     useState<T3ChatGptSessionAssessment | null>(null);
   const [chatGptEncryptedEnvelope, setChatGptEncryptedEnvelope] =
@@ -356,8 +816,9 @@ export function BrowserLaunchPage({
     });
   const secure = isSecureUrl(address);
   const currentHost = hostLabel(address);
-  const isLdxpAssistant = initialLdxpAssistant || isLdxpShopUrl(address);
-  const isChatGptRechargeAssistant = isChatGptUrl(address);
+  const isLdxpAssistant = initialLdxpAssistant;
+  const isChatGptRechargeAssistant =
+    initialChatGptAssistant && initialProvider === "chatgpt" && isChatGptUrl(address);
   const chatGptSessionAssessment = useMemo(
     () => chatGptVaultAssessment ?? assessT3ChatGptSession(chatGptSessionText),
     [chatGptSessionText, chatGptVaultAssessment]
@@ -417,21 +878,7 @@ export function BrowserLaunchPage({
     : ldxpTradeChecks.some((check) => check.level === "warning")
       ? "warning"
       : "success";
-  const provider = providerLabel(initialProvider);
-  const appLabel = initialAppLabel?.trim() || "Default app";
-  const profileBadge = useMemo(
-    () => `${initialProfileLabel}${initialProfileId === "current-browser" ? "" : " remote"}`,
-    [initialProfileId, initialProfileLabel]
-  );
-  const continuityDeviceCount = Number(initialDeviceCount ?? "1");
-  const normalizedContinuityDeviceCount = Number.isFinite(continuityDeviceCount)
-    ? Math.max(1, Math.trunc(continuityDeviceCount))
-    : 1;
-  const continuityReady = initialContinuityStatus === "ready";
-  const continuityMode =
-    initialContinuityMode === "remote-session-handoff"
-      ? "remote-session handoff"
-      : "local session only";
+  const tabTitle = address.trim() ? currentHost : "New Tab";
 
   useEffect(() => {
     if (!isLdxpAssistant) {
@@ -450,6 +897,10 @@ export function BrowserLaunchPage({
       // Draft persistence is a convenience; the visible workflow remains usable without it.
     }
   }, [isLdxpAssistant, ldxpFulfillmentText, ldxpPaid, ldxpPaymentText]);
+
+  if (!isLdxpAssistant && getT3BrowserChromeBridge()) {
+    return <BrowserChromeDesktopShell initialTargetUrl={initialTargetUrl} />;
+  }
 
   function navigateToAddress(nextAddress = address) {
     try {
@@ -506,6 +957,32 @@ export function BrowserLaunchPage({
   function openChatGptSession() {
     setAddress(T3_CHATGPT_SESSION_URL);
     navigateToAddress(T3_CHATGPT_SESSION_URL);
+  }
+
+  async function openCodexOAuthLogin() {
+    if (codexOAuthBusy) {
+      return;
+    }
+    setCodexOAuthBusy(true);
+    setCodexOAuthNotice(null);
+    setError(null);
+    try {
+      const login = await startT3CodexOAuthLogin(T3_CODEX_OAUTH_BROWSER_WORKSPACE_ID);
+      if (login.immediateSuccess) {
+        setCodexOAuthNotice("内置 Codex 已连接。");
+        return;
+      }
+      if (!login.authUrl.trim()) {
+        throw new Error("Runtime did not return a Codex OAuth authorization URL.");
+      }
+      setCodexOAuthNotice("已在内置浏览器打开 Codex 授权页；完成后会保存本机 auth.json。");
+      setAddress(login.authUrl);
+      navigateToAddress(login.authUrl);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Unable to start Codex OAuth.");
+    } finally {
+      setCodexOAuthBusy(false);
+    }
   }
 
   async function encryptChatGptSessionLocally() {
@@ -838,7 +1315,7 @@ export function BrowserLaunchPage({
   }
 
   return (
-    <main className="browser-product-shell">
+    <main className="browser-product-shell browser-product-shell-chrome">
       <header className="browser-product-topbar" aria-label="Browser window controls">
         <div className="browser-product-window-controls" aria-hidden="true">
           <span />
@@ -847,7 +1324,7 @@ export function BrowserLaunchPage({
         </div>
         <Card className="browser-product-tab active" variant="secondary">
           <Globe2 size={14} />
-          <span>{currentHost}</span>
+          <span>{tabTitle}</span>
         </Card>
         <Button
           type="button"
@@ -860,8 +1337,9 @@ export function BrowserLaunchPage({
             setError(null);
           }}
         >
-          +
+          <Plus size={16} />
         </Button>
+        <div className="browser-product-topbar-spacer" />
       </header>
 
       <section className="browser-product-toolbar" aria-label="Browser toolbar">
@@ -895,6 +1373,19 @@ export function BrowserLaunchPage({
         >
           <RefreshCw size={15} />
         </Button>
+        <Button
+          type="button"
+          aria-label="Home"
+          onPress={() => {
+            setAddress(T3_CHATGPT_HOME_URL);
+            navigateToAddress(T3_CHATGPT_HOME_URL);
+          }}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <Home size={15} />
+        </Button>
         <form
           className={`browser-product-address ${secure ? "secure" : "insecure"}`}
           onSubmit={(event) => {
@@ -915,6 +1406,17 @@ export function BrowserLaunchPage({
           </Button>
         </form>
         <Button
+          className="browser-product-desktop-action"
+          type="button"
+          aria-label="Bookmark"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <Star size={15} />
+        </Button>
+        <Button
+          className="browser-product-desktop-action"
           type="button"
           aria-label="Copy address"
           onPress={() => void copyAddress()}
@@ -924,382 +1426,157 @@ export function BrowserLaunchPage({
         >
           <Copy size={15} />
         </Button>
+        <Button
+          className="browser-product-desktop-action"
+          type="button"
+          aria-label="Chrome profile"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <UserCircle size={16} />
+        </Button>
+        <Button
+          className="browser-product-desktop-action"
+          type="button"
+          aria-label="Chrome menu"
+          isIconOnly
+          size="sm"
+          variant="ghost"
+        >
+          <MoreVertical size={16} />
+        </Button>
       </section>
 
-      <section className="browser-product-page">
-        <aside className="browser-product-sidebar" aria-label="Browser spaces">
-          <strong>HugeCode Browser</strong>
-          <span>{profileBadge}</span>
-          <Chip className="browser-product-space active" color="success" size="sm" variant="soft">
-            <ShieldCheck size={14} />
-            {appLabel}
-          </Chip>
-          <Chip className="browser-product-space" size="sm" variant="tertiary">
-            <Globe2 size={14} />
-            {provider}
-          </Chip>
-          <Card
-            className="browser-product-fingerprint"
-            variant="secondary"
-            aria-label="Product continuity"
-          >
-            <Card.Header className="browser-product-card-header">
-              <span>
-                <ShieldCheck size={14} />
-                Continuity
-              </span>
-            </Card.Header>
-            <strong>{continuityReady ? "ready" : "local only"}</strong>
-            <small>{normalizedContinuityDeviceCount} devices</small>
-            <small>{continuityMode}</small>
-          </Card>
-          {initialAppId ? (
-            <Card
-              className="browser-product-fingerprint"
-              variant="secondary"
-              aria-label="Isolated app scope"
-            >
-              <Card.Header className="browser-product-card-header">
-                <ShieldCheck size={14} />
-                App scope
-              </Card.Header>
-              <strong>{initialIsolationMode ?? "local-mock-app-scope"}</strong>
-              <small>{initialAppId}</small>
-              <small>{initialAppKey ?? "electron partition pending"}</small>
-            </Card>
-          ) : null}
-        </aside>
-
-        <section className="browser-product-start">
-          <div className="browser-product-hero">
-            <Chip
-              className={secure ? "secure" : "insecure"}
-              color={secure ? "success" : "danger"}
+      <section className="browser-product-page browser-product-page-chrome">
+        <section className="browser-product-start browser-product-chrome-home">
+          <nav className="browser-product-chrome-links" aria-label="Chrome home links">
+            <Button
+              className="browser-product-mobile-hidden"
+              type="button"
               size="sm"
-              variant="soft"
+              variant="ghost"
             >
-              {secure ? <Lock size={15} /> : <TriangleAlert size={15} />}
-              {secure ? "HTTPS connection" : "Not secure"}
-            </Chip>
-            <h1>
-              {isLdxpAssistant
-                ? "ldxp.cn AI 充值测试"
-                : isChatGptRechargeAssistant
-                  ? "ChatGPT 充值助手"
-                  : currentHost}
-            </h1>
-            {initialAppId ? (
-              <Card className="browser-product-fingerprint-banner" variant="secondary">
-                <ShieldCheck size={15} />
-                <span>
-                  <strong>Isolated app:</strong> {appLabel} uses appId {initialAppId}. This web mock
-                  carries isolation metadata; Electron will bind it to a dedicated partition later.
-                </span>
-              </Card>
-            ) : null}
-            <Card className="browser-product-fingerprint-banner" variant="secondary">
-              <ShieldCheck size={15} />
-              <span>
-                <strong>Product continuity:</strong>{" "}
-                {continuityReady
-                  ? `this site is prepared for ${normalizedContinuityDeviceCount} devices through remote-session metadata.`
-                  : "this launch uses the local browser session until Hugerouter sync is enabled."}{" "}
-                Browser state restores only through encrypted same-user profile migration; raw
-                credential export remains blocked.
-              </span>
-            </Card>
-            {isLdxpAssistant ? (
-              <Card
-                className="browser-product-ldxp-assistant"
-                variant="secondary"
-                aria-label="ldxp.cn AI recharge assistant"
-              >
-                <Card.Header className="browser-product-card-header">
-                  <span>
-                    <CreditCard size={14} />
-                    ldxp.cn AI 充值测试
-                  </span>
-                  <Chip
-                    color={ldxpPaid ? "success" : "warning"}
-                    size="sm"
-                    variant={ldxpPaid ? "soft" : "tertiary"}
-                  >
-                    {ldxpPaid ? "用户已支付" : "等待用户支付"}
-                  </Chip>
-                </Card.Header>
-                <div className="browser-product-ldxp-grid" aria-label="ldxp.cn product details">
-                  <span>
-                    <strong>店铺</strong>
-                    pay.ldxp.cn/shop/ku0
-                  </span>
-                  <span>
-                    <strong>分类</strong>
-                    {T3_LDXP_TEST_CATEGORY_LABEL}
-                  </span>
-                  <span>
-                    <strong>商品</strong>
-                    0.1 AI 充值测试商品
-                  </span>
-                  <span>
-                    <strong>金额</strong>
-                    {formatCny(T3_LDXP_TEST_AMOUNT_CENTS)}
-                  </span>
-                </div>
-                <small>
-                  在站点页面选择「{T3_LDXP_TEST_CATEGORY_LABEL}」分类和 0.1 商品。付款码必须来自
-                  ldxp.cn
-                  收银台；把页面显示的付款码、二维码内容或支付链接粘贴到这里后，再告知用户支付。
-                </small>
-                <label htmlFor="browser-ldxp-payment-code">
-                  <span>付款码 / 二维码内容 / 支付链接</span>
-                  <TextArea
-                    id="browser-ldxp-payment-code"
-                    value={ldxpPaymentText}
-                    onChange={(event) => setLdxpPaymentText(event.target.value)}
-                    aria-label="ldxp.cn payment code"
-                    rows={4}
-                    variant="secondary"
-                  />
-                </label>
-                <div
-                  className="browser-product-ldxp-payment"
-                  data-ready={ldxpPaymentPrompt.status === "payment_code_ready"}
-                >
-                  <QrCode size={15} />
-                  <span>
-                    <strong>{ldxpPaymentPrompt.summary}</strong>
-                    {ldxpPaymentPrompt.paymentCode ? (
-                      <small>付款码：{ldxpPaymentPrompt.paymentCode}</small>
-                    ) : (
-                      <small>等待 ldxp.cn 页面生成付款码。</small>
-                    )}
-                  </span>
-                </div>
-                <div className="browser-product-actions">
-                  <Button
-                    type="button"
-                    onPress={() => void copyLdxpPaymentBrief()}
-                    size="md"
-                    variant="outline"
-                  >
-                    <Copy size={15} />
-                    复制付款信息
-                  </Button>
-                  <Button
-                    type="button"
-                    onPress={() => setLdxpPaid(true)}
-                    aria-disabled={ldxpPaymentPrompt.status !== "payment_code_ready"}
-                    size="md"
-                    variant="primary"
-                  >
-                    <PackageCheck size={15} />
-                    用户已支付
-                  </Button>
-                </div>
-                <label htmlFor="browser-ldxp-fulfillment">
-                  <span>支付后页面提示 / 取货页文本</span>
-                  <TextArea
-                    id="browser-ldxp-fulfillment"
-                    value={ldxpFulfillmentText}
-                    onChange={(event) => setLdxpFulfillmentText(event.target.value)}
-                    aria-label="ldxp.cn fulfillment prompt"
-                    rows={5}
-                    variant="secondary"
-                  />
-                </label>
-                <div
-                  className="browser-product-ldxp-fulfillment"
-                  data-status={ldxpFulfillmentPrompt.status}
-                >
-                  <KeyRound size={15} />
-                  <span>
-                    <strong>{ldxpFulfillmentPrompt.summary}</strong>
-                    {ldxpFulfillmentPrompt.orderId ? (
-                      <small>订单：{ldxpFulfillmentPrompt.orderId}</small>
-                    ) : null}
-                    {ldxpFulfillmentPrompt.pickupCode ? (
-                      <small>取货码：{ldxpFulfillmentPrompt.pickupCode}</small>
-                    ) : null}
-                    {ldxpFulfillmentPrompt.cardKeys[0] ? (
-                      <small>卡密：{ldxpFulfillmentPrompt.cardKeys[0]}</small>
-                    ) : null}
-                  </span>
-                </div>
-                <div className="browser-product-ldxp-actions" aria-label="ldxp.cn next actions">
-                  {ldxpFulfillmentActions.map((action) => (
-                    <span key={action}>
-                      <ClipboardCheck size={13} />
-                      {action}
-                    </span>
-                  ))}
-                </div>
-              </Card>
-            ) : null}
-            {isChatGptRechargeAssistant ? (
-              <Card
-                className="browser-product-chatgpt-assistant"
-                variant="secondary"
-                aria-label="ChatGPT recharge assistant"
-              >
-                <Card.Header className="browser-product-card-header">
-                  <span>
-                    <Key size={14} />
-                    ChatGPT CDK 兑换检查
-                  </span>
-                  <Chip
-                    color={
-                      chatGptSessionAssessment.accountStatus === "free" ? "success" : "warning"
-                    }
-                    size="sm"
-                    variant="soft"
-                  >
-                    {chatGptSessionAssessment.accountStatus}
-                  </Chip>
-                </Card.Header>
-                <small>
-                  在同一浏览器会话里先打开 ChatGPT 确认登录，再打开 session 端点。粘贴 session JSON
-                  后仅解析登录和订阅状态；token、cookie、邮箱等敏感字段不会显示或保存。
-                </small>
-                <div className="browser-product-chatgpt-actions">
-                  <Button type="button" onPress={openChatGptHome} size="md" variant="outline">
-                    <ExternalLink size={15} />
-                    打开 ChatGPT
-                  </Button>
-                  <Button type="button" onPress={openChatGptSession} size="md" variant="outline">
-                    <ExternalLink size={15} />
-                    打开 session
-                  </Button>
-                </div>
-                <label htmlFor="browser-chatgpt-session">
-                  <span>session JSON（本地解析，敏感字段过滤）</span>
-                  <TextArea
-                    id="browser-chatgpt-session"
-                    value={chatGptSessionText}
-                    onChange={(event) => {
-                      setChatGptSessionText(event.target.value);
-                      setChatGptVaultAssessment(null);
-                    }}
-                    aria-label="ChatGPT session JSON"
-                    rows={6}
-                    variant="secondary"
-                  />
-                </label>
-                <label htmlFor="browser-chatgpt-vault-passphrase">
-                  <span>本地加密口令</span>
-                  <Input
-                    id="browser-chatgpt-vault-passphrase"
-                    value={chatGptVaultPassphrase}
-                    onChange={(event) => setChatGptVaultPassphrase(event.target.value)}
-                    aria-label="ChatGPT session vault passphrase"
-                    type="password"
-                    variant="secondary"
-                  />
-                </label>
-                <div className="browser-product-chatgpt-actions">
-                  <Button
-                    type="button"
-                    onPress={() => void encryptChatGptSessionLocally()}
-                    size="md"
-                    variant="outline"
-                  >
-                    <Key size={15} />
-                    加密保存
-                  </Button>
-                  <Button
-                    type="button"
-                    onPress={() => void decryptChatGptSessionForAssessment()}
-                    size="md"
-                    variant="outline"
-                  >
-                    <ShieldCheck size={15} />
-                    解密检查
-                  </Button>
-                  <Button
-                    type="button"
-                    onPress={forgetChatGptSessionVault}
-                    size="md"
-                    variant="outline"
-                  >
-                    <PackageCheck size={15} />
-                    移除本地密文
-                  </Button>
-                </div>
-                <div className="browser-product-chatgpt-vault" aria-label="ChatGPT session vault">
-                  <strong>
-                    {assessEncryptedT3ChatGptSessionEnvelope(chatGptEncryptedEnvelope)}
-                  </strong>
-                  <small>
-                    {chatGptVaultNotice ??
-                      "Session plaintext is never written to localStorage; only the encrypted envelope is stored."}
-                  </small>
-                </div>
-                <div
-                  className="browser-product-chatgpt-status"
-                  data-status={chatGptSessionAssessment.accountStatus}
-                >
-                  <ShieldCheck size={15} />
-                  <span>
-                    <strong>{chatGptSessionAssessment.safeSummary}</strong>
-                    <small>
-                      {chatGptSessionAssessment.hasSensitivePayload
-                        ? "Detected sensitive session fields and suppressed their values."
-                        : "No sensitive session field names detected in the pasted text."}
-                    </small>
-                  </span>
-                </div>
-                <label htmlFor="browser-chatgpt-cdk">
-                  <span>CDK 兑换码</span>
-                  <Input
-                    id="browser-chatgpt-cdk"
-                    value={chatGptCdkCode}
-                    onChange={(event) => setChatGptCdkCode(event.target.value)}
-                    aria-label="ChatGPT CDK code"
-                    variant="secondary"
-                  />
-                </label>
-                <div className="browser-product-chatgpt-next" aria-label="ChatGPT recharge next">
-                  {chatGptRechargeActions.map((action) => (
-                    <span key={action}>
-                      <ClipboardCheck size={13} />
-                      {action}
-                    </span>
-                  ))}
-                </div>
-              </Card>
-            ) : null}
-            {error ? <div className="browser-product-error">{error}</div> : null}
-            <div className="browser-product-actions">
-              <Button type="button" onPress={() => navigateToAddress()} size="md" variant="primary">
-                <ExternalLink size={15} />
-                Open Site
-              </Button>
-              <Button type="button" onPress={() => void copyAddress()} size="md" variant="outline">
-                <Copy size={15} />
-                Copy URL
-              </Button>
-            </div>
+              Gmail
+            </Button>
+            <Button
+              className="browser-product-mobile-hidden"
+              type="button"
+              size="sm"
+              variant="ghost"
+            >
+              Images
+            </Button>
+            <Button type="button" aria-label="Google apps" isIconOnly size="sm" variant="ghost">
+              <Grid3X3 size={16} />
+            </Button>
+            <Button type="button" aria-label="Chrome profile" isIconOnly size="sm" variant="ghost">
+              <UserCircle size={18} />
+            </Button>
+          </nav>
+
+          <div className="browser-product-google-logo" aria-label="Google">
+            <span data-color="blue">G</span>
+            <span data-color="red">o</span>
+            <span data-color="yellow">o</span>
+            <span data-color="blue">g</span>
+            <span data-color="green">l</span>
+            <span data-color="red">e</span>
           </div>
 
-          {!isLdxpAssistant && !isChatGptRechargeAssistant ? (
-            <div className="browser-product-grid" aria-label="Quick starts">
-              {QUICK_STARTS.map((entry) => (
-                <Button
-                  type="button"
-                  key={entry.url}
-                  className="browser-product-quick-start"
-                  onPress={() => {
-                    setAddress(entry.url);
-                    navigateToAddress(entry.url);
-                  }}
-                  variant="outline"
-                >
-                  <span>{entry.label.slice(0, 1)}</span>
-                  <strong>{entry.label}</strong>
-                  <small>{hostLabel(entry.url)}</small>
-                </Button>
-              ))}
+          <form
+            className="browser-product-chrome-search"
+            aria-label="Search Google or type a URL"
+            onSubmit={(event) => {
+              event.preventDefault();
+              navigateToAddress();
+            }}
+          >
+            <Search size={18} />
+            <Input
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+              aria-label="Search Google or type a URL"
+              placeholder="Search Google or type a URL"
+              spellCheck={false}
+              variant="secondary"
+            />
+            <Button type="button" aria-label="Voice search" isIconOnly size="sm" variant="ghost">
+              <Mic size={16} />
+            </Button>
+            <Button type="button" aria-label="Search by image" isIconOnly size="sm" variant="ghost">
+              <Camera size={16} />
+            </Button>
+          </form>
+
+          {error ? <div className="browser-product-error">{error}</div> : null}
+
+          <div className="browser-product-grid" aria-label="Quick starts">
+            {QUICK_STARTS.map((entry) => (
+              <Button
+                type="button"
+                key={entry.url}
+                className="browser-product-quick-start"
+                onPress={() => {
+                  setAddress(entry.url);
+                  navigateToAddress(entry.url);
+                }}
+                variant="ghost"
+              >
+                <span>{entry.label.slice(0, 1)}</span>
+                <strong>{entry.label}</strong>
+              </Button>
+            ))}
+            <Button
+              type="button"
+              className="browser-product-quick-start"
+              onPress={() => {
+                setAddress("");
+                setError(null);
+              }}
+              variant="ghost"
+            >
+              <span>
+                <Plus size={20} />
+              </span>
+              <strong>Add shortcut</strong>
+            </Button>
+          </div>
+
+          {isChatGptRechargeAssistant ? (
+            <div className="browser-product-assistant-panel">
+              <T3ChatGptBrowserAssistantCard
+                cdkCode={chatGptCdkCode}
+                codexOAuthBusy={codexOAuthBusy}
+                codexOAuthNotice={codexOAuthNotice}
+                encryptedEnvelopeLabel={assessEncryptedT3ChatGptSessionEnvelope(
+                  chatGptEncryptedEnvelope
+                )}
+                rechargeActions={chatGptRechargeActions}
+                sessionAssessment={chatGptSessionAssessment}
+                sessionText={chatGptSessionText}
+                vaultNotice={chatGptVaultNotice}
+                vaultPassphrase={chatGptVaultPassphrase}
+                onCdkCodeChange={setChatGptCdkCode}
+                onDecryptSession={() => void decryptChatGptSessionForAssessment()}
+                onEncryptSession={() => void encryptChatGptSessionLocally()}
+                onForgetSessionVault={forgetChatGptSessionVault}
+                onOpenChatGptHome={openChatGptHome}
+                onOpenChatGptSession={openChatGptSession}
+                onOpenCodexOAuthLogin={() => void openCodexOAuthLogin()}
+                onSessionTextChange={(value) => {
+                  setChatGptSessionText(value);
+                  setChatGptVaultAssessment(null);
+                }}
+                onVaultPassphraseChange={setChatGptVaultPassphrase}
+              />
             </div>
           ) : null}
+
+          <Button type="button" className="browser-product-customize" size="sm" variant="ghost">
+            <Pencil size={14} />
+            Customize Chrome
+          </Button>
         </section>
       </section>
     </main>

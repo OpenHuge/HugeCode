@@ -26,6 +26,11 @@ describe("hugeCodeRuntimeBridge", () => {
       },
       [CODE_RUNTIME_RPC_METHODS.MODELS_POOL]: [],
       [CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST]: [],
+      [CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2]: {
+        plan: {
+          planVersion: "plan-v1",
+        },
+      },
       [CODE_RUNTIME_RPC_METHODS.TURN_INTERRUPT]: { accepted: true },
       [CODE_RUNTIME_RPC_METHODS.TURN_SEND]: { accepted: true },
     };
@@ -68,28 +73,42 @@ describe("hugeCodeRuntimeBridge", () => {
       CODE_RUNTIME_RPC_METHODS.RUNTIME_BACKENDS_LIST,
       CODE_RUNTIME_RPC_METHODS.HUGEROUTER_COMMERCIAL_SERVICE_READ,
       CODE_RUNTIME_RPC_METHODS.HUGEROUTER_ROUTE_TOKEN_ISSUE,
+      CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,
       CODE_RUNTIME_RPC_METHODS.TURN_SEND,
       CODE_RUNTIME_RPC_METHODS.TURN_INTERRUPT,
       CODE_RUNTIME_RPC_METHODS.ACTION_REQUIRED_SUBMIT_V2,
     ]);
     expect(calls[0]?.params).toEqual(CODE_RUNTIME_RPC_EMPTY_PARAMS);
-    expect(calls[4]?.params).toEqual({
-      payload: expect.objectContaining({
+    expect(calls[4]?.params).toEqual(
+      expect.objectContaining({
         accessMode: "read-only",
-        content: "run tests",
-        executionMode: "local-cli",
         provider: "codex",
         requestId: "request-1",
+        steps: [{ input: "run tests", kind: "diagnostics" }],
         threadId: "thread-1",
-      }),
-    });
-    expect(calls[5]?.params).toEqual({
+        title: "Run tests",
+        workspaceId: "workspace-1",
+      })
+    );
+    expect(calls[5]?.params).toEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          accessMode: "read-only",
+          content: "run tests",
+          executionMode: "local-cli",
+          provider: "codex",
+          requestId: "request-1",
+          threadId: "thread-1",
+        }),
+      })
+    );
+    expect(calls[6]?.params).toEqual({
       payload: {
         reason: "user",
         turnId: "turn-1",
       },
     });
-    expect(calls[6]?.params).toEqual({
+    expect(calls[7]?.params).toEqual({
       kind: null,
       reason: null,
       requestId: "approval-1",
@@ -101,6 +120,13 @@ describe("hugeCodeRuntimeBridge", () => {
     const calls: Array<{ method: string; params: Record<string, unknown> }> = [];
     const invoke = <Result>(method: string, params: Record<string, unknown>) => {
       calls.push({ method, params });
+      if (method === CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2) {
+        return Promise.resolve({
+          plan: {
+            planVersion: "plan-v2",
+          },
+        } as Result);
+      }
       return Promise.resolve({ accepted: true, source: "embedded-codex-app-server" } as Result);
     };
     const bridge = createHugeCodeT3RuntimeBridgeFromInvoker(invoke);
@@ -120,16 +146,46 @@ describe("hugeCodeRuntimeBridge", () => {
 
     expect(calls).toEqual([
       {
+        method: CODE_RUNTIME_RPC_METHODS.RUN_PREPARE_V2,
+        params: expect.objectContaining({
+          accessMode: "read-only",
+          requestId: "request-2",
+          steps: [{ input: "summarize", kind: "read" }],
+          title: "Summarize",
+          workspaceId: "workspace-1",
+        }),
+      },
+      {
         method: CODE_RUNTIME_RPC_METHODS.TURN_SEND,
         params: expect.objectContaining({
           payload: expect.objectContaining({
-            codexArgs: null,
-            codexBin: null,
+            accessMode: "read-only",
             content: "summarize",
+            requestId: "request-2",
+            threadId: expect.any(String),
             executionProfileId: "runtime-default",
+            workspaceId: "workspace-1",
           }),
         }),
       },
     ]);
+  });
+
+  it("treats missing HugeRouter commercial service RPC support as optional", async () => {
+    const bridge = createHugeCodeT3RuntimeBridgeFromInvoker(
+      <Result>(method: string, _params: Record<string, unknown>) => {
+        if (method === CODE_RUNTIME_RPC_METHODS.HUGEROUTER_COMMERCIAL_SERVICE_READ) {
+          return Promise.reject(
+            new Error(
+              "Error invoking remote method 'hugecode:runtime:invoke': Error: Unsupported RPC method: code_hugerouter_commercial_service_read"
+            )
+          );
+        }
+        return Promise.resolve([] as Result);
+      }
+    );
+
+    await expect(bridge.readHugeRouterCommercialService?.()).resolves.toBeNull();
+    await expect(bridge.listModels()).resolves.toEqual([]);
   });
 });

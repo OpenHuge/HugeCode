@@ -158,6 +158,7 @@ export const CODE_RUNTIME_RPC_METHODS = {
   OAUTH_CHATGPT_AUTH_TOKENS_REFRESH: "code_oauth_chatgpt_auth_tokens_refresh",
   OAUTH_CODEX_LOGIN_START: "code_oauth_codex_login_start",
   OAUTH_CODEX_LOGIN_CANCEL: "code_oauth_codex_login_cancel",
+  OAUTH_CODEX_AUTH_JSON_IMPORT: "code_oauth_codex_auth_json_import",
   OAUTH_CODEX_ACCOUNTS_IMPORT_FROM_COCKPIT_TOOLS:
     "code_oauth_codex_accounts_import_from_cockpit_tools",
   LIVE_SKILLS_LIST: "code_live_skills_list",
