@@ -107,6 +107,7 @@ artifacts/fuzz
 
 .tmp
 .tmp-dict
+**/.validate-temp/
 .playwright-mcp
 .playwright-cli/
 .claude
