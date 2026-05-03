@@ -1,0 +1,33 @@
+{
+  "name": "@ku0/code-t3",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ./node_modules/vite/bin/vite.js --port 5197",
+    "build": "node ./node_modules/vite/bin/vite.js build",
+    "preview": "node ./node_modules/vite/bin/vite.js preview --port 4197",
+    "sync:check": "node scripts/check-upstream-sync.mjs",
+    "lint": "oxlint src",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@heroui/react": "^3.0.3",
+    "@heroui/styles": "^3.0.3",
+    "@ku0/code-runtime-host-contract": "workspace:*",
+    "@ku0/code-t3-runtime-adapter": "workspace:*",
+    "lucide-react": "^0.576.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "^5.9.3",
+    "vite": "8.0.2",
+    "vitest": "^4.1.1"
+  }
+}

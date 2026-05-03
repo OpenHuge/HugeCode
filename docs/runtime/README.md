@@ -101,6 +101,9 @@ Internal parity helpers such as `internal/runtime-policy-rs` may support tooling
   Client/runtime boundary notes for `apps/code`.
 - [code-runtime-provider-catalog.md](./code-runtime-provider-catalog.md)
   Runtime provider catalog and backend-facing capability notes.
+- [relay-assistant.md](./relay-assistant.md)
+  Settings/runtime helper for converting Sub2API, New API, One API, and custom
+  OpenAI-compatible relays into local provider-extension config.
 - [code-runtime-oauth-account-pool.md](./code-runtime-oauth-account-pool.md)
   Account-pool and provider-routing domain guidance.
 - [runtime-launch-readiness.md](./runtime-launch-readiness.md)

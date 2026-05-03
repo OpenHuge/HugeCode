@@ -88,11 +88,13 @@ describe("code-platform-interfaces", () => {
   it("normalizes, reads, and writes runtime composition settings per workspace", () => {
     const defaults = createDefaultRuntimeCompositionSettingsEntry("backend-default");
     expect(defaults.selection.preferredBackendIds).toEqual(["backend-default"]);
+    expect(defaults.selection.preferredRoutePluginIds).toEqual([]);
 
     const normalized = normalizeRuntimeCompositionSettingsByWorkspaceId({
       " workspace-a ": {
         selection: {
           profileId: " workspace-profile ",
+          preferredRoutePluginIds: [" route:codex ", "route:codex", ""],
           preferredBackendIds: ["backend-a", "backend-a", "", " backend-b "],
         },
         launchOverride: {
@@ -113,6 +115,7 @@ describe("code-platform-interfaces", () => {
     expect(normalized["workspace-a"]).toEqual({
       selection: {
         profileId: "workspace-profile",
+        preferredRoutePluginIds: ["route:codex"],
         preferredBackendIds: ["backend-a", "backend-b"],
       },
       launchOverride: {
@@ -145,6 +148,7 @@ describe("code-platform-interfaces", () => {
       {
         selection: {
           profileId: "workspace-profile",
+          preferredRoutePluginIds: ["route:codex"],
           preferredBackendIds: ["backend-primary"],
         },
         launchOverride: null,

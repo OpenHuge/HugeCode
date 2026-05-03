@@ -75,7 +75,7 @@ describe("collectPackagesWorkspaceHygiene", () => {
     await mkdir(join(staleArtifacts, "node_modules"), { recursive: true });
     await writeFile(join(staleArtifacts, "tsconfig.tsbuildinfo"), "{}", "utf8");
 
-    const unresolvedDir = join(packagesRoot, "x-router-service");
+    const unresolvedDir = join(packagesRoot, "unclaimed-service");
     await mkdir(join(unresolvedDir, ".turbo"), { recursive: true });
     await mkdir(join(unresolvedDir, "node_modules"), { recursive: true });
     await writeFile(join(unresolvedDir, ".env.example"), "PORT=3000\n", "utf8");
@@ -90,7 +90,7 @@ describe("collectPackagesWorkspaceHygiene", () => {
     expect(result.containerDirs).toEqual([]);
     expect(result.orphanCargoCrates).toEqual(["packages/keepup-tui"]);
     expect(result.staleArtifactDirs).toEqual(["packages/code-runtime-cache"]);
-    expect(result.unresolvedTopLevelDirs).toEqual(["packages/x-router-service"]);
+    expect(result.unresolvedTopLevelDirs).toEqual(["packages/unclaimed-service"]);
     expect(result.publicPackagesMissingReadme).toEqual(["@ku0/ingest-file", "@ku0/public-pkg"]);
     expect(result.publicPackagesMissingTest).toEqual(["@ku0/public-pkg"]);
   });

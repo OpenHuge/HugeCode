@@ -143,7 +143,7 @@ describe("classify-ci-change-scope", () => {
     const tempRoot = await createFixtureRepo();
     await commitChangedFile(
       tempRoot,
-      "apps/code/src/features/example/ExampleCard.stories.tsx",
+      "apps/code-t3/src/components/example/ExampleCard.stories.tsx",
       "export default {};\n"
     );
 
@@ -161,7 +161,7 @@ describe("classify-ci-change-scope", () => {
     const tempRoot = await createFixtureRepo();
     await commitChangedFile(
       tempRoot,
-      "apps/code/src/features/example/ExampleCard.test.tsx",
+      "apps/code-t3/src/components/example/ExampleCard.test.tsx",
       "export {};\n"
     );
 
@@ -216,7 +216,7 @@ describe("classify-ci-change-scope", () => {
     const tempRoot = await createFixtureRepo();
     await commitChangedFile(
       tempRoot,
-      "apps/code/src/app-shell.tsx",
+      "apps/code-t3/src/app-shell.tsx",
       "export const AppShell = () => null;\n"
     );
 
@@ -251,7 +251,7 @@ describe("classify-ci-change-scope", () => {
 
   it("still classifies startup and runtime-readiness files as frontend optimization work", async () => {
     const tempRoot = await createFixtureRepo();
-    await commitChangedFile(tempRoot, "apps/code/vite.config.ts", "export default {};\n");
+    await commitChangedFile(tempRoot, "apps/code-t3/vite.config.ts", "export default {};\n");
 
     const result = runClassifier(tempRoot);
     const outputs = parseOutputs(result.stdout);
@@ -263,11 +263,11 @@ describe("classify-ci-change-scope", () => {
     expect(outputs.get("ui_contract_required")).toBe("true");
   });
 
-  it("does not mark generic app frontend changes as desktop-manifest-driven work", async () => {
+  it("marks active t3 component changes as frontend optimization work", async () => {
     const tempRoot = await createFixtureRepo();
     await commitChangedFile(
       tempRoot,
-      "apps/code/src/features/update/banner.tsx",
+      "apps/code-t3/src/components/update/banner.tsx",
       "export const UpdateBanner = () => null;\n"
     );
 
@@ -275,7 +275,7 @@ describe("classify-ci-change-scope", () => {
     const outputs = parseOutputs(result.stdout);
 
     expect(result.status).toBe(0);
-    expect(outputs.get("desktop_manifest_changed")).toBe("false");
+    expect(outputs.get("frontend_optimization_changed")).toBe("true");
     expect(outputs.get("quality_core_changed")).toBe("true");
     expect(outputs.get("repo_governance_only")).toBe("false");
   });

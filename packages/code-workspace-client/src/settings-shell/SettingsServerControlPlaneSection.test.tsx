@@ -9,6 +9,7 @@ const mockRuntimeComposition = {
   settings: {
     selection: {
       profileId: "profile-1",
+      preferredRoutePluginIds: ["route:codex:embedded-app-server"],
       preferredBackendIds: ["backend-1"],
     },
     persistence: {
@@ -49,9 +50,9 @@ const mockRuntimeComposition = {
     id: "profile-1",
     name: "Workspace Default",
   },
-  previewProfileId: null,
-  previewResolution: null,
-  previewSnapshot: null,
+  previewProfileId: null as string | null,
+  previewResolution: null as Record<string, unknown> | null,
+  previewSnapshot: null as Record<string, unknown> | null,
   isLoading: false,
   isMutating: false,
   error: null,
@@ -252,6 +253,12 @@ describe("SettingsServerControlPlaneSection", () => {
     const onRefreshBackendPool = vi.fn();
     const onRefreshAutomationSchedules = vi.fn();
     const onOpenMissionTarget = vi.fn();
+    const onConnectHugeRouter = vi.fn();
+    const onRefreshHugeRouter = vi.fn();
+    const onOpenHugeRouterPlans = vi.fn();
+    const onOpenHugeRouterOrders = vi.fn();
+    const onIssueHugeRouterRouteToken = vi.fn();
+    const onApplyRelayConfig = vi.fn(async () => undefined);
 
     render(
       <SettingsServerControlPlaneSection
@@ -262,6 +269,69 @@ describe("SettingsServerControlPlaneSection", () => {
         defaultRemoteExecutionBackendId="backend-1"
         onSetDefaultExecutionBackend={onSetDefaultExecutionBackend}
         workspaceOptions={[{ id: "workspace-1", label: "Workspace One" }]}
+        hugeRouterCommercial={{
+          snapshot: {
+            connection: {
+              status: "connected",
+              tenantId: "tenant-1",
+              projectId: "project-1",
+              accountLabel: "Team Huge",
+              dashboardUrl: "https://router.example/dashboard",
+              routeBaseUrl: "https://router.example/v1",
+              diagnostics: ["Route receipts are available in HugeRouter."],
+            },
+            capacity: {
+              capacityKind: "reserved",
+              planId: "pro",
+              planName: "Pro",
+              includedMonthlyCredits: 100_000,
+              remainingCredits: 80_000,
+              concurrencyLimit: 16,
+              sharedCapacityEligible: true,
+              burstCapacityEligible: true,
+              resetsAt: 1_711_000_000_000,
+            },
+            availablePlans: [
+              {
+                planId: "pro",
+                name: "Pro",
+                description: null,
+                capacityKind: "reserved",
+                includedMonthlyCredits: 100_000,
+                currency: "USD",
+                unitPriceLabel: "$20 / seat",
+                orderUrl: "https://router.example/plans/pro",
+              },
+            ],
+            order: {
+              orderId: "order-1",
+              status: "active",
+              planId: "pro",
+              checkoutUrl: null,
+              manageUrl: "https://router.example/orders/order-1",
+              nextBillingAt: 1_712_000_000_000,
+            },
+            routeToken: {
+              tokenId: "token-1",
+              status: "active",
+              envKey: "HUGEROUTER_ROUTE_TOKEN",
+              expiresAt: 1_713_000_000_000,
+              scopes: ["responses"],
+              lastIssuedAt: 1_710_000_000_000,
+              lastFour: "1234",
+            },
+          },
+          operability: createSettingsServerOperabilityState(),
+          onConnect: onConnectHugeRouter,
+          onRefresh: onRefreshHugeRouter,
+          onOpenPlans: onOpenHugeRouterPlans,
+          onOpenOrders: onOpenHugeRouterOrders,
+          onIssueRouteToken: onIssueHugeRouterRouteToken,
+        }}
+        relayAssistant={{
+          defaultKind: "new-api",
+          onApplyConfig: onApplyRelayConfig,
+        }}
         backendPoolVisible
         backendPool={{
           backends: [],
@@ -334,7 +404,7 @@ describe("SettingsServerControlPlaneSection", () => {
       expect(mockRuntimeComposition.previewProfile).toHaveBeenCalledWith("profile-1");
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Refresh" })[1]!);
     expect(onRefreshBackendPool).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Refresh summaries" }));
@@ -356,10 +426,36 @@ describe("SettingsServerControlPlaneSection", () => {
     expect(screen.getByText(/Publisher session: publisher-session-1/)).toBeTruthy();
     expect(screen.getByText(/Selector decisions: profile: workspace-default/)).toBeTruthy();
     expect(screen.getByText(/Preview authority: stale \/ pending_publish/)).toBeTruthy();
+    expect(screen.getByText(/Status: connected \(Team Huge\)/)).toBeTruthy();
+    expect(screen.getByText(/Remaining credits: 80,000; concurrency: 16/)).toBeTruthy();
+    expect(screen.getByText(/Token: ending 1234/)).toBeTruthy();
+    expect(screen.getByText("Relay assistant")).toBeTruthy();
+    expect(screen.getByText(/Runtime provider: relay_new_api/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Connect HugeRouter" }));
+    expect(onConnectHugeRouter).toHaveBeenCalled();
+    fireEvent.click(screen.getAllByRole("button", { name: "Refresh" })[0]!);
+    expect(onRefreshHugeRouter).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "View plans" }));
+    expect(onOpenHugeRouterPlans).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "View orders" }));
+    expect(onOpenHugeRouterOrders).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Issue route token" }));
+    expect(onIssueHugeRouterRouteToken).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Apply locally" }));
+    await waitFor(() => {
+      expect(onApplyRelayConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerExtension: expect.objectContaining({
+            providerId: "relay_new_api",
+          }),
+        })
+      );
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Clear preview" }));
     expect(mockRuntimeComposition.clearPreview).toHaveBeenCalled();
-  });
+  }, 10_000);
 
   it("clears preview state when switching workspaces", async () => {
     render(
@@ -369,10 +465,13 @@ describe("SettingsServerControlPlaneSection", () => {
           { id: "backend-2", label: "Backend Two" },
         ]}
         defaultRemoteExecutionBackendId="backend-1"
+        onSetDefaultExecutionBackend={vi.fn()}
         workspaceOptions={[
           { id: "workspace-1", label: "Workspace One" },
           { id: "workspace-2", label: "Workspace Two" },
         ]}
+        backendPoolVisible={false}
+        backendPool={null}
       />
     );
 

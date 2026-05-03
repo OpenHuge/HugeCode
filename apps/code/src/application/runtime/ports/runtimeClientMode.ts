@@ -1,1 +1,0 @@
-export { detectRuntimeMode } from "../runtimeClientMode";

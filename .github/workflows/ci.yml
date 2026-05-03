@@ -33,8 +33,6 @@ jobs:
       diff_base: ${{ steps.context.outputs.diff_base }}
       fast_pr_iteration_mode: ${{ github.event_name == 'pull_request' && vars.MERGE_QUEUE_ENABLED != 'false' }}
       runtime_contract_changed: ${{ steps.filter.outputs.runtime_contract }}
-      desktop_host_changed: ${{ steps.filter.outputs.desktop_host }}
-      desktop_fast_verify_required: ${{ steps.filter.outputs.desktop_host == 'true' || steps.scope.outputs.desktop_manifest_changed == 'true' }}
       repo_sot_changed: ${{ steps.filter.outputs.repo_sot }}
       repo_governance_only: ${{ steps.scope.outputs.repo_governance_only }}
       frontend_optimization_changed: ${{ steps.scope.outputs.frontend_optimization_changed }}
@@ -90,13 +88,11 @@ jobs:
               - 'packages/code-runtime-host-contract/**'
               - 'packages/native-runtime-host-contract/**'
               - 'packages/code-runtime-service-rs/src/**'
-              - 'apps/code/src/services/runtimeClient*'
+              - 'apps/code-t3/src/runtime/**'
               - 'docs/runtime/spec/**'
               - 'docs/specs/code-runtime-spec-2026.md'
               - 'docs/specs/code-runtime/**'
               - 'scripts/check-runtime-sot.mjs'
-            desktop_host:
-              - 'apps/code-electron/**'
             repo_sot:
               - '.nvmrc'
               - '.devcontainer/devcontainer.json'
@@ -196,7 +192,6 @@ jobs:
     with:
       affected_mode: ${{ needs.changes.outputs.affected_mode == 'true' }}
       ci_required: ${{ needs.changes.outputs.ci_required == 'true' }}
-      desktop_fast_verify_required: ${{ needs.changes.outputs.desktop_fast_verify_required == 'true' }}
       ui_contract_required: ${{ needs.changes.outputs.ui_contract_required == 'true' }}
       circular_required: ${{ needs.changes.outputs.circular_required == 'true' }}
       integration_watch_required: ${{ needs.changes.outputs.integration_watch_required == 'true' }}
@@ -328,7 +323,7 @@ jobs:
           name: build-output
           path: |
             packages/*/dist/
-            apps/code/dist/
+            apps/code-t3/dist/
           compression-level: 0
           retention-days: 1
 
@@ -355,8 +350,8 @@ jobs:
 
       - name: Verify dist artifacts
         run: |
-          echo "Checking apps/code/dist structure:"
-          ls -R apps/code/dist/ || echo "No apps/code dist folder!"
+          echo "Checking apps/code-t3/dist structure:"
+          ls -R apps/code-t3/dist/ || echo "No apps/code-t3 dist folder!"
 
       - name: Test (shard ${{ matrix.shard }}/4)
         run: pnpm vitest run --shard=${{ matrix.shard }}/4

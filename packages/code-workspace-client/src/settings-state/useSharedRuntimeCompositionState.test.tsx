@@ -33,7 +33,7 @@ function createCompositionSnapshot(
         enabled: true,
         pluginSelectors: [],
         routePolicy: {
-          preferredRoutePluginIds: [],
+          preferredRoutePluginIds: ["route:codex:embedded-app-server"],
           providerPreference: [],
           allowRuntimeFallback: true,
         },
@@ -90,6 +90,7 @@ function createBindings() {
   let compositionSettings: RuntimeCompositionSettingsEntry = {
     selection: {
       profileId: "workspace-default",
+      preferredRoutePluginIds: ["route:codex:embedded-app-server"],
       preferredBackendIds: ["backend-primary"],
     },
     launchOverride: null,
@@ -322,6 +323,9 @@ describe("useSharedRuntimeCompositionState", () => {
       workspaceId: "workspace-1",
       profileId: "workspace-default",
       launchOverride: {
+        routePolicy: {
+          preferredRoutePluginIds: ["route:codex:embedded-app-server"],
+        },
         backendPolicy: {
           preferredBackendIds: ["backend-primary"],
         },

@@ -72,6 +72,7 @@ fn local_codex_command_config_overrides(workspace_path: Option<&str>) -> Vec<Str
 fn resolve_local_codex_exec_command_args(
     workspace_path: &str,
     content: &str,
+    model_id: Option<&str>,
     access_mode: &str,
     output_path: &str,
     codex_args: &[String],
@@ -85,6 +86,10 @@ fn resolve_local_codex_exec_command_args(
         .map(str::to_string)
         .collect::<Vec<_>>();
     args.push("exec".to_string());
+    if let Some(model_id) = model_id.map(str::trim).filter(|value| !value.is_empty()) {
+        args.push("--model".to_string());
+        args.push(model_id.to_string());
+    }
     args.push("--ephemeral".to_string());
     args.push("--skip-git-repo-check".to_string());
     args.push("--output-last-message".to_string());
@@ -101,6 +106,7 @@ fn resolve_local_codex_exec_command_args(
 pub(super) async fn query_local_codex_exec_turn(
     workspace_path: &str,
     content: &str,
+    model_id: Option<&str>,
     access_mode: &str,
     codex_bin_override: Option<&str>,
     codex_args: &[String],
@@ -124,6 +130,7 @@ pub(super) async fn query_local_codex_exec_turn(
     let command_args = resolve_local_codex_exec_command_args(
         workspace,
         content,
+        model_id,
         access_mode,
         output_path.to_string_lossy().as_ref(),
         codex_args,
@@ -247,6 +254,7 @@ mod tests {
         let args = resolve_local_codex_exec_command_args(
             "/tmp/workspace",
             "hello",
+            Some("gpt-5.3-codex"),
             "on-request",
             "/tmp/out.txt",
             &["--profile".to_string(), "personal".to_string()],
@@ -264,6 +272,8 @@ mod tests {
                 "-c".to_string(),
                 "mcp_servers.figma.enabled=false".to_string(),
                 "exec".to_string(),
+                "--model".to_string(),
+                "gpt-5.3-codex".to_string(),
                 "--ephemeral".to_string(),
                 "--skip-git-repo-check".to_string(),
                 "--output-last-message".to_string(),

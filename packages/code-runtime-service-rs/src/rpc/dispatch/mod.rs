@@ -12,6 +12,8 @@ mod mini_program_dispatch;
 mod codex_dispatch;
 #[path = "../../rpc_dispatch_diagnostics_export.rs"]
 mod diagnostics_export_dispatch;
+#[path = "../../rpc_dispatch_hugerouter_commercial.rs"]
+mod hugerouter_commercial_dispatch;
 #[path = "../../rpc_dispatch_kernel.rs"]
 mod kernel_dispatch;
 #[path = "../../rpc_dispatch_mission_control.rs"]
@@ -87,6 +89,9 @@ use kernel_dispatch::{
     handle_kernel_extensions_list_v2, handle_kernel_jobs_list_v2,
     handle_kernel_policies_evaluate_v2, handle_kernel_projection_bootstrap_v3,
     handle_kernel_sessions_list_v2,
+};
+use hugerouter_commercial_dispatch::{
+    handle_hugerouter_commercial_service_read, handle_hugerouter_route_token_issue,
 };
 pub(crate) use kernel_dispatch::build_kernel_projection_delta_v3;
 use mission_control_dispatch::handle_mission_control_snapshot_v1;
@@ -167,6 +172,12 @@ pub(crate) async fn handle_rpc(
         "code_terminal_status" => Ok(terminal_status_payload(ctx).await),
         "code_models_pool" => Ok(json!(build_models_pool(ctx).await)),
         "code_providers_catalog" => Ok(json!(build_providers_catalog(ctx).await)),
+        "code_hugerouter_commercial_service_read" => {
+            handle_hugerouter_commercial_service_read(ctx).await
+        }
+        "code_hugerouter_route_token_issue" => {
+            handle_hugerouter_route_token_issue(ctx, params).await
+        }
         "code_mission_control_snapshot_v1" => handle_mission_control_snapshot_v1(ctx, params).await,
         "code_bootstrap_snapshot" => handle_bootstrap_snapshot(ctx).await,
         "code_rpc_batch" => handle_rpc_batch(ctx, params).await,

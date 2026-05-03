@@ -25,7 +25,6 @@ use prepare_planes::{build_context_plane, build_eval_plane, build_tooling_plane}
 use run_id::parse_run_id;
 use sub_agent_materialization::materialize_parallel_safe_sub_agent_lanes;
 use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
-
 fn normalize_execution_mode_v2(value: Option<&str>) -> Result<&'static str, RpcError> {
     let normalized = value
         .unwrap_or("single")
@@ -40,7 +39,6 @@ fn normalize_execution_mode_v2(value: Option<&str>) -> Result<&'static str, RpcE
         ))),
     }
 }
-
 fn infer_mission_objective_v2(request: &AgentTaskStartRequest) -> Option<String> {
     trim_optional_string(request.title.clone())
         .or_else(|| {
@@ -1609,7 +1607,9 @@ pub(crate) async fn handle_runtime_run_start_v2(
         .or_else(|| start.get("runId"))
         .and_then(Value::as_str)
         .ok_or_else(|| RpcError::internal("runtime run start v2 missing taskId"))?;
-    materialize_parallel_safe_sub_agent_lanes(ctx, run_id, &request, &prepare).await;
+    if normalize_execution_mode_v2(request.execution_mode.as_deref())? == "distributed" {
+        materialize_parallel_safe_sub_agent_lanes(ctx, run_id, &request, &prepare).await;
+    }
     build_run_record_v2(ctx, run_id).await
 }
 

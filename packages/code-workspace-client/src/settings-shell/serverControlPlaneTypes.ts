@@ -1,3 +1,9 @@
+import type { HugeRouterCommercialServiceSnapshot } from "@ku0/code-runtime-host-contract";
+import type {
+  SettingsRelayAssistantGeneratedConfig,
+  SettingsRelayAssistantKind,
+} from "./relayAssistant";
+
 export type SettingsServerCompactSelectProps = {
   className: string;
   triggerClassName: string;
@@ -247,12 +253,29 @@ export type SettingsAutomationScheduleActionAvailability = {
   cancelRunEnabled?: boolean;
 };
 
+export type SettingsHugeRouterCommercialSurface = {
+  snapshot: HugeRouterCommercialServiceSnapshot | null;
+  operability?: SettingsServerOperabilityState;
+  onConnect?: () => void | Promise<void>;
+  onRefresh?: () => void | Promise<void>;
+  onOpenPlans?: () => void | Promise<void>;
+  onOpenOrders?: () => void | Promise<void>;
+  onIssueRouteToken?: () => void | Promise<void>;
+};
+
+export type SettingsRelayAssistantSurface = {
+  defaultKind?: SettingsRelayAssistantKind;
+  onApplyConfig?: (config: SettingsRelayAssistantGeneratedConfig) => void | Promise<void>;
+};
+
 export type SettingsServerControlPlaneSectionProps = {
   isMobileSimplified?: boolean;
   remoteExecutionBackendOptions: Array<{ id: string; label: string }>;
   defaultRemoteExecutionBackendId: string | null;
   onSetDefaultExecutionBackend: (backendId: string | null) => Promise<void> | void;
   workspaceOptions: Array<{ id: string; label: string }>;
+  hugeRouterCommercial?: SettingsHugeRouterCommercialSurface | null;
+  relayAssistant?: SettingsRelayAssistantSurface | null;
   backendPoolVisible: boolean;
   backendPool: SettingsServerBackendPoolSnapshot | null;
   backendPoolLoading?: boolean;

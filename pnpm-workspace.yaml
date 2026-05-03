@@ -1,9 +1,5 @@
 packages:
-  - "apps/code"
-  # Cloudflare platform web shell. Keep this in the workspace and default
-  # quality gates because it is the active public-route and SSR surface.
-  - "apps/code-web"
-  - "apps/code-electron"
+  - "apps/code-t3"
   - "packages/*"
   - "tests/*"
 nodeVersion: 24.11.1
@@ -16,11 +12,8 @@ strictDepBuilds: true
 # the signal visible when a fresh install is actually needed.
 verifyDepsBeforeRun: warn
 allowBuilds:
-  electron: true
-  electron-winstaller: true
   esbuild: true
   fs-xattr: true
-  macos-alias: true
   sharp: true
   workerd: true
 overrides:
@@ -37,6 +30,3 @@ overrides:
   "tar@<=7.5.3": ">=7.5.4"
   "undici@<5.29.0": ">=5.29.0"
   "undici@<6.23.0": ">=6.23.0"
-
-patchedDependencies:
-  electron-installer-common@0.10.4: patches/electron-installer-common@0.10.4.patch

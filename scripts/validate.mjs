@@ -665,6 +665,9 @@ function shouldSkipOxcTarget(filePath) {
   if (filePath.startsWith("apps/code/public/vendor/")) {
     return true;
   }
+  if (filePath.startsWith("apps/code-t3/upstream/") || filePath.startsWith(".codex/vendor/")) {
+    return true;
+  }
   return filePath.endsWith(".min.js") || filePath.endsWith(".min.css");
 }
 

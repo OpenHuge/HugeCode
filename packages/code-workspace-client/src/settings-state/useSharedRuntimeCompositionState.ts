@@ -36,31 +36,37 @@ function convertCompositionSnapshotToResolution(
 function buildLaunchOverride(
   settings: RuntimeCompositionSettingsEntry
 ): RuntimeCompositionProfileLaunchOverride | null {
+  const preferredRoutePluginIds =
+    settings.selection.preferredRoutePluginIds.length > 0
+      ? settings.selection.preferredRoutePluginIds
+      : (settings.launchOverride?.routePolicy?.preferredRoutePluginIds ?? []);
   const preferredBackendIds =
     settings.selection.preferredBackendIds.length > 0
       ? settings.selection.preferredBackendIds
       : (settings.launchOverride?.backendPolicy?.preferredBackendIds ?? []);
   const launchOverride = settings.launchOverride;
-  const routePolicy = launchOverride?.routePolicy
-    ? {
-        ...(launchOverride.routePolicy.preferredRoutePluginIds !== undefined
-          ? {
-              preferredRoutePluginIds: launchOverride.routePolicy.preferredRoutePluginIds ?? [],
-            }
-          : {}),
-        ...(launchOverride.routePolicy.providerPreference !== undefined
-          ? {
-              providerPreference: launchOverride.routePolicy.providerPreference ?? [],
-            }
-          : {}),
-        ...(launchOverride.routePolicy.allowRuntimeFallback !== null &&
-        launchOverride.routePolicy.allowRuntimeFallback !== undefined
-          ? {
-              allowRuntimeFallback: launchOverride.routePolicy.allowRuntimeFallback,
-            }
-          : {}),
-      }
-    : undefined;
+  const routePolicy =
+    preferredRoutePluginIds.length > 0 || launchOverride?.routePolicy
+      ? {
+          ...(preferredRoutePluginIds.length > 0 ||
+          launchOverride?.routePolicy?.preferredRoutePluginIds !== undefined
+            ? {
+                preferredRoutePluginIds,
+              }
+            : {}),
+          ...(launchOverride?.routePolicy?.providerPreference !== undefined
+            ? {
+                providerPreference: launchOverride.routePolicy.providerPreference ?? [],
+              }
+            : {}),
+          ...(launchOverride?.routePolicy?.allowRuntimeFallback !== null &&
+          launchOverride?.routePolicy?.allowRuntimeFallback !== undefined
+            ? {
+                allowRuntimeFallback: launchOverride.routePolicy.allowRuntimeFallback,
+              }
+            : {}),
+        }
+      : undefined;
   const backendPolicy =
     preferredBackendIds.length > 0 || launchOverride?.backendPolicy?.resolvedBackendId !== undefined
       ? {

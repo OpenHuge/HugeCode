@@ -44,6 +44,8 @@ pub(super) const RPC_METHOD_REGISTRY: &[RpcMethodEntry] = &[
     RpcMethodEntry::new("code_terminal_status"),
     RpcMethodEntry::new("code_models_pool"),
     RpcMethodEntry::new("code_providers_catalog"),
+    RpcMethodEntry::new("code_hugerouter_commercial_service_read"),
+    RpcMethodEntry::new("code_hugerouter_route_token_issue"),
     RpcMethodEntry::new("code_workspaces_list"),
     RpcMethodEntry::new("code_mission_control_snapshot_v1"),
     RpcMethodEntry::new("code_bootstrap_snapshot"),

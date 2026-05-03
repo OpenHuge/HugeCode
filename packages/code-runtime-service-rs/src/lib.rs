@@ -179,6 +179,7 @@ use distributed_runtime::{
     normalize_distributed_dispatch_error_message, normalize_distributed_dispatch_error_source,
     resolve_cached_distributed_readiness_snapshot, truncate_chars_with_ellipsis,
 };
+use local_claude_exec_path::local_claude_external_auth_configured;
 use local_claude_exec_turn::{
     clear_local_claude_thread_session, persist_local_claude_thread_session,
     query_local_claude_exec_turn, read_local_claude_cli_readiness, LocalClaudeExecTurnInput,
@@ -411,6 +412,7 @@ const CODE_RUNTIME_RPC_FEATURES: &[&str] = &[
     "runtime_invocation_host_registry_v1",
     "runtime_codex_execpolicy_preflight_v1",
     "runtime_codex_unified_rpc_migration_v1",
+    "hugerouter_commercial_service_v1",
     "runtime_host_deprecated",
     "app_server_protocol_v2_2026_03_25",
     "contract_frozen_2026_03_25",

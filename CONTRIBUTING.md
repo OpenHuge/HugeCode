@@ -26,13 +26,13 @@ Use the canonical docs before deeper work:
 - `pnpm dev`
   Starts the main HugeCode coding workspace.
 - `pnpm dev:code:ui`
-  Starts the `apps/code` Vite UI only.
+  Starts the `apps/code-t3` Vite UI only.
 - `pnpm dev:code:service`
   Starts the Rust-first code runtime service only.
-- `pnpm dev:desktop`
-  Starts the Electron desktop shell for `apps/code`.
 - `pnpm dev:code:runtime-gateway-web:all`
   Starts the coding workspace with the local web runtime gateway flow.
+- `pnpm code-t3:build`
+  Builds the active t3 app.
 
 ## Validation Policy
 
@@ -51,10 +51,8 @@ Additional targeted checks:
 
 - `pnpm test:e2e:<category>`
   Run only the relevant Playwright category.
-- `pnpm desktop:verify`
-  Required for desktop integration work.
 - `pnpm ui:contract`
-  Required for `apps/code` UI/runtime boundary work.
+  Required for app/runtime boundary work.
 - `pnpm repo:doctor`
   Repo-wide source-of-truth, governance, and readiness checks.
 
@@ -69,12 +67,12 @@ Use this checklist:
 - TypeScript, React state, runtime facade, or shared contract changes:
   run `pnpm typecheck:affected` at minimum, and prefer `pnpm validate` for the
   default pre-PR gate.
-- `apps/code` behavior, UI copy, OAuth/account flows, settings flows, or other
+- `apps/code-t3` behavior, UI copy, OAuth/account flows, settings flows, or other
   browser-visible interaction changes:
-  run `pnpm test:affected`; add `pnpm test:component` when the regression risk
-  is centered in rendered browser behavior.
+  run `pnpm --filter @ku0/code-t3 test`,
+  `pnpm --filter @ku0/code-t3 typecheck`, and `pnpm code-t3:build`.
 - Frontend startup, runtime bootstrap, shell wiring, bundle-sensitive UI,
-  `apps/code` build behavior, or dependency changes that can affect browser
+  `apps/code-t3` build behavior, or dependency changes that can affect browser
   startup:
   run `pnpm validate:frontend-optimization` before asking CI to run the same
   expensive lane.
@@ -97,12 +95,11 @@ validation evidence that matches the changed surface.
 ## Working Rules
 
 - Do not introduce `any`, unused imports, or non-semantic clickable elements.
-- Do not add Tailwind to the repo; active UI surfaces standardize on `vanilla-extract`.
+- Do not add inline styles to the repo; shared package UI surfaces standardize on `vanilla-extract`.
 - Do not add inline styles.
 - Do not add Yjs; the active collaboration model remains Loro-based.
-- Treat `apps/code/src/application/runtime/*` as the stable runtime API for the UI.
-- Do not import `apps/code/src/services/*` runtime internals directly from feature/UI code.
+- Treat `apps/code-t3/src/runtime/*` as the active t3 runtime integration boundary.
 - Treat undocumented placeholder directories under `apps/` as inactive entrypoints.
-- Do not introduce new primary app narratives outside `apps/code`, `apps/code-web`, and `apps/code-electron` without an ADR and a tracked manifest.
+- Do not introduce new primary app narratives outside `apps/code-t3` without an ADR and a tracked manifest.
 - Use `runtime-policy` for policy-domain packages, examples, fixtures, and docs.
 - For docs-only changes, state that the work is docs-only and has no runtime impact.

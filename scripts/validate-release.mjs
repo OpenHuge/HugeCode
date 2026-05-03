@@ -36,7 +36,7 @@ runNodeScript("scripts/validate.mjs", ["--run-e2e", "--e2e=smoke,a11y,core,featu
   ...process.env,
   STYLE_BUDGET_PROFILE: "release",
 });
-runPnpm(["--filter", "@ku0/code", "build"]);
+runPnpm(["--filter", "@ku0/code-t3", "build"]);
 runPnpm(["check:code:bundle-budget"]);
 runPnpm(["test:e2e:ux-audit"], {
   ...process.env,

@@ -2,7 +2,7 @@
 
 > Machine-readable project guide for AI coding agents.
 > Official product context: **HugeCode**.
-> Legacy docs may reference **Keep-Up** or **Reader**. Default active app context: `apps/code`.
+> Legacy docs may reference **Keep-Up** or **Reader**. Default active app context: `apps/code-t3`.
 > A retired product-branded alias has been fully removed from tracked repo paths and file content. Do not reintroduce deleted placeholder surfaces, product-branded policy package names, or pre-`project-context:*` generator sentinels.
 
 ## Agent Entry Points
@@ -39,26 +39,25 @@ A task is not done until the agent has, within the task scope:
 
 ## Project Overview
 
-| Item      | Detail                                                                                                         |
-| --------- | -------------------------------------------------------------------------------------------------------------- |
-| Stack     | TypeScript, React 19, pnpm 10 monorepo, Turbo, Vite, Rust (native accelerators)                                |
-| Namespace | `@ku0/*` (TS) and `ku0-*` (Rust crates)                                                                        |
-| Core App  | `apps/code` (UI) + `apps/code-electron` (Electron desktop shell) + `apps/code-web` (Cloudflare web shell)      |
-| CRDT      | Loro only; never add Yjs                                                                                       |
-| Styling   | `vanilla-extract` (`.css.ts`) + CSS custom properties across active UI surfaces; no Tailwind, no inline styles |
-| Linter    | Oxlint (TS/JS/JSX) and Clippy (Rust)                                                                           |
-| Formatter | `pnpm format` (Oxfmt) and `cargo fmt` (Rust)                                                                   |
+| Item      | Detail                                                                                               |
+| --------- | ---------------------------------------------------------------------------------------------------- |
+| Stack     | TypeScript, React 19, pnpm 10 monorepo, Turbo, Vite, Rust (native accelerators)                      |
+| Namespace | `@ku0/*` (TS) and `ku0-*` (Rust crates)                                                              |
+| Core App  | `apps/code-t3` (t3-derived React 19 + Vite workspace UI)                                             |
+| CRDT      | Loro only; never add Yjs                                                                             |
+| Styling   | `apps/code-t3` uses its t3 styling stack; shared UI packages use `vanilla-extract`; no inline styles |
+| Linter    | Oxlint (TS/JS/JSX) and Clippy (Rust)                                                                 |
+| Formatter | `pnpm format` (Oxfmt) and `cargo fmt` (Rust)                                                         |
 
 ## Architecture
 
-- The local Agent Command Center in `apps/code` is intentionally slim. Treat it
+- The local Agent Command Center in `apps/code-t3` is intentionally slim. Treat it
   as intent capture, runtime orchestration, and WebMCP control only; do not
   rebuild a local task board, governance dashboard, or audit-log workflow there.
 
 ```text
 apps/
-  code/                       # Core coding app (Vite + React 19)
-  code-electron/              # Electron desktop shell around apps/code
+  code-t3/                    # Core t3-derived coding app (Vite + React 19)
 
 packages/
   code-application/          # Shared application orchestration, workspace host rendering, and host-agnostic use-case logic
@@ -78,7 +77,7 @@ docs/                         # Product specs and engineering docs
 
 ### Runtime Boundary Rules
 
-- `apps/code/src/application/runtime/*` is the only approved frontend boundary for runtime and remote execution behavior.
+- `apps/code-t3/src/runtime/*` is the active frontend boundary for t3 runtime and remote execution behavior.
 - UI components and feature hooks must not orchestrate multiple runtime, desktop-host, or transport ports directly.
 - `ports/*` exist only for host, IPC, or transport adaptation. They must not become page-shaped service layers.
 - New remote execution or server features must enter through a domain facade or application service first.
@@ -123,16 +122,9 @@ docs/                         # Product specs and engineering docs
 ### Non-Normative Inputs
 
 - Treat `docs/archive/**` as historical context only. Do not use archived docs to justify new architecture, naming, or package restoration unless the task explicitly asks for historical comparison or migration work.
-- Treat `apps/code-web` as the Cloudflare-platform web implementation for
-  public routes, SSR, and deploy wiring.
-- Treat `packages/code-workspace-client` as the canonical shared workspace
-  client layer for web and desktop shells.
-- Treat `apps/code` as the desktop host and runtime bootstrap around that
-  shared client; do not assume `apps/code` fully replaces `apps/code-web` for
-  web publishing.
-- If a task asks about consolidating `apps/code` and `apps/code-web`, prefer a
-  design that extracts a shared workspace client layer rather than folding
-  Cloudflare Start concerns directly into the Electron desktop host.
+- Treat `apps/code-t3` as the active app surface. The retired `apps/code`,
+  `apps/code-web`, and `apps/code-electron` workspaces must stay absent unless a
+  new ADR explicitly restores them.
 - Treat `docs/specs/agentic/*` as frozen support contracts, not the main product definition, unless the task explicitly targets those contracts.
 
 ## Setup And Build Commands
@@ -144,7 +136,7 @@ pnpm build
 pnpm preflight:codex
 ```
 
-Workflow-facing docs, CI, and automation must use canonical entrypoints: `repo:*`, `desktop:*`, `validate:*`, `preflight:codex`, and `ui:contract`.
+Workflow-facing docs, CI, and automation must use canonical entrypoints: `repo:*`, `validate:*`, `preflight:codex`, `ui:contract`, and `code-t3:*`.
 Use `runtime-policy` for policy-domain package/module examples and `project-context:*` for generated AGENTS section markers.
 
 ## Validation Gates
@@ -161,14 +153,13 @@ Use the current `validate:*` scripts directly. Legacy `validate:*:no-lfcc` alias
 
 ### Validation Matrix
 
-| Change surface                    | Required checks                                                                                          |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| UI components/styles              | `validate:fast` + `test:component` when browser interaction risk matters + relevant `test:e2e:*`         |
-| API/server behavior               | `validate`                                                                                               |
-| Shared package contracts          | `validate`                                                                                               |
-| Desktop host / native integration | `validate` + `desktop:verify:fast` (add `desktop:verify` when packaging/full desktop build risk applies) |
-| Repo config/CI/workflows          | `validate:full`                                                                                          |
-| Docs only                         | Skip validation; state "docs-only, no runtime impact"                                                    |
+| Change surface           | Required checks                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------- |
+| UI components/styles     | `validate:fast` + relevant `@ku0/code-t3` checks and targeted `test:e2e:*` when browser risk matters |
+| API/server behavior      | `validate`                                                                                           |
+| Shared package contracts | `validate`                                                                                           |
+| Repo config/CI/workflows | `validate:full`                                                                                      |
+| Docs only                | Skip validation; state "docs-only, no runtime impact"                                                |
 
 ### E2E Tests (Targeted - Never Full Suite)
 
@@ -187,7 +178,7 @@ E2E auto-selection rules: `.codex/e2e-map.json`
 ### Frontend Testing Split
 
 - Use `js_repl + Playwright` for local exploratory browser validation.
-- Use `pnpm test:component` for browser-backed component and interaction regressions.
+- Use `pnpm --filter @ku0/code-t3 test` plus targeted E2E checks for app interaction regressions.
 - Use targeted `pnpm test:e2e:*` runs for formal end-to-end coverage.
 
 ## Coding Standards
@@ -196,8 +187,8 @@ Use [CODING_STANDARDS.md](./CODING_STANDARDS.md) as the source of truth for lang
 
 Non-negotiable reminders:
 
-- Do not use `any`, `var`, array-index React keys, clickable non-semantic elements, Tailwind, or inline styles on repo-owned UI surfaces.
-- Keep `apps/code` runtime access behind approved application/runtime boundaries and run the matching contract or boundary checks when those surfaces change.
+- Do not use `any`, `var`, array-index React keys, clickable non-semantic elements, or inline styles on repo-owned UI surfaces.
+- Keep `apps/code-t3` runtime access behind `apps/code-t3/src/runtime/*` and run the matching t3 checks when those surfaces change.
 - Do not grow oversized legacy files when touching them.
 
 ## Execution Protocol

@@ -22,15 +22,14 @@ const WORKFLOW_SECTIONS = [
   {
     title: "Development",
     commands: [
-      ["pnpm dev", "Start the code workspace with the runtime gateway."],
-      ["pnpm dev:code:ui", "Run only the code UI dev server."],
+      ["pnpm dev", "Start the active t3 code workspace."],
+      ["pnpm dev:code:ui", "Run only the t3 code UI dev server."],
       ["pnpm dev:code:service", "Run only the code runtime service."],
+      ["pnpm code-t3:build", "Build the active t3 app."],
       [
         "pnpm prewarm:code-runtime-service",
         "Prebuild the Rust runtime service for cold-start lanes.",
       ],
-      ["pnpm desktop:prepare:fast", "Prepare desktop assets for local Electron host work."],
-      ["pnpm dev:desktop", "Run the Electron desktop host in development mode."],
     ],
   },
   {
@@ -40,7 +39,7 @@ const WORKFLOW_SECTIONS = [
       ["pnpm validate", "Standard validation for multi-file or behavior changes."],
       ["pnpm validate:full", "Full validation for shared contracts or CI/release-risk work."],
       ["pnpm check:runtime-contract", "Check frozen runtime contract spec and runtime SOT."],
-      ["pnpm ui:contract", "Check UI-to-runtime contract boundaries in apps/code."],
+      ["pnpm ui:contract", "Check platform boundaries for app/runtime integration."],
       [
         "pnpm check:design-system:baseline",
         "Verify shared design-system barrels, app ownership and surface-semantics boundaries, normalized compat bridges, app-owned modal/panel/shell grammar routing, promoted Storybook coverage, family contract and adoption evidence including Textarea, governance-unit fixture coverage, operator-adjunct fixture coverage, and the fixture smoke baseline.",
@@ -64,27 +63,6 @@ const WORKFLOW_SECTIONS = [
       ["pnpm test:e2e:features", "Run feature-level flows."],
       ["pnpm test:e2e:smoke", "Run smoke checks."],
       ["pnpm test:e2e:a11y", "Run accessibility-focused E2E checks."],
-    ],
-  },
-  {
-    title: "Desktop",
-    commands: [
-      [
-        "pnpm desktop:doctor:windows",
-        "Check Windows host prerequisites for desktop verification/builds.",
-      ],
-      ["pnpm desktop:verify:fast", "Run the fast Electron desktop verification gate."],
-      [
-        "pnpm desktop:verify:windows",
-        "Run Windows x64 desktop host checks plus debug/no-bundle verification.",
-      ],
-      ["pnpm desktop:verify", "Run desktop smoke plus the full Electron verify lane."],
-      ["pnpm desktop:build:windows", "Build the Windows x64 NSIS desktop installer."],
-      [
-        "pnpm desktop:build:windows:store",
-        "Build the Windows x64 Store/offline desktop installer.",
-      ],
-      ["pnpm desktop:build", "Build the Electron desktop app."],
     ],
   },
   {

@@ -7,8 +7,7 @@ import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 const repoRoot = process.cwd();
 const forwardedArgs = process.argv.slice(2);
 const workspaceUnitTestFilters = [
-  "@ku0/code",
-  "@ku0/code-web",
+  "@ku0/code-t3",
   "@ku0/code-runtime-client",
   "@ku0/code-runtime-host-contract",
   "@ku0/code-runtime-webmcp-client",

@@ -17,19 +17,39 @@ export { SettingsViewShell } from "./SettingsViewShell";
 export type { SettingsViewShellProps } from "./SettingsViewShell";
 export type { SettingsAutomationSectionProps } from "./SettingsAutomationSection";
 export type { SettingsBackendPoolSectionProps } from "./SettingsBackendPoolSection";
+export type { SettingsHugeRouterCommercialSectionProps } from "./SettingsHugeRouterCommercialSection";
+export type { SettingsRelayAssistantSectionProps } from "./SettingsRelayAssistantSection";
 export type { SettingsRuntimeCompositionFieldGroupProps } from "./SettingsRuntimeCompositionFieldGroup";
 export {
   SettingsAutomationSection,
   SettingsBackendPoolSection,
+  SettingsHugeRouterCommercialSection,
+  SettingsRelayAssistantSection,
   SettingsRuntimeCompositionFieldGroup,
   SettingsServerControlPlaneSection,
 } from "./SettingsServerControlPlaneSection";
+export type {
+  SettingsRelayAssistantDraft,
+  SettingsRelayAssistantGeneratedConfig,
+  SettingsRelayAssistantKind,
+  SettingsRelayAssistantPreset,
+  SettingsRelayAssistantProviderExtension,
+  SettingsRelayAssistantQualityPlugin,
+} from "./relayAssistant";
+export {
+  buildRelayAssistantGeneratedConfig,
+  createRelayAssistantDraft,
+  RELAY_ASSISTANT_PRESETS,
+  resolveRelayAssistantPreset,
+} from "./relayAssistant";
 export type {
   SettingsAutomationScheduleAction,
   SettingsAutomationScheduleActionAvailability,
   SettingsAutomationScheduleDraft,
   SettingsAutomationScheduleStatus,
   SettingsAutomationScheduleSummary,
+  SettingsHugeRouterCommercialSurface,
+  SettingsRelayAssistantSurface,
   SettingsServerBackendPoolBootstrapPreview,
   SettingsServerBackendPoolDiagnostics,
   SettingsServerBackendPoolEntry,

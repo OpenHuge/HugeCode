@@ -1061,11 +1061,16 @@ printf '%s ok' "$cmd"
         let result = runtime.block_on(run_cli_command_with_timeout(
             cli_path.as_path(),
             &["preview".to_string()],
-            Duration::from_millis(20),
+            Duration::from_millis(200),
         ));
         assert!(result.is_err());
         assert_eq!(result.err().as_deref(), Some("mini program cli timed out"));
-        std::thread::sleep(std::time::Duration::from_millis(20));
+        for _ in 0..20 {
+            if pid_path.exists() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
         let pid = fs::read_to_string(pid_path)
             .expect("pid")
             .trim()

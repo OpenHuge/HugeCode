@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { resolveCommandInvocation } from "./lib/local-bin.mjs";
 import { spawnPnpmSync } from "./lib/spawn-pnpm.mjs";
 
 /**
@@ -47,22 +46,20 @@ const steps = [
   },
   {
     label: "Web runtime client contract test",
-    command: "vitest",
-    args: ["run", "--config", "vitest.config.ts", "src/services/runtimeClient.test.ts"],
-    cwd: "apps/code",
+    command: "pnpm",
+    args: ["--filter", "@ku0/code-runtime-client", "test"],
   },
 ];
 
 function runStep(step) {
   process.stdout.write(`\n==> ${step.label}\n`);
-  const invocation = resolveCommandInvocation(step.command, step.args);
   const result =
     step.command === "pnpm"
       ? spawnPnpmSync(step.args, {
           stdio: "inherit",
           env: process.env,
         })
-      : spawnSync(invocation.command, invocation.args, {
+      : spawnSync(step.command, step.args, {
           cwd: step.cwd ?? process.cwd(),
           stdio: "inherit",
           env: process.env,

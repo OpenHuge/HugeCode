@@ -255,6 +255,9 @@ fn provider_is_available(
     compat_catalog: &CompatModelCatalog,
     provider: RuntimeProvider,
 ) -> bool {
+    if provider == RuntimeProvider::ClaudeCodeLocal {
+        return local_claude_external_auth_configured();
+    }
     provider.has_api_key(&ctx.config)
         || has_available_oauth_account(ctx, provider)
         || compat_catalog.has_provider_models(provider)

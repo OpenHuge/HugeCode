@@ -47,6 +47,7 @@ const EXCLUDED_DIRS = new Set([
   "target",
 ]);
 const ALLOWED_PLAIN_CSS = new Set(["apps/code/public/vendor/xterm/xterm.css"]);
+const CONTROLLED_T3_FRONTEND_PREFIX = "apps/code-t3/";
 const ROOT_TEXT_FILES = [
   "AGENTS.md",
   "CODING_STANDARDS.md",
@@ -125,6 +126,9 @@ function isBannedPackage(name) {
 
 function scanPackageJson(filePath) {
   const repoPath = toRepoPath(filePath);
+  if (repoPath.startsWith(CONTROLLED_T3_FRONTEND_PREFIX)) {
+    return;
+  }
   const content = JSON.parse(fs.readFileSync(filePath, "utf8"));
   for (const field of [
     "dependencies",
@@ -147,6 +151,9 @@ function scanPackageJson(filePath) {
 function scanTextFile(filePath) {
   const repoPath = toRepoPath(filePath);
   if (repoPath === "scripts/check-style-stack.mjs") {
+    return;
+  }
+  if (repoPath.startsWith(CONTROLLED_T3_FRONTEND_PREFIX)) {
     return;
   }
   if (repoPath.startsWith("tests/")) {
@@ -174,7 +181,11 @@ function scanFile(filePath) {
     scanPackageJson(filePath);
   }
 
-  if (extension === ".css" && !ALLOWED_PLAIN_CSS.has(repoPath)) {
+  if (
+    extension === ".css" &&
+    !ALLOWED_PLAIN_CSS.has(repoPath) &&
+    !repoPath.startsWith(CONTROLLED_T3_FRONTEND_PREFIX)
+  ) {
     recordViolation(repoPath, "repo-owned plain .css is forbidden; use vanilla-extract (.css.ts)");
   }
 

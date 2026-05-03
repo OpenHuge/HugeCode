@@ -17,6 +17,8 @@ import type {
 } from "./agentExecution.js";
 import type {
   CliSessionSummary,
+  HugeRouterCommercialServiceSnapshot,
+  HugeRouterRouteTokenIssueResponse,
   OAuthAccountSummary,
   OAuthChatgptAuthTokensRefreshResponse,
   OAuthCodexLoginCancelResponse,
@@ -136,6 +138,8 @@ export interface CodeRuntimeRpcResponsePayloadByMethod {
   [CODE_RUNTIME_RPC_METHODS.TERMINAL_STATUS]: TerminalStatus;
   [CODE_RUNTIME_RPC_METHODS.MODELS_POOL]: ModelPoolEntry[];
   [CODE_RUNTIME_RPC_METHODS.PROVIDERS_CATALOG]: RuntimeProviderCatalogEntry[];
+  [CODE_RUNTIME_RPC_METHODS.HUGEROUTER_COMMERCIAL_SERVICE_READ]: HugeRouterCommercialServiceSnapshot | null;
+  [CODE_RUNTIME_RPC_METHODS.HUGEROUTER_ROUTE_TOKEN_ISSUE]: HugeRouterRouteTokenIssueResponse;
   [CODE_RUNTIME_RPC_METHODS.WORKSPACES_LIST]: WorkspaceSummary[];
   [CODE_RUNTIME_RPC_METHODS.BOOTSTRAP_SNAPSHOT]: RuntimeBootstrapSnapshot;
   [CODE_RUNTIME_RPC_METHODS.MISSION_CONTROL_SNAPSHOT_V1]: HugeCodeMissionControlSnapshot;

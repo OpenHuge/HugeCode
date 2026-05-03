@@ -50,8 +50,7 @@ jobs:
         with:
           filters: |
             javascript:
-              - "apps/code/**"
-              - "apps/code-web/**"
+              - "apps/code-t3/**"
               - "packages/code-runtime-client/**"
               - "packages/code-runtime-host-contract/**"
               - "packages/code-runtime-webmcp-client/**"

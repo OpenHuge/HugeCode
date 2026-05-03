@@ -24,10 +24,9 @@ Use the root docs in this order before scanning deeper materials:
 Default scoping reminders:
 
 - Official product context is `HugeCode`; `Keep-Up` and `Reader` are historical names only.
-- `apps/code`, `apps/code-web`, and `apps/code-electron` are the active app surfaces.
-- `apps/code-web` is the Cloudflare-platform web implementation for public routes, SSR, and deploy wiring.
-- `apps/code` remains the shared workspace client implementation that `apps/code-web` reuses for client-only `/app` flows.
-- The local Agent Command Center in `apps/code` is intentionally slim: keep it
+- `apps/code-t3` is the active app surface.
+- `apps/code`, `apps/code-web`, and `apps/code-electron` have been removed from the active workspace.
+- The local Agent Command Center in `apps/code-t3` is intentionally slim: keep it
   to intent capture, runtime orchestration, and WebMCP controls rather than a
   local task board or governance dashboard.
 - `continuity readiness` is post-launch runtime truth. When runtime publishes

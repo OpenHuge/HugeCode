@@ -11,6 +11,7 @@ const RPC_BATCH_READ_ONLY_METHODS: &[&str] = &[
     "code_terminal_status",
     "code_models_pool",
     "code_providers_catalog",
+    "code_hugerouter_commercial_service_read",
     "code_workspaces_list",
     "code_bootstrap_snapshot",
 ];
@@ -151,6 +152,10 @@ async fn handle_read_only_batch_method(
         "code_terminal_status" => Ok(terminal_status_payload(ctx).await),
         "code_models_pool" => Ok(json!(build_models_pool(ctx).await)),
         "code_providers_catalog" => Ok(json!(build_providers_catalog(ctx).await)),
+        "code_hugerouter_commercial_service_read" => {
+            super::hugerouter_commercial_dispatch::handle_hugerouter_commercial_service_read(ctx)
+                .await
+        }
         "code_workspaces_list" => {
             let state = ctx.state.read().await;
             Ok(json!(state.workspaces))

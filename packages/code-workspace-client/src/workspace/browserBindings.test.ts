@@ -257,6 +257,7 @@ describe("browser workspace bindings", () => {
     await runtime.composition?.updateSettings("workspace-1", {
       selection: {
         profileId: "workspace-default",
+        preferredRoutePluginIds: ["route:codex:embedded-app-server"],
         preferredBackendIds: ["backend-primary"],
       },
       launchOverride: null,
