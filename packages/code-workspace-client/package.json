@@ -78,7 +78,7 @@
     "@ku0/code-runtime-host-contract": "workspace:*",
     "@ku0/design-system": "workspace:*",
     "@ku0/shared": "workspace:*",
-    "@vanilla-extract/css": "^1.18.0",
+    "@vanilla-extract/css": "^1.20.1",
     "lucide-react": "^0.576.0"
   },
   "devDependencies": {
