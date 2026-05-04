@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+const BROWSER_LOGIN_STATE_PREFLIGHT_CHANNEL = "hugecode:browser-static-data:check-login-state";
 const BROWSER_LOGIN_STATE_EXPORT_CHANNEL = "hugecode:browser-static-data:export-login-state";
 const BROWSER_LOGIN_STATE_IMPORT_CHANNEL = "hugecode:browser-static-data:import-login-state";
 const BROWSER_SITE_DATA_EXPORT_TO_CHROME_CHANNEL = "hugecode:browser-static-data:export-to-chrome";
@@ -46,11 +47,14 @@ contextBridge.exposeInMainWorld("hugeCodeDesktopHost", {
     },
   },
   browserStaticData: {
-    exportLoginState: () => ipcRenderer.invoke(BROWSER_LOGIN_STATE_EXPORT_CHANNEL),
+    checkLoginState: (input?: unknown) =>
+      ipcRenderer.invoke(BROWSER_LOGIN_STATE_PREFLIGHT_CHANNEL, input),
+    exportLoginState: (input?: unknown) =>
+      ipcRenderer.invoke(BROWSER_LOGIN_STATE_EXPORT_CHANNEL, input),
     exportToChrome: (input: unknown) =>
       ipcRenderer.invoke(BROWSER_SITE_DATA_EXPORT_TO_CHROME_CHANNEL, input),
-    importLoginState: (bundle: unknown) =>
-      ipcRenderer.invoke(BROWSER_LOGIN_STATE_IMPORT_CHANNEL, bundle),
+    importLoginState: (bundle: unknown, input?: unknown) =>
+      ipcRenderer.invoke(BROWSER_LOGIN_STATE_IMPORT_CHANNEL, bundle, input),
   },
   core: {
     invoke: (method: string, payload?: Record<string, unknown>) =>

@@ -8,7 +8,7 @@ import {
   WebContentsView,
 } from "electron";
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -22,8 +22,18 @@ import {
   type BrowserChromeSnapshot,
   type BrowserChromeTabState,
 } from "./browserChromeState";
+import {
+  buildT3BrowserPortableLoginStateContract,
+  normalizeT3BrowserAllowedOrigins,
+  T3_BROWSER_PORTABLE_ENCRYPTION,
+  T3_BROWSER_SAFE_STORAGE_ENCRYPTION,
+  type T3BrowserLoginStateEncryption,
+  type T3BrowserPortableLoginStateContract,
+  type T3BrowserPortableLoginStateCrypto,
+} from "../src/runtime/t3BrowserAccountDataContract";
 
 const devServerUrl = process.env.HUGECODE_T3_DESKTOP_DEV_SERVER_URL;
+const BROWSER_LOGIN_STATE_PREFLIGHT_CHANNEL = "hugecode:browser-static-data:check-login-state";
 const BROWSER_LOGIN_STATE_EXPORT_CHANNEL = "hugecode:browser-static-data:export-login-state";
 const BROWSER_LOGIN_STATE_IMPORT_CHANNEL = "hugecode:browser-static-data:import-login-state";
 const BROWSER_SITE_DATA_EXPORT_TO_CHROME_CHANNEL = "hugecode:browser-static-data:export-to-chrome";
@@ -45,6 +55,7 @@ const BROWSER_DATA_EXPORT_ADMIN_AUTH_PROMPT =
 type ElectronCookieSnapshot = {
   domain?: string;
   expirationDate?: number;
+  hostOnly?: boolean;
   httpOnly?: boolean;
   name: string;
   path?: string;
@@ -55,6 +66,7 @@ type ElectronCookieSnapshot = {
 };
 
 type ElectronCookieLoginStatePayload = {
+  allowedOrigins?: string[];
   cookies: ElectronCookieSnapshot[];
   exportedAt: number;
   payloadFormat: "electron-session-cookies/v1";
@@ -67,6 +79,7 @@ type ElectronBrowserStateFileSnapshot = {
 };
 
 type ElectronBrowserSessionStatePayload = {
+  allowedOrigins: string[];
   cookies: ElectronCookieSnapshot[];
   exportedAt: number;
   payloadFormat: "electron-session-state/v2";
@@ -78,12 +91,42 @@ type ElectronEncryptedLoginStateBundle = {
   cookieCount: number;
   createdAt: number;
   encryptedPayloadBase64: string;
-  encryption: "electron-safe-storage";
+  encryption: T3BrowserLoginStateEncryption;
   id: string;
   originCount: number;
   payloadFormat: "electron-session-cookies/v1" | "electron-session-state/v2";
+  portableContract?: T3BrowserPortableLoginStateContract;
+  portableCrypto?: T3BrowserPortableLoginStateCrypto;
   stateByteCount?: number;
   stateFileCount?: number;
+  summary: string;
+};
+
+type ElectronBrowserStaticDataExportInput = {
+  allowedOrigins: string[];
+  importSecret: string;
+};
+
+type ElectronBrowserStaticDataImportInput = {
+  importSecret?: string;
+};
+
+type ElectronBrowserLoginStateImportResult = {
+  importedCookies: number;
+  originCount: number;
+  restoredBytes: number;
+  restoredFiles: number;
+  success: boolean;
+  summary: string | null;
+};
+
+type ElectronBrowserLoginStatePreflightResult = {
+  allowedOrigins: string[];
+  cookieCount: number;
+  originCount: number;
+  provider: "chatgpt";
+  status: "loggedIn" | "notLoggedIn";
+  storageFileCount: number;
   summary: string;
 };
 
@@ -159,6 +202,16 @@ function isHugeCodeBrowserSpecialLaunchUrl(url: string) {
   } catch {
     return false;
   }
+}
+
+function resetProductWindowZoom(window: BrowserWindow) {
+  function applyZoomReset() {
+    window.webContents.setZoomLevel(0);
+    window.webContents.setZoomFactor(1);
+    void window.webContents.setVisualZoomLevelLimits(1, 1);
+  }
+  applyZoomReset();
+  window.webContents.on("did-finish-load", applyZoomReset);
 }
 
 function getBrowserChromeControllerForSender(sender: Electron.WebContents) {
@@ -538,6 +591,8 @@ function createBrowserWindow(url: string): BrowserWindow {
     },
   });
 
+  resetProductWindowZoom(browserWindow);
+
   browserWindow.once("ready-to-show", () => {
     browserWindow.show();
   });
@@ -596,6 +651,51 @@ function cookieUrl(cookie: ElectronCookieSnapshot) {
   }
   const path = cookie.path?.startsWith("/") ? cookie.path : "/";
   return `${origin}${path}`;
+}
+
+function cookiePath(cookie: ElectronCookieSnapshot) {
+  return cookie.path?.startsWith("/") ? cookie.path : "/";
+}
+
+function hasCookieHostPrefix(cookie: ElectronCookieSnapshot) {
+  return cookie.name.startsWith("__Host-");
+}
+
+function hasCookieSecurePrefix(cookie: ElectronCookieSnapshot) {
+  return cookie.name.startsWith("__Secure-");
+}
+
+function importedCookieSetDetails(
+  cookie: ElectronCookieSnapshot,
+  allowedOrigins: readonly string[]
+): Electron.CookiesSetDetails | null {
+  const matchedOrigin = cookieAllowedOrigin(cookie, allowedOrigins);
+  const origin = matchedOrigin ?? cookieOrigin(cookie);
+  if (!origin) {
+    return null;
+  }
+  const requiresSecure =
+    hasCookieHostPrefix(cookie) ||
+    hasCookieSecurePrefix(cookie) ||
+    cookie.sameSite === "no_restriction";
+  if (requiresSecure && !origin.startsWith("https://")) {
+    return null;
+  }
+  const path = hasCookieHostPrefix(cookie) ? "/" : cookiePath(cookie);
+  const details: Electron.CookiesSetDetails = {
+    expirationDate: cookie.session ? undefined : cookie.expirationDate,
+    httpOnly: cookie.httpOnly,
+    name: cookie.name,
+    path,
+    sameSite: cookie.sameSite === "unspecified" ? undefined : cookie.sameSite,
+    secure: cookie.secure === true || requiresSecure,
+    url: `${origin}${path}`,
+    value: cookie.value,
+  };
+  if (!hasCookieHostPrefix(cookie) && cookie.hostOnly !== true && cookie.domain) {
+    details.domain = cookie.domain;
+  }
+  return details;
 }
 
 function assertSafeStorageAvailable() {
@@ -724,6 +824,21 @@ function safeRelativeStoragePath(storageRoot: string, relativePath: string) {
   return absolutePath;
 }
 
+function isElectronCookieDatabaseFile(storageRoot: string, absolutePath: string) {
+  const relativePath = relative(storageRoot, absolutePath).split(sep).join("/").toLowerCase();
+  return (
+    relativePath === "cookies" ||
+    relativePath === "cookies-journal" ||
+    relativePath === "network/cookies" ||
+    relativePath === "network/cookies-journal"
+  );
+}
+
+function isChromiumRuntimeLockFile(storageRoot: string, absolutePath: string) {
+  const relativePath = relative(storageRoot, absolutePath).split(sep).join("/");
+  return relativePath.split("/").at(-1)?.toLowerCase() === "lock";
+}
+
 async function collectStorageFiles(
   storageRoot: string,
   absolutePath: string
@@ -740,6 +855,12 @@ async function collectStorageFiles(
     return nestedFiles.flat();
   }
   if (!entryStat.isFile()) {
+    return [];
+  }
+  if (
+    isElectronCookieDatabaseFile(storageRoot, absolutePath) ||
+    isChromiumRuntimeLockFile(storageRoot, absolutePath)
+  ) {
     return [];
   }
   const data = await readFile(absolutePath);
@@ -820,6 +941,136 @@ function normalizeChromeExportTargetUrl(value: unknown) {
   return parsed.toString();
 }
 
+function readPortableImportSecret(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length >= 8 ? trimmed : null;
+}
+
+function normalizeBrowserStaticDataExportInput(
+  value: unknown
+): ElectronBrowserStaticDataExportInput {
+  const record = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const importSecret = readPortableImportSecret(
+    (record as { importSecret?: unknown }).importSecret
+  );
+  if (!importSecret) {
+    throw new Error("Exporting portable browser account data requires an import code.");
+  }
+  return {
+    allowedOrigins: normalizeT3BrowserAllowedOrigins(
+      (record as { allowedOrigins?: unknown }).allowedOrigins
+    ),
+    importSecret,
+  };
+}
+
+function normalizeBrowserStaticDataImportInput(
+  value: unknown
+): ElectronBrowserStaticDataImportInput {
+  const record = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    importSecret:
+      readPortableImportSecret((record as { importSecret?: unknown }).importSecret) ?? undefined,
+  };
+}
+
+function allowedOriginSet(allowedOrigins: readonly string[]) {
+  return new Set(normalizeT3BrowserAllowedOrigins(allowedOrigins));
+}
+
+function cookieAllowedOrigin(cookie: ElectronCookieSnapshot, allowedOrigins: readonly string[]) {
+  const origin = cookieOrigin(cookie);
+  if (!origin) {
+    return null;
+  }
+  const allowed = allowedOriginSet(allowedOrigins);
+  if (allowed.has(origin)) {
+    return origin;
+  }
+  const cookieHost = new URL(origin).hostname.toLowerCase();
+  if (!cookieHost.includes(".")) {
+    return null;
+  }
+  for (const allowedOrigin of allowed) {
+    const allowedHost = new URL(allowedOrigin).hostname.toLowerCase();
+    if (allowedHost === cookieHost || allowedHost.endsWith(`.${cookieHost}`)) {
+      return allowedOrigin;
+    }
+  }
+  return null;
+}
+
+function cookieMatchesAllowedOrigins(
+  cookie: ElectronCookieSnapshot,
+  allowedOrigins: readonly string[]
+) {
+  return cookieAllowedOrigin(cookie, allowedOrigins) !== null;
+}
+
+function isChatGptAuthenticationCookie(cookie: ElectronCookieSnapshot) {
+  const name = cookie.name.toLowerCase();
+  return (
+    name === "oai-sc" ||
+    name === "oai-session" ||
+    name.includes("session-token") ||
+    name.includes("access-token") ||
+    name.includes("refresh-token") ||
+    (name.includes("session") && !name.includes("callback"))
+  );
+}
+
+function buildChatGptLoginStatePreflightResult(input: {
+  allowedOrigins: readonly string[];
+  cookies: readonly ElectronCookieSnapshot[];
+  storageFileCount?: number;
+}): ElectronBrowserLoginStatePreflightResult {
+  const matchedOrigins = new Set(
+    input.cookies
+      .map((cookie) => cookieAllowedOrigin(cookie, input.allowedOrigins))
+      .filter((origin): origin is string => origin !== null)
+  );
+  const storageFileCount = input.storageFileCount ?? 0;
+  const authenticationCookieCount = input.cookies.filter(isChatGptAuthenticationCookie).length;
+  const status = authenticationCookieCount > 0 ? "loggedIn" : "notLoggedIn";
+  return {
+    allowedOrigins: normalizeT3BrowserAllowedOrigins(input.allowedOrigins),
+    cookieCount: input.cookies.length,
+    originCount: matchedOrigins.size,
+    provider: "chatgpt",
+    status,
+    storageFileCount,
+    summary:
+      status === "loggedIn"
+        ? `ChatGPT login preflight found ${authenticationCookieCount} session cookies and ${input.cookies.length} allowlisted cookies across ${matchedOrigins.size} origins.`
+        : input.cookies.length > 0
+          ? `ChatGPT login preflight found ${input.cookies.length} allowlisted site cookies, but no ChatGPT session cookie. Open ChatGPT in the built-in browser and sign in before export.`
+          : "ChatGPT login preflight did not find allowlisted cookies. Open ChatGPT in the built-in browser and sign in before export.",
+  };
+}
+
+function storageFileMatchesAllowedOrigins(
+  file: ElectronBrowserStateFileSnapshot,
+  allowedOrigins: readonly string[]
+) {
+  const normalizedPath = file.path.toLowerCase();
+  return normalizeT3BrowserAllowedOrigins(allowedOrigins).some((origin) => {
+    const hostname = new URL(origin).hostname.toLowerCase();
+    return normalizedPath.includes(hostname);
+  });
+}
+
+async function exportBrowserStorageFilesForOrigins(
+  storageRoot: string,
+  allowedOrigins: readonly string[]
+) {
+  return (await exportBrowserStorageFiles(storageRoot)).filter((file) =>
+    storageFileMatchesAllowedOrigins(file, allowedOrigins)
+  );
+}
+
 async function clearBrowserStorageEntries(storageRoot: string) {
   await Promise.all(
     ELECTRON_BROWSER_STATE_ENTRY_NAMES.map((entryName) =>
@@ -847,18 +1098,91 @@ function normalizeImportedStorageFile(value: unknown): ElectronBrowserStateFileS
   };
 }
 
+function encryptPortableBrowserSessionPayload(input: {
+  allowedOrigins: readonly string[];
+  importSecret: string;
+  payload: ElectronBrowserSessionStatePayload;
+}) {
+  const portableContract = buildT3BrowserPortableLoginStateContract({
+    allowedOrigins: input.allowedOrigins,
+  });
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const key = pbkdf2Sync(input.importSecret, salt, portableContract.kdfIterations, 32, "sha256");
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  cipher.setAAD(Buffer.from(portableContract.schemaVersion, "utf8"));
+  const encrypted = Buffer.concat([
+    cipher.update(JSON.stringify(input.payload), "utf8"),
+    cipher.final(),
+  ]);
+  return {
+    encryptedPayloadBase64: encrypted.toString("base64"),
+    portableContract,
+    portableCrypto: {
+      authTagBase64: cipher.getAuthTag().toString("base64"),
+      ivBase64: iv.toString("base64"),
+      saltBase64: salt.toString("base64"),
+    },
+  };
+}
+
+function decryptPortableBrowserSessionPayload(
+  bundle: ElectronEncryptedLoginStateBundle,
+  input: ElectronBrowserStaticDataImportInput
+): Partial<ElectronBrowserSessionStatePayload> {
+  if (!bundle.portableContract || !bundle.portableCrypto) {
+    throw new Error("Portable browser account data file is missing crypto metadata.");
+  }
+  const importSecret = readPortableImportSecret(input.importSecret);
+  if (!importSecret) {
+    throw new Error("Import code is required to restore portable browser account data.");
+  }
+  try {
+    const key = pbkdf2Sync(
+      importSecret,
+      Buffer.from(bundle.portableCrypto.saltBase64, "base64"),
+      bundle.portableContract.kdfIterations,
+      32,
+      "sha256"
+    );
+    const decipher = createDecipheriv(
+      "aes-256-gcm",
+      key,
+      Buffer.from(bundle.portableCrypto.ivBase64, "base64")
+    );
+    decipher.setAAD(Buffer.from(bundle.portableContract.schemaVersion, "utf8"));
+    decipher.setAuthTag(Buffer.from(bundle.portableCrypto.authTagBase64, "base64"));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(bundle.encryptedPayloadBase64, "base64")),
+      decipher.final(),
+    ]);
+    return JSON.parse(decrypted.toString("utf8")) as Partial<ElectronBrowserSessionStatePayload>;
+  } catch {
+    throw new Error("Portable browser account data could not be decrypted or verified.");
+  }
+}
+
 async function restoreBrowserStorageFiles(
   storageRoot: string,
-  files: readonly ElectronBrowserStateFileSnapshot[]
+  files: readonly ElectronBrowserStateFileSnapshot[],
+  options: { clearExisting?: boolean } = {}
 ) {
-  await clearBrowserStorageEntries(storageRoot);
+  const clearExisting = options.clearExisting ?? true;
+  const stagedFiles = files
+    .map((file) => {
+      const absolutePath = safeRelativeStoragePath(storageRoot, file.path);
+      return absolutePath ? { absolutePath, file } : null;
+    })
+    .filter(
+      (entry): entry is { absolutePath: string; file: ElectronBrowserStateFileSnapshot } =>
+        entry !== null
+    );
+  if (clearExisting) {
+    await clearBrowserStorageEntries(storageRoot);
+  }
   let restoredFiles = 0;
   let restoredBytes = 0;
-  for (const file of files) {
-    const absolutePath = safeRelativeStoragePath(storageRoot, file.path);
-    if (!absolutePath) {
-      continue;
-    }
+  for (const { absolutePath, file } of stagedFiles) {
     const bytes = Buffer.from(file.dataBase64, "base64");
     await mkdir(dirname(absolutePath), { recursive: true });
     await writeFile(absolutePath, bytes);
@@ -875,20 +1199,29 @@ function normalizeImportedLoginStateBundle(value: unknown): ElectronEncryptedLog
   const record = value as Partial<ElectronEncryptedLoginStateBundle>;
   if (
     typeof record.encryptedPayloadBase64 !== "string" ||
-    record.encryption !== "electron-safe-storage" ||
+    (record.encryption !== T3_BROWSER_SAFE_STORAGE_ENCRYPTION &&
+      record.encryption !== T3_BROWSER_PORTABLE_ENCRYPTION) ||
     (record.payloadFormat !== "electron-session-cookies/v1" &&
       record.payloadFormat !== "electron-session-state/v2")
   ) {
     throw new Error("Encrypted browser login-state bundle is unsupported.");
   }
+  if (
+    record.encryption === T3_BROWSER_PORTABLE_ENCRYPTION &&
+    (!record.portableContract || !record.portableCrypto)
+  ) {
+    throw new Error("Portable browser login-state bundle is missing crypto metadata.");
+  }
   return {
     cookieCount: typeof record.cookieCount === "number" ? record.cookieCount : 0,
     createdAt: typeof record.createdAt === "number" ? record.createdAt : Date.now(),
     encryptedPayloadBase64: record.encryptedPayloadBase64,
-    encryption: "electron-safe-storage",
+    encryption: record.encryption,
     id: typeof record.id === "string" ? record.id : randomUUID(),
     originCount: typeof record.originCount === "number" ? record.originCount : 0,
     payloadFormat: record.payloadFormat,
+    portableContract: record.portableContract,
+    portableCrypto: record.portableCrypto,
     stateByteCount: typeof record.stateByteCount === "number" ? record.stateByteCount : undefined,
     stateFileCount: typeof record.stateFileCount === "number" ? record.stateFileCount : undefined,
     summary:
@@ -909,6 +1242,7 @@ function normalizeImportedCookie(value: unknown): ElectronCookieSnapshot | null 
   const cookie: ElectronCookieSnapshot = {
     domain: typeof record.domain === "string" ? record.domain : undefined,
     expirationDate: typeof record.expirationDate === "number" ? record.expirationDate : undefined,
+    hostOnly: record.hostOnly === true,
     httpOnly: record.httpOnly === true,
     name: record.name,
     path: typeof record.path === "string" ? record.path : "/",
@@ -921,18 +1255,48 @@ function normalizeImportedCookie(value: unknown): ElectronCookieSnapshot | null 
 }
 
 function registerBrowserStaticDataIpc() {
-  ipcMain.handle(BROWSER_LOGIN_STATE_EXPORT_CHANNEL, async () => {
-    await requireAdministratorAuthorizationForBrowserDataExport();
-    assertSafeStorageAvailable();
+  ipcMain.handle(BROWSER_LOGIN_STATE_PREFLIGHT_CHANNEL, async (_event, input: unknown) => {
+    const allowedOrigins = normalizeT3BrowserAllowedOrigins(
+      input && typeof input === "object" && !Array.isArray(input)
+        ? (input as { allowedOrigins?: unknown }).allowedOrigins
+        : undefined
+    );
     await session.defaultSession.flushStorageData();
+    const cookies = (await session.defaultSession.cookies.get({})).filter((cookie) =>
+      cookieMatchesAllowedOrigins(cookie, allowedOrigins)
+    );
+    return buildChatGptLoginStatePreflightResult({
+      allowedOrigins,
+      cookies,
+    });
+  });
+
+  ipcMain.handle(BROWSER_LOGIN_STATE_EXPORT_CHANNEL, async (_event, input: unknown) => {
+    const exportInput = normalizeBrowserStaticDataExportInput(input);
+    await session.defaultSession.flushStorageData();
+    const cookies = (await session.defaultSession.cookies.get({})).filter((cookie) =>
+      cookieMatchesAllowedOrigins(cookie, exportInput.allowedOrigins)
+    );
+    const preflight = buildChatGptLoginStatePreflightResult({
+      allowedOrigins: exportInput.allowedOrigins,
+      cookies,
+    });
+    if (preflight.status !== "loggedIn") {
+      throw new Error(preflight.summary);
+    }
+    await requireAdministratorAuthorizationForBrowserDataExport();
     const storageRoot = resolveSessionStoragePath();
-    const cookies = await session.defaultSession.cookies.get({});
-    const storageFiles = await exportBrowserStorageFiles(storageRoot);
+    const storageFiles = await exportBrowserStorageFilesForOrigins(
+      storageRoot,
+      exportInput.allowedOrigins
+    );
     const stateByteCount = storageFiles.reduce((total, file) => total + file.size, 0);
     const payload: ElectronBrowserSessionStatePayload = {
+      allowedOrigins: exportInput.allowedOrigins,
       cookies: cookies.map((cookie) => ({
         domain: cookie.domain,
         expirationDate: cookie.expirationDate,
+        hostOnly: cookie.hostOnly,
         httpOnly: cookie.httpOnly,
         name: cookie.name,
         path: cookie.path,
@@ -946,84 +1310,113 @@ function registerBrowserStaticDataIpc() {
       storageFiles,
       storageRoot: "electron-default-session",
     };
-    const origins = new Set(payload.cookies.map(cookieOrigin).filter((origin) => origin !== null));
+    const origins = new Set(
+      payload.cookies
+        .map((cookie) => cookieAllowedOrigin(cookie, exportInput.allowedOrigins))
+        .filter((origin): origin is string => origin !== null)
+    );
+    const encryptedPayload = encryptPortableBrowserSessionPayload({
+      allowedOrigins: exportInput.allowedOrigins,
+      importSecret: exportInput.importSecret,
+      payload,
+    });
     return {
       cookieCount: payload.cookies.length,
       createdAt: payload.exportedAt,
-      encryptedPayloadBase64: safeStorage.encryptString(JSON.stringify(payload)).toString("base64"),
-      encryption: "electron-safe-storage",
-      id: `electron-login-state:${randomUUID()}`,
+      encryptedPayloadBase64: encryptedPayload.encryptedPayloadBase64,
+      encryption: T3_BROWSER_PORTABLE_ENCRYPTION,
+      id: `portable-chatgpt-login-state:${randomUUID()}`,
       originCount: origins.size,
       payloadFormat: "electron-session-state/v2",
+      portableContract: encryptedPayload.portableContract,
+      portableCrypto: encryptedPayload.portableCrypto,
       stateByteCount,
       stateFileCount: storageFiles.length,
-      summary: `Encrypted ${payload.cookies.length} Electron cookies and ${storageFiles.length} browser storage files across ${origins.size} origins.`,
+      summary: `Encrypted ${payload.cookies.length} ChatGPT cookies and ${storageFiles.length} allowlisted browser storage files across ${origins.size} origins for portable restore.`,
     } satisfies ElectronEncryptedLoginStateBundle;
   });
 
-  ipcMain.handle(BROWSER_LOGIN_STATE_IMPORT_CHANNEL, async (_event, bundle: unknown) => {
-    assertSafeStorageAvailable();
-    const normalizedBundle = normalizeImportedLoginStateBundle(bundle);
-    const decrypted = safeStorage.decryptString(
-      Buffer.from(normalizedBundle.encryptedPayloadBase64, "base64")
-    );
-    const parsed = JSON.parse(decrypted) as Partial<
-      ElectronCookieLoginStatePayload | ElectronBrowserSessionStatePayload
-    >;
-    if (
-      (parsed.payloadFormat !== "electron-session-cookies/v1" &&
-        parsed.payloadFormat !== "electron-session-state/v2") ||
-      !Array.isArray(parsed.cookies)
-    ) {
-      throw new Error("Encrypted browser login-state payload is invalid.");
-    }
-    let restoredFiles = 0;
-    let restoredBytes = 0;
-    if (parsed.payloadFormat === "electron-session-state/v2") {
-      const storageFiles = Array.isArray(parsed.storageFiles)
-        ? parsed.storageFiles
-            .map(normalizeImportedStorageFile)
-            .filter((file): file is ElectronBrowserStateFileSnapshot => file !== null)
-        : [];
-      const restoredState = await restoreBrowserStorageFiles(
-        resolveSessionStoragePath(),
-        storageFiles
-      );
-      restoredFiles = restoredState.restoredFiles;
-      restoredBytes = restoredState.restoredBytes;
-    }
-    const cookies = parsed.cookies
-      .map(normalizeImportedCookie)
-      .filter((cookie): cookie is ElectronCookieSnapshot => cookie !== null);
-    let importedCookies = 0;
-    const origins = new Set<string>();
-    for (const cookie of cookies) {
-      const url = cookieUrl(cookie);
-      if (!url) {
-        continue;
+  ipcMain.handle(
+    BROWSER_LOGIN_STATE_IMPORT_CHANNEL,
+    async (_event, bundle: unknown, input: unknown) => {
+      const normalizedBundle = normalizeImportedLoginStateBundle(bundle);
+      const importInput = normalizeBrowserStaticDataImportInput(input);
+      let parsed: Partial<ElectronCookieLoginStatePayload | ElectronBrowserSessionStatePayload>;
+      if (normalizedBundle.encryption === T3_BROWSER_PORTABLE_ENCRYPTION) {
+        parsed = decryptPortableBrowserSessionPayload(normalizedBundle, importInput);
+      } else {
+        assertSafeStorageAvailable();
+        const decrypted = safeStorage.decryptString(
+          Buffer.from(normalizedBundle.encryptedPayloadBase64, "base64")
+        );
+        parsed = JSON.parse(decrypted) as Partial<
+          ElectronCookieLoginStatePayload | ElectronBrowserSessionStatePayload
+        >;
       }
-      origins.add(cookieOrigin(cookie) ?? url);
-      await session.defaultSession.cookies.set({
-        domain: cookie.domain,
-        expirationDate: cookie.session ? undefined : cookie.expirationDate,
-        httpOnly: cookie.httpOnly,
-        name: cookie.name,
-        path: cookie.path,
-        sameSite: cookie.sameSite === "unspecified" ? undefined : cookie.sameSite,
-        secure: cookie.secure,
-        url,
-        value: cookie.value,
-      });
-      importedCookies += 1;
+      if (
+        (parsed.payloadFormat !== "electron-session-cookies/v1" &&
+          parsed.payloadFormat !== "electron-session-state/v2") ||
+        !Array.isArray(parsed.cookies)
+      ) {
+        throw new Error("Encrypted browser login-state payload is invalid.");
+      }
+      const allowedOrigins = normalizeT3BrowserAllowedOrigins(parsed.allowedOrigins);
+      let restoredFiles = 0;
+      let restoredBytes = 0;
+      if (parsed.payloadFormat === "electron-session-state/v2") {
+        const storageFiles = Array.isArray(parsed.storageFiles)
+          ? parsed.storageFiles
+              .map(normalizeImportedStorageFile)
+              .filter(
+                (file): file is ElectronBrowserStateFileSnapshot =>
+                  file !== null && storageFileMatchesAllowedOrigins(file, allowedOrigins)
+              )
+          : [];
+        if (storageFiles.length > 0) {
+          const restoredState = await restoreBrowserStorageFiles(
+            resolveSessionStoragePath(),
+            storageFiles,
+            { clearExisting: normalizedBundle.encryption !== T3_BROWSER_PORTABLE_ENCRYPTION }
+          );
+          restoredFiles = restoredState.restoredFiles;
+          restoredBytes = restoredState.restoredBytes;
+        }
+      }
+      const cookies = parsed.cookies
+        .map(normalizeImportedCookie)
+        .filter(
+          (cookie): cookie is ElectronCookieSnapshot =>
+            cookie !== null && cookieMatchesAllowedOrigins(cookie, allowedOrigins)
+        );
+      const authenticationCookieCount = cookies.filter(isChatGptAuthenticationCookie).length;
+      if (authenticationCookieCount === 0 && restoredFiles === 0) {
+        throw new Error("Portable browser account data did not contain a ChatGPT session cookie.");
+      }
+      let importedCookies = 0;
+      const origins = new Set<string>();
+      for (const cookie of cookies) {
+        const details = importedCookieSetDetails(cookie, allowedOrigins);
+        if (!details) {
+          continue;
+        }
+        origins.add(cookieAllowedOrigin(cookie, allowedOrigins) ?? details.url);
+        await session.defaultSession.cookies.set(details);
+        importedCookies += 1;
+      }
+      await session.defaultSession.flushStorageData();
+      return {
+        importedCookies,
+        originCount: origins.size,
+        restoredBytes,
+        restoredFiles,
+        success: importedCookies > 0 || restoredFiles > 0,
+        summary:
+          restoredFiles > 0
+            ? `Restored ${importedCookies} ChatGPT cookies and ${restoredFiles} allowlisted browser storage files across ${origins.size} origins.`
+            : `Restored ${importedCookies} ChatGPT cookies across ${origins.size} origins.`,
+      } satisfies ElectronBrowserLoginStateImportResult;
     }
-    await session.defaultSession.flushStorageData();
-    return {
-      importedCookies,
-      originCount: origins.size,
-      restoredBytes,
-      restoredFiles,
-    };
-  });
+  );
 
   ipcMain.handle(BROWSER_SITE_DATA_EXPORT_TO_CHROME_CHANNEL, async (_event, input: unknown) => {
     await requireAdministratorAuthorizationForBrowserDataExport();
@@ -1203,6 +1596,8 @@ function createMainWindow(): BrowserWindow {
       sandbox: true,
     },
   });
+
+  resetProductWindowZoom(mainWindow);
 
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();

@@ -131,6 +131,62 @@ products from the t3code-style workspace.
   partition and window; separate Gemini app partitions should not share Google login cookies until the
   user logs into each partition.
 
+## Portable Account Data File Contract
+
+- Customer handoff `.hcbrowser` files use `hugecode.t3-browser-account-data/v2` with
+  `portable-browser-account-state`; the legacy `hugecode.t3-browser-static-data/v1` host-bound
+  safeStorage bundle remains compatibility-only.
+- Portable account data requires a separate import code. Do not include that code in the file,
+  logs, task notes, screenshots, or repository fixtures.
+- The portable payload is limited to allowlisted ChatGPT origins and must not include non-P0 profile
+  metadata, marketplace records, account-pool data, raw cookies in plaintext, OAuth tokens,
+  passwords, or unscoped browser storage dumps.
+- Import succeeds only after the desktop bridge returns a structured restore success result. The
+  renderer must not mark browser data ready or auto-open ChatGPT from bundle count alone.
+- Wrong import code, tampered ciphertext, unsupported schema, empty portable payload, missing
+  desktop bridge, or no allowlisted ChatGPT state must fail closed without marking data imported.
+
+## ChatGPT Login Witness Closure
+
+- After a successful portable account-data import, the renderer marks account data ready and opens
+  ChatGPT through the HugeCode built-in browser provider path. This must stay on the `hcbrowser=1`
+  Electron route; external browser fallback is not a valid P0-04 result.
+- The HugeCode Browser shell derives a ChatGPT login witness from the desktop browser snapshot:
+  active tab id, URL, title, loading state, HTTPS state, and target URL. The witness classifies
+  failures as import-not-ready, browser-launch failure, target-load failure, session-restore failure,
+  or external-site-blocked.
+- ChatGPT DOM state is not read automatically. When ChatGPT loads in the built-in browser without a
+  readable login proof, the shell reports `MANUAL_WITNESS_REQUIRED`; the operator can record a
+  local `VERIFIED` witness only after visually confirming the signed-in ChatGPT UI.
+- The local witness record is stored under `hugecode:t3-browser-chatgpt-login-witness:v1` and is
+  intended for P0-06 handoff evidence. It must not contain plaintext cookies, tokens, import codes,
+  screenshots, or raw ChatGPT account data.
+
+## Customer Startup Import Gate
+
+- When `hugecode:t3-browser-imported-data-ready` is absent, the startup surface must keep the
+  customer on the account-data import gate. The primary action is importing a `.hcbrowser` account
+  file.
+- The manual ChatGPT login button inside that gate is only a fallback mount. It must not write the
+  ready flag, must not be treated as a successful import, and must not trigger the P0-04 success
+  handoff.
+- The import flow may write the ready flag only after the P0-01 restore helper returns a structured
+  `success: true` result. Empty bundles, unsupported schema, wrong import code, missing desktop
+  bridge, or restore failure must stay fail-closed.
+- Import notices should use masked summaries only. Do not render import codes, raw cookies, tokens,
+  ciphertext, or browser-storage values in UI, logs, or tests.
+
+## P0 Runtime Role Freeze
+
+- `P0_RUNTIME_ROLE_MODE` is the P0 role carrier. Allowed values are `customer`, `operator`, and
+  `developer`; missing or unknown values must resolve to `customer`.
+- Customer mode exposes only account-data import, import retry, and the HugeCode built-in ChatGPT
+  browser path. It must not show account rental, relay/proxy, guest pass, seat pool, marketplace,
+  Chrome export, or browser account export controls.
+- Operator mode preserves the `.hcbrowser` browser account export and login-state check needed for
+  handoff preparation. It must not expose customer-only import success as a substitute for export.
+- Developer mode may retain unreleased local debug surfaces such as account rental and relay helpers.
+
 ## Hugerouter Contract Direction
 
 The future `openhuge/hugerouter` service should expose profile sync as a same-user encrypted

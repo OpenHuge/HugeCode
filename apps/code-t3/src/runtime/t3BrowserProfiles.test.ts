@@ -1359,6 +1359,8 @@ describe("t3BrowserProfiles", () => {
               originCount: number;
               restoredBytes: number;
               restoredFiles: number;
+              success: boolean;
+              summary: string;
             }>;
           };
         };
@@ -1370,6 +1372,9 @@ describe("t3BrowserProfiles", () => {
           originCount: 1,
           restoredBytes: 512,
           restoredFiles: 3,
+          success: true,
+          summary:
+            "Restored 2 encrypted login cookies and 3 local browser files (512 bytes) across 1 origins.",
         }),
       },
     };
@@ -1389,8 +1394,15 @@ describe("t3BrowserProfiles", () => {
           summary: "Encrypted cookies and local browser storage.",
         },
       ])
-    ).resolves.toBe(
-      "Restored 2 encrypted login cookies and 3 local browser files (512 bytes) across 1 origins."
+    ).resolves.toEqual(
+      expect.objectContaining({
+        importedCookies: 2,
+        restoredBytes: 512,
+        restoredFiles: 3,
+        success: true,
+        summary:
+          "Restored 2 encrypted login cookies and 3 local browser files (512 bytes) across 1 origins.",
+      })
     );
   });
 

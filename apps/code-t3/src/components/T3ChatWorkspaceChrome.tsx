@@ -28,6 +28,7 @@ import {
 export type T3ComposerMode = "build" | "plan";
 export type T3ComposerAccessMode = AccessMode;
 export type T3ComposerReasonEffort = ReasonEffort;
+export type T3NoticeTone = "danger" | "info" | "success";
 
 type ComposerModelOption = {
   available: boolean;
@@ -59,6 +60,16 @@ export function eventClassName(event: T3CodeTimelineEvent) {
     return "warning";
   }
   return "work";
+}
+
+export function noticeTone(notice: string): T3NoticeTone {
+  if (/loaded .*account data|restored .*cookies|imported .*browser metadata/iu.test(notice)) {
+    return "success";
+  }
+  if (/unable|failed|requires|must|error|blocked|invalid/iu.test(notice)) {
+    return "danger";
+  }
+  return "info";
 }
 
 export function formatEventTime(createdAt: number) {
@@ -191,7 +202,11 @@ export function T3ChatWorkspaceChrome({
         </div>
       </header>
 
-      {notice ? <div className="t3-notice">{notice}</div> : null}
+      {notice ? (
+        <div className="t3-notice" data-tone={noticeTone(notice)}>
+          {notice}
+        </div>
+      ) : null}
 
       <section className="t3-chat-surface">
         <div className="t3-thread">

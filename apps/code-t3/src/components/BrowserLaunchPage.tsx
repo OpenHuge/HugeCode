@@ -54,19 +54,11 @@ import {
   type BrowserChromeSnapshot,
   type BrowserChromeTabState,
 } from "../runtime/t3BrowserChromeBridge";
+import { T3BrowserChatGptLoginWitnessBadge } from "./T3BrowserChatGptLoginWitnessBadge";
 
 type BrowserLaunchPageProps = {
-  initialContinuityMode: string | null;
-  initialContinuityStatus: string | null;
-  initialDeviceCount: string | null;
-  initialAppId: string | null;
-  initialAppKey: string | null;
-  initialAppLabel: string | null;
   initialChatGptAssistant: boolean;
-  initialIsolationMode: string | null;
   initialLdxpAssistant: boolean;
-  initialProfileId: string;
-  initialProfileLabel: string;
   initialProvider: string;
   initialTargetUrl: string;
 };
@@ -611,6 +603,7 @@ function BrowserChromeDesktopShell({
             <Search size={14} />
           </Button>
         </form>
+        <T3BrowserChatGptLoginWitnessBadge snapshot={snapshot} targetUrl={initialTargetUrl} />
         <Button
           className="browser-product-desktop-action"
           type="button"

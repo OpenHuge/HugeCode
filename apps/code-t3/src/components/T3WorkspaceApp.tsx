@@ -38,6 +38,7 @@ import {
   T3WorkspaceAssistantEntries,
   type T3WorkspaceAssistantPage,
 } from "./T3WorkspaceAssistantEntries";
+import { T3BrowserStaticDataImportInput } from "./T3BrowserStaticDataImportInput";
 import { T3WorkspaceSidebar } from "./T3WorkspaceSidebar";
 import {
   browserProviderTitle,
@@ -78,7 +79,6 @@ import {
   listT3BrowserGuestPasses,
   listT3BrowserRecentSessions,
   pauseT3BrowserSeatPoolMemberMock,
-  providerUrl,
   removeT3BrowserIsolatedAppMock,
   refundT3HugerouterCapacityOrderMock,
   revokeT3BrowserGuestPassMock,
@@ -116,11 +116,15 @@ import {
   type T3BrowserProfileOperationsReport,
 } from "../runtime/t3BrowserProfileOperations";
 import {
-  exportT3BrowserSiteDataToChrome,
+  checkT3BrowserChatGptLoginState,
+  formatT3BrowserStaticDataImportError,
   importT3BrowserStaticDataLoginStateBundles,
   importT3BrowserStaticDataBundle,
+  requireT3BrowserAccountDataImportSecret as requireImportSecret,
   serializeT3BrowserStaticDataBundleWithLoginState,
+  type T3BrowserLoginStatePreflightResult,
 } from "../runtime/t3BrowserStaticData";
+import { T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY } from "../runtime/t3BrowserLoginWitness";
 import {
   readT3RuntimeEventSnapshot,
   resolveT3RuntimeEventsEndpoint,
@@ -131,8 +135,6 @@ type T3WorkspaceAppProps = {
 };
 
 type T3WorkspacePage = "chat" | "browser";
-
-const T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY = "hugecode:t3-browser-imported-data-ready";
 
 const providerOrder: T3CodeProviderKind[] = ["codex", "claudeAgent"];
 const browserProviderOrder: T3BrowserProvider[] = ["hugerouter", "chatgpt", "gemini", "custom"];
@@ -255,6 +257,9 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   const [customProductUrl, setCustomProductUrl] = useState("");
   const [browserProfileBusy, setBrowserProfileBusy] = useState(false);
   const [browserProfileNotice, setBrowserProfileNotice] = useState<string | null>(null);
+  const [browserLoginStateStatus, setBrowserLoginStateStatus] =
+    useState<T3BrowserLoginStatePreflightResult["status"]>("unknown");
+  const [browserAccountImportCode, setBrowserAccountImportCode] = useState("");
   const [browserDataImported, setBrowserDataImported] = useState(
     () => window.localStorage.getItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY) === "1"
   );
@@ -789,6 +794,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
         profiles.map((candidate) => (candidate.id === profile.id ? profile : candidate))
       );
       setBrowserRecentSessions(listT3BrowserRecentSessions());
+      setBrowserLoginStateStatus("unknown");
       setBrowserProfileNotice("ChatGPT opened in a separate built-in browser window.");
     } catch (error) {
       setBrowserProfileNotice(
@@ -847,9 +853,13 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     setBrowserProfileBusy(true);
     setBrowserProfileNotice(null);
     try {
-      const blob = new Blob([await serializeT3BrowserStaticDataBundleWithLoginState()], {
-        type: "application/json",
-      });
+      const importSecret = requireImportSecret(browserAccountImportCode, "Export");
+      const preflight = await runChatGptLoginStatePreflight();
+      if (preflight.status !== "loggedIn") {
+        throw new Error(preflight.summary);
+      }
+      const serialized = await serializeT3BrowserStaticDataBundleWithLoginState({ importSecret });
+      const blob = new Blob([serialized], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -858,7 +868,9 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      setBrowserProfileNotice("Browser data exported as a host-encrypted HugeCode browser file.");
+      setBrowserProfileNotice(
+        "Portable ChatGPT account data exported. Send the import code separately from the .hcbrowser file."
+      );
     } catch (error) {
       setBrowserProfileNotice(
         error instanceof Error ? error.message : "Unable to export browser data file."
@@ -880,42 +892,28 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     browserStaticDataImportInputRef.current?.click();
   }
 
-  async function exportBrowserSiteDataToChrome(targetUrlOverride?: string) {
+  async function runChatGptLoginStatePreflight() {
+    const result = await checkT3BrowserChatGptLoginState();
+    setBrowserLoginStateStatus(result.status);
+    setBrowserProfileNotice(result.summary);
+    return result;
+  }
+
+  async function checkChatGptLoginState() {
     setBrowserProfileBusy(true);
     setBrowserProfileNotice(null);
     try {
-      const targetUrl =
-        targetUrlOverride ??
-        (browserProvider === "custom" && customProductUrl.trim()
-          ? customProductUrl.trim()
-          : providerUrl(browserProvider === "custom" ? "chatgpt" : browserProvider));
-      const result = await exportT3BrowserSiteDataToChrome({ targetUrl });
-      setBrowserProfileNotice(
-        `${result.summary} Chrome opened ${result.targetUrl} with profile ${result.profilePath}.`
-      );
-      setNotice(
-        targetUrlOverride
-          ? "ChatGPT account data was handed off to the local browser profile."
-          : null
-      );
-      return true;
+      await runChatGptLoginStatePreflight();
     } catch (error) {
+      setBrowserLoginStateStatus("unknown");
       setBrowserProfileNotice(
-        error instanceof Error ? error.message : "Unable to export browser site data to Chrome."
+        error instanceof Error
+          ? error.message
+          : "Unable to check the built-in ChatGPT browser login state."
       );
-      if (targetUrlOverride) {
-        setNotice(
-          error instanceof Error ? error.message : "Unable to import ChatGPT account locally."
-        );
-      }
-      return false;
     } finally {
       setBrowserProfileBusy(false);
     }
-  }
-
-  async function openChatGptAccountLoginBrowser() {
-    await openChatGptBuiltInBrowser();
   }
 
   async function importBrowserStaticDataFile(file: File) {
@@ -924,23 +922,26 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     let shouldOpenChatGptBrowser = false;
     try {
       const result = importT3BrowserStaticDataBundle(await file.text());
-      refreshBrowserStaticDataState(result.profiles);
-      const loginStateSummary = await importT3BrowserStaticDataLoginStateBundles(
-        result.loginStateBundles
+      const importSecret = requireImportSecret(browserAccountImportCode, "Import");
+      const loginStateResult = await importT3BrowserStaticDataLoginStateBundles(
+        result.loginStateBundles,
+        { importSecret }
       );
-      if (result.loginStateBundles.length > 0) {
-        markBrowserDataImported();
-        shouldOpenChatGptBrowser = true;
+      if (!loginStateResult.success) {
+        throw new Error(loginStateResult.summary ?? "Browser account data restore failed.");
       }
+      refreshBrowserStaticDataState(result.profiles);
+      markBrowserDataImported();
+      shouldOpenChatGptBrowser = true;
+      const loginStateSummary = loginStateResult.summary;
       setBrowserProfileNotice(
         loginStateSummary ? `${result.summary} ${loginStateSummary}` : result.summary
       );
       setNotice(loginStateSummary ? `${result.summary} ${loginStateSummary}` : result.summary);
     } catch (error) {
-      setBrowserProfileNotice(
-        error instanceof Error ? error.message : "Unable to import browser data file."
-      );
-      setNotice(error instanceof Error ? error.message : "Unable to import browser data file.");
+      const message = formatT3BrowserStaticDataImportError(error);
+      setBrowserProfileNotice(message);
+      setNotice(message);
     } finally {
       setBrowserProfileBusy(false);
     }
@@ -1835,15 +1836,18 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
               </Button>
             </div>
             <T3BrowserStaticDataActions
+              accountImportCode={browserAccountImportCode}
               busy={browserProfileBusy}
+              loginStateStatus={browserLoginStateStatus}
+              onAccountImportCodeChange={setBrowserAccountImportCode}
+              onCheckLoginState={() => void checkChatGptLoginState()}
               onExport={() => void exportBrowserStaticData()}
-              onExportToChrome={() => void exportBrowserSiteDataToChrome()}
-              onImportClick={openBrowserStaticDataImportPicker}
+              onOpenChatGpt={() => void openChatGptBuiltInBrowser()}
             />
             <small>
-              Static files include Electron cookies and local browser storage as host-encrypted
-              session state. Chrome export writes a HugeCode-managed Chrome profile, not the default
-              Chrome profile. Export requires administrator approval before session data is read.
+              Operator export opens ChatGPT in the HugeCode browser, checks for allowlisted login
+              cookies, then writes a portable ChatGPT-only encrypted account file. Export requires
+              administrator approval only after login preflight passes.
             </small>
           </Card>
           <T3HugeRouterCommercialCard
@@ -2619,19 +2623,9 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
 
   return (
     <main className={sidebarOpen ? "t3-shell sidebar-open" : "t3-shell"}>
-      <input
-        ref={browserStaticDataImportInputRef}
-        className="t3-browser-static-data-input"
-        type="file"
-        accept="application/json,.json,.hcbrowser"
-        aria-label="Import encrypted browser data file"
-        onChange={(event) => {
-          const file = event.target.files?.[0] ?? null;
-          event.target.value = "";
-          if (file) {
-            void importBrowserStaticDataFile(file);
-          }
-        }}
+      <T3BrowserStaticDataImportInput
+        inputRef={browserStaticDataImportInputRef}
+        onImport={(file) => void importBrowserStaticDataFile(file)}
       />
       <T3WorkspaceSidebar
         activePage={activePage}
@@ -2690,14 +2684,16 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           quickEntries={
             <T3WorkspaceAssistantEntries
               activePage={assistantPage}
+              browserAccountImportCode={browserAccountImportCode}
               browserDataImported={browserDataImported}
               browserImportBusy={browserProfileBusy}
               locale={locale}
               routes={routes}
               onApplyRelayRoute={applyRelayRoute}
               onAssistantPageChange={setAssistantPage}
+              onBrowserAccountImportCodeChange={setBrowserAccountImportCode}
               onImportBrowserData={openBrowserStaticDataImportPicker}
-              onLoginChatGptAccount={() => void openChatGptAccountLoginBrowser()}
+              onLoginChatGptAccount={() => void openChatGptBuiltInBrowser()}
               onOpenBrowser={() => navigateT3Page("browser")}
               onNotice={setNotice}
             />

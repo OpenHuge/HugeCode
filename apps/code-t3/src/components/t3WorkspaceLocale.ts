@@ -10,8 +10,9 @@ export type T3WorkspaceMessages = {
   assistantOperationPage: string;
   assistantOperationTag: string;
   browser: string;
+  browserAccountImportCodeLabel: string;
+  browserAccountImportCodePlaceholder: string;
   browserAccountDataGatePrimary: string;
-  browserAccountDataGateSecondary: string;
   browserAccountDataGateSubtitle: string;
   browserAccountDataGateTitle: string;
   browserAccountDataLoginState: string;
@@ -89,11 +90,12 @@ const messages: Record<T3WorkspaceLocale, T3WorkspaceMessages> = {
     backToStartup: "Back to startup entries",
     blocked: "Blocked",
     browser: "Browser",
+    browserAccountImportCodeLabel: "Import code",
+    browserAccountImportCodePlaceholder: "Enter import code",
     browserAccountDataGatePrimary: "Import account data",
-    browserAccountDataGateSecondary: "Log in to ChatGPT account",
     browserAccountDataGateSubtitle:
-      "HugeCode needs encrypted browser account data before startup tools are available. Import a browser data file first; ChatGPT will open in a separate built-in browser window after the account is ready.",
-    browserAccountDataGateTitle: "Import account data or log in to ChatGPT",
+      "HugeCode needs encrypted browser account data before startup tools are available. Import succeeds before the built-in ChatGPT browser is opened.",
+    browserAccountDataGateTitle: "Import account data",
     browserAccountDataLoginState: "Encrypted account state",
     browserImportChatGptAccount: "Open ChatGPT built-in browser",
     browserImportData: "Import browser file",
@@ -161,11 +163,12 @@ const messages: Record<T3WorkspaceLocale, T3WorkspaceMessages> = {
     backToStartup: "返回启动入口",
     blocked: "阻塞",
     browser: "浏览器",
+    browserAccountImportCodeLabel: "导入码",
+    browserAccountImportCodePlaceholder: "输入导入码",
     browserAccountDataGatePrimary: "导入账户数据",
-    browserAccountDataGateSecondary: "登录 ChatGPT 账户",
     browserAccountDataGateSubtitle:
-      "HugeCode 需要先恢复加密浏览器账户数据，启动入口才会开放。导入完成后会自动打开一个独立的内置浏览器窗口，默认进入 ChatGPT.com。",
-    browserAccountDataGateTitle: "导入账户数据 或 登录 ChatGPT 账户",
+      "HugeCode 需要先恢复加密浏览器账户数据，启动入口才会开放。导入成功后才会打开 ChatGPT 内置浏览器。",
+    browserAccountDataGateTitle: "导入账户数据",
     browserAccountDataLoginState: "加密账户状态",
     browserImportChatGptAccount: "打开 ChatGPT 内置浏览器",
     browserImportData: "导入浏览器文件",

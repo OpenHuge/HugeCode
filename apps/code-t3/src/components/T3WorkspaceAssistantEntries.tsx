@@ -1,4 +1,4 @@
-import { Button, Card, Chip } from "@heroui/react";
+import { Button, Card, Chip, Input } from "@heroui/react";
 import { ArrowLeft, Chrome, CreditCard, FileUp, KeyRound, RadioTower } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { T3CodeProviderRoute } from "@ku0/code-t3-runtime-adapter";
@@ -9,6 +9,10 @@ import {
   resolveT3CodexRelayBackendId,
   type T3CodexRelayProviderId,
 } from "../runtime/t3CodexRelayAssistant";
+import {
+  canUseT3P0UnreleasedAssistantSurfaces,
+  readT3P0RuntimeRoleMode,
+} from "../runtime/t3P0RuntimeRole";
 import { getT3WorkspaceMessages, type T3WorkspaceLocale } from "./t3WorkspaceLocale";
 
 export type T3WorkspaceAssistantPage = "home" | "account-rental" | "relay";
@@ -16,11 +20,13 @@ export type T3WorkspaceAssistantPage = "home" | "account-rental" | "relay";
 type T3WorkspaceAssistantEntriesProps = {
   activePage: T3WorkspaceAssistantPage;
   browserDataImported: boolean;
+  browserAccountImportCode: string;
   browserImportBusy: boolean;
   locale: T3WorkspaceLocale;
   routes: readonly T3CodeProviderRoute[];
   onApplyRelayRoute: (route: T3CodeProviderRoute) => void;
   onAssistantPageChange: (page: T3WorkspaceAssistantPage) => void;
+  onBrowserAccountImportCodeChange: (value: string) => void;
   onImportBrowserData: () => void;
   onLoginChatGptAccount: () => void;
   onOpenBrowser: () => void;
@@ -30,17 +36,22 @@ type T3WorkspaceAssistantEntriesProps = {
 export function T3WorkspaceAssistantEntries({
   activePage,
   browserDataImported,
+  browserAccountImportCode,
   browserImportBusy,
   locale,
   routes,
   onApplyRelayRoute,
   onAssistantPageChange,
+  onBrowserAccountImportCodeChange,
   onImportBrowserData,
   onLoginChatGptAccount,
   onOpenBrowser,
   onNotice,
 }: T3WorkspaceAssistantEntriesProps) {
   const text = getT3WorkspaceMessages(locale);
+  const runtimeRole = readT3P0RuntimeRoleMode();
+  const importCodeReady = browserAccountImportCode.trim().length >= 8;
+  const canUseUnreleasedAssistantSurfaces = canUseT3P0UnreleasedAssistantSurfaces(runtimeRole);
   const [selectedRelayProviderId, setSelectedRelayProviderId] =
     useState<T3CodexRelayProviderId>("tokenflux");
   const relayProviders = useMemo(() => listT3CodexRelayProviders(), []);
@@ -54,7 +65,7 @@ export function T3WorkspaceAssistantEntries({
     [routes, selectedRelayProviderId]
   );
 
-  if (!browserDataImported) {
+  if (runtimeRole === "customer" && !browserDataImported) {
     return (
       <section className="t3-startup-entry-page" aria-label={text.startupEntries}>
         <Card
@@ -73,23 +84,24 @@ export function T3WorkspaceAssistantEntries({
           </Card.Header>
           <p>{text.browserAccountDataGateSubtitle}</p>
           <div className="t3-browser-account-data-actions">
+            <Input
+              className="t3-browser-account-import-code"
+              value={browserAccountImportCode}
+              onChange={(event) => onBrowserAccountImportCodeChange(event.target.value)}
+              aria-label={text.browserAccountImportCodeLabel}
+              placeholder={text.browserAccountImportCodePlaceholder}
+              type="password"
+              variant="secondary"
+            />
             <Button
+              className="t3-browser-account-data-import-button"
               type="button"
               onPress={onImportBrowserData}
-              isDisabled={browserImportBusy}
+              isDisabled={browserImportBusy || !importCodeReady}
               variant="primary"
             >
               <FileUp size={15} />
               {text.browserAccountDataGatePrimary}
-            </Button>
-            <Button
-              type="button"
-              onPress={onLoginChatGptAccount}
-              isDisabled={browserImportBusy}
-              variant="outline"
-            >
-              <Chrome size={15} />
-              {text.browserAccountDataGateSecondary}
             </Button>
           </div>
         </Card>
@@ -97,7 +109,7 @@ export function T3WorkspaceAssistantEntries({
     );
   }
 
-  if (activePage === "account-rental") {
+  if (canUseUnreleasedAssistantSurfaces && activePage === "account-rental") {
     return (
       <section className="t3-assistant-operation-page" aria-label={text.accountRentalPageLabel}>
         <header className="t3-assistant-page-header">
@@ -124,7 +136,7 @@ export function T3WorkspaceAssistantEntries({
     );
   }
 
-  if (activePage === "relay") {
+  if (canUseUnreleasedAssistantSurfaces && activePage === "relay") {
     return (
       <section className="t3-assistant-operation-page" aria-label={text.relayAssistantPageLabel}>
         <header className="t3-assistant-page-header">
@@ -168,21 +180,37 @@ export function T3WorkspaceAssistantEntries({
             <strong>{text.browser}</strong>
             <small>{text.browserSubtitle}</small>
             <span className="t3-main-entry-actions">
-              <Button type="button" onPress={onOpenBrowser} size="sm" variant="outline">
+              <Input
+                className="t3-browser-account-import-code"
+                value={browserAccountImportCode}
+                onChange={(event) => onBrowserAccountImportCodeChange(event.target.value)}
+                aria-label={text.browserAccountImportCodeLabel}
+                placeholder={text.browserAccountImportCodePlaceholder}
+                type="password"
+                variant="secondary"
+              />
+              <Button
+                type="button"
+                onPress={runtimeRole === "customer" ? onLoginChatGptAccount : onOpenBrowser}
+                aria-disabled={runtimeRole === "customer" ? browserImportBusy : undefined}
+                size="sm"
+                variant={runtimeRole === "customer" ? "primary" : "outline"}
+              >
                 <Chrome size={13} />
-                {text.browser}
+                {runtimeRole === "customer" ? text.browserImportChatGptAccount : text.browser}
               </Button>
               <Button
                 type="button"
                 onPress={onImportBrowserData}
-                aria-disabled={browserImportBusy}
+                aria-disabled={browserImportBusy || !importCodeReady}
+                isDisabled={browserImportBusy || !importCodeReady}
                 size="sm"
                 variant="outline"
               >
                 <FileUp size={13} />
                 {text.browserImportData}
               </Button>
-              {browserDataImported ? (
+              {runtimeRole !== "customer" && browserDataImported ? (
                 <Button
                   type="button"
                   onPress={onLoginChatGptAccount}
@@ -197,32 +225,36 @@ export function T3WorkspaceAssistantEntries({
             </span>
           </span>
         </article>
-        <button
-          className="t3-main-entry-card account"
-          type="button"
-          onClick={() => onAssistantPageChange("account-rental")}
-        >
-          <span className="t3-main-entry-icon">
-            <CreditCard size={16} />
-          </span>
-          <span>
-            <strong>{text.accountRental}</strong>
-            <small>{text.accountRentalSubtitle}</small>
-          </span>
-        </button>
-        <button
-          className="t3-main-entry-card relay"
-          type="button"
-          onClick={() => onAssistantPageChange("relay")}
-        >
-          <span className="t3-main-entry-icon">
-            <RadioTower size={16} />
-          </span>
-          <span>
-            <strong>{text.relayAssistant}</strong>
-            <small>{text.relayAssistantSubtitle}</small>
-          </span>
-        </button>
+        {canUseUnreleasedAssistantSurfaces ? (
+          <>
+            <button
+              className="t3-main-entry-card account"
+              type="button"
+              onClick={() => onAssistantPageChange("account-rental")}
+            >
+              <span className="t3-main-entry-icon">
+                <CreditCard size={16} />
+              </span>
+              <span>
+                <strong>{text.accountRental}</strong>
+                <small>{text.accountRentalSubtitle}</small>
+              </span>
+            </button>
+            <button
+              className="t3-main-entry-card relay"
+              type="button"
+              onClick={() => onAssistantPageChange("relay")}
+            >
+              <span className="t3-main-entry-icon">
+                <RadioTower size={16} />
+              </span>
+              <span>
+                <strong>{text.relayAssistant}</strong>
+                <small>{text.relayAssistantSubtitle}</small>
+              </span>
+            </button>
+          </>
+        ) : null}
       </div>
     </section>
   );
@@ -240,6 +272,10 @@ export function T3WorkspaceAssistantThreadRows({
   onOpenAssistantPage,
 }: T3WorkspaceAssistantThreadRowsProps) {
   const text = getT3WorkspaceMessages(locale);
+  const runtimeRole = readT3P0RuntimeRoleMode();
+  if (!canUseT3P0UnreleasedAssistantSurfaces(runtimeRole)) {
+    return null;
+  }
   return (
     <>
       <button

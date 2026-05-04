@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { T3ChatWorkspaceChrome } from "./T3ChatWorkspaceChrome";
+import { noticeTone, T3ChatWorkspaceChrome } from "./T3ChatWorkspaceChrome";
 import type { T3CodeProviderRoute } from "@ku0/code-t3-runtime-adapter";
 
 let mountedRoot: Root | null = null;
@@ -45,7 +45,7 @@ const codexRoute: T3CodeProviderRoute = {
   summary: "Runtime can use the built-in Codex route.",
 };
 
-function renderChrome() {
+function renderChrome(input: { notice?: string | null } = {}) {
   const container = document.createElement("div");
   const props = {
     onComposerAccessModeChange: vi.fn(),
@@ -77,7 +77,7 @@ function renderChrome() {
         composerReasonEffort="medium"
         locale="en"
         launching={false}
-        notice={null}
+        notice={input.notice ?? null}
         prompt="Implement the task"
         selectedModelId="gpt-5.3-codex"
         selectedModelLabel="Codex"
@@ -128,5 +128,15 @@ describe("T3ChatWorkspaceChrome", () => {
     expect(props.onComposerAccessModeChange).toHaveBeenCalledWith("full-access");
     expect(props.onComposerReasonEffortChange).toHaveBeenCalledWith("xhigh");
     expect(container.querySelector('button[aria-label="More composer controls"]')).toBeNull();
+  });
+
+  it("marks restored account data notices as success", () => {
+    const { container } = renderChrome({
+      notice:
+        "Loaded 1 portable ChatGPT account data bundle for restore. Restored 35 encrypted login cookies and 5 local browser files across 3 origins.",
+    });
+
+    expect(container.querySelector(".t3-notice")?.getAttribute("data-tone")).toBe("success");
+    expect(noticeTone("Unable to import browser account data file.")).toBe("danger");
   });
 });

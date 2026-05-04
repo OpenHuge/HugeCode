@@ -9,6 +9,7 @@ import {
   T3WorkspaceAssistantThreadRows,
   type T3WorkspaceAssistantPage,
 } from "./T3WorkspaceAssistantEntries";
+import { readT3P0RuntimeRoleMode } from "../runtime/t3P0RuntimeRole";
 import { providerTitle } from "./t3WorkspaceLabels";
 import type { T3WorkspaceMessages, T3WorkspaceLocale } from "./t3WorkspaceLocale";
 import { T3Wordmark } from "./T3Wordmark";
@@ -54,6 +55,7 @@ export function T3WorkspaceSidebar({
   onRefreshRoutes,
   onSelectProvider,
 }: T3WorkspaceSidebarProps) {
+  const showBrowserManagement = readT3P0RuntimeRoleMode() !== "customer";
   return (
     <aside className="t3-sidebar" aria-label="HugeCode T3 navigation" aria-expanded={sidebarOpen}>
       <div className="t3-sidebar-header">
@@ -162,22 +164,24 @@ export function T3WorkspaceSidebar({
           <Settings size={14} />
           <span>{text.settings}</span>
         </button>
-        <button
-          className={
-            activePage === "browser"
-              ? "t3-sidebar-footer-browser active"
-              : "t3-sidebar-footer-browser"
-          }
-          type="button"
-          onClick={onOpenBrowser}
-          aria-label={text.browser}
-          title={text.browser}
-        >
-          <span className="t3-sidebar-chrome-icon" aria-hidden="true">
-            <Chrome size={17} />
-          </span>
-          <span>{text.browser}</span>
-        </button>
+        {showBrowserManagement ? (
+          <button
+            className={
+              activePage === "browser"
+                ? "t3-sidebar-footer-browser active"
+                : "t3-sidebar-footer-browser"
+            }
+            type="button"
+            onClick={onOpenBrowser}
+            aria-label={text.browser}
+            title={text.browser}
+          >
+            <span className="t3-sidebar-chrome-icon" aria-hidden="true">
+              <Chrome size={17} />
+            </span>
+            <span>{text.browser}</span>
+          </button>
+        ) : null}
       </footer>
     </aside>
   );

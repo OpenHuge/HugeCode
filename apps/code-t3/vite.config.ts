@@ -12,6 +12,8 @@ const reactDomClientPath = fileURLToPath(
 );
 
 export default defineConfig({
+  base: "./",
+  envPrefix: ["VITE_", "P0_"],
   plugins: [react()],
   resolve: {
     alias: [

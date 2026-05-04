@@ -596,6 +596,10 @@ code {
   gap: 6px;
 }
 
+.t3-browser-static-data-actions .t3-browser-account-import-code {
+  grid-column: 1 / -1;
+}
+
 .t3-browser-static-data-input {
   display: none;
 }
@@ -1343,7 +1347,8 @@ code {
 
 .t3-browser-account-data-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: end;
   gap: 8px;
 }
 
@@ -1361,6 +1366,12 @@ code {
 }
 
 .t3-browser-account-data-actions button:last-child {
+  border-color: color-mix(in srgb, #0f766e 42%, var(--border));
+  background: color-mix(in srgb, #14b8a6 18%, var(--background));
+}
+
+.t3-browser-account-data-actions .t3-browser-account-data-import-button {
+  min-width: 168px;
   border-color: color-mix(in srgb, #0f766e 42%, var(--border));
   background: color-mix(in srgb, #14b8a6 18%, var(--background));
 }
@@ -1388,6 +1399,17 @@ code {
 
 article.t3-main-entry-card {
   min-height: 112px;
+}
+
+.t3-main-entry-card.browser:only-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(560px, 100%);
+  min-height: 166px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 26px 28px;
 }
 
 .t3-main-entry-card:hover {
@@ -1436,6 +1458,8 @@ article.t3-main-entry-card {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 7px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .t3-main-entry-actions button {
@@ -1446,6 +1470,21 @@ article.t3-main-entry-card {
   color: var(--foreground);
   padding: 0 8px;
   font-size: 11px;
+}
+
+.t3-main-entry-actions .t3-browser-account-import-code {
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.t3-main-entry-card.browser:only-child .t3-browser-account-import-code {
+  flex-basis: 100%;
+}
+
+.t3-main-entry-card.browser:only-child .t3-main-entry-icon {
+  width: 50px;
+  height: 50px;
 }
 
 .t3-main-entry-actions button[aria-disabled="true"] {
@@ -2345,12 +2384,24 @@ article.t3-main-entry-card {
 
 .t3-notice {
   margin: 10px 18px 0;
-  border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--muted-foreground) 25%, transparent);
   border-radius: calc(var(--radius) - 2px);
-  background: color-mix(in srgb, #ef4444 10%, transparent);
-  color: #ef4444;
+  background: color-mix(in srgb, var(--muted-foreground) 8%, transparent);
+  color: var(--muted-foreground);
   padding: 8px 10px;
   font-size: 12px;
+}
+
+.t3-notice[data-tone="danger"] {
+  border-color: color-mix(in srgb, #ef4444 35%, transparent);
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+  color: #ef4444;
+}
+
+.t3-notice[data-tone="success"] {
+  border-color: color-mix(in srgb, #10b981 38%, transparent);
+  background: color-mix(in srgb, #10b981 10%, transparent);
+  color: #34d399;
 }
 
 .t3-chat-surface {
@@ -3213,6 +3264,46 @@ article.t3-main-entry-card {
 
 .browser-product-address.insecure {
   color: #ef4444;
+}
+
+.browser-product-login-witness {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid #dadce0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #3c4043;
+  padding: 0 6px 0 10px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.browser-product-login-witness[data-status="VERIFIED"] {
+  border-color: #34a853;
+  color: #137333;
+}
+
+.browser-product-login-witness[data-status="SESSION_RESTORE_FAILED"],
+.browser-product-login-witness[data-status="TARGET_LOAD_FAILED"],
+.browser-product-login-witness[data-status="BROWSER_LAUNCH_FAILED"],
+.browser-product-login-witness[data-status="EXTERNAL_SITE_BLOCKED"] {
+  border-color: #fbbc04;
+  color: #8a4b00;
+}
+
+.browser-product-login-witness span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.browser-product-login-witness button {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
 }
 
 .browser-product-address input {

@@ -7,6 +7,10 @@ import type {
   BrowserChromeSnapshot,
 } from "../runtime/t3BrowserChromeBridge";
 import {
+  T3_BROWSER_CHATGPT_LOGIN_WITNESS_STORAGE_KEY,
+  T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY,
+} from "../runtime/t3BrowserLoginWitness";
+import {
   BrowserLaunchPage,
   normalizeAddressInput,
   T3_LDXP_BROWSER_DRAFT_STORAGE_KEY,
@@ -274,6 +278,49 @@ describe("BrowserLaunchPage", () => {
 
     expect(container.textContent).toContain("New Tab");
     expect(container.querySelector(".browser-product-google-logo")?.textContent).toBe("Google");
+  });
+
+  it("records a manual ChatGPT login witness after account data import", async () => {
+    window.localStorage.setItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY, "1");
+    installBrowserChromeBridge({
+      activeTabId: "tab-1",
+      tabs: [
+        {
+          canGoBack: false,
+          canGoForward: false,
+          id: "tab-1",
+          loading: false,
+          securityState: "secure",
+          title: "ChatGPT",
+          url: "https://chatgpt.com/",
+        },
+      ],
+    });
+
+    const container = await renderBrowserLaunchPageAsync({
+      initialChatGptAssistant: false,
+      initialLdxpAssistant: false,
+      initialProvider: "chatgpt",
+      initialTargetUrl: "https://chatgpt.com/",
+    });
+
+    expect(container.textContent).toContain("MANUAL_WITNESS_REQUIRED");
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.includes("Record witness"))
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain("VERIFIED");
+    expect(
+      JSON.parse(window.localStorage.getItem(T3_BROWSER_CHATGPT_LOGIN_WITNESS_STORAGE_KEY) ?? "{}")
+    ).toEqual(
+      expect.objectContaining({
+        provider: "chatgpt",
+        status: "VERIFIED",
+      })
+    );
   });
 
   it("navigates the active desktop tab through the mocked Chrome bridge", async () => {
