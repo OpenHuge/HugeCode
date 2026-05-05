@@ -269,7 +269,6 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   const [browserLoginStateStatus, setBrowserLoginStateStatus] =
     useState<T3BrowserLoginStatePreflightResult["status"]>("unknown");
   const [browserAccountImportCode, setBrowserAccountImportCode] = useState("");
-  const [browserAccountFileUnlockCode, setBrowserAccountFileUnlockCode] = useState("");
   const [browserDeliveryProjection, setBrowserDeliveryProjection] =
     useState<T3DeliveryProjection | null>(null);
   const [browserDataImported, setBrowserDataImported] = useState(
@@ -882,7 +881,6 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     if (verifyT3OperatorLocalPassword(browserAccountImportCode)) {
       writeT3OperatorUnlockState(true);
       setBrowserAccountImportCode("");
-      setBrowserAccountFileUnlockCode("");
       setBrowserProfileNotice("生产端已解锁。");
       setNotice("生产端已解锁。");
       navigateT3Page("browser");
@@ -894,7 +892,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     try {
       const restore = await restoreT3CustomerBrowserDelivery({
         activationCodeInput: browserAccountImportCode,
-        fileUnlockCodeInput: browserAccountFileUnlockCode,
+        fileUnlockCodeInput: browserAccountImportCode,
       });
       setBrowserDeliveryProjection(restore.projection);
       if (restore.status !== "restored") {
@@ -903,7 +901,6 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       refreshBrowserStaticDataState(restore.profiles);
       markBrowserDataImported();
       setBrowserAccountImportCode("");
-      setBrowserAccountFileUnlockCode("");
       shouldOpenChatGptBrowser = true;
       setBrowserProfileNotice(restore.notice);
       setNotice(restore.notice);
@@ -2679,7 +2676,6 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           quickEntries={
             <T3WorkspaceAssistantEntries
               activePage={assistantPage}
-              browserAccountFileUnlockCode={browserAccountFileUnlockCode}
               browserAccountImportCode={browserAccountImportCode}
               browserDataImported={browserDataImported}
               browserDeliveryProjection={browserDeliveryProjection}
@@ -2689,7 +2685,6 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
               routes={routes}
               onApplyRelayRoute={applyRelayRoute}
               onAssistantPageChange={setAssistantPage}
-              onBrowserAccountFileUnlockCodeChange={setBrowserAccountFileUnlockCode}
               onBrowserAccountImportCodeChange={setBrowserAccountImportCode}
               onImportBrowserData={openBrowserStaticDataImportPicker}
               onLoginChatGptAccount={() => void openChatGptBuiltInBrowser()}

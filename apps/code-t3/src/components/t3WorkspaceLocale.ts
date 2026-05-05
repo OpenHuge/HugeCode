@@ -16,8 +16,6 @@ export type T3WorkspaceMessages = {
   browserAccountDataGateSubtitle: string;
   browserAccountDataGateTitle: string;
   browserAccountDataLoginState: string;
-  browserFileUnlockCodeLabel: string;
-  browserFileUnlockCodePlaceholder: string;
   browserImportChatGptAccount: string;
   browserImportData: string;
   browserRedeemData: string;
@@ -104,15 +102,13 @@ const messages: Record<T3WorkspaceLocale, T3WorkspaceMessages> = {
       "HugeCode needs encrypted browser account data before startup tools are available. Import succeeds before the built-in ChatGPT browser is opened.",
     browserAccountDataGateTitle: "Import account data",
     browserAccountDataLoginState: "Encrypted account state",
-    browserFileUnlockCodeLabel: "File unlock code",
-    browserFileUnlockCodePlaceholder: "Enter file unlock code",
     browserImportChatGptAccount: "Open ChatGPT built-in browser",
     browserImportData: "Import browser file",
     browserRedeemData: "Redeem and restore",
-    browserRedemptionCodeLabel: "Redemption code",
-    browserRedemptionCodePlaceholder: "Enter redemption code",
+    browserRedemptionCodeLabel: "Redemption code or production password",
+    browserRedemptionCodePlaceholder: "Enter redemption code or production password",
     browserRemoteDataGateSubtitle:
-      "Enter the redemption code to claim the delivery, then enter the file unlock code to decrypt the browser account data. The file unlock code is not the redemption code and is not returned again by the backend.",
+      "Enter a redemption code to restore customer delivery. Enter the production password to open the production workspace.",
     browserRemoteDataGateTitle: "Redeem delivery",
     browserSubtitle: "Open managed product browser",
     build: "Build",
@@ -185,15 +181,13 @@ const messages: Record<T3WorkspaceLocale, T3WorkspaceMessages> = {
       "HugeCode 需要先恢复加密浏览器账户数据，启动入口才会开放。导入成功后才会打开 ChatGPT 内置浏览器。",
     browserAccountDataGateTitle: "导入账户数据",
     browserAccountDataLoginState: "加密账户状态",
-    browserFileUnlockCodeLabel: "文件解锁码",
-    browserFileUnlockCodePlaceholder: "输入文件解锁码",
     browserImportChatGptAccount: "打开 ChatGPT 内置浏览器",
     browserImportData: "导入浏览器文件",
     browserRedeemData: "验证并恢复",
-    browserRedemptionCodeLabel: "兑换码",
-    browserRedemptionCodePlaceholder: "输入兑换码",
+    browserRedemptionCodeLabel: "兑换码或生产端密码",
+    browserRedemptionCodePlaceholder: "输入兑换码或生产端密码",
     browserRemoteDataGateSubtitle:
-      "兑换码用于领取交付，文件解锁码用于本地解密浏览器账号数据；两者不是同一个码，文件解锁码不会由后端再次返回。",
+      "输入兑换码会按普通用户流程恢复交付；输入生产端密码会进入生产工作台。",
     browserRemoteDataGateTitle: "兑换交付",
     browserSubtitle: "打开托管产品浏览器",
     build: "构建",

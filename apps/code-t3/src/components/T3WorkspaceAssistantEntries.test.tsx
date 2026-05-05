@@ -33,11 +33,9 @@ function setRuntimeRole(role: "customer" | "operator" | "developer") {
 function renderAssistantEntries(
   options: {
     browserDataImported?: boolean;
-    browserAccountFileUnlockCode?: string;
     browserAccountImportCode?: string;
     browserImportBusy?: boolean;
     browserOperatorUnlockReady?: boolean;
-    onBrowserAccountFileUnlockCodeChange?: (value: string) => void;
     onBrowserAccountImportCodeChange?: (value: string) => void;
     onImportBrowserData?: () => void;
     onLoginChatGptAccount?: () => void;
@@ -47,8 +45,6 @@ function renderAssistantEntries(
 ) {
   const container = document.createElement("div");
   const onImportBrowserData = options.onImportBrowserData ?? vi.fn();
-  const onBrowserAccountFileUnlockCodeChange =
-    options.onBrowserAccountFileUnlockCodeChange ?? vi.fn();
   const onBrowserAccountImportCodeChange = options.onBrowserAccountImportCodeChange ?? vi.fn();
   const onLoginChatGptAccount = options.onLoginChatGptAccount ?? vi.fn();
   const onNotice = vi.fn();
@@ -61,7 +57,6 @@ function renderAssistantEntries(
     return (
       <T3WorkspaceAssistantEntries
         activePage={activePage}
-        browserAccountFileUnlockCode={options.browserAccountFileUnlockCode ?? "p0-file-unlock"}
         browserAccountImportCode={options.browserAccountImportCode ?? "p0-06-test-code"}
         browserDataImported={options.browserDataImported ?? true}
         browserDeliveryProjection={null}
@@ -71,7 +66,6 @@ function renderAssistantEntries(
         routes={[]}
         onApplyRelayRoute={vi.fn()}
         onAssistantPageChange={setActivePage}
-        onBrowserAccountFileUnlockCodeChange={onBrowserAccountFileUnlockCodeChange}
         onBrowserAccountImportCodeChange={onBrowserAccountImportCodeChange}
         onImportBrowserData={onImportBrowserData}
         onLoginChatGptAccount={onLoginChatGptAccount}
@@ -89,7 +83,6 @@ function renderAssistantEntries(
   return {
     container,
     onImportBrowserData,
-    onBrowserAccountFileUnlockCodeChange,
     onBrowserAccountImportCodeChange,
     onLoginChatGptAccount,
     onNotice,
@@ -111,7 +104,6 @@ function renderAssistantEntriesWithPage(
     root.render(
       <T3WorkspaceAssistantEntries
         activePage={activePage}
-        browserAccountFileUnlockCode="p0-file-unlock"
         browserAccountImportCode="p0-06-test-code"
         browserDataImported={options.browserDataImported ?? true}
         browserDeliveryProjection={null}
@@ -121,7 +113,6 @@ function renderAssistantEntriesWithPage(
         routes={[]}
         onApplyRelayRoute={vi.fn()}
         onAssistantPageChange={onAssistantPageChange}
-        onBrowserAccountFileUnlockCodeChange={vi.fn()}
         onBrowserAccountImportCodeChange={vi.fn()}
         onImportBrowserData={vi.fn()}
         onLoginChatGptAccount={vi.fn()}
@@ -176,10 +167,11 @@ describe("T3WorkspaceAssistantEntries", () => {
 
     expect(container.querySelectorAll(".t3-main-entry-card")).toHaveLength(0);
     expect(container.textContent).toContain("兑换交付");
-    expect(container.textContent).toContain("文件解锁码用于本地解密浏览器账号数据");
+    expect(container.textContent).toContain("输入生产端密码会进入生产工作台");
     expect(container.textContent).toContain("验证并恢复");
-    expect(container.querySelector("input[aria-label='兑换码']")).not.toBeNull();
-    expect(container.querySelector("input[aria-label='文件解锁码']")).not.toBeNull();
+    expect(container.querySelectorAll("input")).toHaveLength(1);
+    expect(container.querySelector("input[aria-label='兑换码或生产端密码']")).not.toBeNull();
+    expect(container.querySelector("input[aria-label='文件解锁码']")).toBeNull();
     expect(container.textContent).not.toContain("手动登录 ChatGPT");
     expect(container.textContent).not.toContain("账户池管理");
     expect(container.textContent).not.toContain("中转助手");
@@ -192,10 +184,10 @@ describe("T3WorkspaceAssistantEntries", () => {
     expect(onLoginChatGptAccount).not.toHaveBeenCalled();
   });
 
-  it("requires both redemption and file unlock codes before remote restore", () => {
+  it("requires one redemption code before remote restore", () => {
     const onRedeemBrowserDelivery = vi.fn();
     const { container } = renderAssistantEntries({
-      browserAccountFileUnlockCode: "",
+      browserAccountImportCode: "",
       browserDataImported: false,
       onRedeemBrowserDelivery,
     });
@@ -210,7 +202,6 @@ describe("T3WorkspaceAssistantEntries", () => {
   it("keeps the hidden operator unlock entry available from the customer redemption input", () => {
     const onRedeemBrowserDelivery = vi.fn();
     const { container } = renderAssistantEntries({
-      browserAccountFileUnlockCode: "",
       browserAccountImportCode: "ku020260506",
       browserDataImported: false,
       browserOperatorUnlockReady: true,

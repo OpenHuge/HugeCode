@@ -21,7 +21,6 @@ export type T3WorkspaceAssistantPage = "home" | "account-rental" | "relay";
 type T3WorkspaceAssistantEntriesProps = {
   activePage: T3WorkspaceAssistantPage;
   browserDataImported: boolean;
-  browserAccountFileUnlockCode: string;
   browserAccountImportCode: string;
   browserDeliveryProjection?: T3DeliveryProjection | null;
   browserImportBusy: boolean;
@@ -30,7 +29,6 @@ type T3WorkspaceAssistantEntriesProps = {
   routes: readonly T3CodeProviderRoute[];
   onApplyRelayRoute: (route: T3CodeProviderRoute) => void;
   onAssistantPageChange: (page: T3WorkspaceAssistantPage) => void;
-  onBrowserAccountFileUnlockCodeChange: (value: string) => void;
   onBrowserAccountImportCodeChange: (value: string) => void;
   onImportBrowserData: () => void;
   onLoginChatGptAccount: () => void;
@@ -61,7 +59,6 @@ function deliveryStatusColor(projection: T3DeliveryProjection | null | undefined
 export function T3WorkspaceAssistantEntries({
   activePage,
   browserDataImported,
-  browserAccountFileUnlockCode,
   browserAccountImportCode,
   browserDeliveryProjection,
   browserImportBusy,
@@ -70,7 +67,6 @@ export function T3WorkspaceAssistantEntries({
   routes,
   onApplyRelayRoute,
   onAssistantPageChange,
-  onBrowserAccountFileUnlockCodeChange,
   onBrowserAccountImportCodeChange,
   onImportBrowserData,
   onLoginChatGptAccount,
@@ -81,8 +77,7 @@ export function T3WorkspaceAssistantEntries({
   const text = getT3WorkspaceMessages(locale);
   const runtimeRole = readT3P0RuntimeRoleMode();
   const importCodeReady = browserAccountImportCode.trim().length >= 8;
-  const fileUnlockCodeReady = browserAccountFileUnlockCode.trim().length >= 8;
-  const remoteRedeemReady = browserOperatorUnlockReady || (importCodeReady && fileUnlockCodeReady);
+  const remoteRedeemReady = browserOperatorUnlockReady || importCodeReady;
   const canUseUnreleasedAssistantSurfaces = canUseT3P0UnreleasedAssistantSurfaces(runtimeRole);
   const [selectedRelayProviderId, setSelectedRelayProviderId] =
     useState<T3CodexRelayProviderId>("tokenflux");
@@ -122,15 +117,6 @@ export function T3WorkspaceAssistantEntries({
               onChange={(event) => onBrowserAccountImportCodeChange(event.target.value)}
               aria-label={text.browserRedemptionCodeLabel}
               placeholder={text.browserRedemptionCodePlaceholder}
-              type="password"
-              variant="secondary"
-            />
-            <Input
-              className="t3-browser-account-file-unlock-code"
-              value={browserAccountFileUnlockCode}
-              onChange={(event) => onBrowserAccountFileUnlockCodeChange(event.target.value)}
-              aria-label={text.browserFileUnlockCodeLabel}
-              placeholder={text.browserFileUnlockCodePlaceholder}
               type="password"
               variant="secondary"
             />
