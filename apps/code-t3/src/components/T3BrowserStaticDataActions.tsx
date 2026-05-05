@@ -49,8 +49,8 @@ export function T3BrowserStaticDataActions({
             className="t3-browser-account-import-code"
             value={accountImportCode}
             onChange={(event) => onAccountImportCodeChange(event.target.value)}
-            aria-label="Import code for account file"
-            placeholder="Import code for account file"
+            aria-label="文件解锁码"
+            placeholder="输入文件解锁码"
             type="password"
             variant="secondary"
           />

@@ -1347,7 +1347,7 @@ code {
 
 .t3-browser-account-data-actions {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
   gap: 8px;
 }
@@ -1371,6 +1371,7 @@ code {
 }
 
 .t3-browser-account-data-actions .t3-browser-account-data-import-button {
+  grid-column: 1 / -1;
   min-width: 168px;
   border-color: color-mix(in srgb, #0f766e 42%, var(--border));
   background: color-mix(in srgb, #14b8a6 18%, var(--background));
@@ -4258,6 +4259,156 @@ article.t3-main-entry-card {
   font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.t3-operator-unlock-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(15 23 42 / 0.38);
+  padding: 20px;
+}
+
+.t3-operator-unlock-dialog {
+  width: min(420px, 100%);
+  gap: 14px;
+}
+
+.t3-operator-unlock-error {
+  color: #dc2626;
+}
+
+.t3-operator-workspace-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.t3-operator-workspace-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.t3-operator-workspace-actions input,
+.t3-operator-workspace-actions button:last-child {
+  grid-column: 1 / -1;
+}
+
+.t3-operator-workspace-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.t3-operator-workspace-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--muted);
+  padding: 10px;
+  color: var(--muted-foreground);
+}
+
+.t3-operator-workspace-step.ready {
+  border-color: #f59e0b;
+  background: rgb(245 158 11 / 0.1);
+  color: var(--foreground);
+}
+
+.t3-operator-workspace-step.done {
+  border-color: #16a34a;
+  background: rgb(22 163 74 / 0.1);
+  color: var(--foreground);
+}
+
+.t3-operator-workspace-step span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.t3-operator-workspace-step small {
+  line-height: 1.35;
+}
+
+.t3-operator-workspace-file-code {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 6px;
+}
+
+.t3-operator-workspace-file-code > span {
+  font-weight: 650;
+}
+
+.t3-operator-workspace-file-code small {
+  color: var(--muted-foreground);
+}
+
+.t3-operator-workspace-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.t3-operator-workspace-facts div {
+  display: grid;
+  gap: 2px;
+}
+
+.t3-operator-workspace-facts dt {
+  color: var(--muted-foreground);
+}
+
+.t3-operator-workspace-facts dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: var(--foreground);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+@media (max-width: 760px) {
+  .t3-operator-workspace-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.browser-product-operator-capture {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 4px 6px;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.browser-product-operator-capture-overlay {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  display: grid;
+  gap: 10px;
+  max-width: 360px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 16px;
+  box-shadow: 0 18px 45px rgb(15 23 42 / 0.22);
+}
+
+.browser-product-operator-capture-overlay p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
 }
 
 @media (max-width: 760px) {

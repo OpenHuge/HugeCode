@@ -1444,6 +1444,22 @@ describe("t3BrowserProfiles", () => {
     );
   });
 
+  it("carries operator delivery capture mode into the browser URL", async () => {
+    const bridge = createT3BrowserProfileBridge();
+
+    await bridge.openProvider({
+      captureMode: "operator-delivery",
+      profileId: "current-browser",
+      providerId: "chatgpt",
+    });
+
+    expect(window.open).toHaveBeenCalledWith(
+      expect.stringContaining("captureMode=operator-delivery"),
+      "_blank",
+      "popup,width=1180,height=860,noopener,noreferrer"
+    );
+  });
+
   it("exports built-in browser site data into a managed Chrome profile through the desktop bridge", async () => {
     (
       window as Window & {

@@ -5,6 +5,7 @@ export type T3CodeShellRoute =
         initialAppId: string | null;
         initialAppKey: string | null;
         initialAppLabel: string | null;
+        initialCaptureMode: "operator-delivery" | null;
         initialContinuityMode: string | null;
         initialContinuityStatus: string | null;
         initialDeviceCount: string | null;
@@ -35,6 +36,8 @@ export function resolveT3CodeShellRoute(search: string): T3CodeShellRoute {
       initialAppId: searchParams.get("appId"),
       initialAppKey: searchParams.get("appKey"),
       initialAppLabel: searchParams.get("appLabel"),
+      initialCaptureMode:
+        searchParams.get("captureMode") === "operator-delivery" ? "operator-delivery" : null,
       initialContinuityMode: searchParams.get("continuityMode"),
       initialContinuityStatus: searchParams.get("continuity"),
       initialDeviceCount: searchParams.get("deviceCount"),

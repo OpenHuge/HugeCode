@@ -20,6 +20,7 @@ const defaultProps = {
   initialAppId: null,
   initialAppKey: null,
   initialAppLabel: "ldxp.cn AI 充值",
+  initialCaptureMode: null as "operator-delivery" | null,
   initialChatGptAssistant: false,
   initialContinuityMode: "remote-session-handoff",
   initialContinuityStatus: "ready",
@@ -113,6 +114,11 @@ function installBrowserChromeBridge(initialSnapshot: BrowserChromeSnapshot) {
                 },
               ],
             };
+      publish();
+      return result();
+    },
+    async closeWindow() {
+      snapshot = { ...snapshot };
       publish();
       return result();
     },
@@ -356,6 +362,202 @@ describe("BrowserLaunchPage", () => {
     expect(container.textContent).toContain("github.com");
     expect(container.querySelector('[aria-label="Back"]')?.getAttribute("aria-disabled")).toBe(
       "false"
+    );
+  });
+
+  it.each([
+    "operator delivery overlay closes browser window",
+    "operator overlay never says password was read",
+  ])("%s", async () => {
+    const bridge = installBrowserChromeBridge({
+      activeTabId: "tab-1",
+      tabs: [
+        {
+          canGoBack: false,
+          canGoForward: false,
+          id: "tab-1",
+          loading: false,
+          securityState: "secure",
+          title: "ChatGPT",
+          url: "https://chatgpt.com/",
+        },
+      ],
+    });
+    const closeWindowCalls: string[] = [];
+    bridge.closeWindow = async () => {
+      closeWindowCalls.push("close");
+      return bridge.getSnapshot().then((snapshot) => ({ ok: true, snapshot }));
+    };
+    (
+      window as Window & {
+        hugeCodeDesktopHost?: typeof window.hugeCodeDesktopHost & {
+          browserStaticData?: {
+            checkLoginState: () => Promise<unknown>;
+          };
+        };
+      }
+    ).hugeCodeDesktopHost = {
+      ...window.hugeCodeDesktopHost,
+      browserChrome: bridge,
+      browserStaticData: {
+        checkLoginState: async () => ({
+          allowedOrigins: ["https://chatgpt.com"],
+          cookieCount: 2,
+          originCount: 1,
+          provider: "chatgpt",
+          storageFileCount: 1,
+          status: "loggedIn",
+          summary: "ChatGPT login state is ready.",
+        }),
+      },
+    };
+
+    const container = await renderBrowserLaunchPageAsync({
+      initialCaptureMode: "operator-delivery",
+      initialChatGptAssistant: false,
+      initialLdxpAssistant: false,
+      initialProvider: "chatgpt",
+      initialTargetUrl: "https://chatgpt.com/",
+    });
+
+    expect(container.textContent).toContain("ChatGPT 登录态已检测");
+    expect(container.textContent).toContain(
+      "已检测到 ChatGPT 登录态，可以关闭浏览器，返回生产端继续准备交付。"
+    );
+    expect(container.textContent).toContain("不读取账号密码");
+    expect(container.textContent).not.toContain("密码已读取");
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.includes("返回生产工作台"))
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(closeWindowCalls).toEqual(["close"]);
+  });
+
+  it("shows a manual return fallback when operator delivery closeWindow fails", async () => {
+    const bridge = installBrowserChromeBridge({
+      activeTabId: "tab-1",
+      tabs: [
+        {
+          canGoBack: false,
+          canGoForward: false,
+          id: "tab-1",
+          loading: false,
+          securityState: "secure",
+          title: "ChatGPT",
+          url: "https://chatgpt.com/",
+        },
+      ],
+    });
+    bridge.closeWindow = async () => {
+      throw new Error("Native window close rejected.");
+    };
+    (
+      window as Window & {
+        hugeCodeDesktopHost?: typeof window.hugeCodeDesktopHost & {
+          browserStaticData?: {
+            checkLoginState: () => Promise<unknown>;
+          };
+        };
+      }
+    ).hugeCodeDesktopHost = {
+      ...window.hugeCodeDesktopHost,
+      browserChrome: bridge,
+      browserStaticData: {
+        checkLoginState: async () => ({
+          allowedOrigins: ["https://chatgpt.com"],
+          cookieCount: 2,
+          originCount: 1,
+          provider: "chatgpt",
+          storageFileCount: 1,
+          status: "loggedIn",
+          summary: "ChatGPT login state is ready.",
+        }),
+      },
+    };
+
+    const container = await renderBrowserLaunchPageAsync({
+      initialCaptureMode: "operator-delivery",
+      initialChatGptAssistant: false,
+      initialLdxpAssistant: false,
+      initialProvider: "chatgpt",
+      initialTargetUrl: "https://chatgpt.com/",
+    });
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.includes("返回生产工作台"))
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain(
+      "Unable to close the browser window. Close it manually and return to the production workspace."
+    );
+  });
+
+  it("shows the native cleanup retry message when operator delivery session cleanup fails", async () => {
+    const bridge = installBrowserChromeBridge({
+      activeTabId: "tab-1",
+      tabs: [
+        {
+          canGoBack: false,
+          canGoForward: false,
+          id: "tab-1",
+          loading: false,
+          securityState: "secure",
+          title: "ChatGPT",
+          url: "https://chatgpt.com/",
+        },
+      ],
+    });
+    bridge.closeWindow = async () => ({
+      errorMessage:
+        "Unable to clear the production browser session. Close was blocked; retry returning to the production workspace after checking the browser window.",
+      ok: false,
+      snapshot: await bridge.getSnapshot(),
+    });
+    (
+      window as Window & {
+        hugeCodeDesktopHost?: typeof window.hugeCodeDesktopHost & {
+          browserStaticData?: {
+            checkLoginState: () => Promise<unknown>;
+          };
+        };
+      }
+    ).hugeCodeDesktopHost = {
+      ...window.hugeCodeDesktopHost,
+      browserChrome: bridge,
+      browserStaticData: {
+        checkLoginState: async () => ({
+          allowedOrigins: ["https://chatgpt.com"],
+          cookieCount: 2,
+          originCount: 1,
+          provider: "chatgpt",
+          storageFileCount: 1,
+          status: "loggedIn",
+          summary: "ChatGPT login state is ready.",
+        }),
+      },
+    };
+
+    const container = await renderBrowserLaunchPageAsync({
+      initialCaptureMode: "operator-delivery",
+      initialChatGptAssistant: false,
+      initialLdxpAssistant: false,
+      initialProvider: "chatgpt",
+      initialTargetUrl: "https://chatgpt.com/",
+    });
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent?.includes("返回生产工作台"))
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain(
+      "Unable to clear the production browser session. Close was blocked; retry returning to the production workspace after checking the browser window."
     );
   });
 

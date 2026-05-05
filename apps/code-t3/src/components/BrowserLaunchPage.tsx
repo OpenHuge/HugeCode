@@ -54,9 +54,13 @@ import {
   type BrowserChromeSnapshot,
   type BrowserChromeTabState,
 } from "../runtime/t3BrowserChromeBridge";
+import { EMPTY_BROWSER_CHROME_SNAPSHOT } from "./t3BrowserChromeDesktopConstants";
+import { hostLabel, isSecureUrl } from "./t3BrowserLaunchHelpers";
 import { T3BrowserChatGptLoginWitnessBadge } from "./T3BrowserChatGptLoginWitnessBadge";
+import { T3OperatorDeliveryCaptureStatus } from "./T3OperatorDeliveryCaptureStatus";
 
 type BrowserLaunchPageProps = {
+  initialCaptureMode?: "operator-delivery" | null;
   initialChatGptAssistant: boolean;
   initialLdxpAssistant: boolean;
   initialProvider: string;
@@ -89,21 +93,6 @@ type LdxpTradeCheck = {
   summary: string;
 };
 
-const EMPTY_BROWSER_CHROME_SNAPSHOT: BrowserChromeSnapshot = {
-  activeTabId: "new-tab",
-  tabs: [
-    {
-      canGoBack: false,
-      canGoForward: false,
-      id: "new-tab",
-      loading: false,
-      securityState: "internal",
-      title: "New Tab",
-      url: "",
-    },
-  ],
-};
-
 export function normalizeAddressInput(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -128,22 +117,6 @@ function shouldOpenAsGoogleSearch(value: string) {
     return false;
   }
   return true;
-}
-
-function hostLabel(url: string) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "New tab";
-  }
-}
-
-function isSecureUrl(url: string) {
-  try {
-    return new URL(url).protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function formatCny(cents: number) {
@@ -345,8 +318,9 @@ function localizeLdxpFulfillmentAction(action: string) {
 }
 
 function BrowserChromeDesktopShell({
+  initialCaptureMode,
   initialTargetUrl,
-}: Pick<BrowserLaunchPageProps, "initialTargetUrl">) {
+}: Pick<BrowserLaunchPageProps, "initialCaptureMode" | "initialTargetUrl">) {
   const browserChromeBridge = useMemo(() => getT3BrowserChromeBridge(), []);
   const [snapshot, setSnapshot] = useState<BrowserChromeSnapshot>(EMPTY_BROWSER_CHROME_SNAPSHOT);
   const [addressDraft, setAddressDraft] = useState(initialTargetUrl);
@@ -360,6 +334,7 @@ function BrowserChromeDesktopShell({
   const showChromeHome = !activeTabUrl.trim();
   const secure = activeTab?.securityState === "secure";
   const insecure = activeTab?.securityState === "insecure";
+  const operatorDeliveryCapture = initialCaptureMode === "operator-delivery";
 
   useEffect(() => {
     if (!browserChromeBridge) {
@@ -425,6 +400,13 @@ function BrowserChromeDesktopShell({
     void runBrowserChromeCommand(
       () => browserChromeBridge!.createTab({ activate: true, url: url ?? null }),
       "Unable to create a new browser tab."
+    );
+  }
+
+  function closeOperatorCaptureWindow() {
+    void runBrowserChromeCommand(
+      () => browserChromeBridge!.closeWindow(),
+      "Unable to close the browser window. Close it manually and return to the production workspace."
     );
   }
 
@@ -604,6 +586,12 @@ function BrowserChromeDesktopShell({
           </Button>
         </form>
         <T3BrowserChatGptLoginWitnessBadge snapshot={snapshot} targetUrl={initialTargetUrl} />
+        <T3OperatorDeliveryCaptureStatus
+          activeTabUrl={activeTabUrl}
+          enabled={operatorDeliveryCapture}
+          onCloseWindow={closeOperatorCaptureWindow}
+          onOpenChatGpt={() => navigateActiveTab(T3_CHATGPT_HOME_URL)}
+        />
         <Button
           className="browser-product-desktop-action"
           type="button"
@@ -772,6 +760,7 @@ function BrowserChromeDesktopShell({
 }
 
 export function BrowserLaunchPage({
+  initialCaptureMode = null,
   initialChatGptAssistant,
   initialLdxpAssistant,
   initialProvider,
@@ -892,7 +881,12 @@ export function BrowserLaunchPage({
   }, [isLdxpAssistant, ldxpFulfillmentText, ldxpPaid, ldxpPaymentText]);
 
   if (!isLdxpAssistant && getT3BrowserChromeBridge()) {
-    return <BrowserChromeDesktopShell initialTargetUrl={initialTargetUrl} />;
+    return (
+      <BrowserChromeDesktopShell
+        initialCaptureMode={initialCaptureMode}
+        initialTargetUrl={initialTargetUrl}
+      />
+    );
   }
 
   function navigateToAddress(nextAddress = address) {

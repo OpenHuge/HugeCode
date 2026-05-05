@@ -1,7 +1,10 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { T3_P0_RUNTIME_ROLE_MODE_CARRIER } from "../runtime/t3P0RuntimeRole";
+import {
+  T3_OPERATOR_UNLOCK_STORAGE_KEY,
+  T3_P0_RUNTIME_ROLE_MODE_CARRIER,
+} from "../runtime/t3P0RuntimeRole";
 import { T3BrowserStaticDataActions } from "./T3BrowserStaticDataActions";
 
 let mountedRoot: Root | null = null;
@@ -15,6 +18,7 @@ afterEach(() => {
   mountedContainer?.remove();
   mountedContainer = null;
   window.localStorage.removeItem(T3_P0_RUNTIME_ROLE_MODE_CARRIER);
+  window.sessionStorage.removeItem(T3_OPERATOR_UNLOCK_STORAGE_KEY);
 });
 
 function renderActions(
@@ -62,7 +66,7 @@ describe("T3BrowserStaticDataActions", () => {
     expect(container.textContent).toContain("Open ChatGPT");
     expect(container.textContent).not.toContain("Login ready");
     expect(container.textContent).not.toContain("Export account file");
-    expect(container.querySelector("input[aria-label='Import code for account file']")).toBeNull();
+    expect(container.querySelector("input[aria-label='文件解锁码']")).toBeNull();
     expect(buttons).toHaveLength(1);
     click(buttons[0]!);
 
@@ -78,9 +82,7 @@ describe("T3BrowserStaticDataActions", () => {
     expect(container.textContent).toContain("Open ChatGPT");
     expect(container.textContent).toContain("Login ready");
     expect(container.textContent).toContain("Export account file");
-    expect(
-      container.querySelector("input[aria-label='Import code for account file']")
-    ).not.toBeNull();
+    expect(container.querySelector("input[aria-label='文件解锁码']")).not.toBeNull();
     expect(buttons).toHaveLength(3);
     click(buttons[1]!);
     click(buttons[2]!);
@@ -89,7 +91,7 @@ describe("T3BrowserStaticDataActions", () => {
     expect(onExport).toHaveBeenCalledOnce();
   });
 
-  it("requires an export import code for operator account data export", () => {
+  it("requires a file unlock code for operator account data export", () => {
     const { container, onExport } = renderActions({ accountImportCode: "", role: "operator" });
     const buttons = Array.from(container.querySelectorAll("button"));
 

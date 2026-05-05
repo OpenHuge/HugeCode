@@ -9,6 +9,7 @@ export type { BrowserChromeCommandResult, BrowserChromeSnapshot, BrowserChromeTa
 export type BrowserChromeBridgeGlobal = {
   activateTab(input: { tabId: string }): Promise<BrowserChromeCommandResult>;
   closeTab(input: { tabId: string }): Promise<BrowserChromeCommandResult>;
+  closeWindow(): Promise<BrowserChromeCommandResult>;
   createTab(input?: {
     activate?: boolean;
     url?: string | null;

@@ -8,6 +8,7 @@ const RUNTIME_RPC_INVOKE_CHANNEL = "hugecode:runtime:invoke";
 const BROWSER_CHROME_GET_SNAPSHOT_CHANNEL = "hugecode:browser-chrome:get-snapshot";
 const BROWSER_CHROME_CREATE_TAB_CHANNEL = "hugecode:browser-chrome:create-tab";
 const BROWSER_CHROME_CLOSE_TAB_CHANNEL = "hugecode:browser-chrome:close-tab";
+const BROWSER_CHROME_CLOSE_WINDOW_CHANNEL = "hugecode:browser-chrome:close-window";
 const BROWSER_CHROME_ACTIVATE_TAB_CHANNEL = "hugecode:browser-chrome:activate-tab";
 const BROWSER_CHROME_NAVIGATE_CHANNEL = "hugecode:browser-chrome:navigate";
 const BROWSER_CHROME_GO_BACK_CHANNEL = "hugecode:browser-chrome:go-back";
@@ -27,6 +28,7 @@ contextBridge.exposeInMainWorld("hugeCodeDesktopHost", {
       ipcRenderer.invoke(BROWSER_CHROME_ACTIVATE_TAB_CHANNEL, input),
     closeTab: (input: { tabId: string }) =>
       ipcRenderer.invoke(BROWSER_CHROME_CLOSE_TAB_CHANNEL, input),
+    closeWindow: () => ipcRenderer.invoke(BROWSER_CHROME_CLOSE_WINDOW_CHANNEL),
     createTab: (input?: { activate?: boolean; url?: string | null }) =>
       ipcRenderer.invoke(BROWSER_CHROME_CREATE_TAB_CHANNEL, input ?? {}),
     getSnapshot: () => ipcRenderer.invoke(BROWSER_CHROME_GET_SNAPSHOT_CHANNEL),

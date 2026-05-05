@@ -1,4 +1,5 @@
-import { Chrome, Plus, RefreshCw, Search, Settings, SquarePen } from "lucide-react";
+import { Chrome, LogOut, Plus, RefreshCw, Search, Settings, SquarePen } from "lucide-react";
+import { useState } from "react";
 import type {
   T3CodeProviderKind,
   T3CodeProviderRoute,
@@ -9,7 +10,11 @@ import {
   T3WorkspaceAssistantThreadRows,
   type T3WorkspaceAssistantPage,
 } from "./T3WorkspaceAssistantEntries";
-import { readT3P0RuntimeRoleMode } from "../runtime/t3P0RuntimeRole";
+import {
+  readT3OperatorUnlockState,
+  readT3P0RuntimeRoleMode,
+  writeT3OperatorUnlockState,
+} from "../runtime/t3P0RuntimeRole";
 import { providerTitle } from "./t3WorkspaceLabels";
 import type { T3WorkspaceMessages, T3WorkspaceLocale } from "./t3WorkspaceLocale";
 import { T3Wordmark } from "./T3Wordmark";
@@ -55,7 +60,9 @@ export function T3WorkspaceSidebar({
   onRefreshRoutes,
   onSelectProvider,
 }: T3WorkspaceSidebarProps) {
-  const showBrowserManagement = readT3P0RuntimeRoleMode() !== "customer";
+  const [sessionUnlocked, setSessionUnlocked] = useState(() => readT3OperatorUnlockState());
+  const runtimeRole = readT3P0RuntimeRoleMode();
+  const showBrowserManagement = runtimeRole !== "customer";
   return (
     <aside className="t3-sidebar" aria-label="HugeCode T3 navigation" aria-expanded={sidebarOpen}>
       <div className="t3-sidebar-header">
@@ -180,6 +187,20 @@ export function T3WorkspaceSidebar({
               <Chrome size={17} />
             </span>
             <span>{text.browser}</span>
+          </button>
+        ) : null}
+        {sessionUnlocked ? (
+          <button
+            type="button"
+            onClick={() => {
+              writeT3OperatorUnlockState(false);
+              setSessionUnlocked(false);
+              onOpenChat();
+            }}
+            aria-label="锁定生产端"
+          >
+            <LogOut size={14} />
+            <span>锁定</span>
           </button>
         ) : null}
       </footer>

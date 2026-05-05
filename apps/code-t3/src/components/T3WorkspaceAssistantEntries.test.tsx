@@ -7,7 +7,10 @@ import {
   T3WorkspaceAssistantThreadRows,
   type T3WorkspaceAssistantPage,
 } from "./T3WorkspaceAssistantEntries";
-import { T3_P0_RUNTIME_ROLE_MODE_CARRIER } from "../runtime/t3P0RuntimeRole";
+import {
+  T3_OPERATOR_UNLOCK_STORAGE_KEY,
+  T3_P0_RUNTIME_ROLE_MODE_CARRIER,
+} from "../runtime/t3P0RuntimeRole";
 
 let mountedRoot: Root | null = null;
 let mountedContainer: HTMLDivElement | null = null;
@@ -20,6 +23,7 @@ afterEach(() => {
   mountedContainer?.remove();
   mountedContainer = null;
   window.localStorage.removeItem(T3_P0_RUNTIME_ROLE_MODE_CARRIER);
+  window.sessionStorage.removeItem(T3_OPERATOR_UNLOCK_STORAGE_KEY);
 });
 
 function setRuntimeRole(role: "customer" | "operator" | "developer") {
@@ -29,20 +33,27 @@ function setRuntimeRole(role: "customer" | "operator" | "developer") {
 function renderAssistantEntries(
   options: {
     browserDataImported?: boolean;
+    browserAccountFileUnlockCode?: string;
     browserAccountImportCode?: string;
     browserImportBusy?: boolean;
+    browserOperatorUnlockReady?: boolean;
+    onBrowserAccountFileUnlockCodeChange?: (value: string) => void;
     onBrowserAccountImportCodeChange?: (value: string) => void;
     onImportBrowserData?: () => void;
     onLoginChatGptAccount?: () => void;
     onOpenBrowser?: () => void;
+    onRedeemBrowserDelivery?: () => void;
   } = {}
 ) {
   const container = document.createElement("div");
   const onImportBrowserData = options.onImportBrowserData ?? vi.fn();
+  const onBrowserAccountFileUnlockCodeChange =
+    options.onBrowserAccountFileUnlockCodeChange ?? vi.fn();
   const onBrowserAccountImportCodeChange = options.onBrowserAccountImportCodeChange ?? vi.fn();
   const onLoginChatGptAccount = options.onLoginChatGptAccount ?? vi.fn();
   const onNotice = vi.fn();
   const onOpenBrowser = options.onOpenBrowser ?? vi.fn();
+  const onRedeemBrowserDelivery = options.onRedeemBrowserDelivery ?? vi.fn();
   document.body.append(container);
   const root = createRoot(container);
   function Harness() {
@@ -50,18 +61,23 @@ function renderAssistantEntries(
     return (
       <T3WorkspaceAssistantEntries
         activePage={activePage}
+        browserAccountFileUnlockCode={options.browserAccountFileUnlockCode ?? "p0-file-unlock"}
         browserAccountImportCode={options.browserAccountImportCode ?? "p0-06-test-code"}
         browserDataImported={options.browserDataImported ?? true}
+        browserDeliveryProjection={null}
         browserImportBusy={options.browserImportBusy ?? false}
+        browserOperatorUnlockReady={options.browserOperatorUnlockReady ?? false}
         locale="zh"
         routes={[]}
         onApplyRelayRoute={vi.fn()}
         onAssistantPageChange={setActivePage}
+        onBrowserAccountFileUnlockCodeChange={onBrowserAccountFileUnlockCodeChange}
         onBrowserAccountImportCodeChange={onBrowserAccountImportCodeChange}
         onImportBrowserData={onImportBrowserData}
         onLoginChatGptAccount={onLoginChatGptAccount}
         onOpenBrowser={onOpenBrowser}
         onNotice={onNotice}
+        onRedeemBrowserDelivery={onRedeemBrowserDelivery}
       />
     );
   }
@@ -73,10 +89,12 @@ function renderAssistantEntries(
   return {
     container,
     onImportBrowserData,
+    onBrowserAccountFileUnlockCodeChange,
     onBrowserAccountImportCodeChange,
     onLoginChatGptAccount,
     onNotice,
     onOpenBrowser,
+    onRedeemBrowserDelivery,
   };
 }
 
@@ -93,18 +111,23 @@ function renderAssistantEntriesWithPage(
     root.render(
       <T3WorkspaceAssistantEntries
         activePage={activePage}
+        browserAccountFileUnlockCode="p0-file-unlock"
         browserAccountImportCode="p0-06-test-code"
         browserDataImported={options.browserDataImported ?? true}
+        browserDeliveryProjection={null}
         browserImportBusy={false}
+        browserOperatorUnlockReady={false}
         locale="zh"
         routes={[]}
         onApplyRelayRoute={vi.fn()}
         onAssistantPageChange={onAssistantPageChange}
+        onBrowserAccountFileUnlockCodeChange={vi.fn()}
         onBrowserAccountImportCodeChange={vi.fn()}
         onImportBrowserData={vi.fn()}
         onLoginChatGptAccount={vi.fn()}
         onOpenBrowser={onOpenBrowser}
         onNotice={vi.fn()}
+        onRedeemBrowserDelivery={vi.fn()}
       />
     );
   });
@@ -141,19 +164,22 @@ function click(element: Element) {
 describe("T3WorkspaceAssistantEntries", () => {
   it("gates startup entries behind browser account data import", () => {
     const onImportBrowserData = vi.fn();
+    const onRedeemBrowserDelivery = vi.fn();
     const onLoginChatGptAccount = vi.fn();
     const { container } = renderAssistantEntries({
       browserDataImported: false,
       onImportBrowserData,
       onLoginChatGptAccount,
+      onRedeemBrowserDelivery,
     });
     const buttons = Array.from(container.querySelectorAll("button"));
 
     expect(container.querySelectorAll(".t3-main-entry-card")).toHaveLength(0);
-    expect(container.textContent).toContain("导入账户数据");
-    expect(container.textContent).toContain("导入成功后才会打开 ChatGPT 内置浏览器。");
-    expect(container.textContent).toContain("导入账户数据");
-    expect(container.querySelector("input[aria-label='导入码']")).not.toBeNull();
+    expect(container.textContent).toContain("兑换交付");
+    expect(container.textContent).toContain("文件解锁码用于本地解密浏览器账号数据");
+    expect(container.textContent).toContain("验证并恢复");
+    expect(container.querySelector("input[aria-label='兑换码']")).not.toBeNull();
+    expect(container.querySelector("input[aria-label='文件解锁码']")).not.toBeNull();
     expect(container.textContent).not.toContain("手动登录 ChatGPT");
     expect(container.textContent).not.toContain("账户池管理");
     expect(container.textContent).not.toContain("中转助手");
@@ -161,23 +187,41 @@ describe("T3WorkspaceAssistantEntries", () => {
 
     click(buttons[0]!);
 
-    expect(onImportBrowserData).toHaveBeenCalledOnce();
+    expect(onRedeemBrowserDelivery).toHaveBeenCalledOnce();
+    expect(onImportBrowserData).not.toHaveBeenCalled();
     expect(onLoginChatGptAccount).not.toHaveBeenCalled();
   });
 
-  it("requires an import code before opening the browser account file picker", () => {
-    const onImportBrowserData = vi.fn();
+  it("requires both redemption and file unlock codes before remote restore", () => {
+    const onRedeemBrowserDelivery = vi.fn();
     const { container } = renderAssistantEntries({
-      browserAccountImportCode: "",
+      browserAccountFileUnlockCode: "",
       browserDataImported: false,
-      onImportBrowserData,
+      onRedeemBrowserDelivery,
     });
     const importButton = container.querySelector<HTMLButtonElement>("button");
 
     expect(importButton?.disabled).toBe(true);
     click(importButton!);
 
-    expect(onImportBrowserData).not.toHaveBeenCalled();
+    expect(onRedeemBrowserDelivery).not.toHaveBeenCalled();
+  });
+
+  it("keeps the hidden operator unlock entry available from the customer redemption input", () => {
+    const onRedeemBrowserDelivery = vi.fn();
+    const { container } = renderAssistantEntries({
+      browserAccountFileUnlockCode: "",
+      browserAccountImportCode: "ku020260506",
+      browserDataImported: false,
+      browserOperatorUnlockReady: true,
+      onRedeemBrowserDelivery,
+    });
+    const importButton = container.querySelector<HTMLButtonElement>("button");
+
+    expect(importButton?.disabled).toBe(false);
+    click(importButton!);
+
+    expect(onRedeemBrowserDelivery).toHaveBeenCalledOnce();
   });
 
   it("renders compact startup cards before assistant operations", () => {
@@ -280,6 +324,8 @@ describe("T3WorkspaceAssistantEntries", () => {
     expect(startupCards[0]?.className).toContain("browser");
     expect(container.textContent).not.toContain("账户池管理");
     expect(container.textContent).not.toContain("中转助手");
+    expect(container.querySelector("input[aria-label='文件解锁码']")).toBeNull();
+    expect(container.textContent).not.toContain("导入浏览器文件");
     expect(chatGptButton).not.toBeNull();
     click(chatGptButton!);
 
@@ -297,6 +343,7 @@ describe("T3WorkspaceAssistantEntries", () => {
   });
 
   it("imports browser files from the startup browser entry", () => {
+    setRuntimeRole("developer");
     const onImportBrowserData = vi.fn();
     const { container } = renderAssistantEntries({ onImportBrowserData });
 
@@ -309,7 +356,8 @@ describe("T3WorkspaceAssistantEntries", () => {
     expect(onImportBrowserData).toHaveBeenCalledOnce();
   });
 
-  it("requires an import code before startup browser file import", () => {
+  it("requires a file unlock code before startup browser file import", () => {
+    setRuntimeRole("developer");
     const onImportBrowserData = vi.fn();
     const { container } = renderAssistantEntries({
       browserAccountImportCode: "",
@@ -319,7 +367,7 @@ describe("T3WorkspaceAssistantEntries", () => {
       (button) => button.textContent?.includes("导入浏览器文件") ?? false
     );
 
-    expect(container.querySelector("input[aria-label='导入码']")).not.toBeNull();
+    expect(container.querySelector("input[aria-label='文件解锁码']")).not.toBeNull();
     expect(importButton?.disabled).toBe(true);
     click(importButton!);
 

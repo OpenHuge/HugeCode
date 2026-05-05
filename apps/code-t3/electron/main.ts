@@ -31,6 +31,12 @@ import {
   type T3BrowserPortableLoginStateContract,
   type T3BrowserPortableLoginStateCrypto,
 } from "../src/runtime/t3BrowserAccountDataContract";
+import {
+  clearT3BrowserSessionStorage,
+  normalizeT3BrowserCaptureMode,
+  resolveT3BrowserSessionPlanFromLaunchUrl,
+  type T3BrowserCaptureMode,
+} from "../src/runtime/t3BrowserChromeSessionPolicy";
 
 const devServerUrl = process.env.HUGECODE_T3_DESKTOP_DEV_SERVER_URL;
 const BROWSER_LOGIN_STATE_PREFLIGHT_CHANNEL = "hugecode:browser-static-data:check-login-state";
@@ -41,6 +47,7 @@ const RUNTIME_RPC_INVOKE_CHANNEL = "hugecode:runtime:invoke";
 const BROWSER_CHROME_GET_SNAPSHOT_CHANNEL = "hugecode:browser-chrome:get-snapshot";
 const BROWSER_CHROME_CREATE_TAB_CHANNEL = "hugecode:browser-chrome:create-tab";
 const BROWSER_CHROME_CLOSE_TAB_CHANNEL = "hugecode:browser-chrome:close-tab";
+const BROWSER_CHROME_CLOSE_WINDOW_CHANNEL = "hugecode:browser-chrome:close-window";
 const BROWSER_CHROME_ACTIVATE_TAB_CHANNEL = "hugecode:browser-chrome:activate-tab";
 const BROWSER_CHROME_NAVIGATE_CHANNEL = "hugecode:browser-chrome:navigate";
 const BROWSER_CHROME_GO_BACK_CHANNEL = "hugecode:browser-chrome:go-back";
@@ -84,7 +91,7 @@ type ElectronBrowserSessionStatePayload = {
   exportedAt: number;
   payloadFormat: "electron-session-state/v2";
   storageFiles: ElectronBrowserStateFileSnapshot[];
-  storageRoot: "electron-default-session";
+  storageRoot: "electron-default-session" | "electron-operator-delivery-session";
 };
 
 type ElectronEncryptedLoginStateBundle = {
@@ -159,7 +166,10 @@ type BrowserChromeTabController = {
 type BrowserChromeWindowController = {
   activateTab: (tabId: string) => BrowserChromeCommandResult;
   closeTab: (tabId: string) => BrowserChromeCommandResult;
+  closeWindow: () => Promise<BrowserChromeCommandResult>;
   createTab: (url: string | null, activate?: boolean) => BrowserChromeCommandResult;
+  getBrowserCaptureMode: () => T3BrowserCaptureMode | null;
+  getBrowserSession: () => Electron.Session;
   getSnapshot: () => BrowserChromeSnapshot;
   goBack: (tabId?: string | null) => BrowserChromeCommandResult;
   goForward: (tabId?: string | null) => BrowserChromeCommandResult;
@@ -170,6 +180,12 @@ type BrowserChromeWindowController = {
 
 const browserChromeControllers = new Map<number, BrowserChromeWindowController>();
 let nextBrowserChromeTabSequence = 1;
+
+type BrowserChromeSessionScope = {
+  captureMode: T3BrowserCaptureMode | null;
+  cleanupOnClose: boolean;
+  browserSession: Electron.Session;
+};
 
 function resolveRendererUrl(): string {
   if (devServerUrl) {
@@ -219,6 +235,46 @@ function getBrowserChromeControllerForSender(sender: Electron.WebContents) {
   return senderWindow ? (browserChromeControllers.get(senderWindow.id) ?? null) : null;
 }
 
+function findActiveOperatorDeliveryController() {
+  return (
+    Array.from(browserChromeControllers.values()).find(
+      (controller) => controller.getBrowserCaptureMode() === "operator-delivery"
+    ) ?? null
+  );
+}
+
+function resolveBrowserStaticDataSessionScope(
+  sender: Electron.WebContents,
+  input?: unknown
+): {
+  browserSession: Electron.Session;
+  storageRoot: ElectronBrowserSessionStatePayload["storageRoot"];
+} {
+  const controller = getBrowserChromeControllerForSender(sender);
+  if (controller?.getBrowserCaptureMode() === "operator-delivery") {
+    return {
+      browserSession: controller.getBrowserSession(),
+      storageRoot: "electron-operator-delivery-session",
+    };
+  }
+  if (readPayloadCaptureMode(input) === "operator-delivery") {
+    const operatorController = findActiveOperatorDeliveryController();
+    if (!operatorController) {
+      throw new Error(
+        "Production browser session is unavailable. Reopen ChatGPT in production capture mode before checking or exporting account data."
+      );
+    }
+    return {
+      browserSession: operatorController.getBrowserSession(),
+      storageRoot: "electron-operator-delivery-session",
+    };
+  }
+  return {
+    browserSession: session.defaultSession,
+    storageRoot: "electron-default-session",
+  };
+}
+
 function createBrowserChromeIpcErrorResult(
   controller: BrowserChromeWindowController | null,
   errorMessage: string
@@ -249,6 +305,13 @@ function readPayloadBoolean(value: unknown, key: string) {
   return typeof record[key] === "boolean" ? record[key] : null;
 }
 
+function readPayloadCaptureMode(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return normalizeT3BrowserCaptureMode((value as Record<string, unknown>).captureMode);
+}
+
 function isEmbeddableBrowserChromeUrl(url: string) {
   try {
     const parsed = new URL(url);
@@ -260,10 +323,14 @@ function isEmbeddableBrowserChromeUrl(url: string) {
 
 function createBrowserChromeController(
   browserWindow: BrowserWindow,
-  initialTargetUrl: string
+  initialTargetUrl: string,
+  sessionScope: BrowserChromeSessionScope
 ): BrowserChromeWindowController {
   const tabs = new Map<string, BrowserChromeTabController>();
   let activeTabId = "";
+  let sessionCleanupComplete = !sessionScope.cleanupOnClose;
+  let sessionCleanupInFlight: Promise<void> | null = null;
+  let closeAfterSessionCleanup = false;
 
   function getOrderedTabs() {
     return Array.from(tabs.values());
@@ -350,6 +417,18 @@ function createBrowserChromeController(
     };
   }
 
+  async function cleanupBrowserSessionBeforeClose() {
+    if (sessionCleanupComplete || !sessionScope.cleanupOnClose) {
+      return;
+    }
+    sessionCleanupInFlight ??= clearT3BrowserSessionStorage(sessionScope.browserSession).then(
+      () => {
+        sessionCleanupComplete = true;
+      }
+    );
+    await sessionCleanupInFlight;
+  }
+
   function attachTabEvents(tab: BrowserChromeTabController) {
     const webContents = tab.view.webContents;
     webContents.setWindowOpenHandler(({ url: nextUrl }) => {
@@ -422,6 +501,7 @@ function createBrowserChromeController(
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
+        session: sessionScope.browserSession,
       },
     });
     const tab: BrowserChromeTabController = {
@@ -462,6 +542,24 @@ function createBrowserChromeController(
     layoutViews();
     publishSnapshot();
     return commandSuccess();
+  }
+
+  async function closeWindow(): Promise<BrowserChromeCommandResult> {
+    try {
+      await cleanupBrowserSessionBeforeClose();
+    } catch {
+      return commandFailure(
+        "Unable to clear the production browser session. Close was blocked; retry returning to the production workspace after checking the browser window."
+      );
+    }
+    const result = commandSuccess();
+    setTimeout(() => {
+      if (!browserWindow.isDestroyed()) {
+        closeAfterSessionCleanup = true;
+        browserWindow.close();
+      }
+    }, 0);
+    return result;
   }
 
   function activateTab(tabId: string): BrowserChromeCommandResult {
@@ -548,6 +646,20 @@ function createBrowserChromeController(
   }
 
   browserWindow.on("resize", layoutViews);
+  browserWindow.on("close", (event) => {
+    if (!sessionScope.cleanupOnClose || sessionCleanupComplete || closeAfterSessionCleanup) {
+      return;
+    }
+    event.preventDefault();
+    void cleanupBrowserSessionBeforeClose()
+      .then(() => {
+        if (!browserWindow.isDestroyed()) {
+          closeAfterSessionCleanup = true;
+          browserWindow.close();
+        }
+      })
+      .catch(() => undefined);
+  });
   browserWindow.on("closed", () => {
     browserChromeControllers.delete(browserWindow.id);
     for (const tab of tabs.values()) {
@@ -561,7 +673,10 @@ function createBrowserChromeController(
   const controller: BrowserChromeWindowController = {
     activateTab,
     closeTab,
+    closeWindow,
     createTab,
+    getBrowserCaptureMode: () => sessionScope.captureMode,
+    getBrowserSession: () => sessionScope.browserSession,
     getSnapshot,
     goBack,
     goForward,
@@ -575,6 +690,14 @@ function createBrowserChromeController(
 }
 
 function createBrowserWindow(url: string): BrowserWindow {
+  const sessionPlan = resolveT3BrowserSessionPlanFromLaunchUrl(url, randomUUID());
+  const sessionScope: BrowserChromeSessionScope = {
+    captureMode: sessionPlan.captureMode,
+    cleanupOnClose: sessionPlan.cleanupOnClose,
+    browserSession: sessionPlan.partition
+      ? session.fromPartition(sessionPlan.partition)
+      : session.defaultSession,
+  };
   const browserWindow = new BrowserWindow({
     title: "HugeCode Browser",
     width: 1180,
@@ -616,7 +739,7 @@ function createBrowserWindow(url: string): BrowserWindow {
     }
     browserWindow.webContents.once("did-finish-load", () => {
       if (!browserWindow.isDestroyed() && !browserChromeControllers.has(browserWindow.id)) {
-        createBrowserChromeController(browserWindow, initialTargetUrl);
+        createBrowserChromeController(browserWindow, initialTargetUrl, sessionScope);
       }
     });
     browserWindow.webContents.on("render-process-gone", (_event, details) => {
@@ -796,10 +919,10 @@ const ELECTRON_BROWSER_STATE_ENTRY_NAMES = [
   "DawnWebGPUCache",
 ] as const;
 
-function resolveSessionStoragePath() {
-  const storagePath = session.defaultSession.getStoragePath();
+function resolveSessionStoragePath(browserSession = session.defaultSession) {
+  const storagePath = browserSession.getStoragePath();
   if (!storagePath) {
-    throw new Error("Electron default session storage path is unavailable.");
+    throw new Error("Electron browser session storage path is unavailable.");
   }
   return storagePath;
 }
@@ -1255,14 +1378,15 @@ function normalizeImportedCookie(value: unknown): ElectronCookieSnapshot | null 
 }
 
 function registerBrowserStaticDataIpc() {
-  ipcMain.handle(BROWSER_LOGIN_STATE_PREFLIGHT_CHANNEL, async (_event, input: unknown) => {
+  ipcMain.handle(BROWSER_LOGIN_STATE_PREFLIGHT_CHANNEL, async (event, input: unknown) => {
+    const sessionScope = resolveBrowserStaticDataSessionScope(event.sender, input);
     const allowedOrigins = normalizeT3BrowserAllowedOrigins(
       input && typeof input === "object" && !Array.isArray(input)
         ? (input as { allowedOrigins?: unknown }).allowedOrigins
         : undefined
     );
-    await session.defaultSession.flushStorageData();
-    const cookies = (await session.defaultSession.cookies.get({})).filter((cookie) =>
+    await sessionScope.browserSession.flushStorageData();
+    const cookies = (await sessionScope.browserSession.cookies.get({})).filter((cookie) =>
       cookieMatchesAllowedOrigins(cookie, allowedOrigins)
     );
     return buildChatGptLoginStatePreflightResult({
@@ -1271,10 +1395,11 @@ function registerBrowserStaticDataIpc() {
     });
   });
 
-  ipcMain.handle(BROWSER_LOGIN_STATE_EXPORT_CHANNEL, async (_event, input: unknown) => {
+  ipcMain.handle(BROWSER_LOGIN_STATE_EXPORT_CHANNEL, async (event, input: unknown) => {
+    const sessionScope = resolveBrowserStaticDataSessionScope(event.sender, input);
     const exportInput = normalizeBrowserStaticDataExportInput(input);
-    await session.defaultSession.flushStorageData();
-    const cookies = (await session.defaultSession.cookies.get({})).filter((cookie) =>
+    await sessionScope.browserSession.flushStorageData();
+    const cookies = (await sessionScope.browserSession.cookies.get({})).filter((cookie) =>
       cookieMatchesAllowedOrigins(cookie, exportInput.allowedOrigins)
     );
     const preflight = buildChatGptLoginStatePreflightResult({
@@ -1285,7 +1410,7 @@ function registerBrowserStaticDataIpc() {
       throw new Error(preflight.summary);
     }
     await requireAdministratorAuthorizationForBrowserDataExport();
-    const storageRoot = resolveSessionStoragePath();
+    const storageRoot = resolveSessionStoragePath(sessionScope.browserSession);
     const storageFiles = await exportBrowserStorageFilesForOrigins(
       storageRoot,
       exportInput.allowedOrigins
@@ -1308,7 +1433,7 @@ function registerBrowserStaticDataIpc() {
       exportedAt: Date.now(),
       payloadFormat: "electron-session-state/v2",
       storageFiles,
-      storageRoot: "electron-default-session",
+      storageRoot: sessionScope.storageRoot,
     };
     const origins = new Set(
       payload.cookies
@@ -1338,7 +1463,8 @@ function registerBrowserStaticDataIpc() {
 
   ipcMain.handle(
     BROWSER_LOGIN_STATE_IMPORT_CHANNEL,
-    async (_event, bundle: unknown, input: unknown) => {
+    async (event, bundle: unknown, input: unknown) => {
+      const sessionScope = resolveBrowserStaticDataSessionScope(event.sender, input);
       const normalizedBundle = normalizeImportedLoginStateBundle(bundle);
       const importInput = normalizeBrowserStaticDataImportInput(input);
       let parsed: Partial<ElectronCookieLoginStatePayload | ElectronBrowserSessionStatePayload>;
@@ -1374,7 +1500,7 @@ function registerBrowserStaticDataIpc() {
           : [];
         if (storageFiles.length > 0) {
           const restoredState = await restoreBrowserStorageFiles(
-            resolveSessionStoragePath(),
+            resolveSessionStoragePath(sessionScope.browserSession),
             storageFiles,
             { clearExisting: normalizedBundle.encryption !== T3_BROWSER_PORTABLE_ENCRYPTION }
           );
@@ -1400,10 +1526,10 @@ function registerBrowserStaticDataIpc() {
           continue;
         }
         origins.add(cookieAllowedOrigin(cookie, allowedOrigins) ?? details.url);
-        await session.defaultSession.cookies.set(details);
+        await sessionScope.browserSession.cookies.set(details);
         importedCookies += 1;
       }
-      await session.defaultSession.flushStorageData();
+      await sessionScope.browserSession.flushStorageData();
       return {
         importedCookies,
         originCount: origins.size,
@@ -1418,14 +1544,15 @@ function registerBrowserStaticDataIpc() {
     }
   );
 
-  ipcMain.handle(BROWSER_SITE_DATA_EXPORT_TO_CHROME_CHANNEL, async (_event, input: unknown) => {
+  ipcMain.handle(BROWSER_SITE_DATA_EXPORT_TO_CHROME_CHANNEL, async (event, input: unknown) => {
+    const sessionScope = resolveBrowserStaticDataSessionScope(event.sender, input);
     await requireAdministratorAuthorizationForBrowserDataExport();
     const targetUrl =
       input && typeof input === "object" && !Array.isArray(input)
         ? normalizeChromeExportTargetUrl((input as { targetUrl?: unknown }).targetUrl)
         : normalizeChromeExportTargetUrl(null);
-    await session.defaultSession.flushStorageData();
-    const storageRoot = resolveSessionStoragePath();
+    await sessionScope.browserSession.flushStorageData();
+    const storageRoot = resolveSessionStoragePath(sessionScope.browserSession);
     const storageFiles = await exportBrowserStorageFiles(storageRoot);
     const chromeUserDataRoot = join(app.getPath("userData"), "chrome-site-data-export");
     const chromeProfilePath = join(chromeUserDataRoot, "Default");
@@ -1521,6 +1648,14 @@ function registerBrowserChromeIpc() {
       return createBrowserChromeIpcErrorResult(controller, "Browser tab id is required.");
     }
     return controller.closeTab(tabId);
+  });
+
+  ipcMain.handle(BROWSER_CHROME_CLOSE_WINDOW_CHANNEL, (event) => {
+    const controller = getBrowserChromeControllerForSender(event.sender);
+    if (!controller) {
+      return createBrowserChromeIpcErrorResult(controller, "Browser chrome is unavailable.");
+    }
+    return controller.closeWindow();
   });
 
   ipcMain.handle(BROWSER_CHROME_ACTIVATE_TAB_CHANNEL, (event, payload: unknown = {}) => {

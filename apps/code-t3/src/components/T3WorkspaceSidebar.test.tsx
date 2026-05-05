@@ -2,7 +2,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { T3CodeProviderRoute } from "@ku0/code-t3-runtime-adapter";
-import { T3_P0_RUNTIME_ROLE_MODE_CARRIER } from "../runtime/t3P0RuntimeRole";
+import {
+  T3_OPERATOR_UNLOCK_STORAGE_KEY,
+  T3_P0_RUNTIME_ROLE_MODE_CARRIER,
+} from "../runtime/t3P0RuntimeRole";
 import { getT3WorkspaceMessages } from "./t3WorkspaceLocale";
 import { T3WorkspaceSidebar } from "./T3WorkspaceSidebar";
 
@@ -33,6 +36,7 @@ afterEach(() => {
   mountedContainer?.remove();
   mountedContainer = null;
   window.localStorage.removeItem(T3_P0_RUNTIME_ROLE_MODE_CARRIER);
+  window.sessionStorage.removeItem(T3_OPERATOR_UNLOCK_STORAGE_KEY);
 });
 
 function renderSidebar(role?: "customer" | "operator" | "developer") {
@@ -40,6 +44,7 @@ function renderSidebar(role?: "customer" | "operator" | "developer") {
     window.localStorage.setItem(T3_P0_RUNTIME_ROLE_MODE_CARRIER, role);
   }
   const container = document.createElement("div");
+  const onOpenBrowser = vi.fn();
   document.body.append(container);
   const root = createRoot(container);
   act(() => {
@@ -58,7 +63,7 @@ function renderSidebar(role?: "customer" | "operator" | "developer") {
         timeline={[]}
         workspaceId="hugecode"
         onOpenAssistantPage={vi.fn()}
-        onOpenBrowser={vi.fn()}
+        onOpenBrowser={onOpenBrowser}
         onOpenChat={vi.fn()}
         onRefreshRoutes={vi.fn()}
         onSelectProvider={vi.fn()}
@@ -67,19 +72,30 @@ function renderSidebar(role?: "customer" | "operator" | "developer") {
   });
   mountedRoot = root;
   mountedContainer = container;
-  return { container };
+  return { container, onOpenBrowser };
 }
 
 describe("T3WorkspaceSidebar", () => {
-  it("hides the browser management bypass in default customer mode", () => {
+  it("hides production browser controls in default customer mode", () => {
     const { container } = renderSidebar();
 
     expect(container.querySelector("button[aria-label='浏览器']")).toBeNull();
+    expect(container.querySelector("button[aria-label='生产端解锁']")).toBeNull();
   });
 
   it("keeps browser management available for operator handoff preparation", () => {
     const { container } = renderSidebar("operator");
 
     expect(container.querySelector("button[aria-label='浏览器']")).not.toBeNull();
+  });
+
+  it("keeps session-unlocked operator browser controls visible", () => {
+    window.sessionStorage.setItem(T3_OPERATOR_UNLOCK_STORAGE_KEY, "1");
+    const { container, onOpenBrowser } = renderSidebar();
+
+    expect(container.querySelector("button[aria-label='浏览器']")).not.toBeNull();
+    expect(container.querySelector("button[aria-label='锁定生产端']")).not.toBeNull();
+    expect(container.querySelector("button[aria-label='生产端解锁']")).toBeNull();
+    expect(onOpenBrowser).not.toHaveBeenCalled();
   });
 });

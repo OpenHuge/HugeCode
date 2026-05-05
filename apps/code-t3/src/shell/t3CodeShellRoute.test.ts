@@ -9,7 +9,7 @@ describe("resolveT3CodeShellRoute", () => {
     expect(resolveT3CodeShellTitle(route)).toBe("HugeCode T3");
   });
 
-  it("maps browser query params without touching the app entrypoint", () => {
+  it("parses hcbrowser route", () => {
     const route = resolveT3CodeShellRoute(
       "?hcbrowser=1&appId=app-1&appKey=key-1&profile=Team%20Chrome&provider=chatgpt&target=https%3A%2F%2Fchatgpt.com%2F&chatgptAssistant=1&ldxpAssistant=1"
     );
@@ -22,6 +22,7 @@ describe("resolveT3CodeShellRoute", () => {
     expect(route.browserProps).toMatchObject({
       initialAppId: "app-1",
       initialAppKey: "key-1",
+      initialCaptureMode: null,
       initialProfileLabel: "Team Chrome",
       initialProvider: "chatgpt",
       initialTargetUrl: "https://chatgpt.com/",
@@ -48,5 +49,17 @@ describe("resolveT3CodeShellRoute", () => {
       return;
     }
     expect(route.browserProps.initialChatGptAssistant).toBe(true);
+  });
+
+  it("parses operator delivery capture mode for the browser shell", () => {
+    const route = resolveT3CodeShellRoute(
+      "?hcbrowser=1&provider=chatgpt&captureMode=operator-delivery"
+    );
+
+    expect(route.kind).toBe("browser");
+    if (route.kind !== "browser") {
+      return;
+    }
+    expect(route.browserProps.initialCaptureMode).toBe("operator-delivery");
   });
 });

@@ -1,4 +1,6 @@
-export type T3BrowserProvider = "chatgpt" | "gemini" | "hugerouter" | "custom";
+import type { OpenT3BrowserProviderInput, T3BrowserProvider } from "./t3BrowserProfileTypes";
+
+export type { OpenT3BrowserProviderInput, T3BrowserProvider } from "./t3BrowserProfileTypes";
 
 export type T3BrowserProfileSource = "current-browser" | "remote-devtools";
 
@@ -344,14 +346,6 @@ export type T3BrowserFingerprintSummary = {
 export type SaveT3RemoteBrowserProfileInput = {
   endpointUrl: string;
   label?: string | null;
-};
-
-export type OpenT3BrowserProviderInput = {
-  assistant?: "chatgpt" | "ldxp" | null;
-  customUrl?: string | null;
-  isolatedAppId?: string | null;
-  profileId: string;
-  providerId: T3BrowserProvider;
 };
 
 export type T3BrowserProfileBridge = {
@@ -2651,8 +2645,9 @@ function resolveProviderUrl(input: Pick<OpenT3BrowserProviderInput, "customUrl" 
   return PROVIDER_URLS[input.providerId];
 }
 
-function buildBrowserWindowUrl(input: {
+export function buildT3BrowserLaunchUrl(input: {
   assistant?: OpenT3BrowserProviderInput["assistant"];
+  captureMode?: OpenT3BrowserProviderInput["captureMode"];
   isolatedApp?: T3BrowserIsolatedApp | null;
   profile: T3BrowserProfileDescriptor;
   providerId: T3BrowserProvider;
@@ -2689,6 +2684,9 @@ function buildBrowserWindowUrl(input: {
   if (input.assistant === "ldxp") {
     launchUrl.searchParams.set("ldxpAssistant", "1");
   }
+  if (input.captureMode === "operator-delivery") {
+    launchUrl.searchParams.set("captureMode", input.captureMode);
+  }
   return launchUrl.toString();
 }
 
@@ -2708,10 +2706,11 @@ function openProviderWindow(
     url,
   });
   window.open(
-    buildBrowserWindowUrl({
+    buildT3BrowserLaunchUrl({
       isolatedApp: openedApp,
       profile,
       assistant: input.assistant,
+      captureMode: input.captureMode,
       providerId: openedApp?.providerId ?? input.providerId,
       url,
     }),

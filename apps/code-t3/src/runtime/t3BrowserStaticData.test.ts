@@ -166,6 +166,54 @@ describe("t3BrowserStaticData portable account data", () => {
     );
   });
 
+  it("passes operator capture mode through desktop check and export requests", async () => {
+    const seen: string[] = [];
+    (
+      window as Window & {
+        hugeCodeDesktopHost?: {
+          browserStaticData?: {
+            checkLoginState: (input?: {
+              allowedOrigins?: readonly string[];
+              captureMode?: "operator-delivery";
+            }) => Promise<T3BrowserLoginStatePreflightResult>;
+            exportLoginState: (input?: {
+              allowedOrigins?: readonly string[];
+              captureMode?: "operator-delivery";
+              importSecret?: string;
+            }) => Promise<T3BrowserEncryptedLoginStateBundle>;
+          };
+        };
+      }
+    ).hugeCodeDesktopHost = {
+      browserStaticData: {
+        checkLoginState: async (input) => {
+          seen.push(`check:${input?.captureMode ?? "default"}`);
+          return {
+            allowedOrigins: [...T3_BROWSER_CHATGPT_ALLOWED_ORIGINS],
+            cookieCount: 2,
+            originCount: 1,
+            provider: "chatgpt",
+            status: "loggedIn",
+            storageFileCount: 0,
+            summary: "ChatGPT login preflight found 2 cookies.",
+          };
+        },
+        exportLoginState: async (input) => {
+          seen.push(`export:${input?.captureMode ?? "default"}`);
+          return portableLoginStateBundle();
+        },
+      },
+    };
+
+    await checkT3BrowserChatGptLoginState({ captureMode: "operator-delivery" });
+    await buildT3BrowserStaticDataBundleWithLoginState({
+      captureMode: "operator-delivery",
+      importSecret: "delivery-code",
+    });
+
+    expect(seen).toEqual(["check:operator-delivery", "export:operator-delivery"]);
+  });
+
   it("rejects portable v2 files without login state before writing local metadata", () => {
     const serialized = JSON.stringify({
       payload: {
@@ -186,10 +234,10 @@ describe("t3BrowserStaticData portable account data", () => {
     expect(window.localStorage.length).toBe(0);
   });
 
-  it("requires an import code before restoring portable bundles", async () => {
+  it("requires a file unlock code before restoring portable bundles", async () => {
     await expect(
       importT3BrowserStaticDataLoginStateBundles([portableLoginStateBundle()])
-    ).rejects.toThrow("Import code is required");
+    ).rejects.toThrow("File unlock code is required");
   });
 
   it("returns success only from the structured desktop restore result", async () => {
@@ -276,13 +324,13 @@ describe("t3BrowserStaticData portable account data", () => {
     ).rejects.toThrow("Portable browser account data restore failed.");
   });
 
-  it("redacts import failure strings before rendering notices", () => {
+  it("redacts file unlock failure strings before rendering notices", () => {
     expect(
       formatT3BrowserStaticDataImportError(
         new Error(
-          "Wrong import code abcdefgh and ciphertext ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef1234567890=="
+          "Wrong file unlock code abcdefgh and ciphertext ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef1234567890=="
         )
       )
-    ).toBe("Wrong import code [redacted] and ciphertext [redacted]");
+    ).toBe("Wrong file unlock code [redacted] and ciphertext [redacted]");
   });
 });

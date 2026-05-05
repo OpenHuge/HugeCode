@@ -13,6 +13,7 @@ import {
   canUseT3P0UnreleasedAssistantSurfaces,
   readT3P0RuntimeRoleMode,
 } from "../runtime/t3P0RuntimeRole";
+import type { T3DeliveryProjection } from "../runtime/t3DeliveryService";
 import { getT3WorkspaceMessages, type T3WorkspaceLocale } from "./t3WorkspaceLocale";
 
 export type T3WorkspaceAssistantPage = "home" | "account-rental" | "relay";
@@ -20,37 +21,68 @@ export type T3WorkspaceAssistantPage = "home" | "account-rental" | "relay";
 type T3WorkspaceAssistantEntriesProps = {
   activePage: T3WorkspaceAssistantPage;
   browserDataImported: boolean;
+  browserAccountFileUnlockCode: string;
   browserAccountImportCode: string;
+  browserDeliveryProjection?: T3DeliveryProjection | null;
   browserImportBusy: boolean;
+  browserOperatorUnlockReady?: boolean;
   locale: T3WorkspaceLocale;
   routes: readonly T3CodeProviderRoute[];
   onApplyRelayRoute: (route: T3CodeProviderRoute) => void;
   onAssistantPageChange: (page: T3WorkspaceAssistantPage) => void;
+  onBrowserAccountFileUnlockCodeChange: (value: string) => void;
   onBrowserAccountImportCodeChange: (value: string) => void;
   onImportBrowserData: () => void;
   onLoginChatGptAccount: () => void;
   onOpenBrowser: () => void;
   onNotice: (notice: string) => void;
+  onRedeemBrowserDelivery: () => void;
 };
+
+function deliveryStatusColor(projection: T3DeliveryProjection | null | undefined) {
+  if (projection?.status === "redeemed" || projection?.status === "exported") {
+    return "success" as const;
+  }
+  if (projection?.status === "prepared") {
+    return "warning" as const;
+  }
+  if (
+    projection?.status === "expired" ||
+    projection?.status === "failed" ||
+    projection?.status === "fileUnavailable" ||
+    projection?.status === "revoked" ||
+    projection?.status === "unavailable"
+  ) {
+    return "danger" as const;
+  }
+  return "warning" as const;
+}
 
 export function T3WorkspaceAssistantEntries({
   activePage,
   browserDataImported,
+  browserAccountFileUnlockCode,
   browserAccountImportCode,
+  browserDeliveryProjection,
   browserImportBusy,
+  browserOperatorUnlockReady = false,
   locale,
   routes,
   onApplyRelayRoute,
   onAssistantPageChange,
+  onBrowserAccountFileUnlockCodeChange,
   onBrowserAccountImportCodeChange,
   onImportBrowserData,
   onLoginChatGptAccount,
   onOpenBrowser,
   onNotice,
+  onRedeemBrowserDelivery,
 }: T3WorkspaceAssistantEntriesProps) {
   const text = getT3WorkspaceMessages(locale);
   const runtimeRole = readT3P0RuntimeRoleMode();
   const importCodeReady = browserAccountImportCode.trim().length >= 8;
+  const fileUnlockCodeReady = browserAccountFileUnlockCode.trim().length >= 8;
+  const remoteRedeemReady = browserOperatorUnlockReady || (importCodeReady && fileUnlockCodeReady);
   const canUseUnreleasedAssistantSurfaces = canUseT3P0UnreleasedAssistantSurfaces(runtimeRole);
   const [selectedRelayProviderId, setSelectedRelayProviderId] =
     useState<T3CodexRelayProviderId>("tokenflux");
@@ -71,39 +103,49 @@ export function T3WorkspaceAssistantEntries({
         <Card
           className="t3-browser-account-data-gate"
           variant="secondary"
-          aria-label={text.browserAccountDataGateTitle}
+          aria-label={text.browserRemoteDataGateTitle}
         >
           <Card.Header className="t3-browser-card-header">
             <span>
               <KeyRound size={14} />
-              {text.browserAccountDataGateTitle}
+              {text.browserRemoteDataGateTitle}
             </span>
-            <Chip size="sm" variant="soft" color="warning">
-              {text.browserAccountDataLoginState}
+            <Chip size="sm" variant="soft" color={deliveryStatusColor(browserDeliveryProjection)}>
+              {browserDeliveryProjection?.status ?? text.browserAccountDataLoginState}
             </Chip>
           </Card.Header>
-          <p>{text.browserAccountDataGateSubtitle}</p>
+          <p>{text.browserRemoteDataGateSubtitle}</p>
           <div className="t3-browser-account-data-actions">
             <Input
               className="t3-browser-account-import-code"
               value={browserAccountImportCode}
               onChange={(event) => onBrowserAccountImportCodeChange(event.target.value)}
-              aria-label={text.browserAccountImportCodeLabel}
-              placeholder={text.browserAccountImportCodePlaceholder}
+              aria-label={text.browserRedemptionCodeLabel}
+              placeholder={text.browserRedemptionCodePlaceholder}
+              type="password"
+              variant="secondary"
+            />
+            <Input
+              className="t3-browser-account-file-unlock-code"
+              value={browserAccountFileUnlockCode}
+              onChange={(event) => onBrowserAccountFileUnlockCodeChange(event.target.value)}
+              aria-label={text.browserFileUnlockCodeLabel}
+              placeholder={text.browserFileUnlockCodePlaceholder}
               type="password"
               variant="secondary"
             />
             <Button
               className="t3-browser-account-data-import-button"
               type="button"
-              onPress={onImportBrowserData}
-              isDisabled={browserImportBusy || !importCodeReady}
+              onPress={onRedeemBrowserDelivery}
+              isDisabled={browserImportBusy || !remoteRedeemReady}
               variant="primary"
             >
               <FileUp size={15} />
-              {text.browserAccountDataGatePrimary}
+              {text.browserRedeemData}
             </Button>
           </div>
+          {browserDeliveryProjection ? <small>{browserDeliveryProjection.summary}</small> : null}
         </Card>
       </section>
     );
@@ -180,15 +222,17 @@ export function T3WorkspaceAssistantEntries({
             <strong>{text.browser}</strong>
             <small>{text.browserSubtitle}</small>
             <span className="t3-main-entry-actions">
-              <Input
-                className="t3-browser-account-import-code"
-                value={browserAccountImportCode}
-                onChange={(event) => onBrowserAccountImportCodeChange(event.target.value)}
-                aria-label={text.browserAccountImportCodeLabel}
-                placeholder={text.browserAccountImportCodePlaceholder}
-                type="password"
-                variant="secondary"
-              />
+              {runtimeRole === "customer" ? null : (
+                <Input
+                  className="t3-browser-account-import-code"
+                  value={browserAccountImportCode}
+                  onChange={(event) => onBrowserAccountImportCodeChange(event.target.value)}
+                  aria-label={text.browserAccountImportCodeLabel}
+                  placeholder={text.browserAccountImportCodePlaceholder}
+                  type="password"
+                  variant="secondary"
+                />
+              )}
               <Button
                 type="button"
                 onPress={runtimeRole === "customer" ? onLoginChatGptAccount : onOpenBrowser}
@@ -199,17 +243,19 @@ export function T3WorkspaceAssistantEntries({
                 <Chrome size={13} />
                 {runtimeRole === "customer" ? text.browserImportChatGptAccount : text.browser}
               </Button>
-              <Button
-                type="button"
-                onPress={onImportBrowserData}
-                aria-disabled={browserImportBusy || !importCodeReady}
-                isDisabled={browserImportBusy || !importCodeReady}
-                size="sm"
-                variant="outline"
-              >
-                <FileUp size={13} />
-                {text.browserImportData}
-              </Button>
+              {runtimeRole === "customer" ? null : (
+                <Button
+                  type="button"
+                  onPress={onImportBrowserData}
+                  aria-disabled={browserImportBusy || !importCodeReady}
+                  isDisabled={browserImportBusy || !importCodeReady}
+                  size="sm"
+                  variant="outline"
+                >
+                  <FileUp size={13} />
+                  {text.browserImportData}
+                </Button>
+              )}
               {runtimeRole !== "customer" && browserDataImported ? (
                 <Button
                   type="button"

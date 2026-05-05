@@ -34,6 +34,7 @@ import {
   type T3BrowserStaticDataPayloadPolicy,
   type T3BrowserStaticDataSchemaVersion,
 } from "./t3BrowserAccountDataContract";
+import type { T3BrowserCaptureMode } from "./t3BrowserChromeSessionPolicy";
 
 const STORAGE_KEY = "hugecode_t3_browser_profiles_v1";
 const RECENT_SESSIONS_STORAGE_KEY = "hugecode_t3_browser_recent_sessions_v1";
@@ -132,9 +133,11 @@ export type T3BrowserChromeSiteDataExportResult = {
 type DesktopBrowserStaticDataBridgeGlobal = {
   checkLoginState?: (input?: {
     allowedOrigins?: readonly string[];
+    captureMode?: T3BrowserCaptureMode;
   }) => Promise<T3BrowserLoginStatePreflightResult | null>;
   exportLoginState?: (input?: {
     allowedOrigins?: readonly string[];
+    captureMode?: T3BrowserCaptureMode;
     importSecret?: string;
   }) => Promise<T3BrowserEncryptedLoginStateBundle | null>;
   exportToChrome?: (input: { targetUrl: string }) => Promise<T3BrowserChromeSiteDataExportResult>;
@@ -449,7 +452,9 @@ function getDesktopBrowserStaticDataBridge() {
   return desktopWindow.hugeCodeDesktopHost?.browserStaticData ?? null;
 }
 
-export async function checkT3BrowserChatGptLoginState(): Promise<T3BrowserLoginStatePreflightResult> {
+export async function checkT3BrowserChatGptLoginState(input?: {
+  captureMode?: T3BrowserCaptureMode;
+}): Promise<T3BrowserLoginStatePreflightResult> {
   const checkLoginState = getDesktopBrowserStaticDataBridge()?.checkLoginState;
   if (!checkLoginState) {
     return {
@@ -463,7 +468,10 @@ export async function checkT3BrowserChatGptLoginState(): Promise<T3BrowserLoginS
     };
   }
   const result = normalizeLoginStatePreflightResult(
-    await checkLoginState({ allowedOrigins: normalizeT3BrowserAllowedOrigins(null) })
+    await checkLoginState({
+      allowedOrigins: normalizeT3BrowserAllowedOrigins(null),
+      captureMode: input?.captureMode,
+    })
   );
   if (!result) {
     return {
@@ -521,11 +529,13 @@ export function buildT3BrowserStaticDataBundle(): T3BrowserStaticDataBundle {
 }
 
 export async function buildT3BrowserStaticDataBundleWithLoginState(input?: {
+  captureMode?: T3BrowserCaptureMode;
   importSecret?: string;
 }): Promise<T3BrowserStaticDataBundle> {
   const bundle = buildT3BrowserStaticDataBundle();
   const loginStateBundle = await getDesktopBrowserStaticDataBridge()?.exportLoginState?.({
     allowedOrigins: normalizeT3BrowserAllowedOrigins(null),
+    captureMode: input?.captureMode,
     importSecret: input?.importSecret,
   });
   const normalizedLoginStateBundle = normalizeEncryptedLoginStateBundle(loginStateBundle);
@@ -542,7 +552,7 @@ export async function buildT3BrowserStaticDataBundleWithLoginState(input?: {
       payloadPolicy: T3_BROWSER_PORTABLE_PAYLOAD_POLICY,
       schemaVersion: T3_BROWSER_STATIC_DATA_SCHEMA_VERSION_V2,
       summary:
-        "Portable HugeCode ChatGPT account data file. Restore requires the matching import code.",
+        "Portable HugeCode ChatGPT account data file. Restore requires the matching file unlock code.",
     };
   }
   return {
@@ -585,6 +595,7 @@ export function serializeT3BrowserStaticDataBundle(
 }
 
 export async function serializeT3BrowserStaticDataBundleWithLoginState(input?: {
+  captureMode?: T3BrowserCaptureMode;
   importSecret?: string;
 }): Promise<string> {
   return serializeT3BrowserStaticDataBundle(
@@ -592,10 +603,21 @@ export async function serializeT3BrowserStaticDataBundleWithLoginState(input?: {
   );
 }
 
+export function checkT3OperatorBrowserChatGptLoginState() {
+  return checkT3BrowserChatGptLoginState({ captureMode: "operator-delivery" });
+}
+
+export function serializeT3OperatorBrowserStaticDataBundleWithLoginState(importSecret: string) {
+  return serializeT3BrowserStaticDataBundleWithLoginState({
+    captureMode: "operator-delivery",
+    importSecret,
+  });
+}
+
 export async function serializeT3BrowserStaticDataBundleWithPromptedLoginState(): Promise<string> {
   return serializeT3BrowserStaticDataBundleWithLoginState({
     importSecret: requestT3BrowserAccountDataImportSecret({
-      message: "Create an import code for this portable ChatGPT account data file.",
+      message: "Create a file unlock code for this portable ChatGPT account data file.",
     }),
   });
 }
@@ -743,7 +765,7 @@ export async function importT3BrowserStaticDataLoginStateBundles(
     bundles.some((bundle) => bundle.encryption === T3_BROWSER_PORTABLE_ENCRYPTION) &&
     !input?.importSecret?.trim()
   ) {
-    throw new Error("Import code is required to restore portable browser account data.");
+    throw new Error("File unlock code is required to restore portable browser account data.");
   }
   const importLoginState = getDesktopBrowserStaticDataBridge()?.importLoginState;
   if (!importLoginState) {
@@ -813,7 +835,7 @@ export async function importT3BrowserStaticDataLoginStateBundlesWithPrompt(
   return importT3BrowserStaticDataLoginStateBundles(bundles, {
     importSecret: requestT3BrowserAccountDataImportSecret({
       bundles,
-      message: "Enter the import code for this ChatGPT account data file.",
+      message: "Enter the file unlock code for this ChatGPT account data file.",
     }),
   });
 }
@@ -823,7 +845,7 @@ export function formatT3BrowserStaticDataImportError(error: unknown): string {
     error instanceof Error ? error.message : "Unable to import browser account data file.";
   return message
     .replace(/[A-Za-z0-9+/=]{32,}/gu, "[redacted]")
-    .replace(/(import code\s*(?:is|was|:)?\s*)[^\s.]+/giu, "$1[redacted]");
+    .replace(/(file unlock code\s*(?:is|was|:)?\s*)[^\s.]+/giu, "$1[redacted]");
 }
 
 export function requireT3BrowserAccountDataImportSecret(
@@ -832,7 +854,7 @@ export function requireT3BrowserAccountDataImportSecret(
 ) {
   const importSecret = value.trim();
   if (importSecret.length < 8) {
-    throw new Error(`${action} requires an import code with at least 8 characters.`);
+    throw new Error(`${action} requires a file unlock code with at least 8 characters.`);
   }
   return importSecret;
 }
@@ -846,7 +868,7 @@ export function requestT3BrowserAccountDataImportSecret(input: {
   }
   const importSecret = window.prompt(input.message)?.trim();
   if (!importSecret || importSecret.length < 8) {
-    throw new Error("Import code must contain at least 8 characters.");
+    throw new Error("File unlock code must contain at least 8 characters.");
   }
   return importSecret;
 }
