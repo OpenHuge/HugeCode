@@ -67,6 +67,13 @@ type T3DeliveryTransport = (input: {
 
 type T3DeliveryFetch = (url: string, init?: RequestInit) => Promise<Response>;
 
+const defaultOpenHugeDeliveryFetch: T3DeliveryFetch = (url, init) =>
+  fetch.call(globalThis, url, init);
+
+function normalizeOpenHugeDeliveryFetch(fetcher: T3DeliveryFetch): T3DeliveryFetch {
+  return fetcher === globalThis.fetch ? defaultOpenHugeDeliveryFetch : fetcher;
+}
+
 type OpenHugeDeliveryProjectionOptions = {
   fileHash?: string | null;
   status?: T3DeliveryStatus;
@@ -95,6 +102,7 @@ const OPENHUGE_DEFAULT_SERVICE_DAYS = 30;
 const OPENHUGE_DEFAULT_SERVICE_KIND = "manual_browser_account";
 const OPENHUGE_ARTIFACT_KIND = "browser_account_bundle";
 const OPENHUGE_ARTIFACT_CONTENT_TYPE = "application/octet-stream";
+const DAY_IN_MS = 86_400_000;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -689,21 +697,36 @@ function createOpenHugeErrorProjection(error: unknown): T3DeliveryProjection {
     return createFailedDeliveryProjection();
   }
   const code = error.code?.toLowerCase() ?? "";
+  const messageStatus = mapOpenHugeStatus(error.message, "failed");
   if (code === "redemption_code_expired" || code === "download_token_expired") {
     return createDeliveryProjection({ status: "expired", summary: error.message });
   }
   if (code === "redemption_code_revoked") {
     return createDeliveryProjection({ status: "revoked", summary: error.message });
   }
+  if (code === "delivery_entitlement_not_active") {
+    return createDeliveryProjection({
+      status: messageStatus === "failed" ? "fileUnavailable" : messageStatus,
+      summary: error.message,
+    });
+  }
   if (
     code === "delivery_artifact_required" ||
     code === "delivery_artifact_not_found" ||
+    code === "delivery_artifact_not_available" ||
     code === "download_token_used" ||
     code === "download_token_revoked" ||
     code === "download_token_invalid" ||
+    code === "download_token_not_active" ||
     code === "download_token_required"
   ) {
-    return createDeliveryProjection({ status: "fileUnavailable", summary: error.message });
+    return createDeliveryProjection({
+      status:
+        messageStatus === "expired" || messageStatus === "revoked"
+          ? messageStatus
+          : "fileUnavailable",
+      summary: error.message,
+    });
   }
   if (code === "redemption_code_used") {
     return createDeliveryProjection({ status: "failed", summary: error.message });
@@ -742,6 +765,13 @@ function readUploadFromBody(body: unknown) {
     throw new Error("Delivery artifact upload body is incomplete.");
   }
   return { deliveryId, fileHash, fileName, serialized };
+}
+
+function openHugeCarrierValidUntil(config: T3OpenHugeDeliveryConfig) {
+  if (!Number.isInteger(config.serviceDays) || config.serviceDays <= 0) {
+    return null;
+  }
+  return new Date(Date.now() + config.serviceDays * DAY_IN_MS).toISOString();
 }
 
 async function openHugePrepare(
@@ -816,12 +846,14 @@ async function openHugeUploadArtifact(
   body: unknown
 ) {
   const upload = readUploadFromBody(body);
+  const carrierValidUntil = openHugeCarrierValidUntil(config);
   const batch = await openHugeJsonRequest({
     body: {
       idempotency_key: `${upload.deliveryId}:${upload.fileHash}`,
       items: [
         {
           artifact_kind: OPENHUGE_ARTIFACT_KIND,
+          ...(carrierValidUntil ? { carrier_valid_until: carrierValidUntil } : {}),
           content_type: OPENHUGE_ARTIFACT_CONTENT_TYPE,
           delivery_id: upload.deliveryId,
           file_name: upload.fileName,
@@ -951,6 +983,7 @@ async function openHugeRedeem(
   const grant = await openHugeJsonRequest({
     body: {
       activation_id: redeemed.activationId,
+      redemption_code: activationCode,
     },
     config,
     fetcher,
@@ -994,24 +1027,25 @@ async function unavailableT3DeliveryTransport() {
 
 export function createOpenHugeDeliveryTransport(
   config: T3OpenHugeDeliveryConfig | null = readOpenHugeDeliveryConfig(),
-  fetcher: T3DeliveryFetch = fetch
+  fetcher: T3DeliveryFetch = defaultOpenHugeDeliveryFetch
 ): T3DeliveryTransport {
   if (!config) {
     return unavailableT3DeliveryTransport;
   }
+  const openHugeFetch = normalizeOpenHugeDeliveryFetch(fetcher);
   return async ({ body, operation }) => {
     try {
       if (operation === "prepare") {
-        return await openHugePrepare(config, fetcher, body);
+        return await openHugePrepare(config, openHugeFetch, body);
       }
       if (operation === "uploadArtifact") {
-        return await openHugeUploadArtifact(config, fetcher, body);
+        return await openHugeUploadArtifact(config, openHugeFetch, body);
       }
       if (operation === "redeem") {
-        return await openHugeRedeem(config, fetcher, body);
+        return await openHugeRedeem(config, openHugeFetch, body);
       }
       if (operation === "readStatus" || operation === "submitExportWitness") {
-        return await openHugeReadStatus(config, fetcher, body);
+        return await openHugeReadStatus(config, openHugeFetch, body);
       }
       return createFailedDeliveryProjection();
     } catch (error) {

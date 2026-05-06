@@ -332,6 +332,45 @@ describe("t3DeliveryService", () => {
     );
   });
 
+  it("binds the browser global fetch when constructing the real transport", async () => {
+    const originalFetch = globalThis.fetch;
+    const strictFetch = vi.fn(function (this: unknown, _url: string, _init?: RequestInit) {
+      if (this !== globalThis) {
+        throw new TypeError("Illegal invocation");
+      }
+      return Promise.resolve(
+        jsonResponse({
+          data: {
+            delivery: {
+              delivery_id: "delivery_10001",
+              status: "prepared",
+            },
+          },
+          one_time_codes: {
+            browser_file_unlock_code: "ku0-brw-v1-260505-j9k0-l1m2n3p4q5r6-76",
+            redemption_code: "ku0-red-v1-260505-a1b2-c3d4e5f6g7h8-7b",
+          },
+        })
+      );
+    });
+    vi.stubGlobal("fetch", strictFetch);
+    try {
+      const service = createT3DeliveryService(
+        createOpenHugeDeliveryTransport(openHugeConfig, globalThis.fetch)
+      );
+
+      await expect(service.prepare({ provider: "chatgpt" })).resolves.toEqual(
+        expect.objectContaining({
+          activationCode: "ku0-red-v1-260505-a1b2-c3d4e5f6g7h8-7b",
+          browserFileUnlockCode: "ku0-brw-v1-260505-j9k0-l1m2n3p4q5r6-76",
+          deliveryId: "delivery_10001",
+        })
+      );
+    } finally {
+      vi.stubGlobal("fetch", originalFetch);
+    }
+  });
+
   it("does not mark queued OpenHuge uploads as exported", async () => {
     const fetcher = vi
       .fn()
@@ -384,6 +423,8 @@ describe("t3DeliveryService", () => {
   });
 
   it("maps accepted OpenHuge upload items to exported with pure sha256 hex", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-06T00:00:00.000Z"));
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
@@ -413,25 +454,31 @@ describe("t3DeliveryService", () => {
       createOpenHugeDeliveryTransport(openHugeConfig, fetcher)
     );
 
-    await expect(
-      service.uploadArtifact({
-        deliveryId: "delivery_10001",
-        artifact: {
-          serialized: "encrypted payload",
-          witness: {
-            byteLength: 17,
-            exportedAt: "2026-05-06T00:00:00.000Z",
-            fileHash: "c".repeat(64),
-            fileName: "hugecode-browser-data.hcbrowser",
+    try {
+      await expect(
+        service.uploadArtifact({
+          deliveryId: "delivery_10001",
+          artifact: {
+            serialized: "encrypted payload",
+            witness: {
+              byteLength: 17,
+              exportedAt: "2026-05-06T00:00:00.000Z",
+              fileHash: "c".repeat(64),
+              fileName: "hugecode-browser-data.hcbrowser",
+            },
           },
-        },
-      })
-    ).resolves.toEqual(
-      expect.objectContaining({
-        fileHash: "d".repeat(64),
-        status: "exported",
-      })
-    );
+        })
+      ).resolves.toEqual(
+        expect.objectContaining({
+          fileHash: "d".repeat(64),
+          status: "exported",
+        })
+      );
+      const uploadBody = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
+      expect(uploadBody.items[0].carrier_valid_until).toBe("2026-06-05T00:00:00.000Z");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("redeems through OpenHuge activation, grant, and artifact download without unlock code echo", async () => {
@@ -497,6 +544,10 @@ describe("t3DeliveryService", () => {
         Authorization: "Bearer dlt_once_returned_plaintext_token_20260506",
       })
     );
+    expect(JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body))).toEqual({
+      activation_id: "activation_10002",
+      redemption_code: "ku0-red-v1-valid-code",
+    });
   });
 
   it("maps OpenHuge expired redemption errors fail-closed without artifact", async () => {
@@ -520,5 +571,36 @@ describe("t3DeliveryService", () => {
         summary: "redemption_code is expired",
       }),
     });
+  });
+
+  it("maps inactive entitlement lifecycle errors into blocking statuses", async () => {
+    for (const [message, status] of [
+      ["delivery entitlement status `expired` cannot issue a download grant", "expired"],
+      ["delivery entitlement status `revoked` cannot issue a download grant", "revoked"],
+      ["delivery entitlement status `paused` cannot issue a download grant", "fileUnavailable"],
+    ] as const) {
+      const fetcher = vi.fn(async () =>
+        jsonResponse(
+          {
+            code: "delivery_entitlement_not_active",
+            message,
+          },
+          { status: 409 }
+        )
+      );
+      const service = createT3DeliveryService(
+        createOpenHugeDeliveryTransport(openHugeConfig, fetcher)
+      );
+
+      await expect(
+        service.redeem({ activationCode: "ku0-red-v1-lifecycle-code" })
+      ).resolves.toEqual({
+        artifact: null,
+        projection: expect.objectContaining({
+          status,
+          summary: message,
+        }),
+      });
+    }
   });
 });

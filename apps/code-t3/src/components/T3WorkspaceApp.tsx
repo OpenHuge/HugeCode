@@ -38,6 +38,7 @@ import {
   type T3WorkspaceAssistantPage,
 } from "./T3WorkspaceAssistantEntries";
 import { T3BrowserStaticDataImportInput } from "./T3BrowserStaticDataImportInput";
+import { T3OperatorUnlockDialog } from "./T3OperatorUnlockDialog";
 import { T3WorkspaceSidebar } from "./T3WorkspaceSidebar";
 import {
   browserProviderTitle,
@@ -130,11 +131,14 @@ import {
 } from "../runtime/t3RuntimeEventSnapshot";
 import {
   createT3DeliveryExportWitness,
+  readT3DeliveryStatus,
   type T3DeliveryArtifactUpload,
   type T3DeliveryProjection,
+  type T3DeliveryStatus,
 } from "../runtime/t3DeliveryService";
 import { restoreT3CustomerBrowserDelivery } from "../runtime/t3CustomerBrowserDeliveryRestore";
 import {
+  readT3OperatorUnlockState,
   readT3P0RuntimeRoleMode,
   verifyT3OperatorLocalPassword,
   writeT3OperatorUnlockState,
@@ -148,10 +152,21 @@ type T3WorkspacePage = "chat" | "browser";
 
 const providerOrder: T3CodeProviderKind[] = ["codex", "claudeAgent"];
 const browserProviderOrder: T3BrowserProvider[] = ["hugerouter", "chatgpt", "gemini", "custom"];
+const T3_CUSTOMER_DELIVERY_BLOCKING_STATUSES = new Set<T3DeliveryStatus>([
+  "expired",
+  "failed",
+  "fileUnavailable",
+  "revoked",
+  "unavailable",
+]);
 type BrowserAssistantEntry = {
   kind: "chatgpt" | "ldxp";
   label: string;
 };
+
+function customerDeliveryOpenBlocked(projection: T3DeliveryProjection | null | undefined) {
+  return projection ? T3_CUSTOMER_DELIVERY_BLOCKING_STATUSES.has(projection.status) : true;
+}
 
 function isLdxpBrowserAssistantUrl(value: string) {
   try {
@@ -269,6 +284,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   const [browserLoginStateStatus, setBrowserLoginStateStatus] =
     useState<T3BrowserLoginStatePreflightResult["status"]>("unknown");
   const [browserAccountImportCode, setBrowserAccountImportCode] = useState("");
+  const [browserAccountFileUnlockCode, setBrowserAccountFileUnlockCode] = useState("");
   const [browserDeliveryProjection, setBrowserDeliveryProjection] =
     useState<T3DeliveryProjection | null>(null);
   const [browserDataImported, setBrowserDataImported] = useState(
@@ -285,10 +301,13 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   const [notice, setNotice] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<T3CodeTimelineEvent[]>([]);
   const [assistantPage, setAssistantPage] = useState<T3WorkspaceAssistantPage>("home");
+  const [operatorUnlockDialogOpen, setOperatorUnlockDialogOpen] = useState(false);
+  const [, bumpOperatorUnlockRevision] = useState(0);
   const browserStaticDataImportInputRef = useRef<HTMLInputElement | null>(null);
   const runtimeEventsMountedAt = useRef(Date.now());
   const browserProfileBridge = useMemo(() => createT3BrowserProfileBridge(), []);
   const text = getT3WorkspaceMessages(locale);
+  const operatorSessionUnlocked = readT3OperatorUnlockState();
   const canUseProductionWorkspace = readT3P0RuntimeRoleMode() !== "customer";
   const visibleActivePage = canUseProductionWorkspace ? activePage : "chat";
   const composerCommands = useMemo(
@@ -339,6 +358,28 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   function openChatFromSidebar() {
     setAssistantPage("home");
     navigateT3Page("chat");
+  }
+
+  function unlockOperatorWorkspace(password: string) {
+    if (!verifyT3OperatorLocalPassword(password)) {
+      return false;
+    }
+    writeT3OperatorUnlockState(true);
+    bumpOperatorUnlockRevision((revision) => revision + 1);
+    setOperatorUnlockDialogOpen(false);
+    setBrowserAccountImportCode("");
+    setBrowserProfileNotice("生产端已解锁。");
+    setNotice("生产端已解锁。");
+    navigateT3Page("browser");
+    return true;
+  }
+
+  function lockOperatorWorkspace() {
+    writeT3OperatorUnlockState(false);
+    bumpOperatorUnlockRevision((revision) => revision + 1);
+    setBrowserProfileNotice(null);
+    setNotice("生产端已锁定。");
+    openChatFromSidebar();
   }
 
   function openAssistantFromSidebar(page: T3WorkspaceAssistantPage) {
@@ -779,7 +820,51 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     }
   }
 
-  async function openChatGptBuiltInBrowser(captureMode?: "operator-delivery") {
+  async function ensureCustomerDeliveryCanOpen(
+    deliveryProjectionOverride?: T3DeliveryProjection | null
+  ) {
+    if (readT3P0RuntimeRoleMode() !== "customer") {
+      return true;
+    }
+    if (!browserDataImported) {
+      const message = "请先验证并恢复后端交付，再打开 ChatGPT 内置浏览器。";
+      setBrowserProfileNotice(message);
+      setNotice(message);
+      return false;
+    }
+    const deliveryId =
+      deliveryProjectionOverride?.deliveryId ?? browserDeliveryProjection?.deliveryId;
+    if (!deliveryId) {
+      const message = "后端交付状态不可确认，已阻断客户浏览器打开。";
+      setBrowserProfileNotice(message);
+      setNotice(message);
+      return false;
+    }
+    try {
+      const projection = await readT3DeliveryStatus({ deliveryId });
+      setBrowserDeliveryProjection(projection);
+      if (customerDeliveryOpenBlocked(projection)) {
+        const message = `后端交付状态已阻断：${projection.summary}`;
+        setBrowserProfileNotice(message);
+        setNotice(message);
+        return false;
+      }
+      return true;
+    } catch {
+      const message = "后端交付状态刷新失败，已阻断客户浏览器打开。";
+      setBrowserProfileNotice(message);
+      setNotice(message);
+      return false;
+    }
+  }
+
+  async function openChatGptBuiltInBrowser(
+    captureMode?: "operator-delivery",
+    deliveryProjectionOverride?: T3DeliveryProjection | null
+  ) {
+    if (!captureMode && !(await ensureCustomerDeliveryCanOpen(deliveryProjectionOverride))) {
+      return;
+    }
     setBrowserProfileBusy(true);
     setBrowserProfileNotice(null);
     try {
@@ -852,7 +937,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     setBrowserProfileBusy(true);
     setBrowserProfileNotice(null);
     try {
-      const importSecret = requireImportSecret(browserAccountImportCode, "Export");
+      const importSecret = requireImportSecret(browserAccountFileUnlockCode, "Export");
       const preflight = await runChatGptLoginStatePreflight();
       if (preflight.status !== "loggedIn") {
         throw new Error(preflight.summary);
@@ -878,22 +963,16 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     if (browserProfileBusy) {
       return;
     }
-    if (verifyT3OperatorLocalPassword(browserAccountImportCode)) {
-      writeT3OperatorUnlockState(true);
-      setBrowserAccountImportCode("");
-      setBrowserProfileNotice("生产端已解锁。");
-      setNotice("生产端已解锁。");
-      navigateT3Page("browser");
-      return;
-    }
     setBrowserProfileBusy(true);
     setBrowserProfileNotice(null);
+    let restoredProjection: T3DeliveryProjection | null = null;
     let shouldOpenChatGptBrowser = false;
     try {
       const restore = await restoreT3CustomerBrowserDelivery({
         activationCodeInput: browserAccountImportCode,
-        fileUnlockCodeInput: browserAccountImportCode,
+        fileUnlockCodeInput: browserAccountFileUnlockCode,
       });
+      restoredProjection = restore.projection;
       setBrowserDeliveryProjection(restore.projection);
       if (restore.status !== "restored") {
         throw new Error(restore.notice);
@@ -901,6 +980,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       refreshBrowserStaticDataState(restore.profiles);
       markBrowserDataImported();
       setBrowserAccountImportCode("");
+      setBrowserAccountFileUnlockCode("");
       shouldOpenChatGptBrowser = true;
       setBrowserProfileNotice(restore.notice);
       setNotice(restore.notice);
@@ -912,7 +992,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       setBrowserProfileBusy(false);
     }
     if (shouldOpenChatGptBrowser) {
-      await openChatGptBuiltInBrowser();
+      await openChatGptBuiltInBrowser(undefined, restoredProjection);
     }
   }
 
@@ -941,7 +1021,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     let shouldOpenChatGptBrowser = false;
     try {
       const result = importT3BrowserStaticDataBundle(await file.text());
-      const importSecret = requireImportSecret(browserAccountImportCode, "Import");
+      const importSecret = requireImportSecret(browserAccountFileUnlockCode, "Import");
       const loginStateResult = await importT3BrowserStaticDataLoginStateBundles(
         result.loginStateBundles,
         { importSecret }
@@ -1831,11 +1911,11 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
               authoritative.
             </small>
             <T3OperatorWorkspacePanel
-              accountImportCode={browserAccountImportCode}
+              accountImportCode={browserAccountFileUnlockCode}
               busy={browserProfileBusy}
               loginStateStatus={browserLoginStateStatus}
               notice={browserProfileNotice}
-              onAccountImportCodeChange={setBrowserAccountImportCode}
+              onAccountImportCodeChange={setBrowserAccountFileUnlockCode}
               onCheckLoginState={runChatGptLoginStatePreflight}
               onExportAccountFile={exportBrowserStaticData}
               onNotice={setBrowserProfileNotice}
@@ -2619,6 +2699,11 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
         inputRef={browserStaticDataImportInputRef}
         onImport={(file) => void importBrowserStaticDataFile(file)}
       />
+      <T3OperatorUnlockDialog
+        open={operatorUnlockDialogOpen}
+        onClose={() => setOperatorUnlockDialogOpen(false)}
+        onUnlock={unlockOperatorWorkspace}
+      />
       <T3WorkspaceSidebar
         activePage={visibleActivePage}
         assistantPage={assistantPage}
@@ -2632,9 +2717,12 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
         text={text}
         timeline={visibleTimeline}
         workspaceId={workspaceId}
+        operatorSessionUnlocked={operatorSessionUnlocked}
+        onLockOperatorSession={lockOperatorWorkspace}
         onOpenAssistantPage={openAssistantFromSidebar}
         onOpenBrowser={() => navigateT3Page("browser")}
         onOpenChat={openChatFromSidebar}
+        onOpenOperatorUnlock={() => setOperatorUnlockDialogOpen(true)}
         onRefreshRoutes={refreshRoutes}
         onSelectProvider={setSelectedProvider}
       />
@@ -2676,15 +2764,16 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           quickEntries={
             <T3WorkspaceAssistantEntries
               activePage={assistantPage}
+              browserAccountFileUnlockCode={browserAccountFileUnlockCode}
               browserAccountImportCode={browserAccountImportCode}
               browserDataImported={browserDataImported}
               browserDeliveryProjection={browserDeliveryProjection}
               browserImportBusy={browserProfileBusy}
-              browserOperatorUnlockReady={verifyT3OperatorLocalPassword(browserAccountImportCode)}
               locale={locale}
               routes={routes}
               onApplyRelayRoute={applyRelayRoute}
               onAssistantPageChange={setAssistantPage}
+              onBrowserAccountFileUnlockCodeChange={setBrowserAccountFileUnlockCode}
               onBrowserAccountImportCodeChange={setBrowserAccountImportCode}
               onImportBrowserData={openBrowserStaticDataImportPicker}
               onLoginChatGptAccount={() => void openChatGptBuiltInBrowser()}

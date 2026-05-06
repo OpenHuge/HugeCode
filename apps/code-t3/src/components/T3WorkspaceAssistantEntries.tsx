@@ -18,17 +18,21 @@ import { getT3WorkspaceMessages, type T3WorkspaceLocale } from "./t3WorkspaceLoc
 
 export type T3WorkspaceAssistantPage = "home" | "account-rental" | "relay";
 
+const T3_CUSTOMER_FILE_UNLOCK_INPUT_HIDE_KEYWORD = "hide-customer-file-unlock-input";
+const hideCustomerFileUnlockInput = true;
+
 type T3WorkspaceAssistantEntriesProps = {
   activePage: T3WorkspaceAssistantPage;
   browserDataImported: boolean;
+  browserAccountFileUnlockCode: string;
   browserAccountImportCode: string;
   browserDeliveryProjection?: T3DeliveryProjection | null;
   browserImportBusy: boolean;
-  browserOperatorUnlockReady?: boolean;
   locale: T3WorkspaceLocale;
   routes: readonly T3CodeProviderRoute[];
   onApplyRelayRoute: (route: T3CodeProviderRoute) => void;
   onAssistantPageChange: (page: T3WorkspaceAssistantPage) => void;
+  onBrowserAccountFileUnlockCodeChange: (value: string) => void;
   onBrowserAccountImportCodeChange: (value: string) => void;
   onImportBrowserData: () => void;
   onLoginChatGptAccount: () => void;
@@ -59,14 +63,15 @@ function deliveryStatusColor(projection: T3DeliveryProjection | null | undefined
 export function T3WorkspaceAssistantEntries({
   activePage,
   browserDataImported,
+  browserAccountFileUnlockCode,
   browserAccountImportCode,
   browserDeliveryProjection,
   browserImportBusy,
-  browserOperatorUnlockReady = false,
   locale,
   routes,
   onApplyRelayRoute,
   onAssistantPageChange,
+  onBrowserAccountFileUnlockCodeChange,
   onBrowserAccountImportCodeChange,
   onImportBrowserData,
   onLoginChatGptAccount,
@@ -77,7 +82,8 @@ export function T3WorkspaceAssistantEntries({
   const text = getT3WorkspaceMessages(locale);
   const runtimeRole = readT3P0RuntimeRoleMode();
   const importCodeReady = browserAccountImportCode.trim().length >= 8;
-  const remoteRedeemReady = browserOperatorUnlockReady || importCodeReady;
+  const fileUnlockCodeReady = browserAccountFileUnlockCode.trim().length >= 8;
+  const remoteRedeemReady = importCodeReady && (hideCustomerFileUnlockInput || fileUnlockCodeReady);
   const canUseUnreleasedAssistantSurfaces = canUseT3P0UnreleasedAssistantSurfaces(runtimeRole);
   const [selectedRelayProviderId, setSelectedRelayProviderId] =
     useState<T3CodexRelayProviderId>("tokenflux");
@@ -110,7 +116,12 @@ export function T3WorkspaceAssistantEntries({
             </Chip>
           </Card.Header>
           <p>{text.browserRemoteDataGateSubtitle}</p>
-          <div className="t3-browser-account-data-actions">
+          <div
+            className="t3-browser-account-data-actions"
+            data-file-unlock-input={
+              hideCustomerFileUnlockInput ? T3_CUSTOMER_FILE_UNLOCK_INPUT_HIDE_KEYWORD : "visible"
+            }
+          >
             <Input
               className="t3-browser-account-import-code"
               value={browserAccountImportCode}
@@ -120,6 +131,17 @@ export function T3WorkspaceAssistantEntries({
               type="password"
               variant="secondary"
             />
+            {!hideCustomerFileUnlockInput ? (
+              <Input
+                className="t3-browser-account-import-code"
+                value={browserAccountFileUnlockCode}
+                onChange={(event) => onBrowserAccountFileUnlockCodeChange(event.target.value)}
+                aria-label={text.browserAccountImportCodeLabel}
+                placeholder={text.browserAccountImportCodePlaceholder}
+                type="password"
+                variant="secondary"
+              />
+            ) : null}
             <Button
               className="t3-browser-account-data-import-button"
               type="button"
@@ -211,8 +233,8 @@ export function T3WorkspaceAssistantEntries({
               {runtimeRole === "customer" ? null : (
                 <Input
                   className="t3-browser-account-import-code"
-                  value={browserAccountImportCode}
-                  onChange={(event) => onBrowserAccountImportCodeChange(event.target.value)}
+                  value={browserAccountFileUnlockCode}
+                  onChange={(event) => onBrowserAccountFileUnlockCodeChange(event.target.value)}
                   aria-label={text.browserAccountImportCodeLabel}
                   placeholder={text.browserAccountImportCodePlaceholder}
                   type="password"
@@ -233,8 +255,8 @@ export function T3WorkspaceAssistantEntries({
                 <Button
                   type="button"
                   onPress={onImportBrowserData}
-                  aria-disabled={browserImportBusy || !importCodeReady}
-                  isDisabled={browserImportBusy || !importCodeReady}
+                  aria-disabled={browserImportBusy || !fileUnlockCodeReady}
+                  isDisabled={browserImportBusy || !fileUnlockCodeReady}
                   size="sm"
                   variant="outline"
                 >

@@ -42,13 +42,8 @@ export async function restoreT3CustomerBrowserDelivery(input: {
   fileUnlockCodeInput: string;
 }): Promise<T3CustomerBrowserDeliveryRestoreResult> {
   const activationCode = input.activationCodeInput.trim();
-  const importSecret = input.fileUnlockCodeInput.trim();
   if (activationCode.length < 8) {
     const notice = "兑换码至少需要 8 位。";
-    return { notice, projection: failedCustomerDeliveryProjection(notice), status: "failed" };
-  }
-  if (importSecret.length < 8) {
-    const notice = "文件解锁码至少需要 8 位，且不会由后端再次返回。";
     return { notice, projection: failedCustomerDeliveryProjection(notice), status: "failed" };
   }
   let projection: T3DeliveryProjection | null = null;
@@ -62,6 +57,11 @@ export async function restoreT3CustomerBrowserDelivery(input: {
     }
     if (!redemption.artifact) {
       throw new Error("Remote delivery did not return an encrypted account data artifact.");
+    }
+    const importSecret =
+      input.fileUnlockCodeInput.trim() || redemption.projection.browserFileUnlockCode?.trim() || "";
+    if (importSecret.length < 8) {
+      throw new Error("文件解锁码至少需要 8 位，且后端未返回可用解锁码。");
     }
     const result = importT3BrowserStaticDataBundle(redemption.artifact.serialized);
     const loginStateResult = await importT3BrowserStaticDataLoginStateBundles(

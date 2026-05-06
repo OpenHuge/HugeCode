@@ -1,5 +1,13 @@
-import { Chrome, LogOut, Plus, RefreshCw, Search, Settings, SquarePen } from "lucide-react";
-import { useState } from "react";
+import {
+  Chrome,
+  LogOut,
+  Plus,
+  RefreshCw,
+  Search,
+  Settings,
+  ShieldCheck,
+  SquarePen,
+} from "lucide-react";
 import type {
   T3CodeProviderKind,
   T3CodeProviderRoute,
@@ -10,11 +18,7 @@ import {
   T3WorkspaceAssistantThreadRows,
   type T3WorkspaceAssistantPage,
 } from "./T3WorkspaceAssistantEntries";
-import {
-  readT3OperatorUnlockState,
-  readT3P0RuntimeRoleMode,
-  writeT3OperatorUnlockState,
-} from "../runtime/t3P0RuntimeRole";
+import { readT3P0RuntimeRoleMode } from "../runtime/t3P0RuntimeRole";
 import { providerTitle } from "./t3WorkspaceLabels";
 import type { T3WorkspaceMessages, T3WorkspaceLocale } from "./t3WorkspaceLocale";
 import { T3Wordmark } from "./T3Wordmark";
@@ -34,9 +38,12 @@ type T3WorkspaceSidebarProps = {
   text: T3WorkspaceMessages;
   timeline: readonly T3CodeTimelineEvent[];
   workspaceId: string;
+  operatorSessionUnlocked: boolean;
+  onLockOperatorSession: () => void;
   onOpenAssistantPage: (page: T3WorkspaceAssistantPage) => void;
   onOpenBrowser: () => void;
   onOpenChat: () => void;
+  onOpenOperatorUnlock: () => void;
   onRefreshRoutes: () => void;
   onSelectProvider: (provider: T3CodeProviderKind) => void;
 };
@@ -54,13 +61,15 @@ export function T3WorkspaceSidebar({
   text,
   timeline,
   workspaceId,
+  operatorSessionUnlocked,
+  onLockOperatorSession,
   onOpenAssistantPage,
   onOpenBrowser,
   onOpenChat,
+  onOpenOperatorUnlock,
   onRefreshRoutes,
   onSelectProvider,
 }: T3WorkspaceSidebarProps) {
-  const [sessionUnlocked, setSessionUnlocked] = useState(() => readT3OperatorUnlockState());
   const runtimeRole = readT3P0RuntimeRoleMode();
   const showBrowserManagement = runtimeRole !== "customer";
   return (
@@ -171,6 +180,18 @@ export function T3WorkspaceSidebar({
           <Settings size={14} />
           <span>{text.settings}</span>
         </button>
+        {!operatorSessionUnlocked ? (
+          <button
+            className="t3-sidebar-footer-operator-entry"
+            type="button"
+            onClick={onOpenOperatorUnlock}
+            aria-label="生产端入口"
+            title="生产端入口"
+          >
+            <ShieldCheck size={14} />
+            <span>生产端</span>
+          </button>
+        ) : null}
         {showBrowserManagement ? (
           <button
             className={
@@ -189,16 +210,8 @@ export function T3WorkspaceSidebar({
             <span>{text.browser}</span>
           </button>
         ) : null}
-        {sessionUnlocked ? (
-          <button
-            type="button"
-            onClick={() => {
-              writeT3OperatorUnlockState(false);
-              setSessionUnlocked(false);
-              onOpenChat();
-            }}
-            aria-label="锁定生产端"
-          >
+        {operatorSessionUnlocked ? (
+          <button type="button" onClick={onLockOperatorSession} aria-label="锁定生产端">
             <LogOut size={14} />
             <span>锁定</span>
           </button>

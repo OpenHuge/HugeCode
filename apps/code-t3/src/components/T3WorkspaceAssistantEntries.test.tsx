@@ -33,9 +33,10 @@ function setRuntimeRole(role: "customer" | "operator" | "developer") {
 function renderAssistantEntries(
   options: {
     browserDataImported?: boolean;
+    browserAccountFileUnlockCode?: string;
     browserAccountImportCode?: string;
     browserImportBusy?: boolean;
-    browserOperatorUnlockReady?: boolean;
+    onBrowserAccountFileUnlockCodeChange?: (value: string) => void;
     onBrowserAccountImportCodeChange?: (value: string) => void;
     onImportBrowserData?: () => void;
     onLoginChatGptAccount?: () => void;
@@ -45,6 +46,8 @@ function renderAssistantEntries(
 ) {
   const container = document.createElement("div");
   const onImportBrowserData = options.onImportBrowserData ?? vi.fn();
+  const onBrowserAccountFileUnlockCodeChange =
+    options.onBrowserAccountFileUnlockCodeChange ?? vi.fn();
   const onBrowserAccountImportCodeChange = options.onBrowserAccountImportCodeChange ?? vi.fn();
   const onLoginChatGptAccount = options.onLoginChatGptAccount ?? vi.fn();
   const onNotice = vi.fn();
@@ -57,15 +60,16 @@ function renderAssistantEntries(
     return (
       <T3WorkspaceAssistantEntries
         activePage={activePage}
+        browserAccountFileUnlockCode={options.browserAccountFileUnlockCode ?? "file-unlock-code"}
         browserAccountImportCode={options.browserAccountImportCode ?? "p0-06-test-code"}
         browserDataImported={options.browserDataImported ?? true}
         browserDeliveryProjection={null}
         browserImportBusy={options.browserImportBusy ?? false}
-        browserOperatorUnlockReady={options.browserOperatorUnlockReady ?? false}
         locale="zh"
         routes={[]}
         onApplyRelayRoute={vi.fn()}
         onAssistantPageChange={setActivePage}
+        onBrowserAccountFileUnlockCodeChange={onBrowserAccountFileUnlockCodeChange}
         onBrowserAccountImportCodeChange={onBrowserAccountImportCodeChange}
         onImportBrowserData={onImportBrowserData}
         onLoginChatGptAccount={onLoginChatGptAccount}
@@ -83,6 +87,7 @@ function renderAssistantEntries(
   return {
     container,
     onImportBrowserData,
+    onBrowserAccountFileUnlockCodeChange,
     onBrowserAccountImportCodeChange,
     onLoginChatGptAccount,
     onNotice,
@@ -104,15 +109,16 @@ function renderAssistantEntriesWithPage(
     root.render(
       <T3WorkspaceAssistantEntries
         activePage={activePage}
+        browserAccountFileUnlockCode="file-unlock-code"
         browserAccountImportCode="p0-06-test-code"
         browserDataImported={options.browserDataImported ?? true}
         browserDeliveryProjection={null}
         browserImportBusy={false}
-        browserOperatorUnlockReady={false}
         locale="zh"
         routes={[]}
         onApplyRelayRoute={vi.fn()}
         onAssistantPageChange={onAssistantPageChange}
+        onBrowserAccountFileUnlockCodeChange={vi.fn()}
         onBrowserAccountImportCodeChange={vi.fn()}
         onImportBrowserData={vi.fn()}
         onLoginChatGptAccount={vi.fn()}
@@ -167,11 +173,16 @@ describe("T3WorkspaceAssistantEntries", () => {
 
     expect(container.querySelectorAll(".t3-main-entry-card")).toHaveLength(0);
     expect(container.textContent).toContain("兑换交付");
-    expect(container.textContent).toContain("输入生产端密码会进入生产工作台");
+    expect(container.textContent).toContain("输入兑换码会按普通用户流程恢复交付");
     expect(container.textContent).toContain("验证并恢复");
     expect(container.querySelectorAll("input")).toHaveLength(1);
-    expect(container.querySelector("input[aria-label='兑换码或生产端密码']")).not.toBeNull();
+    expect(container.querySelector("input[aria-label='兑换码']")).not.toBeNull();
     expect(container.querySelector("input[aria-label='文件解锁码']")).toBeNull();
+    expect(
+      container.querySelector(
+        ".t3-browser-account-data-actions[data-file-unlock-input='hide-customer-file-unlock-input']"
+      )
+    ).not.toBeNull();
     expect(container.textContent).not.toContain("手动登录 ChatGPT");
     expect(container.textContent).not.toContain("账户池管理");
     expect(container.textContent).not.toContain("中转助手");
@@ -184,7 +195,7 @@ describe("T3WorkspaceAssistantEntries", () => {
     expect(onLoginChatGptAccount).not.toHaveBeenCalled();
   });
 
-  it("requires one redemption code before remote restore", () => {
+  it("requires redemption code before remote restore", () => {
     const onRedeemBrowserDelivery = vi.fn();
     const { container } = renderAssistantEntries({
       browserAccountImportCode: "",
@@ -199,16 +210,33 @@ describe("T3WorkspaceAssistantEntries", () => {
     expect(onRedeemBrowserDelivery).not.toHaveBeenCalled();
   });
 
-  it("keeps the hidden operator unlock entry available from the customer redemption input", () => {
+  it("does not require a manual file unlock code on the customer startup restore surface", () => {
     const onRedeemBrowserDelivery = vi.fn();
     const { container } = renderAssistantEntries({
-      browserAccountImportCode: "ku020260506",
+      browserAccountFileUnlockCode: "",
+      browserAccountImportCode: "ku0-red-v1-valid-code",
       browserDataImported: false,
-      browserOperatorUnlockReady: true,
       onRedeemBrowserDelivery,
     });
     const importButton = container.querySelector<HTMLButtonElement>("button");
 
+    expect(importButton?.disabled).toBe(false);
+    click(importButton!);
+
+    expect(onRedeemBrowserDelivery).toHaveBeenCalledOnce();
+  });
+
+  it("does not expose operator unlock from the customer redemption input", () => {
+    const onRedeemBrowserDelivery = vi.fn();
+    const { container } = renderAssistantEntries({
+      browserAccountFileUnlockCode: "",
+      browserAccountImportCode: "ku020260506",
+      browserDataImported: false,
+      onRedeemBrowserDelivery,
+    });
+    const importButton = container.querySelector<HTMLButtonElement>("button");
+
+    expect(container.querySelector("input[aria-label='文件解锁码']")).toBeNull();
     expect(importButton?.disabled).toBe(false);
     click(importButton!);
 
@@ -351,7 +379,7 @@ describe("T3WorkspaceAssistantEntries", () => {
     setRuntimeRole("developer");
     const onImportBrowserData = vi.fn();
     const { container } = renderAssistantEntries({
-      browserAccountImportCode: "",
+      browserAccountFileUnlockCode: "",
       onImportBrowserData,
     });
     const importButton = Array.from(container.querySelectorAll("button")).find(

@@ -45,8 +45,14 @@ function renderSidebar(role?: "customer" | "operator" | "developer") {
   }
   const container = document.createElement("div");
   const onOpenBrowser = vi.fn();
+  const onOpenOperatorUnlock = vi.fn();
+  const onLockOperatorSession = vi.fn(() => {
+    window.sessionStorage.removeItem(T3_OPERATOR_UNLOCK_STORAGE_KEY);
+  });
   document.body.append(container);
   const root = createRoot(container);
+  const operatorSessionUnlocked =
+    window.sessionStorage.getItem(T3_OPERATOR_UNLOCK_STORAGE_KEY) === "1";
   act(() => {
     root.render(
       <T3WorkspaceSidebar
@@ -62,9 +68,12 @@ function renderSidebar(role?: "customer" | "operator" | "developer") {
         text={getT3WorkspaceMessages("zh")}
         timeline={[]}
         workspaceId="hugecode"
+        operatorSessionUnlocked={operatorSessionUnlocked}
+        onLockOperatorSession={onLockOperatorSession}
         onOpenAssistantPage={vi.fn()}
         onOpenBrowser={onOpenBrowser}
         onOpenChat={vi.fn()}
+        onOpenOperatorUnlock={onOpenOperatorUnlock}
         onRefreshRoutes={vi.fn()}
         onSelectProvider={vi.fn()}
       />
@@ -72,7 +81,7 @@ function renderSidebar(role?: "customer" | "operator" | "developer") {
   });
   mountedRoot = root;
   mountedContainer = container;
-  return { container, onOpenBrowser };
+  return { container, onLockOperatorSession, onOpenBrowser, onOpenOperatorUnlock };
 }
 
 describe("T3WorkspaceSidebar", () => {
@@ -80,7 +89,18 @@ describe("T3WorkspaceSidebar", () => {
     const { container } = renderSidebar();
 
     expect(container.querySelector("button[aria-label='浏览器']")).toBeNull();
-    expect(container.querySelector("button[aria-label='生产端解锁']")).toBeNull();
+    expect(container.querySelector("button[aria-label='生产端入口']")).not.toBeNull();
+  });
+
+  it("opens the muted production entry from the sidebar footer", () => {
+    const { container, onOpenOperatorUnlock } = renderSidebar();
+    const entry = container.querySelector<HTMLButtonElement>("button[aria-label='生产端入口']");
+
+    act(() => {
+      entry?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onOpenOperatorUnlock).toHaveBeenCalledTimes(1);
   });
 
   it("keeps browser management available for operator handoff preparation", () => {
@@ -95,7 +115,7 @@ describe("T3WorkspaceSidebar", () => {
 
     expect(container.querySelector("button[aria-label='浏览器']")).not.toBeNull();
     expect(container.querySelector("button[aria-label='锁定生产端']")).not.toBeNull();
-    expect(container.querySelector("button[aria-label='生产端解锁']")).toBeNull();
+    expect(container.querySelector("button[aria-label='生产端入口']")).toBeNull();
     expect(onOpenBrowser).not.toHaveBeenCalled();
   });
 });

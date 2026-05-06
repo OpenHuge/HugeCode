@@ -1352,6 +1352,10 @@ code {
   gap: 8px;
 }
 
+.t3-browser-account-data-actions[data-file-unlock-input="hide-customer-file-unlock-input"] {
+  gap: 14px;
+}
+
 .t3-browser-account-data-actions button {
   min-height: 44px;
   border-radius: 8px;
@@ -1373,8 +1377,14 @@ code {
 .t3-browser-account-data-actions .t3-browser-account-data-import-button {
   grid-column: 1 / -1;
   min-width: 168px;
+  justify-self: start;
   border-color: color-mix(in srgb, #0f766e 42%, var(--border));
   background: color-mix(in srgb, #14b8a6 18%, var(--background));
+}
+
+.t3-browser-account-data-actions[data-file-unlock-input="hide-customer-file-unlock-input"]
+  .t3-browser-account-data-import-button {
+  margin-top: 2px;
 }
 
 @media (width <= 720px) {
@@ -2610,6 +2620,17 @@ article.t3-main-entry-card {
 .t3-sidebar-footer button:hover {
   background: var(--accent);
   color: var(--accent-foreground);
+}
+
+.t3-sidebar-footer-operator-entry {
+  margin-top: 4px;
+  color: color-mix(in srgb, var(--muted-foreground) 72%, transparent) !important;
+  opacity: 0.62;
+}
+
+.t3-sidebar-footer-operator-entry:hover {
+  color: var(--muted-foreground) !important;
+  opacity: 0.9;
 }
 
 .t3-sidebar-provider-select {
@@ -4273,6 +4294,11 @@ article.t3-main-entry-card {
 
 .t3-operator-unlock-dialog {
   width: min(420px, 100%);
+  gap: 14px;
+}
+
+.t3-operator-unlock-form {
+  display: grid;
   gap: 14px;
 }
 
