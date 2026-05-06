@@ -86,7 +86,7 @@ pub(super) fn truncate_chars_with_ellipsis(value: &str, max_chars: usize) -> Str
         return String::new();
     }
     if max_chars == 1 {
-        return "…".to_string();
+        return "\u{2026}".to_string();
     }
     if value.chars().count() <= max_chars {
         return value.to_string();
@@ -95,7 +95,7 @@ pub(super) fn truncate_chars_with_ellipsis(value: &str, max_chars: usize) -> Str
     for ch in value.chars().take(max_chars - 1) {
         normalized.push(ch);
     }
-    normalized.push('…');
+    normalized.push('\u{2026}');
     normalized
 }
 
