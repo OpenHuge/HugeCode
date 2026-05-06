@@ -131,6 +131,7 @@ import {
 } from "../runtime/t3RuntimeEventSnapshot";
 import {
   createT3DeliveryExportWitness,
+  normalizeT3DeliveryProjection,
   readT3DeliveryStatus,
   type T3DeliveryArtifactUpload,
   type T3DeliveryProjection,
@@ -159,13 +160,266 @@ const T3_CUSTOMER_DELIVERY_BLOCKING_STATUSES = new Set<T3DeliveryStatus>([
   "revoked",
   "unavailable",
 ]);
+const T3_BROWSER_DELIVERY_PROJECTION_STORAGE_KEY = "hugecode:t3-browser-delivery-projection:v1";
+const T3_CUSTOMER_EMBEDDED_BROWSER_URL = "https://chatgpt.com/";
+
+type EmbeddedBrowserBounds = {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+};
+
+type EmbeddedBrowserBridge = {
+  hide(): Promise<unknown>;
+  setBounds(input: { bounds: EmbeddedBrowserBounds }): Promise<unknown>;
+  show(input: { bounds: EmbeddedBrowserBounds; url: string }): Promise<unknown>;
+  subscribeAuthRequired?(listener: (payload: unknown) => void): () => void;
+};
+
+type EmbeddedBrowserAuthRequiredPayload = {
+  message?: string;
+  reason?: string;
+  url?: string;
+};
+
+type OperatorUnlockOverlaySubmitPayload = {
+  password: string;
+  requestId: string;
+};
+
+type OperatorUnlockOverlayBridge = {
+  close(): Promise<unknown>;
+  resolveSubmit(input: {
+    message?: string | null;
+    ok: boolean;
+    requestId: string;
+  }): Promise<unknown>;
+  show(): Promise<unknown>;
+  subscribeSubmit(listener: (payload: OperatorUnlockOverlaySubmitPayload) => void): () => void;
+};
+
 type BrowserAssistantEntry = {
   kind: "chatgpt" | "ldxp";
   label: string;
 };
 
+function debugStringMeta(value: string) {
+  return {
+    length: value.length,
+    prefix: value.slice(0, 8),
+    suffix: value.slice(-4),
+  };
+}
+
+function debugProjection(projection: T3DeliveryProjection | null | undefined) {
+  if (!projection) {
+    return null;
+  }
+  return {
+    activationId: projection.activationId,
+    artifactId: projection.artifactId,
+    deliveryId: projection.deliveryId,
+    effectiveUntil: projection.effectiveUntil,
+    entitlementEndsAt: projection.entitlementEndsAt,
+    entitlementId: projection.entitlementId,
+    fileHash: projection.fileHash,
+    hasActivationCode: !!projection.activationCode,
+    hasBrowserFileUnlockCode: !!projection.browserFileUnlockCode,
+    status: projection.status,
+    summary: projection.summary,
+    updatedAt: projection.updatedAt,
+  };
+}
+
+function debugError(error: unknown) {
+  return error instanceof Error
+    ? {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.split("\n").slice(0, 8).join("\n") ?? null,
+      }
+    : { message: String(error), name: typeof error };
+}
+
+function writeOpenHugeConsumerDebug(event: string, payload: Record<string, unknown> = {}) {
+  const host = (
+    window as Window & {
+      hugeCodeDesktopHost?: {
+        openHugeConsumerDebug?: {
+          write(event: string, payload?: Record<string, unknown>): Promise<unknown>;
+        };
+      };
+    }
+  ).hugeCodeDesktopHost;
+  void host?.openHugeConsumerDebug?.write(event, payload).catch(() => undefined);
+}
+
 function customerDeliveryOpenBlocked(projection: T3DeliveryProjection | null | undefined) {
   return projection ? T3_CUSTOMER_DELIVERY_BLOCKING_STATUSES.has(projection.status) : true;
+}
+
+function customerDeliveryAuthorityExpiresAt(projection: T3DeliveryProjection | null | undefined) {
+  return projection?.entitlementEndsAt ?? projection?.effectiveUntil ?? null;
+}
+
+function parseProjectionDate(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function customerDeliveryLocallyExpired(
+  projection: T3DeliveryProjection | null | undefined,
+  now = Date.now()
+) {
+  const expiresAt = parseProjectionDate(customerDeliveryAuthorityExpiresAt(projection));
+  return expiresAt !== null && expiresAt <= now;
+}
+
+function customerDeliveryCanUseLocal(projection: T3DeliveryProjection | null | undefined) {
+  return (
+    !!projection?.deliveryId &&
+    !customerDeliveryOpenBlocked(projection) &&
+    !customerDeliveryLocallyExpired(projection)
+  );
+}
+
+function readElementViewportBounds(element: HTMLElement | null): EmbeddedBrowserBounds | null {
+  if (!element) {
+    return null;
+  }
+  const rect = element.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) {
+    return null;
+  }
+  return {
+    height: Math.round(rect.height),
+    width: Math.round(rect.width),
+    x: Math.round(rect.left),
+    y: Math.round(rect.top),
+  };
+}
+
+function getEmbeddedBrowserBridge() {
+  const host = (
+    window as Window & {
+      hugeCodeDesktopHost?: {
+        embeddedBrowser?: EmbeddedBrowserBridge;
+      };
+    }
+  ).hugeCodeDesktopHost;
+  return host?.embeddedBrowser ?? null;
+}
+
+function normalizeEmbeddedBrowserAuthRequiredPayload(
+  value: unknown
+): EmbeddedBrowserAuthRequiredPayload {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const record = value as Record<string, unknown>;
+  return {
+    message: typeof record.message === "string" ? record.message : undefined,
+    reason: typeof record.reason === "string" ? record.reason : undefined,
+    url: typeof record.url === "string" ? record.url : undefined,
+  };
+}
+
+function isOperatorUnlockOverlaySubmitPayload(
+  value: unknown
+): value is OperatorUnlockOverlaySubmitPayload {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record.requestId === "string" && typeof record.password === "string";
+}
+
+function getOperatorUnlockOverlayBridge() {
+  const host = (
+    window as Window & {
+      hugeCodeDesktopHost?: {
+        operatorUnlockOverlay?: OperatorUnlockOverlayBridge;
+      };
+    }
+  ).hugeCodeDesktopHost;
+  return host?.operatorUnlockOverlay ?? null;
+}
+
+function persistedBrowserDeliveryProjection(
+  projection: T3DeliveryProjection
+): T3DeliveryProjection {
+  return {
+    ...projection,
+    activationCode: null,
+    browserFileUnlockCode: null,
+  };
+}
+
+function readPersistedBrowserDeliveryProjection() {
+  const raw = window.localStorage.getItem(T3_BROWSER_DELIVERY_PROJECTION_STORAGE_KEY);
+  if (!raw) {
+    writeOpenHugeConsumerDebug("renderer.deliveryProjection.persisted.missing");
+    return null;
+  }
+  try {
+    const projection = normalizeT3DeliveryProjection(JSON.parse(raw));
+    writeOpenHugeConsumerDebug("renderer.deliveryProjection.persisted.loaded", {
+      projection: debugProjection(projection),
+    });
+    return projection;
+  } catch (error) {
+    window.localStorage.removeItem(T3_BROWSER_DELIVERY_PROJECTION_STORAGE_KEY);
+    writeOpenHugeConsumerDebug("renderer.deliveryProjection.persisted.invalidCleared", {
+      error: debugError(error),
+      rawLength: raw.length,
+    });
+    return null;
+  }
+}
+
+function readInitialBrowserDataImported() {
+  const imported = window.localStorage.getItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY) === "1";
+  if (!imported) {
+    writeOpenHugeConsumerDebug("renderer.browserDataImported.initial.false");
+    return false;
+  }
+  if (readT3P0RuntimeRoleMode() !== "customer") {
+    writeOpenHugeConsumerDebug("renderer.browserDataImported.initial.productionTrue");
+    return true;
+  }
+  const projection = readPersistedBrowserDeliveryProjection();
+  if (customerDeliveryCanUseLocal(projection)) {
+    writeOpenHugeConsumerDebug("renderer.browserDataImported.initial.customerTrue", {
+      projection: debugProjection(projection),
+    });
+    return true;
+  }
+  window.localStorage.removeItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY);
+  writeOpenHugeConsumerDebug("renderer.browserDataImported.initial.staleCleared", {
+    importedFlagWasSet: true,
+    projection: debugProjection(projection),
+  });
+  return false;
+}
+
+function writePersistedBrowserDeliveryProjection(projection: T3DeliveryProjection) {
+  if (!projection.deliveryId) {
+    writeOpenHugeConsumerDebug("renderer.deliveryProjection.persisted.skipNoDeliveryId", {
+      projection: debugProjection(projection),
+    });
+    return;
+  }
+  window.localStorage.setItem(
+    T3_BROWSER_DELIVERY_PROJECTION_STORAGE_KEY,
+    JSON.stringify(persistedBrowserDeliveryProjection(projection))
+  );
+  writeOpenHugeConsumerDebug("renderer.deliveryProjection.persisted.written", {
+    projection: debugProjection(projection),
+  });
 }
 
 function isLdxpBrowserAssistantUrl(value: string) {
@@ -286,9 +540,9 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   const [browserAccountImportCode, setBrowserAccountImportCode] = useState("");
   const [browserAccountFileUnlockCode, setBrowserAccountFileUnlockCode] = useState("");
   const [browserDeliveryProjection, setBrowserDeliveryProjection] =
-    useState<T3DeliveryProjection | null>(null);
-  const [browserDataImported, setBrowserDataImported] = useState(
-    () => window.localStorage.getItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY) === "1"
+    useState<T3DeliveryProjection | null>(() => readPersistedBrowserDeliveryProjection());
+  const [browserDataImported, setBrowserDataImported] = useState(() =>
+    readInitialBrowserDataImported()
   );
   const [prompt, setPrompt] = useState("");
   const [workspaceId] = useState("workspace-web");
@@ -304,12 +558,18 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   const [operatorUnlockDialogOpen, setOperatorUnlockDialogOpen] = useState(false);
   const [, bumpOperatorUnlockRevision] = useState(0);
   const browserStaticDataImportInputRef = useRef<HTMLInputElement | null>(null);
+  const customerEmbeddedBrowserHostRef = useRef<HTMLDivElement | null>(null);
   const runtimeEventsMountedAt = useRef(Date.now());
   const browserProfileBridge = useMemo(() => createT3BrowserProfileBridge(), []);
   const text = getT3WorkspaceMessages(locale);
   const operatorSessionUnlocked = readT3OperatorUnlockState();
-  const canUseProductionWorkspace = readT3P0RuntimeRoleMode() !== "customer";
+  const runtimeRoleMode = readT3P0RuntimeRoleMode();
+  const canUseProductionWorkspace = runtimeRoleMode !== "customer";
   const visibleActivePage = canUseProductionWorkspace ? activePage : "chat";
+  const customerEmbeddedBrowserActive =
+    runtimeRoleMode === "customer" &&
+    browserDataImported &&
+    customerDeliveryCanUseLocal(browserDeliveryProjection);
   const composerCommands = useMemo(
     () =>
       [
@@ -330,6 +590,20 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   );
 
   useEffect(() => {
+    writeOpenHugeConsumerDebug("renderer.workspace.mounted", {
+      browserDataImported,
+      browserDeliveryProjection: debugProjection(browserDeliveryProjection),
+      hasImportedFlag:
+        window.localStorage.getItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY) === "1",
+      hasPersistedProjection:
+        window.localStorage.getItem(T3_BROWSER_DELIVERY_PROJECTION_STORAGE_KEY) !== null,
+      runtimeRole: readT3P0RuntimeRoleMode(),
+    });
+    window.localStorage.setItem(T3_WORKSPACE_LOCALE_STORAGE_KEY, locale);
+    document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
+  }, []);
+
+  useEffect(() => {
     window.localStorage.setItem(T3_WORKSPACE_LOCALE_STORAGE_KEY, locale);
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
   }, [locale]);
@@ -343,6 +617,155 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     nextUrl.searchParams.delete("page");
     window.history.replaceState(null, "", nextUrl);
   }, [activePage, canUseProductionWorkspace]);
+
+  useEffect(() => {
+    if (runtimeRoleMode !== "customer" || !browserDataImported || !browserDeliveryProjection) {
+      return;
+    }
+    const expiresAt = parseProjectionDate(
+      customerDeliveryAuthorityExpiresAt(browserDeliveryProjection)
+    );
+    if (expiresAt === null) {
+      return;
+    }
+    const remainingMs = expiresAt - Date.now();
+    if (remainingMs <= 0) {
+      clearCustomerBrowserDeliveryState("兑换权益已到期，请重新输入有效兑换码。");
+      return;
+    }
+    const timer = window.setTimeout(
+      () => clearCustomerBrowserDeliveryState("兑换权益已到期，请重新输入有效兑换码。"),
+      Math.min(remainingMs, 2_147_483_647)
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    browserDataImported,
+    browserDeliveryProjection?.deliveryId,
+    browserDeliveryProjection?.effectiveUntil,
+    browserDeliveryProjection?.entitlementEndsAt,
+    runtimeRoleMode,
+  ]);
+
+  useEffect(() => {
+    const embeddedBrowser = getEmbeddedBrowserBridge();
+    if (!embeddedBrowser) {
+      return;
+    }
+    if (!customerEmbeddedBrowserActive) {
+      void embeddedBrowser.hide().catch((error: unknown) => {
+        writeOpenHugeConsumerDebug("renderer.embeddedBrowser.hide.error", {
+          error: debugError(error),
+        });
+      });
+      return;
+    }
+
+    let disposed = false;
+    let shown = false;
+    const syncBounds = () => {
+      if (disposed) {
+        return;
+      }
+      const bounds = readElementViewportBounds(customerEmbeddedBrowserHostRef.current);
+      if (!bounds) {
+        return;
+      }
+      const operation = shown
+        ? embeddedBrowser.setBounds({ bounds })
+        : embeddedBrowser.show({ bounds, url: T3_CUSTOMER_EMBEDDED_BROWSER_URL });
+      shown = true;
+      void operation.catch((error: unknown) => {
+        writeOpenHugeConsumerDebug("renderer.embeddedBrowser.sync.error", {
+          bounds,
+          error: debugError(error),
+        });
+      });
+    };
+
+    syncBounds();
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            syncBounds();
+          });
+    if (customerEmbeddedBrowserHostRef.current) {
+      resizeObserver?.observe(customerEmbeddedBrowserHostRef.current);
+    }
+    window.addEventListener("resize", syncBounds);
+    return () => {
+      disposed = true;
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", syncBounds);
+      void embeddedBrowser.hide().catch(() => undefined);
+    };
+  }, [
+    browserDeliveryProjection?.deliveryId,
+    browserDeliveryProjection?.effectiveUntil,
+    browserDeliveryProjection?.entitlementEndsAt,
+    customerEmbeddedBrowserActive,
+  ]);
+
+  useEffect(() => {
+    const embeddedBrowser = getEmbeddedBrowserBridge();
+    if (!embeddedBrowser?.subscribeAuthRequired) {
+      return;
+    }
+    return embeddedBrowser.subscribeAuthRequired((payload) => {
+      if (readT3P0RuntimeRoleMode() !== "customer") {
+        return;
+      }
+      const normalizedPayload = normalizeEmbeddedBrowserAuthRequiredPayload(payload);
+      const message = normalizedPayload.message ?? "账号已退出，请重新输入有效兑换码恢复。";
+      void embeddedBrowser.hide().catch(() => undefined);
+      clearCustomerBrowserDeliveryState(message);
+      writeOpenHugeConsumerDebug("renderer.embeddedBrowser.authRequired", {
+        message,
+        reason: normalizedPayload.reason ?? null,
+        url: normalizedPayload.url ?? null,
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    const operatorUnlockOverlay = getOperatorUnlockOverlayBridge();
+    if (!operatorUnlockOverlay) {
+      return;
+    }
+    return operatorUnlockOverlay.subscribeSubmit((payload) => {
+      if (!isOperatorUnlockOverlaySubmitPayload(payload)) {
+        writeOpenHugeConsumerDebug("renderer.operatorUnlockOverlay.submit.invalid", {
+          payloadType: typeof payload,
+        });
+        return;
+      }
+      const ok = unlockOperatorWorkspace(payload.password);
+      void operatorUnlockOverlay
+        .resolveSubmit({
+          message: ok ? null : "生产端本地密码不正确。",
+          ok,
+          requestId: payload.requestId,
+        })
+        .catch((error: unknown) => {
+          writeOpenHugeConsumerDebug("renderer.operatorUnlockOverlay.resolve.error", {
+            error: debugError(error),
+            requestId: payload.requestId,
+          });
+        });
+    });
+  }, []);
+
+  function clearCustomerBrowserDeliveryState(message: string) {
+    window.localStorage.removeItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY);
+    window.localStorage.removeItem(T3_BROWSER_DELIVERY_PROJECTION_STORAGE_KEY);
+    setBrowserDataImported(false);
+    setBrowserDeliveryProjection(null);
+    setBrowserProfileNotice(message);
+    setNotice(message);
+    writeOpenHugeConsumerDebug("renderer.customerDeliveryState.cleared", {
+      message,
+    });
+  }
 
   function navigateT3Page(page: T3WorkspacePage) {
     setActivePage(page);
@@ -372,6 +795,21 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
     setNotice("生产端已解锁。");
     navigateT3Page("browser");
     return true;
+  }
+
+  async function openOperatorUnlock() {
+    const operatorUnlockOverlay = getOperatorUnlockOverlayBridge();
+    if (operatorUnlockOverlay) {
+      try {
+        await operatorUnlockOverlay.show();
+        return;
+      } catch (error) {
+        writeOpenHugeConsumerDebug("renderer.operatorUnlockOverlay.show.error", {
+          error: debugError(error),
+        });
+      }
+    }
+    setOperatorUnlockDialogOpen(true);
   }
 
   function lockOperatorWorkspace() {
@@ -821,37 +1259,129 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   }
 
   async function ensureCustomerDeliveryCanOpen(
-    deliveryProjectionOverride?: T3DeliveryProjection | null
+    deliveryProjectionOverride?: T3DeliveryProjection | null,
+    options: { browserDataImported?: boolean } = {}
   ) {
+    writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.start", {
+      browserDataImportedState: browserDataImported,
+      browserDeliveryProjection: debugProjection(browserDeliveryProjection),
+      deliveryProjectionOverride: debugProjection(deliveryProjectionOverride),
+      options,
+      runtimeRole: readT3P0RuntimeRoleMode(),
+    });
     if (readT3P0RuntimeRoleMode() !== "customer") {
+      writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.allowNonCustomer");
       return true;
     }
-    if (!browserDataImported) {
+    const deliveryDataImported = options.browserDataImported ?? browserDataImported;
+    if (!deliveryDataImported) {
       const message = "请先验证并恢复后端交付，再打开 ChatGPT 内置浏览器。";
+      writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.blockedNotImported", {
+        message,
+      });
       setBrowserProfileNotice(message);
       setNotice(message);
       return false;
     }
-    const deliveryId =
-      deliveryProjectionOverride?.deliveryId ?? browserDeliveryProjection?.deliveryId;
+    const localProjection = deliveryProjectionOverride ?? browserDeliveryProjection;
+    const deliveryId = localProjection?.deliveryId;
+    if (customerDeliveryLocallyExpired(localProjection)) {
+      const message = "兑换权益已到期，请重新输入有效兑换码。";
+      writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.blockedByLocalExpiry", {
+        localProjection: debugProjection(localProjection),
+        message,
+      });
+      clearCustomerBrowserDeliveryState(message);
+      return false;
+    }
     if (!deliveryId) {
       const message = "后端交付状态不可确认，已阻断客户浏览器打开。";
+      writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.blockedNoDeliveryId", {
+        browserDataImportedState: browserDataImported,
+        browserDeliveryProjection: debugProjection(browserDeliveryProjection),
+        deliveryDataImported,
+        deliveryProjectionOverride: debugProjection(deliveryProjectionOverride),
+        hasImportedFlag:
+          window.localStorage.getItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY) === "1",
+        hasPersistedProjection:
+          window.localStorage.getItem(T3_BROWSER_DELIVERY_PROJECTION_STORAGE_KEY) !== null,
+        message,
+      });
       setBrowserProfileNotice(message);
       setNotice(message);
       return false;
     }
     try {
+      writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.readStatus.start", {
+        deliveryId,
+      });
       const projection = await readT3DeliveryStatus({ deliveryId });
+      writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.readStatus.ok", {
+        projection: debugProjection(projection),
+      });
+      if (
+        !projection.deliveryId &&
+        localProjection?.deliveryId &&
+        !customerDeliveryOpenBlocked(localProjection) &&
+        !customerDeliveryLocallyExpired(localProjection)
+      ) {
+        writeOpenHugeConsumerDebug(
+          "renderer.ensureCustomerDeliveryCanOpen.keepLocalAfterStatusMiss",
+          {
+            localProjection: debugProjection(localProjection),
+            remoteProjection: debugProjection(projection),
+          }
+        );
+        setBrowserDeliveryProjection(localProjection);
+        writePersistedBrowserDeliveryProjection(localProjection);
+        return true;
+      }
       setBrowserDeliveryProjection(projection);
-      if (customerDeliveryOpenBlocked(projection)) {
-        const message = `后端交付状态已阻断：${projection.summary}`;
+      writePersistedBrowserDeliveryProjection(projection);
+      if (customerDeliveryOpenBlocked(projection) || customerDeliveryLocallyExpired(projection)) {
+        const message = customerDeliveryLocallyExpired(projection)
+          ? "兑换权益已到期，请重新输入有效兑换码。"
+          : `后端交付状态已阻断：${projection.summary}`;
+        writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.blockedByStatus", {
+          message,
+          projection: debugProjection(projection),
+        });
+        if (customerDeliveryLocallyExpired(projection)) {
+          clearCustomerBrowserDeliveryState(message);
+          return false;
+        }
         setBrowserProfileNotice(message);
         setNotice(message);
         return false;
       }
+      writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.allow", {
+        projection: debugProjection(projection),
+      });
       return true;
-    } catch {
+    } catch (error) {
+      if (
+        localProjection?.deliveryId &&
+        !customerDeliveryOpenBlocked(localProjection) &&
+        !customerDeliveryLocallyExpired(localProjection)
+      ) {
+        writeOpenHugeConsumerDebug(
+          "renderer.ensureCustomerDeliveryCanOpen.keepLocalAfterStatusError",
+          {
+            deliveryId,
+            error: debugError(error),
+            localProjection: debugProjection(localProjection),
+          }
+        );
+        setBrowserDeliveryProjection(localProjection);
+        writePersistedBrowserDeliveryProjection(localProjection);
+        return true;
+      }
       const message = "后端交付状态刷新失败，已阻断客户浏览器打开。";
+      writeOpenHugeConsumerDebug("renderer.ensureCustomerDeliveryCanOpen.readStatus.error", {
+        deliveryId,
+        error: debugError(error),
+        message,
+      });
       setBrowserProfileNotice(message);
       setNotice(message);
       return false;
@@ -860,9 +1390,20 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
 
   async function openChatGptBuiltInBrowser(
     captureMode?: "operator-delivery",
-    deliveryProjectionOverride?: T3DeliveryProjection | null
+    deliveryProjectionOverride?: T3DeliveryProjection | null,
+    options: { browserDataImported?: boolean } = {}
   ) {
-    if (!captureMode && !(await ensureCustomerDeliveryCanOpen(deliveryProjectionOverride))) {
+    writeOpenHugeConsumerDebug("renderer.openChatGptBuiltInBrowser.start", {
+      browserDataImportedState: browserDataImported,
+      captureMode: captureMode ?? null,
+      deliveryProjectionOverride: debugProjection(deliveryProjectionOverride),
+      options,
+    });
+    if (
+      !captureMode &&
+      !(await ensureCustomerDeliveryCanOpen(deliveryProjectionOverride, options))
+    ) {
+      writeOpenHugeConsumerDebug("renderer.openChatGptBuiltInBrowser.blockedByDelivery");
       return;
     }
     setBrowserProfileBusy(true);
@@ -880,7 +1421,14 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
       setBrowserRecentSessions(listT3BrowserRecentSessions());
       setBrowserLoginStateStatus("unknown");
       setBrowserProfileNotice("ChatGPT opened in a separate built-in browser window.");
+      writeOpenHugeConsumerDebug("renderer.openChatGptBuiltInBrowser.openProvider.ok", {
+        profileId: profile.id,
+        statusMessage: profile.statusMessage,
+      });
     } catch (error) {
+      writeOpenHugeConsumerDebug("renderer.openChatGptBuiltInBrowser.openProvider.error", {
+        error: debugError(error),
+      });
       setBrowserProfileNotice(
         error instanceof Error ? error.message : "Unable to open the ChatGPT browser window."
       );
@@ -961,44 +1509,77 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
   }
   async function redeemBrowserDelivery() {
     if (browserProfileBusy) {
+      writeOpenHugeConsumerDebug("renderer.redeemBrowserDelivery.skipBusy");
       return;
     }
+    writeOpenHugeConsumerDebug("renderer.redeemBrowserDelivery.start", {
+      browserAccountFileUnlockCode: browserAccountFileUnlockCode.trim()
+        ? debugStringMeta(browserAccountFileUnlockCode.trim())
+        : null,
+      browserAccountImportCode: browserAccountImportCode.trim()
+        ? debugStringMeta(browserAccountImportCode.trim())
+        : null,
+      browserDataImportedState: browserDataImported,
+      browserDeliveryProjection: debugProjection(browserDeliveryProjection),
+    });
     setBrowserProfileBusy(true);
     setBrowserProfileNotice(null);
     let restoredProjection: T3DeliveryProjection | null = null;
-    let shouldOpenChatGptBrowser = false;
+    let shouldActivateEmbeddedBrowser = false;
     try {
       const restore = await restoreT3CustomerBrowserDelivery({
         activationCodeInput: browserAccountImportCode,
         fileUnlockCodeInput: browserAccountFileUnlockCode,
       });
       restoredProjection = restore.projection;
+      writeOpenHugeConsumerDebug("renderer.redeemBrowserDelivery.restore.result", {
+        notice: restore.notice,
+        profileCount: restore.status === "restored" ? restore.profiles.length : null,
+        projection: debugProjection(restore.projection),
+        status: restore.status,
+      });
       setBrowserDeliveryProjection(restore.projection);
       if (restore.status !== "restored") {
         throw new Error(restore.notice);
       }
+      writePersistedBrowserDeliveryProjection(restore.projection);
       refreshBrowserStaticDataState(restore.profiles);
       markBrowserDataImported();
       setBrowserAccountImportCode("");
       setBrowserAccountFileUnlockCode("");
-      shouldOpenChatGptBrowser = true;
+      shouldActivateEmbeddedBrowser = true;
       setBrowserProfileNotice(restore.notice);
       setNotice(restore.notice);
     } catch (error) {
       const message = formatT3BrowserStaticDataImportError(error);
+      writeOpenHugeConsumerDebug("renderer.redeemBrowserDelivery.error", {
+        error: debugError(error),
+        message,
+        restoredProjection: debugProjection(restoredProjection),
+      });
       setBrowserProfileNotice(message);
       setNotice(message);
     } finally {
       setBrowserProfileBusy(false);
+      writeOpenHugeConsumerDebug("renderer.redeemBrowserDelivery.finally", {
+        restoredProjection: debugProjection(restoredProjection),
+        shouldActivateEmbeddedBrowser,
+      });
     }
-    if (shouldOpenChatGptBrowser) {
-      await openChatGptBuiltInBrowser(undefined, restoredProjection);
+    if (shouldActivateEmbeddedBrowser) {
+      writeOpenHugeConsumerDebug("renderer.redeemBrowserDelivery.embeddedBrowserReady", {
+        restoredProjection: debugProjection(restoredProjection),
+      });
     }
   }
 
   function markBrowserDataImported() {
     window.localStorage.setItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY, "1");
     setBrowserDataImported(true);
+    writeOpenHugeConsumerDebug("renderer.browserDataImported.marked", {
+      hasImportedFlag:
+        window.localStorage.getItem(T3_BROWSER_IMPORTED_DATA_READY_STORAGE_KEY) === "1",
+    });
   }
 
   function openBrowserStaticDataImportPicker() {
@@ -2722,7 +3303,7 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
         onOpenAssistantPage={openAssistantFromSidebar}
         onOpenBrowser={() => navigateT3Page("browser")}
         onOpenChat={openChatFromSidebar}
-        onOpenOperatorUnlock={() => setOperatorUnlockDialogOpen(true)}
+        onOpenOperatorUnlock={() => void openOperatorUnlock()}
         onRefreshRoutes={refreshRoutes}
         onSelectProvider={setSelectedProvider}
       />
@@ -2737,14 +3318,29 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           composerMode={composerMode}
           composerModelOptions={composerModelOptions}
           composerReasonEffort={composerReasonEffort}
+          contentOverlay={
+            customerEmbeddedBrowserActive ? (
+              <div
+                ref={customerEmbeddedBrowserHostRef}
+                aria-label="ChatGPT 内嵌浏览器"
+                className="t3-customer-browser-embed"
+              >
+                <div className="t3-customer-browser-embed-placeholder">
+                  ChatGPT 内嵌浏览器正在加载
+                </div>
+              </div>
+            ) : null
+          }
           locale={locale}
           launching={launching}
           notice={notice}
+          productChrome={runtimeRoleMode === "customer"}
           prompt={prompt}
           selectedModelId={selectedModelId}
           selectedModelLabel={selectedModelLabel}
           selectedProvider={selectedProvider}
           selectedRoute={selectedRoute}
+          sidebarOpen={sidebarOpen}
           visibleTimeline={visibleTimeline}
           onApplyComposerCommand={applyComposerCommand}
           onComposerAccessModeChange={setComposerAccessMode}
@@ -2762,25 +3358,27 @@ export function T3WorkspaceApp({ runtimeBridge }: T3WorkspaceAppProps) {
           onPromptChange={setPrompt}
           onToggleSidebar={() => setSidebarOpen((current) => !current)}
           quickEntries={
-            <T3WorkspaceAssistantEntries
-              activePage={assistantPage}
-              browserAccountFileUnlockCode={browserAccountFileUnlockCode}
-              browserAccountImportCode={browserAccountImportCode}
-              browserDataImported={browserDataImported}
-              browserDeliveryProjection={browserDeliveryProjection}
-              browserImportBusy={browserProfileBusy}
-              locale={locale}
-              routes={routes}
-              onApplyRelayRoute={applyRelayRoute}
-              onAssistantPageChange={setAssistantPage}
-              onBrowserAccountFileUnlockCodeChange={setBrowserAccountFileUnlockCode}
-              onBrowserAccountImportCodeChange={setBrowserAccountImportCode}
-              onImportBrowserData={openBrowserStaticDataImportPicker}
-              onLoginChatGptAccount={() => void openChatGptBuiltInBrowser()}
-              onOpenBrowser={() => navigateT3Page("browser")}
-              onNotice={setNotice}
-              onRedeemBrowserDelivery={() => void redeemBrowserDelivery()}
-            />
+            customerEmbeddedBrowserActive ? null : (
+              <T3WorkspaceAssistantEntries
+                activePage={assistantPage}
+                browserAccountFileUnlockCode={browserAccountFileUnlockCode}
+                browserAccountImportCode={browserAccountImportCode}
+                browserDataImported={browserDataImported}
+                browserDeliveryProjection={browserDeliveryProjection}
+                browserImportBusy={browserProfileBusy}
+                locale={locale}
+                routes={routes}
+                onApplyRelayRoute={applyRelayRoute}
+                onAssistantPageChange={setAssistantPage}
+                onBrowserAccountFileUnlockCodeChange={setBrowserAccountFileUnlockCode}
+                onBrowserAccountImportCodeChange={setBrowserAccountImportCode}
+                onImportBrowserData={openBrowserStaticDataImportPicker}
+                onLoginChatGptAccount={() => void openChatGptBuiltInBrowser()}
+                onOpenBrowser={() => navigateT3Page("browser")}
+                onNotice={setNotice}
+                onRedeemBrowserDelivery={() => void redeemBrowserDelivery()}
+              />
+            )
           }
         />
       )}

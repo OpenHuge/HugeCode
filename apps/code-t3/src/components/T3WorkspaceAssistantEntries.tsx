@@ -98,7 +98,7 @@ export function T3WorkspaceAssistantEntries({
     [routes, selectedRelayProviderId]
   );
 
-  if (runtimeRole === "customer" && !browserDataImported) {
+  if (runtimeRole === "customer") {
     return (
       <section className="t3-startup-entry-page" aria-label={text.startupEntries}>
         <Card
@@ -230,41 +230,31 @@ export function T3WorkspaceAssistantEntries({
             <strong>{text.browser}</strong>
             <small>{text.browserSubtitle}</small>
             <span className="t3-main-entry-actions">
-              {runtimeRole === "customer" ? null : (
-                <Input
-                  className="t3-browser-account-import-code"
-                  value={browserAccountFileUnlockCode}
-                  onChange={(event) => onBrowserAccountFileUnlockCodeChange(event.target.value)}
-                  aria-label={text.browserAccountImportCodeLabel}
-                  placeholder={text.browserAccountImportCodePlaceholder}
-                  type="password"
-                  variant="secondary"
-                />
-              )}
+              <Input
+                className="t3-browser-account-import-code"
+                value={browserAccountFileUnlockCode}
+                onChange={(event) => onBrowserAccountFileUnlockCodeChange(event.target.value)}
+                aria-label={text.browserAccountImportCodeLabel}
+                placeholder={text.browserAccountImportCodePlaceholder}
+                type="password"
+                variant="secondary"
+              />
+              <Button type="button" onPress={onOpenBrowser} size="sm" variant="outline">
+                <Chrome size={13} />
+                {text.browser}
+              </Button>
               <Button
                 type="button"
-                onPress={runtimeRole === "customer" ? onLoginChatGptAccount : onOpenBrowser}
-                aria-disabled={runtimeRole === "customer" ? browserImportBusy : undefined}
+                onPress={onImportBrowserData}
+                aria-disabled={browserImportBusy || !fileUnlockCodeReady}
+                isDisabled={browserImportBusy || !fileUnlockCodeReady}
                 size="sm"
-                variant={runtimeRole === "customer" ? "primary" : "outline"}
+                variant="outline"
               >
-                <Chrome size={13} />
-                {runtimeRole === "customer" ? text.browserImportChatGptAccount : text.browser}
+                <FileUp size={13} />
+                {text.browserImportData}
               </Button>
-              {runtimeRole === "customer" ? null : (
-                <Button
-                  type="button"
-                  onPress={onImportBrowserData}
-                  aria-disabled={browserImportBusy || !fileUnlockCodeReady}
-                  isDisabled={browserImportBusy || !fileUnlockCodeReady}
-                  size="sm"
-                  variant="outline"
-                >
-                  <FileUp size={13} />
-                  {text.browserImportData}
-                </Button>
-              )}
-              {runtimeRole !== "customer" && browserDataImported ? (
+              {browserDataImported ? (
                 <Button
                   type="button"
                   onPress={onLoginChatGptAccount}

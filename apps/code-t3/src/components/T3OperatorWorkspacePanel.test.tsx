@@ -26,11 +26,12 @@ function renderPanel(
 ) {
   const container = document.createElement("div");
   const onNotice = vi.fn();
+  const onAccountImportCodeChange = vi.fn();
   const deliveryService =
     options.deliveryService ??
     ({
       prepare: vi.fn(async () => ({
-        activationCode: null,
+        activationCode: "customer-redemption-code",
         browserFileUnlockCode: "server-file-code",
         deliveryId: "delivery-1",
         entitlementSummary: null,
@@ -72,7 +73,7 @@ function renderPanel(
         deliveryService={deliveryService}
         loginStateStatus={options.loginStateStatus ?? "loggedIn"}
         notice={null}
-        onAccountImportCodeChange={vi.fn()}
+        onAccountImportCodeChange={onAccountImportCodeChange}
         onCheckLoginState={async () => ({
           allowedOrigins: ["https://chatgpt.com"],
           cookieCount: 2,
@@ -90,7 +91,7 @@ function renderPanel(
   });
   mountedRoot = root;
   mountedContainer = container;
-  return { container, deliveryService, onNotice };
+  return { container, deliveryService, onAccountImportCodeChange, onNotice };
 }
 
 function buttons(container: HTMLElement) {
@@ -105,13 +106,13 @@ describe("T3OperatorWorkspacePanel", () => {
     expect(container.textContent).toContain("已准备");
     expect(container.textContent).toContain("可导出");
     expect(container.textContent).toContain("已导出");
-    expect(container.querySelector("input[aria-label='文件解锁码']")).not.toBeNull();
-    expect(container.textContent).toContain("不是客户激活码");
+    expect(container.querySelector("input[aria-label='交付解锁码']")).not.toBeNull();
+    expect(container.textContent).toContain("客户只需一个兑换码恢复");
     expect(buttons(container)[2]?.getAttribute("aria-disabled")).toBe("true");
   });
 
   it("prepares delivery through adapter projection before enabling export", async () => {
-    const { container, deliveryService, onNotice } = renderPanel();
+    const { container, deliveryService, onAccountImportCodeChange, onNotice } = renderPanel();
 
     await act(async () => {
       buttons(container)[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -119,8 +120,9 @@ describe("T3OperatorWorkspacePanel", () => {
 
     expect(deliveryService.prepare).toHaveBeenCalledWith({ provider: "chatgpt" });
     expect(container.textContent).toContain("delivery-1");
-    expect(container.textContent).toContain("文件解锁码已就绪，可以上传");
+    expect(container.textContent).toContain("交付解锁码已就绪，可以上传");
     expect(buttons(container)[2]?.getAttribute("aria-disabled")).toBe("false");
+    expect(onAccountImportCodeChange).toHaveBeenCalledWith("customer-redemption-code");
     expect(onNotice).toHaveBeenCalledWith("Prepared by adapter.");
   });
 
@@ -151,8 +153,61 @@ describe("T3OperatorWorkspacePanel", () => {
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
     );
     expect(container.textContent).toContain("remote-code-1");
-    expect(container.textContent).toContain("后端投影已承载");
+    expect(container.textContent).toContain("使用客户兑换码");
     expect(container.textContent).toContain("Valid until backend-provided date.");
+  });
+
+  it("keeps the prepare redemption code visible when upload status omits one-time codes", async () => {
+    const deliveryService: T3DeliveryService = {
+      prepare: vi.fn(async () => ({
+        activationCode: "ku0-red-v1-260506-customer-code",
+        browserFileUnlockCode: "ku0-brw-v1-260506-file-unlock",
+        deliveryId: "delivery-1",
+        entitlementSummary: "Prepared entitlement.",
+        fileHash: null,
+        status: "prepared" as const,
+        summary: "Prepared by adapter.",
+        updatedAt: null,
+      })),
+      readStatus: vi.fn(),
+      redeem: vi.fn(),
+      submitExportWitness: vi.fn(),
+      uploadArtifact: vi.fn(async () => ({
+        activationCode: null,
+        browserFileUnlockCode: null,
+        deliveryId: "delivery-1",
+        entitlementSummary: null,
+        fileHash: "c".repeat(64),
+        status: "exported" as const,
+        summary: "Exported by adapter.",
+        updatedAt: null,
+      })),
+    };
+    const { container } = renderPanel({
+      deliveryService,
+      onExportAccountFile: vi.fn(async () => ({
+        serialized: "encrypted payload",
+        witness: {
+          byteLength: 128,
+          exportedAt: "2026-05-05T14:00:00.000Z",
+          fileHash: "c".repeat(64),
+          fileName: "hugecode-browser-data-2026-05-05.hcbrowser",
+        },
+      })),
+    });
+
+    await act(async () => {
+      buttons(container)[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      buttons(container)[2]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(container.textContent).toContain("ku0-red-v1-260506-customer-code");
+    expect(container.textContent).toContain("使用客户兑换码");
+    expect(container.textContent).toContain(
+      "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    );
   });
 
   it("keeps export blocked when the local file unlock code is missing", async () => {

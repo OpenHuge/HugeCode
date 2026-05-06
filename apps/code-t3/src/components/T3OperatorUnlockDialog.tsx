@@ -51,7 +51,9 @@ export function T3OperatorUnlockDialog({ open, onClose, onUnlock }: T3OperatorUn
           </Button>
         </Card.Header>
         <form className="t3-operator-unlock-form" onSubmit={submitUnlock}>
-          <p>本地密码只解锁生产方界面，不代表后端授权、订单权限或账号池权限。</p>
+          <p>
+            输入本地生产端密码后进入生产工作台。此入口只解锁本机生产操作界面，不代表后端订单、账号池或客户权限。
+          </p>
           <Input
             value={password}
             onChange={(event) => setPassword(event.target.value)}

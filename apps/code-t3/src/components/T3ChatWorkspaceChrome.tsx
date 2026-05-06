@@ -7,7 +7,6 @@ import {
   Loader2,
   Lock,
   LockOpen,
-  Sidebar,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { AccessMode, ReasonEffort } from "@ku0/code-runtime-host-contract";
@@ -110,15 +109,18 @@ type T3ChatWorkspaceChromeProps = {
   composerMode: T3ComposerMode;
   composerModelOptions: ComposerModelOption[];
   composerReasonEffort: T3ComposerReasonEffort;
+  contentOverlay?: ReactNode;
   locale: T3WorkspaceLocale;
   launching: boolean;
   notice: string | null;
+  productChrome?: boolean;
   prompt: string;
   quickEntries?: ReactNode;
   selectedModelId: string | null;
   selectedModelLabel: string;
   selectedProvider: T3CodeProviderKind;
   selectedRoute: T3CodeProviderRoute | undefined;
+  sidebarOpen?: boolean;
   visibleTimeline: T3CodeTimelineEvent[];
   onApplyComposerCommand: (command: string) => void;
   onComposerAccessModeChange: (accessMode: T3ComposerAccessMode) => void;
@@ -138,15 +140,18 @@ export function T3ChatWorkspaceChrome({
   composerMode,
   composerModelOptions,
   composerReasonEffort,
+  contentOverlay,
   locale,
   launching,
   notice,
+  productChrome = false,
   prompt,
   quickEntries,
   selectedModelId,
   selectedModelLabel,
   selectedProvider,
   selectedRoute,
+  sidebarOpen = true,
   visibleTimeline,
   onApplyComposerCommand,
   onComposerAccessModeChange,
@@ -166,41 +171,50 @@ export function T3ChatWorkspaceChrome({
   const nextLocale = locale === "zh" ? "en" : "zh";
 
   return (
-    <section className="t3-workspace" id="chat">
-      <header className="t3-toolbar">
-        <div className="t3-toolbar-primary">
-          <button
-            className="t3-toolbar-sidebar-toggle"
-            type="button"
-            aria-label={text.toggleSidebar}
-            onClick={onToggleSidebar}
-          >
-            <Sidebar size={16} />
-          </button>
-          <div className="t3-thread-title">
-            <strong>{text.newThread}</strong>
-            <span className="t3-runtime-badge">{selectedRoute?.backendLabel ?? "server"}</span>
+    <section className={productChrome ? "t3-workspace product-chrome" : "t3-workspace"} id="chat">
+      {!productChrome ? (
+        <header className="t3-toolbar">
+          <div className="t3-toolbar-primary">
+            <button
+              className="t3-toolbar-sidebar-toggle"
+              type="button"
+              aria-label={text.toggleSidebar}
+              onClick={onToggleSidebar}
+            >
+              <span
+                aria-hidden="true"
+                className={
+                  sidebarOpen
+                    ? "t3-toolbar-sidebar-toggle-triangle open"
+                    : "t3-toolbar-sidebar-toggle-triangle closed"
+                }
+              />
+            </button>
+            <div className="t3-thread-title">
+              <strong>{text.newThread}</strong>
+              <span className="t3-runtime-badge">{selectedRoute?.backendLabel ?? "server"}</span>
+            </div>
           </div>
-        </div>
-        <div className="t3-toolbar-actions">
-          <button
-            className="t3-language-toggle"
-            type="button"
-            aria-label={text.language}
-            onClick={() => onLocaleChange(nextLocale)}
-          >
-            {locale === "zh" ? text.languageSwitchToEnglish : text.languageSwitchToChinese}
-          </button>
-          <div className={`t3-status ${selectedRoute?.status ?? "blocked"}`}>
-            {selectedRoute?.status === "ready" ? (
-              <CheckCircle2 size={14} />
-            ) : (
-              <AlertTriangle size={14} />
-            )}
-            {statusLabel(selectedRoute, locale)}
+          <div className="t3-toolbar-actions">
+            <button
+              className="t3-language-toggle"
+              type="button"
+              aria-label={text.language}
+              onClick={() => onLocaleChange(nextLocale)}
+            >
+              {locale === "zh" ? text.languageSwitchToEnglish : text.languageSwitchToChinese}
+            </button>
+            <div className={`t3-status ${selectedRoute?.status ?? "blocked"}`}>
+              {selectedRoute?.status === "ready" ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <AlertTriangle size={14} />
+              )}
+              {statusLabel(selectedRoute, locale)}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      ) : null}
 
       {notice ? (
         <div className="t3-notice" data-tone={noticeTone(notice)}>
@@ -208,7 +222,8 @@ export function T3ChatWorkspaceChrome({
         </div>
       ) : null}
 
-      <section className="t3-chat-surface">
+      <section className={`t3-chat-surface${contentOverlay ? " has-content-overlay" : ""}`}>
+        {contentOverlay}
         <div className="t3-thread">
           {visibleTimeline.length === 0 ? (
             quickEntries ? (

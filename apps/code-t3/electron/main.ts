@@ -2,14 +2,23 @@ import {
   app,
   BrowserWindow,
   ipcMain,
+  Menu,
   safeStorage,
   session,
   shell,
   WebContentsView,
+  type MenuItemConstructorOptions,
 } from "electron";
 import { spawn } from "node:child_process";
-import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes, randomUUID } from "node:crypto";
-import { lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  pbkdf2Sync,
+  randomBytes,
+  randomUUID,
+} from "node:crypto";
+import { appendFile, lstat, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -55,9 +64,30 @@ const BROWSER_CHROME_GO_FORWARD_CHANNEL = "hugecode:browser-chrome:go-forward";
 const BROWSER_CHROME_RELOAD_CHANNEL = "hugecode:browser-chrome:reload";
 const BROWSER_CHROME_STOP_CHANNEL = "hugecode:browser-chrome:stop";
 const BROWSER_CHROME_SNAPSHOT_CHANNEL = "hugecode:browser-chrome:snapshot";
+const OPENHUGE_DELIVERY_INVOKE_CHANNEL = "hugecode:openhuge-delivery:invoke";
+const OPENHUGE_CONSUMER_DEBUG_CHANNEL = "hugecode:openhuge-consumer-debug:write";
+const EMBEDDED_BROWSER_SHOW_CHANNEL = "hugecode:embedded-browser:show";
+const EMBEDDED_BROWSER_SET_BOUNDS_CHANNEL = "hugecode:embedded-browser:set-bounds";
+const EMBEDDED_BROWSER_HIDE_CHANNEL = "hugecode:embedded-browser:hide";
+const EMBEDDED_BROWSER_AUTH_REQUIRED_CHANNEL = "hugecode:embedded-browser:auth-required";
+const OPERATOR_UNLOCK_OVERLAY_SHOW_CHANNEL = "hugecode:operator-unlock-overlay:show";
+const OPERATOR_UNLOCK_OVERLAY_CLOSE_CHANNEL = "hugecode:operator-unlock-overlay:close";
+const OPERATOR_UNLOCK_OVERLAY_ATTEMPT_CHANNEL = "hugecode:operator-unlock-overlay:attempt";
+const OPERATOR_UNLOCK_OVERLAY_SUBMIT_CHANNEL = "hugecode:operator-unlock-overlay:submit";
+const OPERATOR_UNLOCK_OVERLAY_RESOLVE_CHANNEL = "hugecode:operator-unlock-overlay:resolve";
 const BROWSER_CHROME_HEIGHT = 84;
 const BROWSER_DATA_EXPORT_ADMIN_AUTH_PROMPT =
   "HugeCode needs administrator approval to export built-in browser data.";
+const OPENHUGE_DEFAULT_PROVIDER = "chatgpt";
+const OPENHUGE_DEFAULT_SERVICE_DAYS = 30;
+const OPENHUGE_DEFAULT_SERVICE_KIND = "manual_browser_account";
+const OPENHUGE_ARTIFACT_KIND = "browser_account_bundle";
+const OPENHUGE_ARTIFACT_CONTENT_TYPE = "application/octet-stream";
+const OPENHUGE_DELIVERY_CONFIG_FILE = "openhuge-delivery.json";
+const OPENHUGE_CONSUMER_DEBUG_LOG_FILE = "openhuge-consumer-debug.jsonl";
+const EMBEDDED_BROWSER_ACCOUNT_NOTICE_TEXT = "请不要退出账户，退出默认放弃账户。";
+const EMBEDDED_BROWSER_AUTH_REQUIRED_MESSAGE = "账号已退出，请重新输入有效兑换码恢复。";
+const DAY_IN_MS = 86_400_000;
 
 type ElectronCookieSnapshot = {
   domain?: string;
@@ -137,6 +167,22 @@ type ElectronBrowserLoginStatePreflightResult = {
   summary: string;
 };
 
+type OpenHugeDeliveryDesktopConfig = {
+  authToken: string;
+  baseUrl: string;
+  projectId: string;
+  serviceDays: number;
+  serviceKind: string;
+  tenantId: string;
+};
+
+type OpenHugeDeliveryOperation =
+  | "prepare"
+  | "readStatus"
+  | "redeem"
+  | "submitExportWitness"
+  | "uploadArtifact";
+
 type ElectronChromeSiteDataExportResult = {
   chromeExecutablePath: string;
   profilePath: string;
@@ -163,6 +209,36 @@ type BrowserChromeTabController = {
   view: WebContentsView;
 };
 
+type EmbeddedBrowserBounds = {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+};
+
+type EmbeddedBrowserController = {
+  authRequired: boolean;
+  targetUrl: string;
+  view: WebContentsView;
+};
+
+type OperatorUnlockOverlayResult = {
+  message?: string | null;
+  ok: boolean;
+};
+
+type OperatorUnlockOverlayController = {
+  detachHostListeners: () => void;
+  hostWindowId: number;
+  window: BrowserWindow;
+};
+
+type PendingOperatorUnlockOverlayRequest = {
+  hostWindowId: number;
+  resolve: (result: OperatorUnlockOverlayResult) => void;
+  timeout: ReturnType<typeof setTimeout>;
+};
+
 type BrowserChromeWindowController = {
   activateTab: (tabId: string) => BrowserChromeCommandResult;
   closeTab: (tabId: string) => BrowserChromeCommandResult;
@@ -179,6 +255,9 @@ type BrowserChromeWindowController = {
 };
 
 const browserChromeControllers = new Map<number, BrowserChromeWindowController>();
+const embeddedBrowserControllers = new Map<number, EmbeddedBrowserController>();
+const operatorUnlockOverlayControllers = new Map<number, OperatorUnlockOverlayController>();
+const pendingOperatorUnlockOverlayRequests = new Map<string, PendingOperatorUnlockOverlayRequest>();
 let nextBrowserChromeTabSequence = 1;
 
 type BrowserChromeSessionScope = {
@@ -228,6 +307,54 @@ function resetProductWindowZoom(window: BrowserWindow) {
   }
   applyZoomReset();
   window.webContents.on("did-finish-load", applyZoomReset);
+}
+
+function configureApplicationMenu() {
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: "文件",
+      submenu: [
+        { label: "关闭窗口", role: "close" },
+        { type: "separator" },
+        { label: "退出 HugeCode", role: "quit" },
+      ],
+    },
+    {
+      label: "编辑",
+      submenu: [
+        { label: "撤销", role: "undo" },
+        { label: "重做", role: "redo" },
+        { type: "separator" },
+        { label: "剪切", role: "cut" },
+        { label: "复制", role: "copy" },
+        { label: "粘贴", role: "paste" },
+        { label: "全选", role: "selectAll" },
+      ],
+    },
+    {
+      label: "视图",
+      submenu: [
+        { label: "重新加载", role: "reload" },
+        { label: "强制重新加载", role: "forceReload" },
+        { type: "separator" },
+        { label: "实际大小", role: "resetZoom" },
+        { label: "放大", role: "zoomIn" },
+        { label: "缩小", role: "zoomOut" },
+        { type: "separator" },
+        { label: "全屏", role: "togglefullscreen" },
+      ],
+    },
+    {
+      label: "窗口",
+      submenu: [
+        { label: "最小化", role: "minimize" },
+        { label: "缩放", role: "zoom" },
+        { type: "separator" },
+        { label: "前置全部窗口", role: "front" },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function getBrowserChromeControllerForSender(sender: Electron.WebContents) {
@@ -318,6 +445,818 @@ function isEmbeddableBrowserChromeUrl(url: string) {
     return parsed.protocol === "https:" || parsed.protocol === "http:";
   } catch {
     return false;
+  }
+}
+
+function readFinitePayloadNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readEmbeddedBrowserBounds(value: unknown): EmbeddedBrowserBounds | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const boundsRecord =
+    record.bounds && typeof record.bounds === "object" && !Array.isArray(record.bounds)
+      ? (record.bounds as Record<string, unknown>)
+      : record;
+  const x = readFinitePayloadNumber(boundsRecord.x);
+  const y = readFinitePayloadNumber(boundsRecord.y);
+  const width = readFinitePayloadNumber(boundsRecord.width);
+  const height = readFinitePayloadNumber(boundsRecord.height);
+  if (x === null || y === null || width === null || height === null) {
+    return null;
+  }
+  return {
+    height: Math.max(1, Math.round(height)),
+    width: Math.max(1, Math.round(width)),
+    x: Math.max(0, Math.round(x)),
+    y: Math.max(0, Math.round(y)),
+  };
+}
+
+function readEmbeddedBrowserTargetUrl(value: unknown) {
+  const rawUrl = readPayloadString(value, "url") ?? "https://chatgpt.com/";
+  const normalizedUrl = normalizeBrowserChromeNavigationInput(rawUrl);
+  if (!normalizedUrl || !isEmbeddableBrowserChromeUrl(normalizedUrl)) {
+    throw new Error("Embedded browser requires a valid http or https URL.");
+  }
+  return normalizedUrl;
+}
+
+function isChatGptHost(hostname: string) {
+  return hostname === "chatgpt.com" || hostname === "www.chatgpt.com";
+}
+
+function isChatGptAuthRequiredUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (!isChatGptHost(parsed.hostname)) {
+      return false;
+    }
+    const pathname = parsed.pathname.toLowerCase();
+    return (
+      pathname === "/auth" ||
+      pathname.startsWith("/auth/") ||
+      pathname === "/login" ||
+      pathname === "/signup" ||
+      pathname === "/sign-in" ||
+      pathname === "/sign-up"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function buildEmbeddedBrowserAuthRequiredProbeScript() {
+  return `
+(() => {
+  const allowedHosts = new Set(["chatgpt.com", "www.chatgpt.com"]);
+  if (!allowedHosts.has(window.location.hostname)) {
+    return { matched: false, reason: "host" };
+  }
+  const pathname = window.location.pathname.toLowerCase();
+  if (
+    pathname === "/auth" ||
+    pathname.startsWith("/auth/") ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/sign-in" ||
+    pathname === "/sign-up"
+  ) {
+    return { matched: true, reason: "auth-url", url: window.location.href };
+  }
+  const hasConversationComposer = Boolean(
+    document.querySelector('textarea, [contenteditable="true"], form[data-testid*="composer"]')
+  );
+  if (hasConversationComposer) {
+    return { matched: false, reason: "conversation-composer" };
+  }
+  const actionTexts = Array.from(document.querySelectorAll("a, button")).map((node) =>
+    (node.textContent || "").replace(/\\s+/g, " ").trim().toLowerCase()
+  );
+  const hasLoginAction = actionTexts.some((text) => text === "登录" || text === "log in");
+  const hasSignupAction = actionTexts.some((text) => text === "免费注册" || text === "sign up");
+  const hasGetStartedAction = actionTexts.some((text) => text === "开始使用" || text === "get started");
+  const hasLoggedOutEntry = (hasLoginAction && hasSignupAction) || (hasGetStartedAction && (hasLoginAction || hasSignupAction));
+  return {
+    matched: Boolean(hasLoggedOutEntry),
+    reason: hasLoggedOutEntry ? "logged-out-entry" : "content",
+    url: window.location.href
+  };
+})();
+`;
+}
+
+function notifyEmbeddedBrowserAuthRequired(
+  browserWindow: BrowserWindow,
+  controller: EmbeddedBrowserController,
+  reason: string,
+  url: string
+) {
+  if (browserWindow.isDestroyed() || controller.authRequired) {
+    return;
+  }
+  controller.authRequired = true;
+  controller.view.setVisible(false);
+  browserWindow.webContents.send(EMBEDDED_BROWSER_AUTH_REQUIRED_CHANNEL, {
+    message: EMBEDDED_BROWSER_AUTH_REQUIRED_MESSAGE,
+    reason,
+    url,
+  });
+}
+
+function probeEmbeddedBrowserAuthRequired(
+  browserWindow: BrowserWindow,
+  controller: EmbeddedBrowserController,
+  reason: string
+) {
+  const webContents = controller.view.webContents;
+  if (browserWindow.isDestroyed() || webContents.isDestroyed()) {
+    return;
+  }
+  const currentUrl = webContents.getURL();
+  if (isChatGptAuthRequiredUrl(currentUrl)) {
+    notifyEmbeddedBrowserAuthRequired(browserWindow, controller, reason, currentUrl);
+    return;
+  }
+  void webContents
+    .executeJavaScript(buildEmbeddedBrowserAuthRequiredProbeScript(), true)
+    .then((result: unknown) => {
+      if (browserWindow.isDestroyed() || webContents.isDestroyed()) {
+        return;
+      }
+      const record =
+        result && typeof result === "object" && !Array.isArray(result)
+          ? (result as Record<string, unknown>)
+          : null;
+      if (record?.matched === true) {
+        notifyEmbeddedBrowserAuthRequired(
+          browserWindow,
+          controller,
+          typeof record.reason === "string" ? record.reason : reason,
+          typeof record.url === "string" ? record.url : webContents.getURL()
+        );
+      }
+    })
+    .catch(() => undefined);
+}
+
+function buildEmbeddedBrowserAccountNoticeScript() {
+  return `
+(() => {
+  const noticeId = "hugecode-account-usage-notice";
+  const shownKey = "hugecode:account-usage-notice-shown:v1";
+  const boundKey = "__hugeCodeAccountUsageNoticeBound";
+  const shownMemoryKey = "__hugeCodeAccountUsageNoticeShown";
+  const text = ${JSON.stringify(EMBEDDED_BROWSER_ACCOUNT_NOTICE_TEXT)};
+  const allowedHosts = new Set(["chatgpt.com", "www.chatgpt.com"]);
+  if (!allowedHosts.has(window.location.hostname)) {
+    document.getElementById(noticeId)?.remove();
+    return;
+  }
+  document.getElementById(noticeId)?.remove();
+  const installProductChromeStyle = () => {
+    if (document.getElementById("hugecode-product-chrome-style")) {
+      return;
+    }
+    const style = document.createElement("style");
+    style.id = "hugecode-product-chrome-style";
+    style.textContent = [
+      ".hugecode-sidebar-toggle-marker{position:relative!important;}",
+      ".hugecode-sidebar-toggle-marker>svg{opacity:0!important;}",
+      ".hugecode-sidebar-toggle-marker::after{content:'';position:absolute;left:50%;top:50%;width:0;height:0;transform:translate(-45%,-50%);border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:8px solid currentColor;opacity:.86;pointer-events:none;}"
+    ].join("");
+    document.head?.appendChild(style);
+  };
+
+  const applyProductChrome = () => {
+    installProductChromeStyle();
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const sidebarToggle = buttons.find((button) => {
+      const aria = (button.getAttribute("aria-label") || "").toLowerCase();
+      if (
+        !aria.includes("sidebar") &&
+        !aria.includes("side bar") &&
+        !aria.includes("侧边栏") &&
+        !aria.includes("边栏")
+      ) {
+        return false;
+      }
+      const rect = button.getBoundingClientRect();
+      return rect.top >= 0 && rect.top <= 96 && rect.left >= 0 && rect.left <= 140;
+    });
+    if (sidebarToggle) {
+      sidebarToggle.classList.add("hugecode-sidebar-toggle-marker");
+    }
+  };
+
+  applyProductChrome();
+  if (window[boundKey]) {
+    return;
+  }
+  window[boundKey] = true;
+  const productChromeTimer = window.setInterval(applyProductChrome, 800);
+  window.setTimeout(() => window.clearInterval(productChromeTimer), 8000);
+
+  const hasShown = () => {
+    if (window[shownMemoryKey]) {
+      return true;
+    }
+    try {
+      return window.sessionStorage.getItem(shownKey) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  const markShown = () => {
+    window[shownMemoryKey] = true;
+    try {
+      window.sessionStorage.setItem(shownKey, "1");
+    } catch {
+      return;
+    }
+  };
+
+  const isLikelyAccountClick = (event) => {
+    if (!document.body || !(event.target instanceof Element)) {
+      return false;
+    }
+    const target = event.target;
+    if (target.closest("#" + noticeId)) {
+      return false;
+    }
+    const inLeftRail = event.clientX <= Math.min(430, window.innerWidth * 0.36);
+    const inAccountBand = event.clientY >= window.innerHeight - 172;
+    if (!inLeftRail || !inAccountBand) {
+      return false;
+    }
+    let node = target;
+    for (let depth = 0; node && depth < 8; depth += 1) {
+      const aria = (node.getAttribute("aria-label") || "").toLowerCase();
+      const testId = (node.getAttribute("data-testid") || "").toLowerCase();
+      const textContent = (node.textContent || "").replace(/\\s+/g, " ").trim();
+      if (
+        aria.includes("account") ||
+        aria.includes("profile") ||
+        aria.includes("账户") ||
+        aria.includes("个人") ||
+        testId.includes("profile") ||
+        testId.includes("account") ||
+        textContent.includes("免费版") ||
+        textContent.includes("升级")
+      ) {
+        return true;
+      }
+      node = node.parentElement;
+    }
+    return true;
+  };
+
+  const showNotice = (event) => {
+    if (hasShown()) {
+      return;
+    }
+    if (!document.body) {
+      return;
+    }
+    markShown();
+    let notice = document.getElementById(noticeId);
+    if (!notice) {
+      notice = document.createElement("div");
+      notice.id = noticeId;
+      notice.setAttribute("role", "note");
+      notice.style.position = "fixed";
+      notice.style.zIndex = "2147483647";
+      notice.style.boxSizing = "border-box";
+      notice.style.width = "min(268px, calc(100vw - 32px))";
+      notice.style.border = "1px solid rgba(255, 255, 255, 0.07)";
+      notice.style.borderRadius = "12px";
+      notice.style.background = "rgba(28, 28, 28, 0.56)";
+      notice.style.backdropFilter = "blur(10px)";
+      notice.style.webkitBackdropFilter = "blur(10px)";
+      notice.style.boxShadow = "0 6px 18px rgba(0, 0, 0, 0.14)";
+      notice.style.color = "rgba(255, 255, 255, 0.52)";
+      notice.style.font = "500 12px/1.4 system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      notice.style.letterSpacing = "0";
+      notice.style.padding = "8px 10px";
+      notice.style.pointerEvents = "none";
+      notice.style.userSelect = "none";
+      notice.style.whiteSpace = "normal";
+      notice.style.wordBreak = "break-word";
+      document.body.appendChild(notice);
+    }
+    const left = Math.max(12, Math.min(event.clientX - 28, window.innerWidth - 292));
+    const bottom = Math.max(74, Math.min(142, window.innerHeight - event.clientY + 18));
+    notice.style.left = left + "px";
+    notice.style.bottom = bottom + "px";
+    notice.style.opacity = "1";
+    notice.textContent = text;
+    window.setTimeout(() => {
+      const currentNotice = document.getElementById(noticeId);
+      if (currentNotice) {
+        currentNotice.style.opacity = "0";
+        window.setTimeout(() => currentNotice.remove(), 160);
+      }
+    }, 1000);
+  };
+
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (isLikelyAccountClick(event)) {
+        showNotice(event);
+      }
+    },
+    true
+  );
+})();
+`;
+}
+
+function injectEmbeddedBrowserAccountNotice(view: WebContentsView) {
+  const webContents = view.webContents;
+  if (webContents.isDestroyed()) {
+    return;
+  }
+  void webContents
+    .executeJavaScript(buildEmbeddedBrowserAccountNoticeScript(), true)
+    .catch(() => undefined);
+}
+
+function buildOperatorUnlockOverlayHtml() {
+  return `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: transparent;
+        color: rgba(255, 255, 255, 0.9);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        letter-spacing: 0;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        padding: 18px;
+      }
+
+      .card {
+        width: min(468px, 100%);
+        border: 1px solid rgba(245, 158, 11, 0.38);
+        border-radius: 18px;
+        background:
+          radial-gradient(circle at top right, rgba(180, 83, 9, 0.3), transparent 42%),
+          rgba(22, 22, 22, 0.94);
+        box-shadow:
+          0 22px 70px rgba(0, 0, 0, 0.48),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        padding: 20px;
+      }
+
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.25;
+        font-weight: 760;
+      }
+
+      .subtitle {
+        margin: 6px 0 0;
+        color: rgba(255, 255, 255, 0.62);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .close {
+        width: 32px;
+        height: 32px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.72);
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      form {
+        display: grid;
+        gap: 12px;
+      }
+
+      label {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      input {
+        width: 100%;
+        height: 48px;
+        border: 1px solid rgba(255, 255, 255, 0.11);
+        border-radius: 14px;
+        outline: none;
+        background: rgba(255, 255, 255, 0.92);
+        color: #151515;
+        font-size: 16px;
+        padding: 0 14px;
+      }
+
+      input:focus {
+        border-color: rgba(245, 158, 11, 0.82);
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16);
+      }
+
+      .note {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.52);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .error {
+        min-height: 18px;
+        color: #fca5a5;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      button {
+        height: 38px;
+        border: 0;
+        border-radius: 12px;
+        padding: 0 15px;
+        font-size: 13px;
+        font-weight: 760;
+        cursor: pointer;
+      }
+
+      .secondary {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .primary {
+        background: linear-gradient(135deg, #0f766e, #115e59);
+        color: white;
+      }
+
+      button:disabled {
+        cursor: wait;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="card" role="dialog" aria-modal="true" aria-label="生产端本地解锁">
+      <div class="header">
+        <div>
+          <h1>生产端本地解锁</h1>
+          <p class="subtitle">
+            输入本地生产端密码后进入生产工作台。此入口只解锁本机生产操作界面，不代表后端订单、账号池或客户权限。
+          </p>
+        </div>
+        <button class="close" type="button" aria-label="关闭">×</button>
+      </div>
+      <form>
+        <label for="password">生产端本地密码</label>
+        <input id="password" name="password" type="password" autocomplete="off" autofocus />
+        <p class="note">如不需要生产操作，请关闭本卡片继续客户使用。</p>
+        <div class="error" aria-live="polite"></div>
+        <div class="actions">
+          <button class="secondary" type="button" data-close>关闭</button>
+          <button class="primary" type="submit">解锁生产工作台</button>
+        </div>
+      </form>
+    </section>
+    <script>
+      const bridge = window.hugeCodeDesktopHost?.operatorUnlockOverlay;
+      const form = document.querySelector("form");
+      const input = document.querySelector("#password");
+      const error = document.querySelector(".error");
+      const submitButton = document.querySelector(".primary");
+      const closeButtons = document.querySelectorAll("[data-close], .close");
+
+      function setError(message) {
+        error.textContent = message || "";
+      }
+
+      closeButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          bridge?.close?.();
+        });
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const password = input.value;
+        if (!password.trim()) {
+          setError("请输入生产端本地密码。");
+          input.focus();
+          return;
+        }
+        setError("");
+        submitButton.disabled = true;
+        submitButton.textContent = "正在解锁...";
+        try {
+          const result = await bridge?.submitPassword?.({ password });
+          if (!result?.ok) {
+            setError(result?.message || "生产端本地密码不正确。");
+            input.select();
+          }
+        } catch {
+          setError("生产端解锁通道不可用，请重试。");
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = "解锁生产工作台";
+        }
+      });
+
+      window.addEventListener("load", () => input.focus());
+    </script>
+  </body>
+</html>`;
+}
+
+function findOperatorUnlockOverlayControllerByWindowId(windowId: number) {
+  return (
+    Array.from(operatorUnlockOverlayControllers.values()).find(
+      (controller) => controller.window.id === windowId
+    ) ?? null
+  );
+}
+
+function repositionOperatorUnlockOverlay(hostWindow: BrowserWindow, overlayWindow: BrowserWindow) {
+  if (hostWindow.isDestroyed() || overlayWindow.isDestroyed()) {
+    return;
+  }
+  const hostBounds = hostWindow.getBounds();
+  const width = Math.max(360, Math.min(520, hostBounds.width - 48));
+  const height = Math.max(300, Math.min(360, hostBounds.height - 48));
+  overlayWindow.setBounds({
+    height,
+    width,
+    x: hostBounds.x + Math.round((hostBounds.width - width) / 2),
+    y: hostBounds.y + Math.round((hostBounds.height - height) / 2),
+  });
+}
+
+function destroyOperatorUnlockOverlay(hostWindowId: number) {
+  const controller = operatorUnlockOverlayControllers.get(hostWindowId);
+  if (!controller) {
+    return;
+  }
+  operatorUnlockOverlayControllers.delete(hostWindowId);
+  controller.detachHostListeners();
+  if (!controller.window.isDestroyed()) {
+    controller.window.close();
+  }
+}
+
+function showOperatorUnlockOverlay(hostWindow: BrowserWindow) {
+  const existing = operatorUnlockOverlayControllers.get(hostWindow.id);
+  if (existing && !existing.window.isDestroyed()) {
+    repositionOperatorUnlockOverlay(hostWindow, existing.window);
+    existing.window.show();
+    existing.window.focus();
+    return;
+  }
+  destroyOperatorUnlockOverlay(hostWindow.id);
+
+  const overlayWindow = new BrowserWindow({
+    backgroundColor: "#00000000",
+    frame: false,
+    fullscreenable: false,
+    height: 340,
+    maximizable: false,
+    minimizable: false,
+    modal: true,
+    parent: hostWindow,
+    resizable: false,
+    show: false,
+    skipTaskbar: true,
+    title: "生产端本地解锁",
+    transparent: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: join(__dirname, "preload.cjs"),
+      sandbox: true,
+    },
+    width: 500,
+  });
+
+  const reposition = () => repositionOperatorUnlockOverlay(hostWindow, overlayWindow);
+  const detachHostListeners = () => {
+    hostWindow.removeListener("move", reposition);
+    hostWindow.removeListener("resize", reposition);
+  };
+  const controller: OperatorUnlockOverlayController = {
+    detachHostListeners,
+    hostWindowId: hostWindow.id,
+    window: overlayWindow,
+  };
+  operatorUnlockOverlayControllers.set(hostWindow.id, controller);
+  hostWindow.on("move", reposition);
+  hostWindow.on("resize", reposition);
+  hostWindow.once("closed", () => destroyOperatorUnlockOverlay(hostWindow.id));
+  overlayWindow.once("closed", () => {
+    if (operatorUnlockOverlayControllers.get(hostWindow.id)?.window.id === overlayWindow.id) {
+      operatorUnlockOverlayControllers.delete(hostWindow.id);
+      detachHostListeners();
+    }
+  });
+  reposition();
+  void overlayWindow.loadURL(
+    `data:text/html;base64,${Buffer.from(buildOperatorUnlockOverlayHtml(), "utf8").toString(
+      "base64"
+    )}`
+  );
+  overlayWindow.once("ready-to-show", () => {
+    overlayWindow.show();
+    overlayWindow.focus();
+  });
+}
+
+function completeOperatorUnlockOverlayRequest(
+  requestId: string,
+  result: OperatorUnlockOverlayResult
+) {
+  const request = pendingOperatorUnlockOverlayRequests.get(requestId);
+  if (!request) {
+    return null;
+  }
+  pendingOperatorUnlockOverlayRequests.delete(requestId);
+  clearTimeout(request.timeout);
+  request.resolve(result);
+  return request;
+}
+
+function readOperatorUnlockOverlayAttemptPassword(value: unknown) {
+  return readPayloadString(value, "password") ?? "";
+}
+
+function getEmbeddedBrowserWindowForSender(sender: Electron.WebContents) {
+  const senderWindow = BrowserWindow.fromWebContents(sender);
+  if (!senderWindow || senderWindow.isDestroyed()) {
+    throw new Error("Embedded browser host window is unavailable.");
+  }
+  return senderWindow;
+}
+
+function attachEmbeddedBrowserEvents(
+  browserWindow: BrowserWindow,
+  controller: EmbeddedBrowserController
+) {
+  const view = controller.view;
+  const webContents = view.webContents;
+  webContents.setWindowOpenHandler(({ url: nextUrl }) => {
+    if (isChatGptAuthRequiredUrl(nextUrl)) {
+      notifyEmbeddedBrowserAuthRequired(browserWindow, controller, "window-open-auth-url", nextUrl);
+      return { action: "deny" };
+    }
+    if (isEmbeddableBrowserChromeUrl(nextUrl)) {
+      void webContents.loadURL(nextUrl);
+    } else {
+      void shell.openExternal(nextUrl);
+    }
+    return { action: "deny" };
+  });
+  webContents.on("will-navigate", (event, nextUrl) => {
+    if (isChatGptAuthRequiredUrl(nextUrl)) {
+      event.preventDefault();
+      notifyEmbeddedBrowserAuthRequired(
+        browserWindow,
+        controller,
+        "will-navigate-auth-url",
+        nextUrl
+      );
+      return;
+    }
+    if (!isEmbeddableBrowserChromeUrl(nextUrl)) {
+      event.preventDefault();
+      void shell.openExternal(nextUrl);
+    }
+  });
+  webContents.on("did-start-navigation", (_event, nextUrl, isInPlace, isMainFrame) => {
+    if (!isInPlace && isMainFrame && isChatGptAuthRequiredUrl(nextUrl)) {
+      notifyEmbeddedBrowserAuthRequired(
+        browserWindow,
+        controller,
+        "did-start-navigation-auth-url",
+        nextUrl
+      );
+    }
+  });
+  webContents.on("dom-ready", () => {
+    injectEmbeddedBrowserAccountNotice(view);
+    probeEmbeddedBrowserAuthRequired(browserWindow, controller, "dom-ready");
+  });
+  webContents.on("did-finish-load", () => {
+    injectEmbeddedBrowserAccountNotice(view);
+    probeEmbeddedBrowserAuthRequired(browserWindow, controller, "did-finish-load");
+  });
+  webContents.on("did-navigate", (_event, nextUrl) => {
+    injectEmbeddedBrowserAccountNotice(view);
+    if (isChatGptAuthRequiredUrl(nextUrl)) {
+      notifyEmbeddedBrowserAuthRequired(
+        browserWindow,
+        controller,
+        "did-navigate-auth-url",
+        nextUrl
+      );
+      return;
+    }
+    probeEmbeddedBrowserAuthRequired(browserWindow, controller, "did-navigate");
+  });
+  webContents.on("did-navigate-in-page", (_event, nextUrl) => {
+    injectEmbeddedBrowserAccountNotice(view);
+    if (isChatGptAuthRequiredUrl(nextUrl)) {
+      notifyEmbeddedBrowserAuthRequired(
+        browserWindow,
+        controller,
+        "did-navigate-in-page-auth-url",
+        nextUrl
+      );
+      return;
+    }
+    probeEmbeddedBrowserAuthRequired(browserWindow, controller, "did-navigate-in-page");
+  });
+}
+
+function ensureEmbeddedBrowserController(browserWindow: BrowserWindow, targetUrl: string) {
+  const existing = embeddedBrowserControllers.get(browserWindow.id);
+  if (existing && !existing.view.webContents.isDestroyed()) {
+    return existing;
+  }
+  const view = new WebContentsView({
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      session: session.defaultSession,
+    },
+  });
+  const controller: EmbeddedBrowserController = {
+    authRequired: false,
+    targetUrl,
+    view,
+  };
+  attachEmbeddedBrowserEvents(browserWindow, controller);
+  view.setVisible(false);
+  browserWindow.contentView.addChildView(view);
+  embeddedBrowserControllers.set(browserWindow.id, controller);
+  return controller;
+}
+
+function destroyEmbeddedBrowserController(browserWindowId: number) {
+  const controller = embeddedBrowserControllers.get(browserWindowId);
+  if (!controller) {
+    return;
+  }
+  embeddedBrowserControllers.delete(browserWindowId);
+  if (!controller.view.webContents.isDestroyed()) {
+    controller.view.webContents.close({ waitForBeforeUnload: false });
   }
 }
 
@@ -1584,6 +2523,576 @@ function registerBrowserStaticDataIpc() {
   });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function debugHashString(value: string) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 16);
+}
+
+function debugStringMeta(value: string) {
+  return {
+    length: value.length,
+    sha256_16: debugHashString(value),
+  };
+}
+
+function sanitizeDebugValue(value: unknown, depth = 0): unknown {
+  if (depth > 5) {
+    return "[depth-limit]";
+  }
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value === "string") {
+    return value.length > 512 ? `${value.slice(0, 512)}...[truncated:${value.length}]` : value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.slice(0, 25).map((item) => sanitizeDebugValue(item, depth + 1));
+  }
+  if (!isRecord(value)) {
+    return String(value);
+  }
+  const redactedKeys = new Set([
+    "activationCode",
+    "authToken",
+    "Authorization",
+    "browserFileUnlockCode",
+    "download_token",
+    "downloadToken",
+    "payload_base64",
+    "redemption_code",
+    "serialized",
+    "token",
+    "value",
+  ]);
+  const next: Record<string, unknown> = {};
+  for (const [key, rawValue] of Object.entries(value)) {
+    if (redactedKeys.has(key)) {
+      next[key] =
+        typeof rawValue === "string"
+          ? { redacted: true, ...debugStringMeta(rawValue) }
+          : "[redacted]";
+      continue;
+    }
+    next[key] = sanitizeDebugValue(rawValue, depth + 1);
+  }
+  return next;
+}
+
+function debugError(error: unknown) {
+  return error instanceof Error
+    ? {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.split("\n").slice(0, 8).join("\n") ?? null,
+      }
+    : { message: String(error), name: typeof error };
+}
+
+async function writeOpenHugeConsumerDebugLog(event: string, payload: Record<string, unknown> = {}) {
+  try {
+    const logDir = join(app.getPath("userData"), "logs");
+    await mkdir(logDir, { recursive: true });
+    await appendFile(
+      join(logDir, OPENHUGE_CONSUMER_DEBUG_LOG_FILE),
+      `${JSON.stringify({
+        event,
+        payload: sanitizeDebugValue(payload),
+        pid: process.pid,
+        ts: new Date().toISOString(),
+      })}\n`,
+      "utf8"
+    );
+  } catch {
+    // Debug logging must never break the customer delivery path.
+  }
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function readEnvString(...keys: string[]) {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+}
+
+async function readJsonConfigFile(filePath: string) {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8")) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+async function readOpenHugeDeliveryConfigFile() {
+  const candidates = [
+    join(app.getPath("userData"), OPENHUGE_DELIVERY_CONFIG_FILE),
+    join(process.cwd(), OPENHUGE_DELIVERY_CONFIG_FILE),
+    join(dirname(process.execPath), OPENHUGE_DELIVERY_CONFIG_FILE),
+  ];
+  for (const candidate of candidates) {
+    const config = await readJsonConfigFile(candidate);
+    if (isRecord(config)) {
+      return config;
+    }
+  }
+  return null;
+}
+
+function normalizeOpenHugeDeliveryConfig(
+  fileConfig: Record<string, unknown> | null
+): OpenHugeDeliveryDesktopConfig | null {
+  const baseUrl =
+    readEnvString("OPENHUGE_CONTROL_PLANE_BASE_URL", "VITE_OPENHUGE_CONTROL_PLANE_BASE_URL") ??
+    readString(fileConfig?.baseUrl) ??
+    readString(fileConfig?.controlPlaneBaseUrl);
+  const tenantId =
+    readEnvString("OPENHUGE_TENANT_ID", "VITE_OPENHUGE_TENANT_ID") ??
+    readString(fileConfig?.tenantId);
+  const projectId =
+    readEnvString("OPENHUGE_PROJECT_ID", "VITE_OPENHUGE_PROJECT_ID") ??
+    readString(fileConfig?.projectId);
+  const authToken =
+    readEnvString("OPENHUGE_CONTROL_PLANE_TOKEN", "VITE_OPENHUGE_CONTROL_PLANE_TOKEN") ??
+    readString(fileConfig?.authToken) ??
+    readString(fileConfig?.token);
+  if (!baseUrl || !tenantId || !projectId || !authToken) {
+    return null;
+  }
+  return {
+    authToken,
+    baseUrl,
+    projectId,
+    serviceDays:
+      Number.parseInt(readEnvString("OPENHUGE_DELIVERY_SERVICE_DAYS") ?? "", 10) ||
+      readPositiveInteger(fileConfig?.serviceDays) ||
+      OPENHUGE_DEFAULT_SERVICE_DAYS,
+    serviceKind:
+      readEnvString("OPENHUGE_DELIVERY_SERVICE_KIND") ??
+      readString(fileConfig?.serviceKind) ??
+      OPENHUGE_DEFAULT_SERVICE_KIND,
+    tenantId,
+  };
+}
+
+async function resolveOpenHugeDeliveryDesktopConfig() {
+  const config = normalizeOpenHugeDeliveryConfig(await readOpenHugeDeliveryConfigFile());
+  if (!config) {
+    throw new Error(
+      `OpenHuge delivery config is missing. Configure ${OPENHUGE_DELIVERY_CONFIG_FILE} under HugeCode userData or set OPENHUGE_CONTROL_PLANE_* environment variables.`
+    );
+  }
+  return config;
+}
+
+function openHugeDeliveryUrl(config: OpenHugeDeliveryDesktopConfig, path: string) {
+  return `${config.baseUrl.replace(/\/+$/u, "")}${path}`;
+}
+
+async function readOpenHugeResponse(response: Response) {
+  const text = await response.text();
+  if (!response.ok) {
+    let message = `OpenHuge request failed with HTTP ${response.status}.`;
+    try {
+      const parsed = JSON.parse(text) as { message?: unknown; error?: { message?: unknown } };
+      message =
+        readString(parsed.message) ?? readString(parsed.error?.message) ?? text.trim() ?? message;
+    } catch {
+      message = text.trim() || message;
+    }
+    throw new Error(message);
+  }
+  return text.trim() ? (JSON.parse(text) as unknown) : {};
+}
+
+async function openHugeDeliveryJsonRequest(
+  config: OpenHugeDeliveryDesktopConfig,
+  path: string,
+  init: { body?: unknown; method: "GET" | "POST" }
+) {
+  const startedAt = Date.now();
+  await writeOpenHugeConsumerDebugLog("desktop.openHuge.http.json.start", {
+    body: init.body,
+    method: init.method,
+    path,
+  });
+  const response = await fetch(openHugeDeliveryUrl(config, path), {
+    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${config.authToken}`,
+      ...(init.body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    method: init.method,
+  });
+  await writeOpenHugeConsumerDebugLog("desktop.openHuge.http.json.response", {
+    durationMs: Date.now() - startedAt,
+    method: init.method,
+    ok: response.ok,
+    path,
+    status: response.status,
+  });
+  return readOpenHugeResponse(response);
+}
+
+async function openHugeDeliveryBearerRequest(
+  config: OpenHugeDeliveryDesktopConfig,
+  path: string,
+  bearerToken: string
+) {
+  const startedAt = Date.now();
+  await writeOpenHugeConsumerDebugLog("desktop.openHuge.http.artifact.start", {
+    bearerToken: debugStringMeta(bearerToken),
+    method: "GET",
+    path,
+  });
+  const response = await fetch(openHugeDeliveryUrl(config, path), {
+    headers: {
+      Accept: "application/octet-stream, application/json",
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    method: "GET",
+  });
+  const text = await response.text();
+  await writeOpenHugeConsumerDebugLog("desktop.openHuge.http.artifact.response", {
+    artifactText: debugStringMeta(text),
+    durationMs: Date.now() - startedAt,
+    fileHash: response.headers.get("x-openhuge-artifact-sha256"),
+    ok: response.ok,
+    path,
+    status: response.status,
+  });
+  if (!response.ok) {
+    throw new Error(
+      text.trim() || `OpenHuge artifact request failed with HTTP ${response.status}.`
+    );
+  }
+  return {
+    fileHash: response.headers.get("x-openhuge-artifact-sha256"),
+    text,
+  };
+}
+
+function readUploadPayload(payload: unknown) {
+  const record = isRecord(payload) ? payload : {};
+  const artifact = isRecord(record.artifact) ? record.artifact : {};
+  const witness = isRecord(record.witness) ? record.witness : {};
+  const deliveryId = readString(record.deliveryId);
+  const fileName = readString(artifact.fileName);
+  const serialized = readString(artifact.serialized);
+  const fileHash = readString(witness.fileHash);
+  if (!deliveryId || !fileName || !serialized || !fileHash) {
+    throw new Error("OpenHuge delivery artifact upload payload is incomplete.");
+  }
+  return { deliveryId, fileHash, fileName, serialized };
+}
+
+function readDeliveryIdPayload(payload: unknown) {
+  const record = isRecord(payload) ? payload : {};
+  const deliveryId = readString(record.deliveryId);
+  if (!deliveryId) {
+    throw new Error("OpenHuge delivery id is required.");
+  }
+  return deliveryId;
+}
+
+function readBatchId(response: unknown) {
+  const data = isRecord(response) && isRecord(response.data) ? response.data : response;
+  return isRecord(data) ? readString(data.batch_id) : null;
+}
+
+function readActivationId(response: unknown) {
+  const data = isRecord(response) && isRecord(response.data) ? response.data : response;
+  return isRecord(data) ? readString(data.activation_id) : null;
+}
+
+function readDownloadToken(response: unknown) {
+  const data = isRecord(response) && isRecord(response.data) ? response.data : response;
+  return isRecord(data)
+    ? (readString(data.download_token) ??
+        readString(response && isRecord(response) ? response.download_token : null))
+    : null;
+}
+
+function uploadItemProjection(deliveryId: string, item: Record<string, unknown>, fileHash: string) {
+  const status = readString(item.status);
+  if (status === "accepted" || status === "duplicate") {
+    return {
+      deliveryId,
+      fileHash,
+      status: "exported",
+      summary: "OpenHuge accepted the encrypted browser account artifact.",
+      updatedAt: readString(item.updated_at),
+    };
+  }
+  if (status === "failed" || status === "rejected") {
+    return {
+      deliveryId,
+      fileHash,
+      status: "failed",
+      summary: readString(item.error_message) ?? "OpenHuge rejected the encrypted artifact.",
+      updatedAt: readString(item.updated_at),
+    };
+  }
+  return {
+    deliveryId,
+    fileHash,
+    status: "prepared",
+    summary: "OpenHuge queued the encrypted artifact upload.",
+    updatedAt: readString(item.updated_at),
+  };
+}
+
+async function openHugeDeliveryUploadArtifact(
+  config: OpenHugeDeliveryDesktopConfig,
+  payload: unknown
+) {
+  const upload = readUploadPayload(payload);
+  const carrierValidUntil = new Date(Date.now() + config.serviceDays * DAY_IN_MS).toISOString();
+  const batch = await openHugeDeliveryJsonRequest(config, "/internal/delivery-uploads", {
+    body: {
+      idempotency_key: `${upload.deliveryId}:${upload.fileHash}`,
+      items: [
+        {
+          artifact_kind: OPENHUGE_ARTIFACT_KIND,
+          carrier_valid_until: carrierValidUntil,
+          content_type: OPENHUGE_ARTIFACT_CONTENT_TYPE,
+          delivery_id: upload.deliveryId,
+          file_name: upload.fileName,
+          payload_base64: Buffer.from(upload.serialized, "utf8").toString("base64"),
+          row_index: 1,
+        },
+      ],
+      project_id: config.projectId,
+      provider: OPENHUGE_DEFAULT_PROVIDER,
+      source_file_name: `${upload.deliveryId}.jsonl`,
+      tenant_id: config.tenantId,
+    },
+    method: "POST",
+  });
+  const batchId = readBatchId(batch);
+  if (!batchId) {
+    throw new Error("OpenHuge did not return a delivery upload batch id.");
+  }
+  await openHugeDeliveryJsonRequest(
+    config,
+    `/internal/delivery-uploads/${encodeURIComponent(batchId)}/process`,
+    { method: "POST" }
+  );
+  const items = await openHugeDeliveryJsonRequest(
+    config,
+    `/internal/delivery-uploads/${encodeURIComponent(batchId)}/items`,
+    { method: "GET" }
+  );
+  const item = (isRecord(items) && Array.isArray(items.data) ? items.data : [])
+    .filter(isRecord)
+    .find((candidate) => readString(candidate.delivery_id) === upload.deliveryId);
+  if (!item) {
+    throw new Error("OpenHuge processed the batch, but no upload item was returned.");
+  }
+  return uploadItemProjection(upload.deliveryId, item, upload.fileHash);
+}
+
+async function openHugeDeliveryRedeem(config: OpenHugeDeliveryDesktopConfig, payload: unknown) {
+  const activationCode = isRecord(payload) ? readString(payload.activationCode) : null;
+  await writeOpenHugeConsumerDebugLog("desktop.openHuge.redeem.start", {
+    activationCode: activationCode ? debugStringMeta(activationCode) : null,
+  });
+  if (!activationCode) {
+    throw new Error("Redemption code is required.");
+  }
+  const activation = await openHugeDeliveryJsonRequest(config, "/v1/delivery-activations/redeem", {
+    body: { redemption_code: activationCode },
+    method: "POST",
+  });
+  const activationData: Record<string, unknown> =
+    isRecord(activation) && isRecord(activation.data)
+      ? activation.data
+      : isRecord(activation)
+        ? activation
+        : {};
+  const activationId = readActivationId(activation);
+  if (!activationId) {
+    throw new Error("OpenHuge activation response did not include activation_id.");
+  }
+  const grant = await openHugeDeliveryJsonRequest(config, "/v1/delivery-download-grants", {
+    body: {
+      activation_id: activationId,
+      redemption_code: activationCode,
+    },
+    method: "POST",
+  });
+  const grantData: Record<string, unknown> =
+    isRecord(grant) && isRecord(grant.data) ? grant.data : isRecord(grant) ? grant : {};
+  const token = readDownloadToken(grant);
+  if (!token) {
+    throw new Error("OpenHuge did not return a download token.");
+  }
+  const download = await openHugeDeliveryBearerRequest(
+    config,
+    "/v1/delivery-downloads/artifact",
+    token
+  );
+  const artifactRecord = isRecord(grantData.artifact)
+    ? grantData.artifact
+    : isRecord(activationData.artifact)
+      ? activationData.artifact
+      : null;
+  const fileName = readString(artifactRecord?.file_name) ?? "hugecode-browser-data.hcbrowser";
+  const fileHash = readString(download.fileHash) ?? readString(artifactRecord?.sha256);
+  const deliveryId = readString(activationData.delivery_id) ?? readString(grantData.delivery_id);
+  const artifactId =
+    readString(grantData.artifact_id) ??
+    readString(activationData.artifact_id) ??
+    readString(artifactRecord?.artifact_id);
+  const entitlementId =
+    readString(grantData.entitlement_id) ?? readString(activationData.entitlement_id);
+  const entitlementEndsAt =
+    readString(activationData.entitlement_ends_at) ?? readString(grantData.entitlement_ends_at);
+  const effectiveUntil =
+    readString(grantData.effective_until) ??
+    readString(activationData.effective_until) ??
+    readString(artifactRecord?.carrier_valid_until);
+  await writeOpenHugeConsumerDebugLog("desktop.openHuge.redeem.complete", {
+    activationId,
+    artifactId,
+    artifactByteLength: Buffer.byteLength(download.text, "utf8"),
+    deliveryId,
+    effectiveUntil,
+    entitlementEndsAt,
+    entitlementId,
+    fileHash,
+    fileName,
+  });
+  return {
+    artifact: {
+      byteLength: Buffer.byteLength(download.text, "utf8"),
+      fileHash,
+      fileName,
+      serialized: download.text,
+    },
+    projection: {
+      activationCode,
+      activationId,
+      artifactId,
+      browserFileUnlockCode: null,
+      deliveryId,
+      effectiveUntil,
+      entitlementEndsAt,
+      entitlementId,
+      fileHash,
+      status: "redeemed",
+      summary:
+        "OpenHuge redeemed delivery, issued a download grant, and returned encrypted account data.",
+      updatedAt: null,
+    },
+  };
+}
+
+async function openHugeDeliveryReadStatus(config: OpenHugeDeliveryDesktopConfig, payload: unknown) {
+  const deliveryId = readDeliveryIdPayload(payload);
+  await writeOpenHugeConsumerDebugLog("desktop.openHuge.readStatus.start", { deliveryId });
+  return openHugeDeliveryJsonRequest(config, `/v1/deliveries/${encodeURIComponent(deliveryId)}`, {
+    method: "GET",
+  });
+}
+
+async function invokeOpenHugeDelivery(operation: OpenHugeDeliveryOperation, payload: unknown) {
+  const config = await resolveOpenHugeDeliveryDesktopConfig();
+  if (operation === "prepare") {
+    const record = isRecord(payload) ? payload : {};
+    return openHugeDeliveryJsonRequest(config, "/internal/deliveries/prepare", {
+      body: {
+        customer_label: "HugeCode browser handoff",
+        project_id: config.projectId,
+        provider: readString(record.provider) ?? OPENHUGE_DEFAULT_PROVIDER,
+        service_days: config.serviceDays,
+        service_kind: config.serviceKind,
+        tenant_id: config.tenantId,
+      },
+      method: "POST",
+    });
+  }
+  if (operation === "uploadArtifact") {
+    return openHugeDeliveryUploadArtifact(config, payload);
+  }
+  if (operation === "redeem") {
+    return openHugeDeliveryRedeem(config, payload);
+  }
+  if (operation === "readStatus" || operation === "submitExportWitness") {
+    return openHugeDeliveryReadStatus(config, payload);
+  }
+  throw new Error(`OpenHuge delivery operation ${operation} is not available from desktop.`);
+}
+
+function registerOpenHugeDeliveryIpc() {
+  ipcMain.handle(
+    OPENHUGE_DELIVERY_INVOKE_CHANNEL,
+    async (_event, operation: unknown, payload: unknown = {}) => {
+      if (
+        operation !== "prepare" &&
+        operation !== "uploadArtifact" &&
+        operation !== "redeem" &&
+        operation !== "readStatus" &&
+        operation !== "submitExportWitness"
+      ) {
+        throw new Error("OpenHuge delivery operation is invalid.");
+      }
+      const startedAt = Date.now();
+      await writeOpenHugeConsumerDebugLog("desktop.openHuge.invoke.start", {
+        operation,
+        payload,
+      });
+      try {
+        const result = await invokeOpenHugeDelivery(operation, payload);
+        await writeOpenHugeConsumerDebugLog("desktop.openHuge.invoke.ok", {
+          durationMs: Date.now() - startedAt,
+          operation,
+          result,
+        });
+        return result;
+      } catch (error) {
+        await writeOpenHugeConsumerDebugLog("desktop.openHuge.invoke.error", {
+          durationMs: Date.now() - startedAt,
+          error: debugError(error),
+          operation,
+          payload,
+        });
+        throw error;
+      }
+    }
+  );
+}
+
+function registerOpenHugeConsumerDebugIpc() {
+  ipcMain.handle(OPENHUGE_CONSUMER_DEBUG_CHANNEL, async (_event, payload: unknown = {}) => {
+    const record = isRecord(payload) ? payload : {};
+    await writeOpenHugeConsumerDebugLog(
+      readString(record.event) ?? "renderer.unknown",
+      isRecord(record.payload) ? record.payload : {}
+    );
+    return {
+      logPath: join(app.getPath("userData"), "logs", OPENHUGE_CONSUMER_DEBUG_LOG_FILE),
+      ok: true,
+    };
+  });
+}
+
 function registerRuntimeRpcIpc() {
   ipcMain.handle(
     RUNTIME_RPC_INVOKE_CHANNEL,
@@ -1715,6 +3224,118 @@ function registerBrowserChromeIpc() {
   });
 }
 
+function registerEmbeddedBrowserIpc() {
+  ipcMain.handle(EMBEDDED_BROWSER_SHOW_CHANNEL, (event, payload: unknown = {}) => {
+    const browserWindow = getEmbeddedBrowserWindowForSender(event.sender);
+    const bounds = readEmbeddedBrowserBounds(payload);
+    if (!bounds) {
+      throw new Error("Embedded browser bounds are required.");
+    }
+    const targetUrl = readEmbeddedBrowserTargetUrl(payload);
+    const controller = ensureEmbeddedBrowserController(browserWindow, targetUrl);
+    controller.authRequired = false;
+    controller.view.setBounds(bounds);
+    controller.view.setVisible(true);
+    const currentUrl = controller.view.webContents.getURL();
+    if (!currentUrl || controller.targetUrl !== targetUrl) {
+      controller.targetUrl = targetUrl;
+      void controller.view.webContents.loadURL(targetUrl);
+    }
+    return { ok: true };
+  });
+
+  ipcMain.handle(EMBEDDED_BROWSER_SET_BOUNDS_CHANNEL, (event, payload: unknown = {}) => {
+    const browserWindow = getEmbeddedBrowserWindowForSender(event.sender);
+    const controller = embeddedBrowserControllers.get(browserWindow.id);
+    const bounds = readEmbeddedBrowserBounds(payload);
+    if (!controller || !bounds) {
+      return { ok: false };
+    }
+    controller.view.setBounds(bounds);
+    return { ok: true };
+  });
+
+  ipcMain.handle(EMBEDDED_BROWSER_HIDE_CHANNEL, (event) => {
+    const browserWindow = getEmbeddedBrowserWindowForSender(event.sender);
+    const controller = embeddedBrowserControllers.get(browserWindow.id);
+    if (controller) {
+      controller.view.setVisible(false);
+    }
+    return { ok: true };
+  });
+}
+
+function registerOperatorUnlockOverlayIpc() {
+  ipcMain.handle(OPERATOR_UNLOCK_OVERLAY_SHOW_CHANNEL, (event) => {
+    const hostWindow = getEmbeddedBrowserWindowForSender(event.sender);
+    showOperatorUnlockOverlay(hostWindow);
+    return { ok: true };
+  });
+
+  ipcMain.handle(OPERATOR_UNLOCK_OVERLAY_CLOSE_CHANNEL, (event) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!senderWindow || senderWindow.isDestroyed()) {
+      return { ok: false };
+    }
+    if (operatorUnlockOverlayControllers.has(senderWindow.id)) {
+      destroyOperatorUnlockOverlay(senderWindow.id);
+      return { ok: true };
+    }
+    const overlayController = findOperatorUnlockOverlayControllerByWindowId(senderWindow.id);
+    if (overlayController) {
+      destroyOperatorUnlockOverlay(overlayController.hostWindowId);
+      return { ok: true };
+    }
+    return { ok: false };
+  });
+
+  ipcMain.handle(OPERATOR_UNLOCK_OVERLAY_ATTEMPT_CHANNEL, async (event, payload: unknown = {}) => {
+    const overlayWindow = BrowserWindow.fromWebContents(event.sender);
+    if (!overlayWindow || overlayWindow.isDestroyed()) {
+      return { message: "生产端解锁窗口不可用。", ok: false };
+    }
+    const controller = findOperatorUnlockOverlayControllerByWindowId(overlayWindow.id);
+    if (!controller) {
+      return { message: "生产端解锁窗口未绑定主界面。", ok: false };
+    }
+    const hostWindow = BrowserWindow.fromId(controller.hostWindowId);
+    if (!hostWindow || hostWindow.isDestroyed()) {
+      return { message: "生产端主界面不可用。", ok: false };
+    }
+    const password = readOperatorUnlockOverlayAttemptPassword(payload);
+    const requestId = randomUUID();
+    return new Promise<OperatorUnlockOverlayResult>((resolve) => {
+      const timeout = setTimeout(() => {
+        pendingOperatorUnlockOverlayRequests.delete(requestId);
+        resolve({ message: "生产端解锁响应超时，请重试。", ok: false });
+      }, 10_000);
+      pendingOperatorUnlockOverlayRequests.set(requestId, {
+        hostWindowId: hostWindow.id,
+        resolve,
+        timeout,
+      });
+      hostWindow.webContents.send(OPERATOR_UNLOCK_OVERLAY_SUBMIT_CHANNEL, {
+        password,
+        requestId,
+      });
+    });
+  });
+
+  ipcMain.handle(OPERATOR_UNLOCK_OVERLAY_RESOLVE_CHANNEL, (_event, payload: unknown = {}) => {
+    const requestId = readPayloadString(payload, "requestId");
+    if (!requestId) {
+      return { ok: false };
+    }
+    const ok = readPayloadBoolean(payload, "ok") === true;
+    const message = readPayloadString(payload, "message");
+    const request = completeOperatorUnlockOverlayRequest(requestId, { message, ok });
+    if (ok && request) {
+      destroyOperatorUnlockOverlay(request.hostWindowId);
+    }
+    return { ok: request !== null };
+  });
+}
+
 function createMainWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     title: "HugeCode",
@@ -1747,6 +3368,11 @@ function createMainWindow(): BrowserWindow {
     return { action: "deny" };
   });
 
+  mainWindow.on("closed", () => {
+    destroyEmbeddedBrowserController(mainWindow.id);
+    destroyOperatorUnlockOverlay(mainWindow.id);
+  });
+
   void mainWindow.loadURL(resolveRendererUrl());
 
   if (devServerUrl) {
@@ -1759,9 +3385,14 @@ function createMainWindow(): BrowserWindow {
 app.setName("HugeCode");
 
 void app.whenReady().then(() => {
+  configureApplicationMenu();
   registerBrowserStaticDataIpc();
+  registerOpenHugeConsumerDebugIpc();
+  registerOpenHugeDeliveryIpc();
   registerRuntimeRpcIpc();
   registerBrowserChromeIpc();
+  registerEmbeddedBrowserIpc();
+  registerOperatorUnlockOverlayIpc();
   createMainWindow();
 
   app.on("activate", () => {

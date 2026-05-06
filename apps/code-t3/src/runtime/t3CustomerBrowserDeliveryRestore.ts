@@ -26,8 +26,13 @@ export type T3CustomerBrowserDeliveryRestoreResult =
 function failedCustomerDeliveryProjection(summary: string): T3DeliveryProjection {
   return {
     activationCode: null,
+    activationId: null,
+    artifactId: null,
     browserFileUnlockCode: null,
     deliveryId: null,
+    effectiveUntil: null,
+    entitlementEndsAt: null,
+    entitlementId: null,
     entitlementSummary: null,
     fileHash: null,
     status: "failed",
@@ -59,9 +64,11 @@ export async function restoreT3CustomerBrowserDelivery(input: {
       throw new Error("Remote delivery did not return an encrypted account data artifact.");
     }
     const importSecret =
-      input.fileUnlockCodeInput.trim() || redemption.projection.browserFileUnlockCode?.trim() || "";
+      input.fileUnlockCodeInput.trim() ||
+      redemption.projection.browserFileUnlockCode?.trim() ||
+      activationCode;
     if (importSecret.length < 8) {
-      throw new Error("文件解锁码至少需要 8 位，且后端未返回可用解锁码。");
+      throw new Error("兑换码至少需要 8 位，且后端未返回可用解锁材料。");
     }
     const result = importT3BrowserStaticDataBundle(redemption.artifact.serialized);
     const loginStateResult = await importT3BrowserStaticDataLoginStateBundles(

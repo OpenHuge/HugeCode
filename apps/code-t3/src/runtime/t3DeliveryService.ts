@@ -10,8 +10,13 @@ export type T3DeliveryStatus =
 
 export type T3DeliveryProjection = {
   activationCode: string | null;
+  activationId?: string | null;
+  artifactId?: string | null;
   browserFileUnlockCode: string | null;
   deliveryId: string | null;
+  effectiveUntil?: string | null;
+  entitlementEndsAt?: string | null;
+  entitlementId?: string | null;
   entitlementSummary: string | null;
   fileHash: string | null;
   status: T3DeliveryStatus;
@@ -66,6 +71,13 @@ type T3DeliveryTransport = (input: {
 }) => Promise<unknown>;
 
 type T3DeliveryFetch = (url: string, init?: RequestInit) => Promise<Response>;
+
+type DesktopOpenHugeDeliveryBridge = {
+  invoke(
+    operation: T3DeliveryTransportOperation,
+    payload?: Record<string, unknown>
+  ): Promise<unknown>;
+};
 
 const defaultOpenHugeDeliveryFetch: T3DeliveryFetch = (url, init) =>
   fetch.call(globalThis, url, init);
@@ -189,8 +201,13 @@ function normalizeSha256Hex(value: unknown): string | null {
 
 function createDeliveryProjection(input: {
   activationCode?: string | null;
+  activationId?: string | null;
+  artifactId?: string | null;
   browserFileUnlockCode?: string | null;
   deliveryId?: string | null;
+  effectiveUntil?: string | null;
+  entitlementEndsAt?: string | null;
+  entitlementId?: string | null;
   entitlementSummary?: string | null;
   fileHash?: string | null;
   status: T3DeliveryStatus;
@@ -199,8 +216,13 @@ function createDeliveryProjection(input: {
 }): T3DeliveryProjection {
   return {
     activationCode: input.activationCode ?? null,
+    activationId: input.activationId ?? null,
+    artifactId: input.artifactId ?? null,
     browserFileUnlockCode: input.browserFileUnlockCode ?? null,
     deliveryId: input.deliveryId ?? null,
+    effectiveUntil: input.effectiveUntil ?? null,
+    entitlementEndsAt: input.entitlementEndsAt ?? null,
+    entitlementId: input.entitlementId ?? null,
     entitlementSummary: input.entitlementSummary ?? null,
     fileHash: input.fileHash ?? null,
     status: input.status,
@@ -234,8 +256,13 @@ export function normalizeT3DeliveryProjection(value: unknown): T3DeliveryProject
   }
   return {
     activationCode: readString(value.activationCode),
+    activationId: readString(value.activationId),
+    artifactId: readString(value.artifactId),
     browserFileUnlockCode: readString(value.browserFileUnlockCode),
     deliveryId,
+    effectiveUntil: readString(value.effectiveUntil),
+    entitlementEndsAt: readString(value.entitlementEndsAt),
+    entitlementId: readString(value.entitlementId),
     entitlementSummary: readString(value.entitlementSummary),
     fileHash: normalizeSha256Hex(value.fileHash),
     status,
@@ -402,10 +429,24 @@ export function normalizeOpenHugeDeliveryProjection(
   const artifact = readRecord(data.artifact);
   const oneTimeCodes = readRecord(value.one_time_codes) ?? readRecord(data.one_time_codes);
   const codes = readArray(data.codes);
+  const activationId = readString(data.activation_id);
+  const artifactId = readString(data.artifact_id) ?? readString(artifact?.artifact_id);
   const deliveryId =
     readString(delivery.delivery_id) ??
     readString(data.delivery_id) ??
     readString(activation?.delivery_id);
+  const entitlementId =
+    readString(data.entitlement_id) ??
+    readString(delivery.entitlement_id) ??
+    readString(entitlement?.entitlement_id);
+  const entitlementEndsAt =
+    readString(data.entitlement_ends_at) ??
+    readString(entitlement?.service_ends_at) ??
+    readString(entitlement?.ends_at);
+  const effectiveUntil =
+    readString(data.effective_until) ??
+    readString(delivery.effective_until) ??
+    readString(artifact?.carrier_valid_until);
   const activationCode =
     readString(oneTimeCodes?.redemption_code) ?? findOpenHugeCode(codes, "redemption_code");
   const browserFileUnlockCode =
@@ -425,8 +466,13 @@ export function normalizeOpenHugeDeliveryProjection(
     null;
   return normalizeT3DeliveryProjection({
     activationCode,
+    activationId,
+    artifactId,
     browserFileUnlockCode,
     deliveryId,
+    effectiveUntil,
+    entitlementEndsAt,
+    entitlementId,
     entitlementSummary: formatOpenHugeEntitlementSummary(entitlement),
     fileHash: artifactHash,
     status,
@@ -694,7 +740,7 @@ function contentDispositionFileName(value: string | null) {
 
 function createOpenHugeErrorProjection(error: unknown): T3DeliveryProjection {
   if (!(error instanceof OpenHugeRequestError)) {
-    return createFailedDeliveryProjection();
+    return createFailedDeliveryProjection(error instanceof Error ? error.message : undefined);
   }
   const code = error.code?.toLowerCase() ?? "";
   const messageStatus = mapOpenHugeStatus(error.message, "failed");
@@ -1025,10 +1071,46 @@ async function unavailableT3DeliveryTransport() {
   return createUnavailableDeliveryProjection();
 }
 
+function getDesktopOpenHugeDeliveryBridge(): DesktopOpenHugeDeliveryBridge | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const host = (
+    window as Window & {
+      hugeCodeDesktopHost?: {
+        openHugeDelivery?: DesktopOpenHugeDeliveryBridge;
+      };
+    }
+  ).hugeCodeDesktopHost;
+  return host?.openHugeDelivery ?? null;
+}
+
+function createDesktopOpenHugeDeliveryTransport(
+  bridge: DesktopOpenHugeDeliveryBridge
+): T3DeliveryTransport {
+  return async ({ body, operation }) => {
+    const response = await bridge.invoke(operation, isRecord(body) ? body : { value: body });
+    if (operation === "prepare") {
+      return normalizeOpenHugeDeliveryProjection(response, {
+        status: "prepared",
+        summary: "OpenHuge prepared delivery and returned one-time delivery codes.",
+      });
+    }
+    if (operation === "readStatus" || operation === "submitExportWitness") {
+      return normalizeOpenHugeDeliveryProjection(response);
+    }
+    return response;
+  };
+}
+
 export function createOpenHugeDeliveryTransport(
   config: T3OpenHugeDeliveryConfig | null = readOpenHugeDeliveryConfig(),
   fetcher: T3DeliveryFetch = defaultOpenHugeDeliveryFetch
 ): T3DeliveryTransport {
+  const desktopBridge = getDesktopOpenHugeDeliveryBridge();
+  if (desktopBridge) {
+    return createDesktopOpenHugeDeliveryTransport(desktopBridge);
+  }
   if (!config) {
     return unavailableT3DeliveryTransport;
   }
@@ -1063,8 +1145,8 @@ async function requestProjection(
 ) {
   try {
     return normalizeT3DeliveryProjection(await transport({ body, operation }));
-  } catch {
-    return createFailedDeliveryProjection();
+  } catch (error) {
+    return createOpenHugeErrorProjection(error);
   }
 }
 
@@ -1075,10 +1157,10 @@ async function requestRedeemResult(
 ): Promise<T3DeliveryRedeemResult> {
   try {
     return normalizeT3DeliveryRedeemResult(await transport({ body, operation }));
-  } catch {
+  } catch (error) {
     return {
       artifact: null,
-      projection: createFailedDeliveryProjection(),
+      projection: createOpenHugeErrorProjection(error),
     };
   }
 }

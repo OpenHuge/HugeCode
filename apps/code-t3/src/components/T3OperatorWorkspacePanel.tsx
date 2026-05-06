@@ -91,13 +91,19 @@ export function T3OperatorWorkspacePanel({
       }
       const projection = await deliveryService.prepare({ provider: "chatgpt" });
       setDeliveryProjection(projection);
-      if (projection.browserFileUnlockCode) {
-        onAccountImportCodeChange(projection.browserFileUnlockCode);
-      }
       if (projection.status !== "prepared" && projection.status !== "exported") {
         onNotice(projection.summary);
         return;
       }
+      const customerRedemptionCode = projection.activationCode?.trim() ?? "";
+      if (!customerRedemptionCode) {
+        onAccountImportCodeChange("");
+        onNotice(
+          "OpenHuge 后端没有返回客户兑换码，本次交付已阻断。请检查生产端后端配置与内部授权。"
+        );
+        return;
+      }
+      onAccountImportCodeChange(customerRedemptionCode);
       onNotice(projection.summary);
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Unable to prepare delivery.");
@@ -120,7 +126,13 @@ export function T3OperatorWorkspacePanel({
         artifact,
         deliveryId: deliveryProjection.deliveryId,
       });
-      setDeliveryProjection(projection);
+      setDeliveryProjection({
+        ...projection,
+        activationCode: projection.activationCode ?? deliveryProjection.activationCode,
+        browserFileUnlockCode:
+          projection.browserFileUnlockCode ?? deliveryProjection.browserFileUnlockCode,
+        entitlementSummary: projection.entitlementSummary ?? deliveryProjection.entitlementSummary,
+      });
       onNotice(projection.summary);
     } catch (error) {
       onNotice(error instanceof Error ? error.message : "Unable to submit export witness.");
@@ -172,8 +184,8 @@ export function T3OperatorWorkspacePanel({
               {exported
                 ? "加密交付物已上传"
                 : readyToExport
-                  ? "文件解锁码已就绪，可以上传"
-                  : "等待 prepared 与文件解锁码"}
+                  ? "交付解锁码已就绪，可以上传"
+                  : "等待 prepared 与客户兑换码"}
             </small>
           </span>
         </article>
@@ -200,17 +212,18 @@ export function T3OperatorWorkspacePanel({
           准备交付
         </Button>
         <label className="t3-operator-workspace-file-code" htmlFor="t3-browser-file-unlock-code">
-          <span>文件解锁码</span>
+          <span>交付解锁码</span>
           <Input
             id="t3-browser-file-unlock-code"
             value={accountImportCode}
             onChange={(event) => onAccountImportCodeChange(event.target.value)}
-            aria-label="文件解锁码"
-            placeholder="输入后端返回的文件解锁码"
+            aria-label="交付解锁码"
+            placeholder="点击准备交付后自动回填"
+            readOnly
             type="password"
             variant="secondary"
           />
-          <small>这是 `.hcbrowser` 文件解锁码，不是客户激活码。</small>
+          <small>使用客户兑换码加密 `.hcbrowser`，客户只需一个兑换码恢复。</small>
         </label>
         <Button
           type="button"
@@ -239,7 +252,7 @@ export function T3OperatorWorkspacePanel({
           </div>
           <div>
             <dt>文件解锁材料</dt>
-            <dd>{deliveryProjection.browserFileUnlockCode ? "后端投影已承载" : "后端未返回"}</dd>
+            <dd>{deliveryProjection.activationCode ? "使用客户兑换码" : "后端未返回"}</dd>
           </div>
           <div>
             <dt>服务状态</dt>

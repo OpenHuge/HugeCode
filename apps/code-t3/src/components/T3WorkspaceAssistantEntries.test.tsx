@@ -173,8 +173,8 @@ describe("T3WorkspaceAssistantEntries", () => {
 
     expect(container.querySelectorAll(".t3-main-entry-card")).toHaveLength(0);
     expect(container.textContent).toContain("兑换交付");
-    expect(container.textContent).toContain("输入兑换码会按普通用户流程恢复交付");
-    expect(container.textContent).toContain("验证并恢复");
+    expect(container.textContent).toContain("请输入兑换码");
+    expect(container.textContent).toContain("确定");
     expect(container.querySelectorAll("input")).toHaveLength(1);
     expect(container.querySelector("input[aria-label='兑换码']")).not.toBeNull();
     expect(container.querySelector("input[aria-label='文件解锁码']")).toBeNull();
@@ -326,7 +326,7 @@ describe("T3WorkspaceAssistantEntries", () => {
     expect(onAssistantPageChange).not.toHaveBeenCalled();
   });
 
-  it("keeps imported customer mode on the ChatGPT browser path only", () => {
+  it("keeps customer mode on the redemption gate even after local browser data exists", () => {
     const onLoginChatGptAccount = vi.fn();
     const onOpenBrowser = vi.fn();
     const { container } = renderAssistantEntries({
@@ -339,24 +339,24 @@ describe("T3WorkspaceAssistantEntries", () => {
       (button) => button.textContent?.includes("打开 ChatGPT 内置浏览器") ?? false
     );
 
-    expect(startupCards).toHaveLength(1);
-    expect(startupCards[0]?.className).toContain("browser");
+    expect(startupCards).toHaveLength(0);
+    expect(container.textContent).toContain("兑换交付");
+    expect(container.textContent).toContain("确定");
     expect(container.textContent).not.toContain("账户池管理");
     expect(container.textContent).not.toContain("中转助手");
     expect(container.querySelector("input[aria-label='文件解锁码']")).toBeNull();
     expect(container.textContent).not.toContain("导入浏览器文件");
-    expect(chatGptButton).not.toBeNull();
-    click(chatGptButton!);
+    expect(chatGptButton).toBeUndefined();
 
-    expect(onLoginChatGptAccount).toHaveBeenCalledOnce();
+    expect(onLoginChatGptAccount).not.toHaveBeenCalled();
     expect(onOpenBrowser).not.toHaveBeenCalled();
   });
 
   it("falls back to the customer home entry when a frozen operation page is requested", () => {
     const { container } = renderAssistantEntriesWithPage("relay");
 
-    expect(container.textContent).toContain("浏览器");
-    expect(container.textContent).toContain("打开 ChatGPT 内置浏览器");
+    expect(container.textContent).toContain("兑换交付");
+    expect(container.textContent).toContain("确定");
     expect(container.textContent).not.toContain("TokenFlux");
     expect(container.textContent).not.toContain("设为内置 Codex 中转");
   });
@@ -394,6 +394,7 @@ describe("T3WorkspaceAssistantEntries", () => {
   });
 
   it("shows ChatGPT local browser import action after browser data is imported", () => {
+    setRuntimeRole("developer");
     const onLoginChatGptAccount = vi.fn();
     const { container } = renderAssistantEntries({
       browserDataImported: true,

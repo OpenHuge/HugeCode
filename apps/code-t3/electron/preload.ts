@@ -16,6 +16,17 @@ const BROWSER_CHROME_GO_FORWARD_CHANNEL = "hugecode:browser-chrome:go-forward";
 const BROWSER_CHROME_RELOAD_CHANNEL = "hugecode:browser-chrome:reload";
 const BROWSER_CHROME_STOP_CHANNEL = "hugecode:browser-chrome:stop";
 const BROWSER_CHROME_SNAPSHOT_CHANNEL = "hugecode:browser-chrome:snapshot";
+const OPENHUGE_DELIVERY_INVOKE_CHANNEL = "hugecode:openhuge-delivery:invoke";
+const OPENHUGE_CONSUMER_DEBUG_CHANNEL = "hugecode:openhuge-consumer-debug:write";
+const EMBEDDED_BROWSER_SHOW_CHANNEL = "hugecode:embedded-browser:show";
+const EMBEDDED_BROWSER_SET_BOUNDS_CHANNEL = "hugecode:embedded-browser:set-bounds";
+const EMBEDDED_BROWSER_HIDE_CHANNEL = "hugecode:embedded-browser:hide";
+const EMBEDDED_BROWSER_AUTH_REQUIRED_CHANNEL = "hugecode:embedded-browser:auth-required";
+const OPERATOR_UNLOCK_OVERLAY_SHOW_CHANNEL = "hugecode:operator-unlock-overlay:show";
+const OPERATOR_UNLOCK_OVERLAY_CLOSE_CHANNEL = "hugecode:operator-unlock-overlay:close";
+const OPERATOR_UNLOCK_OVERLAY_ATTEMPT_CHANNEL = "hugecode:operator-unlock-overlay:attempt";
+const OPERATOR_UNLOCK_OVERLAY_SUBMIT_CHANNEL = "hugecode:operator-unlock-overlay:submit";
+const OPERATOR_UNLOCK_OVERLAY_RESOLVE_CHANNEL = "hugecode:operator-unlock-overlay:resolve";
 
 contextBridge.exposeInMainWorld("hugeCodeDesktop", {
   kind: "electron",
@@ -61,5 +72,36 @@ contextBridge.exposeInMainWorld("hugeCodeDesktopHost", {
   core: {
     invoke: (method: string, payload?: Record<string, unknown>) =>
       ipcRenderer.invoke(RUNTIME_RPC_INVOKE_CHANNEL, method, payload ?? {}),
+  },
+  embeddedBrowser: {
+    hide: () => ipcRenderer.invoke(EMBEDDED_BROWSER_HIDE_CHANNEL),
+    setBounds: (input: unknown) => ipcRenderer.invoke(EMBEDDED_BROWSER_SET_BOUNDS_CHANNEL, input),
+    show: (input: unknown) => ipcRenderer.invoke(EMBEDDED_BROWSER_SHOW_CHANNEL, input),
+    subscribeAuthRequired: (listener: (payload: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: unknown) => listener(payload);
+      ipcRenderer.on(EMBEDDED_BROWSER_AUTH_REQUIRED_CHANNEL, handler);
+      return () => ipcRenderer.removeListener(EMBEDDED_BROWSER_AUTH_REQUIRED_CHANNEL, handler);
+    },
+  },
+  operatorUnlockOverlay: {
+    close: () => ipcRenderer.invoke(OPERATOR_UNLOCK_OVERLAY_CLOSE_CHANNEL),
+    resolveSubmit: (input: unknown) =>
+      ipcRenderer.invoke(OPERATOR_UNLOCK_OVERLAY_RESOLVE_CHANNEL, input),
+    show: () => ipcRenderer.invoke(OPERATOR_UNLOCK_OVERLAY_SHOW_CHANNEL),
+    submitPassword: (input: unknown) =>
+      ipcRenderer.invoke(OPERATOR_UNLOCK_OVERLAY_ATTEMPT_CHANNEL, input),
+    subscribeSubmit: (listener: (payload: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: unknown) => listener(payload);
+      ipcRenderer.on(OPERATOR_UNLOCK_OVERLAY_SUBMIT_CHANNEL, handler);
+      return () => ipcRenderer.removeListener(OPERATOR_UNLOCK_OVERLAY_SUBMIT_CHANNEL, handler);
+    },
+  },
+  openHugeDelivery: {
+    invoke: (operation: string, payload?: Record<string, unknown>) =>
+      ipcRenderer.invoke(OPENHUGE_DELIVERY_INVOKE_CHANNEL, operation, payload ?? {}),
+  },
+  openHugeConsumerDebug: {
+    write: (event: string, payload?: Record<string, unknown>) =>
+      ipcRenderer.invoke(OPENHUGE_CONSUMER_DEBUG_CHANNEL, { event, payload: payload ?? {} }),
   },
 });

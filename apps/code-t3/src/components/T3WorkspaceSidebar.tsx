@@ -71,14 +71,21 @@ export function T3WorkspaceSidebar({
   onSelectProvider,
 }: T3WorkspaceSidebarProps) {
   const runtimeRole = readT3P0RuntimeRoleMode();
+  const customerShellMode = runtimeRole === "customer";
   const showBrowserManagement = runtimeRole !== "customer";
   return (
     <aside className="t3-sidebar" aria-label="HugeCode T3 navigation" aria-expanded={sidebarOpen}>
       <div className="t3-sidebar-header">
         <div className="t3-brand">
-          <T3Wordmark />
-          <strong>Code</strong>
-          <span className="t3-stage-pill">{text.devStage}</span>
+          {customerShellMode ? (
+            <strong className="t3-brand-product">HugeCode</strong>
+          ) : (
+            <>
+              <T3Wordmark />
+              <strong>Code</strong>
+              <span className="t3-stage-pill">{text.devStage}</span>
+            </>
+          )}
         </div>
         <button
           className="t3-icon-button"
@@ -105,8 +112,8 @@ export function T3WorkspaceSidebar({
         <button className="t3-project-row active" type="button">
           <span className="t3-project-dot" />
           <span>
-            <strong>hugecode</strong>
-            <small>{workspaceId}</small>
+            <strong>{customerShellMode ? "HugeCode" : "hugecode"}</strong>
+            <small>{customerShellMode ? "产品工作区" : workspaceId}</small>
           </span>
         </button>
       </section>
@@ -124,8 +131,10 @@ export function T3WorkspaceSidebar({
         >
           <span className="t3-thread-status assistant" />
           <span>
-            <strong>{providerTitle(selectedProvider)}</strong>
-            <small>{selectedRoute?.modelId ?? text.runtimeDefault}</small>
+            <strong>{customerShellMode ? "ChatGPT" : providerTitle(selectedProvider)}</strong>
+            <small>
+              {customerShellMode ? "已连接" : (selectedRoute?.modelId ?? text.runtimeDefault)}
+            </small>
           </span>
         </button>
         <T3WorkspaceAssistantThreadRows
@@ -150,32 +159,43 @@ export function T3WorkspaceSidebar({
       </section>
 
       <footer className="t3-sidebar-footer">
-        <div className="t3-sidebar-provider-select" aria-label={text.providers}>
-          <span>
-            <label htmlFor="t3-sidebar-provider-select">{text.providers}</label>
-            <button type="button" onClick={onRefreshRoutes} aria-label={text.refreshLocalProviders}>
-              <RefreshCw className={loadingRoutes ? "spin" : undefined} size={13} />
-            </button>
-          </span>
-          <select
-            id="t3-sidebar-provider-select"
-            value={selectedProvider}
-            onChange={(event) => {
-              const provider = event.target.value === "claudeAgent" ? "claudeAgent" : "codex";
-              onSelectProvider(provider);
-            }}
-          >
-            {providerOrder.map((provider) => {
-              const route = routes.find((candidate) => candidate.provider === provider);
-              return (
-                <option key={provider} value={provider}>
-                  {providerTitle(provider)} · {route?.modelId ?? text.localCli} ·{" "}
-                  {statusLabel(route, locale)}
-                </option>
-              );
-            })}
-          </select>
-        </div>
+        {customerShellMode ? (
+          <div className="t3-sidebar-provider-summary" aria-label="模型">
+            <span>模型</span>
+            <strong>{selectedRoute?.modelId ?? "GPT"}</strong>
+          </div>
+        ) : (
+          <div className="t3-sidebar-provider-select" aria-label={text.providers}>
+            <span>
+              <label htmlFor="t3-sidebar-provider-select">{text.providers}</label>
+              <button
+                type="button"
+                onClick={onRefreshRoutes}
+                aria-label={text.refreshLocalProviders}
+              >
+                <RefreshCw className={loadingRoutes ? "spin" : undefined} size={13} />
+              </button>
+            </span>
+            <select
+              id="t3-sidebar-provider-select"
+              value={selectedProvider}
+              onChange={(event) => {
+                const provider = event.target.value === "claudeAgent" ? "claudeAgent" : "codex";
+                onSelectProvider(provider);
+              }}
+            >
+              {providerOrder.map((provider) => {
+                const route = routes.find((candidate) => candidate.provider === provider);
+                return (
+                  <option key={provider} value={provider}>
+                    {providerTitle(provider)} · {route?.modelId ?? text.localCli} ·{" "}
+                    {statusLabel(route, locale)}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        )}
         <button type="button">
           <Settings size={14} />
           <span>{text.settings}</span>

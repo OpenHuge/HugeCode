@@ -332,6 +332,131 @@ describe("t3DeliveryService", () => {
     );
   });
 
+  it("normalizes OpenHuge prepare responses returned through the desktop bridge", async () => {
+    const desktopInvoke = vi.fn(async () => ({
+      data: {
+        delivery: {
+          delivery_id: "delivery_desktop_10001",
+          status: "prepared",
+        },
+        entitlement: {
+          service_days: 30,
+          service_ends_at: "2026-06-04T10:00:00Z",
+          status: "active",
+        },
+      },
+      one_time_codes: {
+        browser_file_unlock_code: "ku0-brw-v1-260505-desktop-unlock-76",
+        redemption_code: "ku0-red-v1-260505-desktop-redeem-7b",
+      },
+    }));
+    const desktopWindow = window as Window & {
+      hugeCodeDesktopHost?: {
+        openHugeDelivery?: {
+          invoke: typeof desktopInvoke;
+        };
+      };
+    };
+    const fetcher = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+    desktopWindow.hugeCodeDesktopHost = {
+      openHugeDelivery: {
+        invoke: desktopInvoke,
+      },
+    };
+    try {
+      const service = createT3DeliveryService(
+        createOpenHugeDeliveryTransport(openHugeConfig, fetcher)
+      );
+
+      await expect(service.prepare({ provider: "chatgpt" })).resolves.toEqual(
+        expect.objectContaining({
+          activationCode: "ku0-red-v1-260505-desktop-redeem-7b",
+          browserFileUnlockCode: "ku0-brw-v1-260505-desktop-unlock-76",
+          deliveryId: "delivery_desktop_10001",
+          status: "prepared",
+        })
+      );
+      expect(desktopInvoke).toHaveBeenCalledWith("prepare", { provider: "chatgpt" });
+      expect(fetcher).not.toHaveBeenCalled();
+    } finally {
+      delete desktopWindow.hugeCodeDesktopHost;
+    }
+  });
+
+  it("uses the desktop bridge for customer readStatus refreshes", async () => {
+    const desktopInvoke = vi.fn(async () => ({
+      data: {
+        artifact: {
+          sha256: `sha256:${"d".repeat(64)}`,
+          status: "active",
+        },
+        delivery: {
+          delivery_id: "delivery_desktop_10002",
+          status: "active",
+          updated_at: "2026-05-06T04:40:00Z",
+        },
+      },
+    }));
+    const desktopWindow = window as Window & {
+      hugeCodeDesktopHost?: {
+        openHugeDelivery?: {
+          invoke: typeof desktopInvoke;
+        };
+      };
+    };
+    desktopWindow.hugeCodeDesktopHost = {
+      openHugeDelivery: {
+        invoke: desktopInvoke,
+      },
+    };
+    try {
+      const service = createT3DeliveryService(createOpenHugeDeliveryTransport(openHugeConfig));
+
+      await expect(service.readStatus({ deliveryId: "delivery_desktop_10002" })).resolves.toEqual(
+        expect.objectContaining({
+          deliveryId: "delivery_desktop_10002",
+          fileHash: "d".repeat(64),
+          status: "exported",
+        })
+      );
+      expect(desktopInvoke).toHaveBeenCalledWith("readStatus", {
+        deliveryId: "delivery_desktop_10002",
+      });
+    } finally {
+      delete desktopWindow.hugeCodeDesktopHost;
+    }
+  });
+
+  it("surfaces desktop bridge readStatus failures instead of generic fail-closed text", async () => {
+    const desktopInvoke = vi.fn(async () => {
+      throw new Error("OpenHuge delivery operation readStatus is not available from desktop.");
+    });
+    const desktopWindow = window as Window & {
+      hugeCodeDesktopHost?: {
+        openHugeDelivery?: {
+          invoke: typeof desktopInvoke;
+        };
+      };
+    };
+    desktopWindow.hugeCodeDesktopHost = {
+      openHugeDelivery: {
+        invoke: desktopInvoke,
+      },
+    };
+    try {
+      const service = createT3DeliveryService(createOpenHugeDeliveryTransport(openHugeConfig));
+
+      await expect(service.readStatus({ deliveryId: "delivery_desktop_10002" })).resolves.toEqual(
+        expect.objectContaining({
+          status: "failed",
+          summary: "OpenHuge delivery operation readStatus is not available from desktop.",
+        })
+      );
+    } finally {
+      delete desktopWindow.hugeCodeDesktopHost;
+    }
+  });
+
   it("binds the browser global fetch when constructing the real transport", async () => {
     const originalFetch = globalThis.fetch;
     const strictFetch = vi.fn(function (this: unknown, _url: string, _init?: RequestInit) {
@@ -488,12 +613,17 @@ describe("t3DeliveryService", () => {
         jsonResponse({
           data: {
             activation_id: "activation_10002",
+            artifact_id: "artifact_10002",
             artifact: {
+              artifact_id: "artifact_10002",
+              carrier_valid_until: "2026-05-20T10:00:00Z",
               file_name: "acme-may.hcbrowser",
               sha256: `sha256:${"e".repeat(64)}`,
               status: "active",
             },
             delivery_id: "delivery_10001",
+            entitlement_ends_at: "2026-06-04T10:00:00Z",
+            entitlement_id: "dlvent_delivery_10001",
             status: "activated",
           },
         })
@@ -501,11 +631,15 @@ describe("t3DeliveryService", () => {
       .mockResolvedValueOnce(
         jsonResponse({
           data: {
+            artifact_id: "artifact_10002",
             artifact: {
+              artifact_id: "artifact_10002",
+              carrier_valid_until: "2026-05-20T10:00:00Z",
               file_name: "acme-may.hcbrowser",
               sha256: `sha256:${"e".repeat(64)}`,
               status: "active",
             },
+            entitlement_id: "dlvent_delivery_10001",
             grant_id: "dlgrant_10003",
             status: "active",
           },
@@ -533,8 +667,13 @@ describe("t3DeliveryService", () => {
         serialized: "encrypted hcbrowser payload",
       }),
       projection: expect.objectContaining({
+        activationId: "activation_10002",
+        artifactId: "artifact_10002",
         browserFileUnlockCode: null,
         deliveryId: "delivery_10001",
+        effectiveUntil: "2026-05-20T10:00:00Z",
+        entitlementEndsAt: "2026-06-04T10:00:00Z",
+        entitlementId: "dlvent_delivery_10001",
         fileHash: "e".repeat(64),
         status: "redeemed",
       }),
